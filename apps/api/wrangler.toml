@@ -6,6 +6,7 @@ compatibility_date = "2026-02-28"
 binding = "DB"
 database_name = "openshelf-db"
 database_id = "652de1e3-ee65-4733-98a7-8f93863e1a02"
+migrations_dir = "drizzle"
 
 [[r2_buckets]]
 bucket_name = "openshelf-files"
