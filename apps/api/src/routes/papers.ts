@@ -10,6 +10,10 @@ import {
     users,
     coauthorInvites,
     enableForeignKeys,
+    VALID_VENUE_TYPES,
+    VALID_CATEGORIES,
+    type VenueType,
+    type CategoryType,
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -65,6 +69,14 @@ papersRoute.post("/", authMiddleware, async (c) => {
     const vis = (meta.visibility as string) || "private";
     if (!VALID_VISIBILITY.includes(vis))
         return c.json({ error: "Invalid visibility" }, 400);
+
+    const venueType = (meta.venueType as string | null | undefined) ?? null;
+    if (venueType !== null && !(VALID_VENUE_TYPES as readonly string[]).includes(venueType))
+        return c.json({ error: "Invalid venueType" }, 400);
+
+    const category = (meta.category as string | null | undefined) ?? null;
+    if (category !== null && !(VALID_CATEGORIES as readonly string[]).includes(category))
+        return c.json({ error: "Invalid category" }, 400);
 
     const paperId = crypto.randomUUID();
     const userId = c.get("user").sub;
@@ -127,24 +139,9 @@ papersRoute.post("/", authMiddleware, async (c) => {
         externalUrl: (meta.externalUrl as string) || null,
         doi: (meta.doi as string) || null,
         venue: (meta.venue as string) || null,
-        venueType:
-            (meta.venueType as
-                | "conference"
-                | "journal"
-                | "workshop"
-                | "other"
-                | null
-                | undefined) ?? null,
+        venueType: venueType as VenueType | null,
         year: meta.year ? Number(meta.year) : null,
-        category:
-            (meta.category as
-                | "thesis_bachelor"
-                | "thesis_master"
-                | "report"
-                | "presentation"
-                | "other"
-                | null
-                | undefined) ?? null,
+        category: category as CategoryType | null,
         tags: meta.tags ? JSON.stringify(meta.tags) : null,
     };
 
