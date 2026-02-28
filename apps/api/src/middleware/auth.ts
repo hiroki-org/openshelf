@@ -1,13 +1,13 @@
 import { createMiddleware } from "hono/factory";
 import { verify } from "hono/jwt";
-import { getCookie } from "hono/cookie";
 import type { Env, JwtPayload, Variables } from "../types";
 
 export const authMiddleware = createMiddleware<{
     Bindings: Env;
     Variables: Variables;
 }>(async (c, next) => {
-    const token = getCookie(c, "token");
+    const authHeader = c.req.header("Authorization");
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     if (!token) {
         return c.json({ error: "Unauthorized" }, 401);
     }

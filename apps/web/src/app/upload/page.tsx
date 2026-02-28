@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/auth-provider";
+import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -110,9 +111,8 @@ export default function UploadPage() {
         formData.append(`file_types_${i}`, entry.fileType);
       });
 
-      const res = await fetch("/api/papers", {
+      const res = await apiFetch("/api/papers", {
         method: "POST",
-        credentials: "include",
         body: formData,
       });
 

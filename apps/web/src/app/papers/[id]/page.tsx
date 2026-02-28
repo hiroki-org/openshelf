@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/auth-provider";
+import { apiFetch } from "@/lib/api";
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
@@ -73,9 +74,7 @@ export default function PaperDetailPage() {
 
   const fetchPaper = useCallback(async () => {
     try {
-      const res = await fetch(`/api/papers/${paperId}`, {
-        credentials: "include",
-      });
+      const res = await apiFetch(`/api/papers/${paperId}`);
       if (!res.ok) {
         setError("論文が見つかりません");
         return;
@@ -94,9 +93,7 @@ export default function PaperDetailPage() {
   const fetchInvites = useCallback(async () => {
     if (!isUploader) return;
     try {
-      const res = await fetch(`/api/papers/${paperId}/invites`, {
-        credentials: "include",
-      });
+      const res = await apiFetch(`/api/papers/${paperId}/invites`);
       if (res.ok) {
         const data = await res.json();
         setInvites(data.invites);
@@ -121,9 +118,7 @@ export default function PaperDetailPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`, {
-        credentials: "include",
-      });
+      const res = await apiFetch(`/api/users/search?q=${encodeURIComponent(q)}`);
       if (res.ok) {
         const data = await res.json();
         setSearchResults(data.users);
@@ -138,9 +133,8 @@ export default function PaperDetailPage() {
   const handleInvite = async (inviteeId: string) => {
     setInviting(true);
     try {
-      const res = await fetch(`/api/papers/${paperId}/invites`, {
+      const res = await apiFetch(`/api/papers/${paperId}/invites`, {
         method: "POST",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ inviteeId }),
       });

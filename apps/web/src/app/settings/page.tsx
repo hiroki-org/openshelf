@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/auth-provider";
+import { apiFetch } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -30,9 +31,8 @@ export default function SettingsPage() {
     setMessageType(null);
     try {
       const trimmed = displayName.trim();
-      const res = await fetch("/api/users/me", {
+      const res = await apiFetch("/api/users/me", {
         method: "PATCH",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           displayName: trimmed.length > 0 ? trimmed : null,
