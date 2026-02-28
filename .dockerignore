@@ -1,0 +1,59 @@
+# Docker build context exclusions for monorepo
+# Reduces context size by ~500MB+ and improves build time
+
+# Root level
+.git
+.gitignore
+.env*
+*.md
+.vscode
+.idea
+LICENSE
+
+# Dependencies
+node_modules
+**/node_modules
+
+# Build outputs / cache
+dist
+build
+.next
+.turbo
+coverage
+.nyc_output
+
+# Test & dev files
+**/__tests__
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+vitest.config.ts
+vitest.setup.ts
+jest.config.js
+
+# IDE  
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# CI/CD
+.github/workflows
+.github/actions
+
+# Monorepo workspace exclusions (build only what's needed)
+# apps/api (exclude from web context)
+apps/api/src
+apps/api/wrangler.toml
+apps/api/drizzle.config.ts
+
+# Keep only necessary package.json files
+!package.json
+!apps/web/package.json
+!package-lock.json
