@@ -30,7 +30,14 @@ describe("authMiddleware", () => {
         const app = new Hono<{ Bindings: Env, Variables: Variables }>();
         app.use("*", async (c, next) => {
             // Mock c.env for testing
-            c.env = { JWT_SECRET: SECRET } as Env;
+            c.env = {
+                JWT_SECRET: SECRET,
+                DB: undefined as any,
+                BUCKET: undefined as any,
+                GITHUB_CLIENT_ID: "",
+                GITHUB_CLIENT_SECRET: "",
+                FRONTEND_URL: "",
+            };
             await next();
         });
         app.get("/protected", authMiddleware, (c) => c.json({ user: c.get("user") }));
