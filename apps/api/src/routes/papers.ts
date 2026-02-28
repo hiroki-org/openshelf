@@ -150,12 +150,14 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
     const uploadedKeys: string[] = [];
     try {
-        for (const entry of uploads) {
-            await c.env.BUCKET.put(entry.r2Key, entry.file.stream(), {
-                httpMetadata: { contentType: entry.file.type },
-            });
-            uploadedKeys.push(entry.r2Key);
-        }
+        await Promise.all(
+            uploads.map(async (entry) => {
+                await c.env.BUCKET.put(entry.r2Key, entry.file.stream(), {
+                    httpMetadata: { contentType: entry.file.type },
+                });
+                uploadedKeys.push(entry.r2Key);
+            }),
+        );
 
         await db.insert(papers).values(paperValues);
 
