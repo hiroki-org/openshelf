@@ -67,19 +67,55 @@ describe("papers routes", () => {
     });
 
     it("GET /api/papers/:id returns paper details", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi
             .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "public" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
             .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "file-1", filename: "paper.pdf" }] }))
             .mockImplementationOnce(() => makeQuery({ allResult: [{ userId: "user-1", role: "uploader", name: "Uploader", displayName: null, avatarUrl: null }] }));
 
         const app = await createTestApp();
         const env = createTestEnv();
-        const res = await app.request("http://localhost/api/papers/paper-1", {}, env as any);
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            { headers: { Authorization: `Bearer ${token}` } },
+            env as any
+        );
 
         expect(res.status).toBe(200);
         const body = (await res.json()) as any;
         expect(body.paper.id).toBe("paper-1");
+    });
+
+    it("GET /api/papers/:id returns 401 for private paper without Bearer token", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "private" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request("http://localhost/api/papers/paper-1", {}, env as any);
+
+        expect(res.status).toBe(401);
+    });
+
+    it("GET /api/papers/:id returns 403 for private paper when requester is not an author", async () => {
+        const token = await createTestJWT({ sub: "user-2", githubId: "456", name: "Other User" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: null }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            { headers: { Authorization: `Bearer ${token}` } },
+            env as any
+        );
+
+        expect(res.status).toBe(403);
     });
 
     it("DELETE /api/papers/:id deletes a paper", async () => {
