@@ -151,6 +151,8 @@ papersRoute.post("/", authMiddleware, async (c) => {
     const uploadedKeys: string[] = [];
     try {
         for (const entry of uploads) {
+            // Use arrayBuffer for R2 put type compatibility in Workers/Vitest runtime.
+            // Memory impact is bounded by MAX_FILE_SIZE (50 MB).
             const fileBuffer = await entry.file.arrayBuffer();
             await c.env.BUCKET.put(
                 entry.r2Key,

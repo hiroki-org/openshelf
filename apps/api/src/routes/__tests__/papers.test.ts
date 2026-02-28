@@ -1,30 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createTestApp, createTestEnv, createTestJWT } from "../../test/helpers";
+import {
+    createTestApp,
+    createTestEnv,
+    createTestJWT,
+    makeQuery,
+} from "../../test/helpers";
 
 let mockDb: any;
 
 vi.mock("drizzle-orm/d1", () => ({
     drizzle: vi.fn(() => mockDb)
 }));
-
-function makeQuery({ getResult = null, allResult = [] }: { getResult?: unknown; allResult?: unknown[] } = {}) {
-    return {
-        from() {
-            return this;
-        },
-        where() {
-            return this;
-        },
-        innerJoin() {
-            return this;
-        },
-        limit() {
-            return this;
-        },
-        get: vi.fn(async () => getResult),
-        all: vi.fn(async () => allResult)
-    };
-}
 
 describe("papers routes", () => {
     beforeEach(() => {

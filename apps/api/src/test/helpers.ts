@@ -47,12 +47,25 @@ export async function createExpiredJWT(payload: Record<string, unknown>): Promis
     );
 }
 
-export async function setupTestDB(): Promise<Map<string, unknown>> {
-    return new Map<string, unknown>();
-}
-
-export async function cleanupTestDB(db: Map<string, unknown>): Promise<void> {
-    db.clear();
+export function makeQuery(
+    { getResult = null, allResult = [] }: { getResult?: unknown; allResult?: unknown[] } = {},
+) {
+    return {
+        from() {
+            return this;
+        },
+        where() {
+            return this;
+        },
+        innerJoin() {
+            return this;
+        },
+        limit() {
+            return this;
+        },
+        get: async () => getResult,
+        all: async () => allResult,
+    };
 }
 
 export function createMockR2() {
