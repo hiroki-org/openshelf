@@ -150,18 +150,29 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
     const uploadedKeys: string[] = [];
     try {
-        for (const entry of uploads) {
-            // Use arrayBuffer for R2 put type compatibility in Workers/Vitest runtime.
-            // Memory impact is bounded by MAX_FILE_SIZE (50 MB).
-            const fileBuffer = await entry.file.arrayBuffer();
-            await c.env.BUCKET.put(
-                entry.r2Key,
-                fileBuffer,
-                {
+        const results = await Promise.allSettled(
+            uploads.map(async (entry) => {
+                // Use arrayBuffer for R2 put type compatibility in Workers/Vitest runtime.
+                // Memory impact is bounded by MAX_FILE_SIZE (50 MB).
+                const fileBuffer = await entry.file.arrayBuffer();
+                await c.env.BUCKET.put(entry.r2Key, fileBuffer, {
                     httpMetadata: { contentType: entry.file.type },
-                },
-            );
-            uploadedKeys.push(entry.r2Key);
+                });
+                return entry.r2Key;
+            }),
+        );
+
+        for (const result of results) {
+            if (result.status === "fulfilled") {
+                uploadedKeys.push(result.value);
+            }
+        }
+
+        if (uploadedKeys.length < uploads.length) {
+            const firstFailure = results.find(
+                (r) => r.status === "rejected",
+            ) as PromiseRejectedResult;
+            throw firstFailure?.reason ?? new Error("An unknown upload error occurred.");
         }
 
         await db.insert(papers).values(paperValues);
@@ -246,24 +257,23 @@ papersRoute.get("/:id", async (c) => {
         }
     }
 
-    const files = await db
-        .select()
-        .from(paperFiles)
-        .where(eq(paperFiles.paperId, paperId))
-        .all();
-
-    const authors = await db
-        .select({
-            userId: paperAuthors.userId,
-            role: paperAuthors.role,
-            name: users.name,
-            displayName: users.displayName,
-            avatarUrl: users.avatarUrl,
-        })
-        .from(paperAuthors)
-        .innerJoin(users, eq(paperAuthors.userId, users.id))
-        .where(eq(paperAuthors.paperId, paperId))
-        .all();
+    const [files, authors] = await db.batch([
+        db
+            .select()
+            .from(paperFiles)
+            .where(eq(paperFiles.paperId, paperId)),
+        db
+            .select({
+                userId: paperAuthors.userId,
+                role: paperAuthors.role,
+                name: users.name,
+                displayName: users.displayName,
+                avatarUrl: users.avatarUrl,
+            })
+            .from(paperAuthors)
+            .innerJoin(users, eq(paperAuthors.userId, users.id))
+            .where(eq(paperAuthors.paperId, paperId)),
+    ]);
 
     return c.json({ paper, files, authors });
 });
