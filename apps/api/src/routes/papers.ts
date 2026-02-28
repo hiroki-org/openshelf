@@ -150,14 +150,27 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
     const uploadedKeys: string[] = [];
     try {
-        await Promise.all(
+        const results = await Promise.allSettled(
             uploads.map(async (entry) => {
                 await c.env.BUCKET.put(entry.r2Key, entry.file.stream(), {
                     httpMetadata: { contentType: entry.file.type },
                 });
-                uploadedKeys.push(entry.r2Key);
+                return entry.r2Key;
             }),
         );
+
+        for (const result of results) {
+            if (result.status === "fulfilled") {
+                uploadedKeys.push(result.value);
+            }
+        }
+
+        if (uploadedKeys.length < uploads.length) {
+            const firstFailure = results.find(
+                (r) => r.status === "rejected",
+            ) as PromiseRejectedResult;
+            throw firstFailure?.reason ?? new Error("An unknown upload error occurred.");
+        }
 
         await db.insert(papers).values(paperValues);
 
