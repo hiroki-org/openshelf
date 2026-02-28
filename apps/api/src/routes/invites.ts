@@ -42,8 +42,7 @@ invitesRoute.get("/received", authMiddleware, async (c) => {
     return c.json({ invites: rows });
 });
 
-// PATCH /api/invites/:inviteId — accept or decline
-invitesRoute.patch("/:inviteId", authMiddleware, async (c) => {
+const respondInviteHandler = async (c: any) => {
     const inviteId = c.req.param("inviteId");
     let body: { action?: unknown };
     try {
@@ -105,6 +104,10 @@ invitesRoute.patch("/:inviteId", authMiddleware, async (c) => {
     }
 
     return c.json({ ok: true, status: newStatus });
-});
+};
+
+// PATCH/PUT /api/invites/:inviteId — accept or decline
+invitesRoute.patch("/:inviteId", authMiddleware, respondInviteHandler);
+invitesRoute.put("/:inviteId", authMiddleware, respondInviteHandler);
 
 export default invitesRoute;

@@ -7,8 +7,16 @@ import { authMiddleware } from "../middleware/auth";
 
 const usersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// PATCH /api/users/me — update display_name
-usersRoute.patch("/me", authMiddleware, async (c) => {
+// GET /api/users/me — current profile
+usersRoute.get("/me", authMiddleware, async (c) => {
+    const db = drizzle(c.env.DB);
+    const userId = c.get("user").sub;
+    const user = await db.select().from(users).where(eq(users.id, userId)).get();
+    if (!user) return c.json({ error: "User not found" }, 404);
+    return c.json({ user });
+});
+
+const updateMeHandler = async (c: any) => {
     let body: unknown;
     try {
         body = await c.req.json();
@@ -50,7 +58,11 @@ usersRoute.patch("/me", authMiddleware, async (c) => {
 
     const user = await db.select().from(users).where(eq(users.id, userId)).get();
     return c.json({ user });
-});
+};
+
+// PATCH/PUT /api/users/me — update display_name
+usersRoute.patch("/me", authMiddleware, updateMeHandler);
+usersRoute.put("/me", authMiddleware, updateMeHandler);
 
 // GET /api/users/search?q=xxx — search users for coauthor invite
 usersRoute.get("/search", authMiddleware, async (c) => {
