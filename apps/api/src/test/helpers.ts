@@ -14,6 +14,7 @@ export type TestEnv = {
     GITHUB_CLIENT_SECRET: string;
     JWT_SECRET: string;
     FRONTEND_URL: string;
+    ALLOWED_ORIGINS?: string;
 };
 
 export async function createTestApp(): Promise<typeof app> {
