@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { getCookie } from "hono/cookie";
 import { verify } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, inArray } from "drizzle-orm";
@@ -225,7 +224,8 @@ papersRoute.get("/:id", async (c) => {
 
     // Non-public papers require authentication and authorship
     if (paper.visibility !== "public") {
-        const token = getCookie(c, "token");
+        const authHeader = c.req.header("Authorization");
+        const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
         if (!token) return c.json({ error: "Unauthorized" }, 401);
         try {
             const payload = await verify(token, c.env.JWT_SECRET, "HS256");
