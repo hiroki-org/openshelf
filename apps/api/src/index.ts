@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { csrf } from "hono/csrf";
 import type { Env, Variables } from "./types";
 import auth from "./routes/auth";
 import usersRoute from "./routes/users";
@@ -17,6 +18,12 @@ app.use(
         allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allowHeaders: ["Content-Type", "Authorization"],
     }),
+);
+
+// CSRF
+app.use(
+    "/api/*",
+    csrf({ origin: (origin, c) => origin === c.env.FRONTEND_URL }),
 );
 
 // Routes
