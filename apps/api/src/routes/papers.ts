@@ -151,9 +151,16 @@ papersRoute.post("/", authMiddleware, async (c) => {
     const uploadedKeys: string[] = [];
     try {
         for (const entry of uploads) {
-            await c.env.BUCKET.put(entry.r2Key, entry.file.stream(), {
-                httpMetadata: { contentType: entry.file.type },
-            });
+            // Use arrayBuffer for R2 put type compatibility in Workers/Vitest runtime.
+            // Memory impact is bounded by MAX_FILE_SIZE (50 MB).
+            const fileBuffer = await entry.file.arrayBuffer();
+            await c.env.BUCKET.put(
+                entry.r2Key,
+                fileBuffer,
+                {
+                    httpMetadata: { contentType: entry.file.type },
+                },
+            );
             uploadedKeys.push(entry.r2Key);
         }
 
@@ -304,6 +311,10 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
     if (!isUploader)
         return c.json({ error: "Only uploaders can invite" }, 403);
 
+    if (inviteeId === userId) {
+        return c.json({ error: "Cannot invite yourself" }, 400);
+    }
+
     let resolvedInviteeId: string | null = inviteeId;
     let resolvedInviteeEmail: string | null = inviteeEmail;
 
@@ -314,6 +325,9 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
             .where(eq(users.email, resolvedInviteeEmail))
             .get();
         if (matchedUser) {
+            if (matchedUser.id === userId) {
+                return c.json({ error: "Cannot invite yourself" }, 400);
+            }
             resolvedInviteeId = matchedUser.id;
             resolvedInviteeEmail = null;
         }
@@ -419,6 +433,38 @@ papersRoute.get("/:id/invites", authMiddleware, async (c) => {
     });
 
     return c.json({ invites: enriched });
+});
+
+// DELETE /api/papers/:id — delete paper owned by uploader
+papersRoute.delete("/:id", authMiddleware, async (c) => {
+    const paperId = c.req.param("id");
+    const userId = c.get("user").sub;
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    const isUploader = await db
+        .select()
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paperId),
+                eq(paperAuthors.userId, userId),
+                eq(paperAuthors.role, "uploader"),
+            ),
+        )
+        .get();
+    if (!isUploader) return c.json({ error: "Forbidden" }, 403);
+
+    const files = await db
+        .select({ r2Key: paperFiles.r2Key })
+        .from(paperFiles)
+        .where(eq(paperFiles.paperId, paperId))
+        .all();
+
+    await Promise.all(files.map((f) => c.env.BUCKET.delete(f.r2Key)));
+    await db.delete(papers).where(eq(papers.id, paperId));
+
+    return c.json({ ok: true });
 });
 
 export default papersRoute;
