@@ -23,7 +23,16 @@ app.use(
 // CSRF
 app.use(
     "/api/*",
-    csrf({ origin: (origin, c) => origin === c.env.FRONTEND_URL }),
+    csrf({
+        origin: (origin, c) => {
+            if (!origin) return false;
+            try {
+                return origin === new URL(c.env.FRONTEND_URL).origin;
+            } catch {
+                return false;
+            }
+        },
+    }),
 );
 
 // Routes
