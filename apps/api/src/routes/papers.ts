@@ -156,7 +156,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
                 entry.r2Key,
                 fileBuffer,
                 {
-                httpMetadata: { contentType: entry.file.type },
+                    httpMetadata: { contentType: entry.file.type },
                 },
             );
             uploadedKeys.push(entry.r2Key);
