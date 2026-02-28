@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
     coauthorInvites,
     paperAuthors,
@@ -31,7 +31,12 @@ invitesRoute.get("/received", authMiddleware, async (c) => {
         .from(coauthorInvites)
         .innerJoin(papers, eq(coauthorInvites.paperId, papers.id))
         .innerJoin(users, eq(coauthorInvites.inviterId, users.id))
-        .where(eq(coauthorInvites.inviteeId, userId))
+        .where(
+            and(
+                eq(coauthorInvites.inviteeId, userId),
+                eq(coauthorInvites.status, "pending"),
+            ),
+        )
         .all();
 
     return c.json({ invites: rows });
@@ -65,20 +70,29 @@ invitesRoute.patch("/:inviteId", authMiddleware, async (c) => {
 
     const newStatus = action === "accept" ? "accepted" : "declined";
 
-    await db
-        .update(coauthorInvites)
-        .set({
-            status: newStatus,
-            respondedAt: sql`(datetime('now'))`,
-        })
-        .where(eq(coauthorInvites.id, inviteId));
-
     if (action === "accept") {
-        await db.insert(paperAuthors).values({
-            paperId: invite.paperId,
-            userId,
-            role: "coauthor",
-        });
+        await db.batch([
+            db
+                .update(coauthorInvites)
+                .set({
+                    status: newStatus,
+                    respondedAt: sql`(datetime('now'))`,
+                })
+                .where(eq(coauthorInvites.id, inviteId)),
+            db.insert(paperAuthors).values({
+                paperId: invite.paperId,
+                userId,
+                role: "coauthor",
+            }),
+        ]);
+    } else {
+        await db
+            .update(coauthorInvites)
+            .set({
+                status: newStatus,
+                respondedAt: sql`(datetime('now'))`,
+            })
+            .where(eq(coauthorInvites.id, inviteId));
     }
 
     return c.json({ ok: true, status: newStatus });

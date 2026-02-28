@@ -34,20 +34,24 @@ export default function InvitesPage() {
   }, [user]);
 
   const respond = async (inviteId: string, action: "accept" | "decline") => {
-    const res = await fetch(`/api/invites/${inviteId}`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
-    if (res.ok) {
-      setInvites((prev) =>
-        prev.map((i) =>
-          i.id === inviteId
-            ? { ...i, status: action === "accept" ? "accepted" : "declined" }
-            : i,
-        ),
-      );
+    try {
+      const res = await fetch(`/api/invites/${inviteId}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        setInvites((prev) =>
+          prev.map((i) =>
+            i.id === inviteId
+              ? { ...i, status: action === "accept" ? "accepted" : "declined" }
+              : i,
+          ),
+        );
+      }
+    } catch {
+      // Keep UI state unchanged when request fails.
     }
   };
 
@@ -83,12 +87,14 @@ export default function InvitesPage() {
                 {inv.status === "pending" ? (
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       onClick={() => respond(inv.id, "accept")}
                       className="rounded-md bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-500"
                     >
                       承認
                     </button>
                     <button
+                      type="button"
                       onClick={() => respond(inv.id, "decline")}
                       className="rounded-md border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
                     >

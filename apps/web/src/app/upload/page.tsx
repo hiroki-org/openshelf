@@ -10,7 +10,11 @@ const VALID_FILE_TYPES = [
   "poster",
   "supplementary",
 ] as const;
-const VISIBILITY_OPTIONS = ["public", "org_only", "private"] as const;
+const VISIBILITY_OPTIONS = [
+  { value: "private", label: "非公開" },
+  { value: "org_only", label: "組織内" },
+  { value: "public", label: "公開" },
+] as const;
 const CATEGORY_OPTIONS = [
   { value: "", label: "（なし）" },
   { value: "thesis_bachelor", label: "学士論文" },
@@ -40,7 +44,7 @@ export default function UploadPage() {
   const [title, setTitle] = useState("");
   const [abstract, setAbstract] = useState("");
   const [visibility, setVisibility] =
-    useState<(typeof VISIBILITY_OPTIONS)[number]>("private");
+    useState<(typeof VISIBILITY_OPTIONS)[number]["value"]>("private");
   const [venue, setVenue] = useState("");
   const [venueType, setVenueType] = useState("");
   const [year, setYear] = useState("");
@@ -82,41 +86,47 @@ export default function UploadPage() {
     }
 
     setUploading(true);
-    const formData = new FormData();
-    formData.append(
-      "metadata",
-      JSON.stringify({
-        title: title.trim(),
-        abstract: abstract.trim() || null,
-        visibility,
-        venue: venue.trim() || null,
-        venueType: venueType || null,
-        year: year ? Number(year) : null,
-        category: category || null,
-        tags: tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
-      }),
-    );
+    try {
+      const formData = new FormData();
+      formData.append(
+        "metadata",
+        JSON.stringify({
+          title: title.trim(),
+          abstract: abstract.trim() || null,
+          visibility,
+          venue: venue.trim() || null,
+          venueType: venueType || null,
+          year: year ? Number(year) : null,
+          category: category || null,
+          tags: tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean),
+        }),
+      );
 
-    files.forEach((entry, i) => {
-      formData.append(`files_${i}`, entry.file);
-      formData.append(`file_types_${i}`, entry.fileType);
-    });
+      files.forEach((entry, i) => {
+        formData.append(`files_${i}`, entry.file);
+        formData.append(`file_types_${i}`, entry.fileType);
+      });
 
-    const res = await fetch("/api/papers", {
-      method: "POST",
-      credentials: "include",
-      body: formData,
-    });
+      const res = await fetch("/api/papers", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
 
-    if (res.ok) {
-      const data = await res.json();
-      router.push(`/papers/${data.paper.id}`);
-    } else {
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/papers/${data.paper.id}`);
+        return;
+      }
+
       const data = await res.json();
       setError(data.error ?? "アップロードに失敗しました");
+    } catch {
+      setError("ネットワークエラーが発生しました");
+    } finally {
       setUploading(false);
     }
   };
@@ -132,10 +142,14 @@ export default function UploadPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">
+          <label
+            htmlFor="paper-title"
+            className="block text-sm font-medium mb-1"
+          >
             タイトル <span className="text-red-500">*</span>
           </label>
           <input
+            id="paper-title"
             type="text"
             maxLength={300}
             value={title}
@@ -146,8 +160,14 @@ export default function UploadPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">概要</label>
+          <label
+            htmlFor="paper-abstract"
+            className="block text-sm font-medium mb-1"
+          >
+            概要
+          </label>
           <textarea
+            id="paper-abstract"
             value={abstract}
             onChange={(e) => setAbstract(e.target.value)}
             rows={4}
@@ -157,24 +177,39 @@ export default function UploadPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">公開範囲</label>
+            <label
+              htmlFor="paper-visibility"
+              className="block text-sm font-medium mb-1"
+            >
+              公開範囲
+            </label>
             <select
+              id="paper-visibility"
               value={visibility}
               onChange={(e) =>
                 setVisibility(
-                  e.target.value as (typeof VISIBILITY_OPTIONS)[number],
+                  e.target
+                    .value as (typeof VISIBILITY_OPTIONS)[number]["value"],
                 )
               }
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             >
-              <option value="private">非公開</option>
-              <option value="org_only">組織内</option>
-              <option value="public">公開</option>
+              {VISIBILITY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">発表年</label>
+            <label
+              htmlFor="paper-year"
+              className="block text-sm font-medium mb-1"
+            >
+              発表年
+            </label>
             <input
+              id="paper-year"
               type="number"
               value={year}
               onChange={(e) => setYear(e.target.value)}
@@ -185,8 +220,14 @@ export default function UploadPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1">会場名</label>
+            <label
+              htmlFor="paper-venue"
+              className="block text-sm font-medium mb-1"
+            >
+              会場名
+            </label>
             <input
+              id="paper-venue"
               type="text"
               value={venue}
               onChange={(e) => setVenue(e.target.value)}
@@ -194,8 +235,14 @@ export default function UploadPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">会場種別</label>
+            <label
+              htmlFor="paper-venue-type"
+              className="block text-sm font-medium mb-1"
+            >
+              会場種別
+            </label>
             <select
+              id="paper-venue-type"
               value={venueType}
               onChange={(e) => setVenueType(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
@@ -210,8 +257,14 @@ export default function UploadPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">カテゴリ</label>
+          <label
+            htmlFor="paper-category"
+            className="block text-sm font-medium mb-1"
+          >
+            カテゴリ
+          </label>
           <select
+            id="paper-category"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
@@ -225,10 +278,14 @@ export default function UploadPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">
+          <label
+            htmlFor="paper-tags"
+            className="block text-sm font-medium mb-1"
+          >
             タグ（カンマ区切り）
           </label>
           <input
+            id="paper-tags"
             type="text"
             value={tags}
             onChange={(e) => setTags(e.target.value)}
@@ -244,6 +301,7 @@ export default function UploadPage() {
           </label>
           <input
             ref={fileInputRef}
+            aria-label="アップロードファイル"
             type="file"
             multiple
             accept=".pdf,.ppt,.pptx,.png,.jpg,.jpeg"
@@ -267,6 +325,7 @@ export default function UploadPage() {
                 >
                   <span className="flex-1 truncate">{entry.file.name}</span>
                   <select
+                    aria-label="ファイル種別"
                     value={entry.fileType}
                     onChange={(e) => {
                       const updated = [...files];

@@ -58,6 +58,18 @@ auth.get("/github/callback", async (c) => {
             }),
         },
     );
+
+    if (!tokenRes.ok) {
+        const tokenErr = await tokenRes.text();
+        return c.json(
+            {
+                error: "Failed to exchange OAuth code",
+                details: tokenErr.slice(0, 200),
+            },
+            502,
+        );
+    }
+
     const tokenData = (await tokenRes.json()) as {
         access_token?: string;
         error?: string;
@@ -73,6 +85,18 @@ auth.get("/github/callback", async (c) => {
             "User-Agent": "OpenShelf",
         },
     });
+
+    if (!userRes.ok) {
+        const userErr = await userRes.text();
+        return c.json(
+            {
+                error: "Failed to fetch GitHub user",
+                details: userErr.slice(0, 200),
+            },
+            502,
+        );
+    }
+
     const ghUser = (await userRes.json()) as {
         id: number;
         login: string;
@@ -80,6 +104,10 @@ auth.get("/github/callback", async (c) => {
         avatar_url: string;
         email: string | null;
     };
+
+    if (!ghUser?.id || !ghUser?.login) {
+        return c.json({ error: "Invalid GitHub user payload" }, 502);
+    }
 
     const db = drizzle(c.env.DB);
     await enableForeignKeys(db);
@@ -121,6 +149,7 @@ auth.get("/github/callback", async (c) => {
             sub: userId,
             githubId,
             name: ghUser.name || ghUser.login,
+            iat: now,
             exp: now + 7 * 24 * 60 * 60,
         },
         c.env.JWT_SECRET,

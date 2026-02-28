@@ -72,19 +72,23 @@ export default function PaperDetailPage() {
   );
 
   const fetchPaper = useCallback(async () => {
-    const res = await fetch(`/api/papers/${paperId}`, {
-      credentials: "include",
-    });
-    if (!res.ok) {
-      setError("論文が見つかりません");
+    try {
+      const res = await fetch(`/api/papers/${paperId}`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        setError("論文が見つかりません");
+        return;
+      }
+      const data = await res.json();
+      setPaper(data.paper);
+      setFiles(data.files);
+      setAuthors(data.authors);
+    } catch {
+      setError("論文の取得に失敗しました");
+    } finally {
       setLoading(false);
-      return;
     }
-    const data = await res.json();
-    setPaper(data.paper);
-    setFiles(data.files);
-    setAuthors(data.authors);
-    setLoading(false);
   }, [paperId]);
 
   const fetchInvites = useCallback(async () => {
@@ -123,22 +127,27 @@ export default function PaperDetailPage() {
 
   const handleInvite = async (inviteeId: string) => {
     setInviting(true);
-    const res = await fetch(`/api/papers/${paperId}/invites`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ inviteeId }),
-    });
-    if (res.ok) {
-      setShowInvite(false);
-      setSearchQuery("");
-      setSearchResults([]);
-      await fetchInvites();
-    } else {
-      const data = await res.json();
-      alert(data.error ?? "招待に失敗しました");
+    try {
+      const res = await fetch(`/api/papers/${paperId}/invites`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteeId }),
+      });
+      if (res.ok) {
+        setShowInvite(false);
+        setSearchQuery("");
+        setSearchResults([]);
+        await fetchInvites();
+      } else {
+        const data = await res.json();
+        alert(data.error ?? "招待に失敗しました");
+      }
+    } catch {
+      alert("ネットワークエラーが発生しました");
+    } finally {
+      setInviting(false);
     }
-    setInviting(false);
   };
 
   if (loading) return <div className="text-center py-20">読み込み中...</div>;
@@ -218,6 +227,7 @@ export default function PaperDetailPage() {
 
         {isUploader && (
           <button
+            type="button"
             onClick={() => setShowInvite(true)}
             className="mt-3 text-sm text-blue-600 hover:underline dark:text-blue-400"
           >
@@ -257,6 +267,7 @@ export default function PaperDetailPage() {
                     <span>{u.displayName ?? u.name}</span>
                   </div>
                   <button
+                    type="button"
                     onClick={() => handleInvite(u.id)}
                     disabled={inviting}
                     className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
@@ -268,6 +279,7 @@ export default function PaperDetailPage() {
             </ul>
           )}
           <button
+            type="button"
             onClick={() => {
               setShowInvite(false);
               setSearchQuery("");

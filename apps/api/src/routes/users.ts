@@ -9,13 +9,32 @@ const usersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // PATCH /api/users/me — update display_name
 usersRoute.patch("/me", authMiddleware, async (c) => {
-    const body = await c.req.json<{ displayName?: string | null }>();
-    let trimmed = body.displayName?.trim() ?? null;
+    let body: unknown;
+    try {
+        body = await c.req.json();
+    } catch {
+        return c.json({ error: "Invalid JSON body" }, 400);
+    }
+
+    if (!body || typeof body !== "object") {
+        return c.json({ error: "Invalid request body" }, 400);
+    }
+
+    const rawDisplayName = (body as { displayName?: unknown }).displayName;
+    if (
+        rawDisplayName !== undefined &&
+        rawDisplayName !== null &&
+        typeof rawDisplayName !== "string"
+    ) {
+        return c.json({ error: "displayName must be a string or null" }, 400);
+    }
+
+    let trimmed = (rawDisplayName as string | null | undefined)?.trim() ?? null;
     if (trimmed !== null) {
         if (trimmed.length === 0) trimmed = null;
         else if (trimmed.length > 50)
             return c.json(
-                { error: "display_name must be 50 chars or less" },
+                { error: "displayName must be 50 chars or less" },
                 400,
             );
     }
@@ -42,7 +61,13 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     const currentUserId = c.get("user").sub;
 
     const results = await db
-        .select()
+        .select({
+            id: users.id,
+            name: users.name,
+            displayName: users.displayName,
+            githubId: users.githubId,
+            avatarUrl: users.avatarUrl,
+        })
         .from(users)
         .where(
             and(

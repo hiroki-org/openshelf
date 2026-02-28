@@ -12,10 +12,10 @@ export const authMiddleware = createMiddleware<{
         return c.json({ error: "Unauthorized" }, 401);
     }
     try {
-        const payload = (await verify(
+        const payload = await verify<JwtPayload>(
             token,
             c.env.JWT_SECRET,
-        )) as unknown as JwtPayload;
+        );
         c.set("user", payload);
         await next();
     } catch {

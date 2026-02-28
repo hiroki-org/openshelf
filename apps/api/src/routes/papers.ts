@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { getCookie } from "hono/cookie";
 import { verify } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import {
     papers,
     paperFiles,
@@ -26,6 +26,17 @@ const ALLOWED_MIME_TYPES = [
 ];
 const VALID_FILE_TYPES = ["paper", "slides", "poster", "supplementary"];
 const VALID_VISIBILITY = ["public", "org_only", "private"];
+
+function sanitizeFilename(filename: string): string {
+    const basename = filename.split(/[\\/]/).pop() ?? "";
+    const cleaned = basename
+        .replace(/\.{2,}/g, ".")
+        .replace(/[^A-Za-z0-9._-]/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^\.+/, "")
+        .slice(0, 120);
+    return cleaned || `file-${crypto.randomUUID()}`;
+}
 
 // POST /api/papers — create paper + upload files
 papersRoute.post("/", authMiddleware, async (c) => {
@@ -55,32 +66,19 @@ papersRoute.post("/", authMiddleware, async (c) => {
     if (!VALID_VISIBILITY.includes(vis))
         return c.json({ error: "Invalid visibility" }, 400);
 
-    const db = drizzle(c.env.DB);
-    await enableForeignKeys(db);
-
     const paperId = crypto.randomUUID();
     const userId = c.get("user").sub;
 
-    await db.insert(papers).values({
-        id: paperId,
-        title: title.trim(),
-        abstract: (meta.abstract as string) || null,
-        visibility: vis as "public" | "org_only" | "private",
-        language: (meta.language as string) || null,
-        externalUrl: (meta.externalUrl as string) || null,
-        doi: (meta.doi as string) || null,
-        venue: (meta.venue as string) || null,
-        venueType: (meta.venueType as string) || null,
-        year: meta.year ? Number(meta.year) : null,
-        category: (meta.category as string) || null,
-        tags: meta.tags ? JSON.stringify(meta.tags) : null,
-    });
+    type UploadEntry = {
+        file: File;
+        fileType: "paper" | "slides" | "poster" | "supplementary";
+        safeFilename: string;
+        r2Key: string;
+    };
 
-    await db
-        .insert(paperAuthors)
-        .values({ paperId, userId, role: "uploader" });
+    const uploads: UploadEntry[] = [];
 
-    // Handle indexed files: files_0, file_types_0, files_1, …
+    // Validate all file entries before any upload or DB mutation.
     for (let i = 0; ; i++) {
         const file = body[`files_${i}`];
         if (!file || !(file instanceof File)) break;
@@ -102,20 +100,84 @@ papersRoute.post("/", authMiddleware, async (c) => {
         if (!VALID_FILE_TYPES.includes(ft))
             return c.json({ error: `Invalid file_type: ${ft}` }, 400);
 
-        const r2Key = `papers/${paperId}/${ft}/${file.name}`;
-        await c.env.BUCKET.put(r2Key, file.stream(), {
-            httpMetadata: { contentType: file.type },
-        });
+        const safeFilename = sanitizeFilename(file.name);
+        const uniqueFilename = `${crypto.randomUUID()}-${safeFilename}`;
 
-        await db.insert(paperFiles).values({
-            id: crypto.randomUUID(),
-            paperId,
-            r2Key,
-            fileType: ft as "paper" | "slides" | "poster" | "supplementary",
-            filename: file.name,
-            sizeBytes: file.size,
-            mimeType: file.type || null,
+        uploads.push({
+            file,
+            fileType: ft as UploadEntry["fileType"],
+            safeFilename,
+            r2Key: `papers/${paperId}/${ft}/${uniqueFilename}`,
         });
+    }
+
+    if (uploads.length === 0) {
+        return c.json({ error: "At least one file is required" }, 400);
+    }
+
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    const paperValues: typeof papers.$inferInsert = {
+        id: paperId,
+        title: title.trim(),
+        abstract: (meta.abstract as string) || null,
+        visibility: vis as "public" | "org_only" | "private",
+        language: (meta.language as string) || null,
+        externalUrl: (meta.externalUrl as string) || null,
+        doi: (meta.doi as string) || null,
+        venue: (meta.venue as string) || null,
+        venueType:
+            (meta.venueType as
+                | "conference"
+                | "journal"
+                | "workshop"
+                | "other"
+                | null
+                | undefined) ?? null,
+        year: meta.year ? Number(meta.year) : null,
+        category:
+            (meta.category as
+                | "thesis_bachelor"
+                | "thesis_master"
+                | "report"
+                | "presentation"
+                | "other"
+                | null
+                | undefined) ?? null,
+        tags: meta.tags ? JSON.stringify(meta.tags) : null,
+    };
+
+    const uploadedKeys: string[] = [];
+    try {
+        for (const entry of uploads) {
+            await c.env.BUCKET.put(entry.r2Key, entry.file.stream(), {
+                httpMetadata: { contentType: entry.file.type },
+            });
+            uploadedKeys.push(entry.r2Key);
+        }
+
+        await db.insert(papers).values(paperValues);
+
+        await db
+            .insert(paperAuthors)
+            .values({ paperId, userId, role: "uploader" });
+
+        await db.insert(paperFiles).values(
+            uploads.map((entry) => ({
+                id: crypto.randomUUID(),
+                paperId,
+                r2Key: entry.r2Key,
+                fileType: entry.fileType,
+                filename: entry.safeFilename,
+                sizeBytes: entry.file.size,
+                mimeType: entry.file.type || null,
+            })),
+        );
+    } catch (error) {
+        await Promise.all(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
+        await db.delete(papers).where(eq(papers.id, paperId));
+        throw error;
     }
 
     return c.json({ paper: { id: paperId } }, 201);
@@ -158,7 +220,7 @@ papersRoute.get("/:id", async (c) => {
         const token = getCookie(c, "token");
         if (!token) return c.json({ error: "Unauthorized" }, 401);
         try {
-            const payload = await verify(token, c.env.JWT_SECRET);
+            const payload = await verify(token, c.env.JWT_SECRET, "HS256");
             const isAuthor = await db
                 .select()
                 .from(paperAuthors)
@@ -287,26 +349,37 @@ papersRoute.get("/:id/invites", authMiddleware, async (c) => {
         .where(eq(coauthorInvites.paperId, paperId))
         .all();
 
-    const enriched = await Promise.all(
-        inviteRows.map(async (inv) => {
-            const invitee = inv.inviteeId
-                ? await db
-                    .select({
-                        name: users.name,
-                        displayName: users.displayName,
-                    })
-                    .from(users)
-                    .where(eq(users.id, inv.inviteeId))
-                    .get()
-                : null;
-            return {
-                ...inv,
-                inviteeName: invitee
-                    ? invitee.displayName || invitee.name
-                    : inv.inviteeEmail,
-            };
-        }),
-    );
+    const inviteeIds = [
+        ...new Set(
+            inviteRows
+                .map((inv) => inv.inviteeId)
+                .filter((v): v is string => typeof v === "string"),
+        ),
+    ];
+
+    const inviteeRows = inviteeIds.length
+        ? await db
+            .select({
+                id: users.id,
+                name: users.name,
+                displayName: users.displayName,
+            })
+            .from(users)
+            .where(inArray(users.id, inviteeIds))
+            .all()
+        : [];
+
+    const inviteeMap = new Map(inviteeRows.map((row) => [row.id, row]));
+
+    const enriched = inviteRows.map((inv) => {
+        const invitee = inv.inviteeId ? inviteeMap.get(inv.inviteeId) : null;
+        return {
+            ...inv,
+            inviteeName: invitee
+                ? invitee.displayName || invitee.name
+                : inv.inviteeEmail,
+        };
+    });
 
     return c.json({ invites: enriched });
 });

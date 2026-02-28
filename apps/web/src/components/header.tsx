@@ -50,6 +50,7 @@ export function Header() {
               />
               <span className="text-sm">{user.displayName ?? user.name}</span>
               <button
+                type="button"
                 onClick={logout}
                 className="rounded-md border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
               >
@@ -58,6 +59,7 @@ export function Header() {
             </div>
           ) : (
             <button
+              type="button"
               onClick={login}
               className="rounded-md bg-gray-900 px-4 py-1.5 text-sm text-white hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
             >

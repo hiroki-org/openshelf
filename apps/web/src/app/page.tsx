@@ -20,8 +20,12 @@ export default function Home() {
   useEffect(() => {
     if (!user) return;
     fetch("/api/papers", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => setPapers(d.papers ?? []));
+      .then(async (r) => {
+        if (!r.ok) return { papers: [] as Paper[] };
+        return r.json();
+      })
+      .then((d) => setPapers(d.papers ?? []))
+      .catch(() => setPapers([]));
   }, [user]);
 
   if (loading) return <div className="text-center py-20">読み込み中...</div>;
@@ -34,6 +38,7 @@ export default function Home() {
           研究成果物をアップロードし、永続URLで共有できるホスティングサービス
         </p>
         <button
+          type="button"
           onClick={login}
           className="rounded-md bg-gray-900 px-6 py-2.5 text-white hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
         >
