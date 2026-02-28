@@ -75,7 +75,7 @@ auth.get("/github/callback", async (c) => {
         !rawTokenData ||
         typeof rawTokenData !== "object" ||
         typeof (rawTokenData as { access_token?: unknown }).access_token !==
-            "string"
+        "string"
     ) {
         return c.json({ error: "Failed to get access token" }, 400);
     }

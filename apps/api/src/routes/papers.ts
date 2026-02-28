@@ -277,7 +277,7 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
             : null;
     const inviteeEmail =
         typeof body.inviteeEmail === "string" &&
-        body.inviteeEmail.trim().length > 0
+            body.inviteeEmail.trim().length > 0
             ? body.inviteeEmail.trim().toLowerCase()
             : null;
 
