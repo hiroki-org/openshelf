@@ -2,6 +2,9 @@ name = "openshelf-api"
 main = "src/index.ts"
 compatibility_date = "2026-02-28"
 
+[vars]
+FRONTEND_URL = "http://localhost:3000"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "openshelf-db"
