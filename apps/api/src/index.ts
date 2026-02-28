@@ -15,7 +15,7 @@ app.use(
         origin: (origin, c) => c.env.FRONTEND_URL,
         credentials: true,
         allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowHeaders: ["Content-Type"],
+        allowHeaders: ["Content-Type", "Authorization"],
     }),
 );
 
