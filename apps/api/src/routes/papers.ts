@@ -162,17 +162,17 @@ papersRoute.post("/", authMiddleware, async (c) => {
             }),
         );
 
+        const errors: unknown[] = [];
         for (const result of results) {
             if (result.status === "fulfilled") {
                 uploadedKeys.push(result.value);
+            } else {
+                errors.push(result.reason);
             }
         }
 
-        if (uploadedKeys.length < uploads.length) {
-            const firstFailure = results.find(
-                (r) => r.status === "rejected",
-            ) as PromiseRejectedResult;
-            throw firstFailure?.reason ?? new Error("An unknown upload error occurred.");
+        if (errors.length > 0) {
+            throw errors[0] ?? new Error("An unknown upload error occurred.");
         }
 
         await db.insert(papers).values(paperValues);
