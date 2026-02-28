@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/auth-provider";
+import { apiFetch } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -31,9 +32,7 @@ export default function InvitesPage() {
     setFetching(true);
     (async () => {
       try {
-        const r = await fetch("/api/invites/received", {
-          credentials: "include",
-        });
+        const r = await apiFetch("/api/invites/received");
         if (!r.ok) {
           if (!cancelled) setInvites([]);
           return;
@@ -53,9 +52,8 @@ export default function InvitesPage() {
 
   const respond = async (inviteId: string, action: "accept" | "decline") => {
     try {
-      const res = await fetch(`/api/invites/${inviteId}`, {
+      const res = await apiFetch(`/api/invites/${inviteId}`, {
         method: "PATCH",
-        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });

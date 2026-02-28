@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { apiFetch } from "@/lib/api";
 
 export type User = {
   id: string;
@@ -28,13 +29,18 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUser = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: "include" });
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+      const res = await apiFetch("/api/auth/me");
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
@@ -53,14 +59,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUser]);
 
   const login = useCallback(() => {
-    window.location.href = `${API_BASE}/api/auth/github`;
+    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "";
+    window.location.href = `${apiBase}/api/auth/github`;
   }, []);
 
   const logout = useCallback(async () => {
-    await fetch(`${API_BASE}/api/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
+    localStorage.removeItem("auth_token");
     setUser(null);
   }, []);
 

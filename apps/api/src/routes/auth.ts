@@ -172,16 +172,7 @@ auth.get("/github/callback", async (c) => {
         c.env.JWT_SECRET,
     );
 
-    const isSecure = new URL(c.req.url).protocol === "https:";
-    setCookie(c, "token", jwt, {
-        httpOnly: true,
-        secure: isSecure,
-        sameSite: isSecure ? "None" : "Lax",
-        path: "/",
-        maxAge: 7 * 24 * 60 * 60,
-    });
-
-    return c.redirect(c.env.FRONTEND_URL);
+    return c.redirect(`${c.env.FRONTEND_URL}/auth/callback#token=${jwt}`);
 });
 
 // GET /api/auth/me — current user info
@@ -197,9 +188,8 @@ auth.get("/me", authMiddleware, async (c) => {
     return c.json({ user });
 });
 
-// POST /api/auth/logout — clear cookie
+// POST /api/auth/logout
 auth.post("/logout", async (c) => {
-    deleteCookie(c, "token", { path: "/" });
     return c.json({ ok: true });
 });
 
