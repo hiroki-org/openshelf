@@ -18,9 +18,9 @@
     "react-dom": "19.2.3"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
-    "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
@@ -31,5 +31,11 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.4"
+  },
+  "optionalDependencies": {
+    "@next/swc-linux-x64-gnu": "^16.1.6",
+    "@next/swc-linux-x64-musl": "^16.1.6",
+    "lightningcss-linux-x64-gnu": "^1.31.1",
+    "lightningcss-linux-x64-musl": "^1.31.1"
   }
 }
