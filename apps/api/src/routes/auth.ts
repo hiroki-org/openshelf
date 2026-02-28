@@ -22,7 +22,7 @@ auth.get("/github", async (c) => {
     });
     const params = new URLSearchParams({
         client_id: c.env.GITHUB_CLIENT_ID,
-        redirect_uri: `${new URL(c.req.url).origin}/api/auth/github/callback`,
+        redirect_uri: `${c.env.FRONTEND_URL}/api/auth/github/callback`,
         scope: "read:user user:email",
         state,
     });
