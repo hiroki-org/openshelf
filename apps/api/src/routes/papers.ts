@@ -239,24 +239,25 @@ papersRoute.get("/:id", async (c) => {
         }
     }
 
-    const files = await db
-        .select()
-        .from(paperFiles)
-        .where(eq(paperFiles.paperId, paperId))
-        .all();
-
-    const authors = await db
-        .select({
-            userId: paperAuthors.userId,
-            role: paperAuthors.role,
-            name: users.name,
-            displayName: users.displayName,
-            avatarUrl: users.avatarUrl,
-        })
-        .from(paperAuthors)
-        .innerJoin(users, eq(paperAuthors.userId, users.id))
-        .where(eq(paperAuthors.paperId, paperId))
-        .all();
+    const [files, authors] = await Promise.all([
+        db
+            .select()
+            .from(paperFiles)
+            .where(eq(paperFiles.paperId, paperId))
+            .all(),
+        db
+            .select({
+                userId: paperAuthors.userId,
+                role: paperAuthors.role,
+                name: users.name,
+                displayName: users.displayName,
+                avatarUrl: users.avatarUrl,
+            })
+            .from(paperAuthors)
+            .innerJoin(users, eq(paperAuthors.userId, users.id))
+            .where(eq(paperAuthors.paperId, paperId))
+            .all()
+    ]);
 
     return c.json({ paper, files, authors });
 });
