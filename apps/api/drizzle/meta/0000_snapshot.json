@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "66d5f39e-79ca-4ca0-aeaf-1f8724ac8fb8",
+  "id": "abc529fb-ceba-421c-8395-c335bd586cab",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "coauthor_invites": {
@@ -37,6 +37,13 @@
         },
         "invitee_email": {
           "name": "invitee_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "token": {
+          "name": "token",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -80,6 +87,31 @@
             "invitee_id"
           ],
           "isUnique": false
+        },
+        "coauthor_invites_token_idx": {
+          "name": "coauthor_invites_token_idx",
+          "columns": [
+            "token"
+          ],
+          "isUnique": true
+        },
+        "coauthor_invites_paper_invitee_idx": {
+          "name": "coauthor_invites_paper_invitee_idx",
+          "columns": [
+            "paper_id",
+            "invitee_id"
+          ],
+          "isUnique": true,
+          "where": "invitee_id IS NOT NULL"
+        },
+        "coauthor_invites_paper_email_idx": {
+          "name": "coauthor_invites_paper_email_idx",
+          "columns": [
+            "paper_id",
+            "invitee_email"
+          ],
+          "isUnique": true,
+          "where": "invitee_email IS NOT NULL"
         }
       },
       "foreignKeys": {
@@ -265,20 +297,14 @@
         }
       },
       "indexes": {
-        "collections_slug_idx": {
-          "name": "collections_slug_idx",
+        "collections_owner_slug_idx": {
+          "name": "collections_owner_slug_idx",
           "columns": [
+            "owner_type",
+            "owner_id",
             "slug"
           ],
           "isUnique": true
-        },
-        "collections_owner_idx": {
-          "name": "collections_owner_idx",
-          "columns": [
-            "owner_type",
-            "owner_id"
-          ],
-          "isUnique": false
         }
       },
       "foreignKeys": {},

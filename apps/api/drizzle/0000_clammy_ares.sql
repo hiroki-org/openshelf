@@ -4,6 +4,7 @@ CREATE TABLE `coauthor_invites` (
 	`inviter_id` text NOT NULL,
 	`invitee_id` text,
 	`invitee_email` text,
+	`token` text,
 	`status` text DEFAULT 'pending' NOT NULL,
 	`created_at` text DEFAULT (datetime('now')) NOT NULL,
 	`responded_at` text,
@@ -14,6 +15,9 @@ CREATE TABLE `coauthor_invites` (
 --> statement-breakpoint
 CREATE INDEX `coauthor_invites_paper_id_idx` ON `coauthor_invites` (`paper_id`);--> statement-breakpoint
 CREATE INDEX `coauthor_invites_invitee_id_idx` ON `coauthor_invites` (`invitee_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `coauthor_invites_token_idx` ON `coauthor_invites` (`token`);--> statement-breakpoint
+CREATE UNIQUE INDEX `coauthor_invites_paper_invitee_idx` ON `coauthor_invites` (`paper_id`,`invitee_id`) WHERE invitee_id IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX `coauthor_invites_paper_email_idx` ON `coauthor_invites` (`paper_id`,`invitee_email`) WHERE invitee_email IS NOT NULL;--> statement-breakpoint
 CREATE TABLE `collection_papers` (
 	`collection_id` text NOT NULL,
 	`paper_id` text NOT NULL,
@@ -35,8 +39,7 @@ CREATE TABLE `collections` (
 	`created_at` text DEFAULT (datetime('now')) NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `collections_slug_idx` ON `collections` (`slug`);--> statement-breakpoint
-CREATE INDEX `collections_owner_idx` ON `collections` (`owner_type`,`owner_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `collections_owner_slug_idx` ON `collections` (`owner_type`,`owner_id`,`slug`);--> statement-breakpoint
 CREATE TABLE `org_members` (
 	`org_id` text NOT NULL,
 	`user_id` text NOT NULL,
