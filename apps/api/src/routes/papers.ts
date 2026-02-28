@@ -13,6 +13,7 @@ import {
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { validateMagicNumbers } from "../utils/file";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -95,6 +96,14 @@ papersRoute.post("/", authMiddleware, async (c) => {
                 },
                 400,
             );
+
+        const isValidContent = await validateMagicNumbers(file);
+        if (!isValidContent) {
+            return c.json(
+                { error: `File ${file.name} does not match expected format for ${file.type}` },
+                400,
+            );
+        }
 
         const ft = (body[`file_types_${i}`] as string) || "paper";
         if (!VALID_FILE_TYPES.includes(ft))

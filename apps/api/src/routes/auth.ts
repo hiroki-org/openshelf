@@ -170,7 +170,6 @@ auth.get("/github/callback", async (c) => {
             exp: now + 7 * 24 * 60 * 60,
         },
         c.env.JWT_SECRET,
-        "HS256",
     );
 
     return c.redirect(`${c.env.FRONTEND_URL}/auth/callback#token=${jwt}`);
