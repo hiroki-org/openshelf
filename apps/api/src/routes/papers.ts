@@ -10,6 +10,10 @@ import {
     users,
     coauthorInvites,
     enableForeignKeys,
+    VALID_VENUE_TYPES,
+    VALID_CATEGORIES,
+    type VenueType,
+    type CategoryType,
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -26,8 +30,6 @@ const ALLOWED_MIME_TYPES = [
 ];
 const VALID_FILE_TYPES = ["paper", "slides", "poster", "supplementary"];
 const VALID_VISIBILITY = ["public", "org_only", "private"];
-const VALID_VENUE_TYPES = ["conference", "journal", "workshop", "other"];
-const VALID_CATEGORIES = ["thesis_bachelor", "thesis_master", "report", "presentation", "other"];
 
 function sanitizeFilename(filename: string): string {
     const basename = filename.split(/[\\/]/).pop() ?? "";
@@ -69,11 +71,11 @@ papersRoute.post("/", authMiddleware, async (c) => {
         return c.json({ error: "Invalid visibility" }, 400);
 
     const venueType = (meta.venueType as string | null | undefined) ?? null;
-    if (venueType !== null && !VALID_VENUE_TYPES.includes(venueType))
+    if (venueType !== null && !(VALID_VENUE_TYPES as readonly string[]).includes(venueType))
         return c.json({ error: "Invalid venueType" }, 400);
 
     const category = (meta.category as string | null | undefined) ?? null;
-    if (category !== null && !VALID_CATEGORIES.includes(category))
+    if (category !== null && !(VALID_CATEGORIES as readonly string[]).includes(category))
         return c.json({ error: "Invalid category" }, 400);
 
     const paperId = crypto.randomUUID();
@@ -137,20 +139,9 @@ papersRoute.post("/", authMiddleware, async (c) => {
         externalUrl: (meta.externalUrl as string) || null,
         doi: (meta.doi as string) || null,
         venue: (meta.venue as string) || null,
-        venueType: venueType as
-                | "conference"
-                | "journal"
-                | "workshop"
-                | "other"
-                | null,
+        venueType: venueType as VenueType | null,
         year: meta.year ? Number(meta.year) : null,
-        category: category as
-                | "thesis_bachelor"
-                | "thesis_master"
-                | "report"
-                | "presentation"
-                | "other"
-                | null,
+        category: category as CategoryType | null,
         tags: meta.tags ? JSON.stringify(meta.tags) : null,
     };
 

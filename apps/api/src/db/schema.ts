@@ -35,6 +35,12 @@ export const users = sqliteTable(
     (t) => [uniqueIndex("users_github_id_idx").on(t.githubId)],
 );
 
+export const VALID_VENUE_TYPES = ["conference", "journal", "workshop", "other"] as const;
+export type VenueType = typeof VALID_VENUE_TYPES[number];
+
+export const VALID_CATEGORIES = ["thesis_bachelor", "thesis_master", "report", "presentation", "other"] as const;
+export type CategoryType = typeof VALID_CATEGORIES[number];
+
 // ─── papers ─────────────────────────────────────────────────────
 export const papers = sqliteTable(
     "papers",
@@ -50,11 +56,11 @@ export const papers = sqliteTable(
         doi: text("doi"),
         venue: text("venue"),
         venueType: text("venue_type", {
-            enum: ["conference", "journal", "workshop", "other"],
+            enum: VALID_VENUE_TYPES,
         }),
         year: integer("year"),
         category: text("category", {
-            enum: ["thesis_bachelor", "thesis_master", "report", "presentation", "other"],
+            enum: VALID_CATEGORIES,
         }),
         tags: text("tags"),
         createdAt: createdAt(),
