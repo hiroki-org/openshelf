@@ -16,13 +16,13 @@ auth.get("/github", async (c) => {
     setCookie(c, "oauth_state", state, {
         httpOnly: true,
         secure: isSecure,
-        sameSite: "Lax",
+        sameSite: isSecure ? "None" : "Lax",
         path: "/",
         maxAge: 600,
     });
     const params = new URLSearchParams({
         client_id: c.env.GITHUB_CLIENT_ID,
-        redirect_uri: `${c.env.FRONTEND_URL}/api/auth/github/callback`,
+        redirect_uri: `${new URL(c.req.url).origin}/api/auth/github/callback`,
         scope: "read:user user:email",
         state,
     });
@@ -176,7 +176,7 @@ auth.get("/github/callback", async (c) => {
     setCookie(c, "token", jwt, {
         httpOnly: true,
         secure: isSecure,
-        sameSite: "Lax",
+        sameSite: isSecure ? "None" : "Lax",
         path: "/",
         maxAge: 7 * 24 * 60 * 60,
     });

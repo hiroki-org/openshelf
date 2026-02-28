@@ -28,12 +28,13 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchUser = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/me", { credentials: "include" });
+      const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         setUser(data.user);
@@ -52,11 +53,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchUser]);
 
   const login = useCallback(() => {
-    window.location.href = "/api/auth/github";
+    window.location.href = `${API_BASE}/api/auth/github`;
   }, []);
 
   const logout = useCallback(async () => {
-    await fetch("/api/auth/logout", {
+    await fetch(`${API_BASE}/api/auth/logout`, {
       method: "POST",
       credentials: "include",
     });
