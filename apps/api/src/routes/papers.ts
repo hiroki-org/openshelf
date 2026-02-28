@@ -239,12 +239,11 @@ papersRoute.get("/:id", async (c) => {
         }
     }
 
-    const [files, authors] = await Promise.all([
+    const [files, authors] = await db.batch([
         db
             .select()
             .from(paperFiles)
-            .where(eq(paperFiles.paperId, paperId))
-            .all(),
+            .where(eq(paperFiles.paperId, paperId)),
         db
             .select({
                 userId: paperAuthors.userId,
@@ -255,8 +254,7 @@ papersRoute.get("/:id", async (c) => {
             })
             .from(paperAuthors)
             .innerJoin(users, eq(paperAuthors.userId, users.id))
-            .where(eq(paperAuthors.paperId, paperId))
-            .all()
+            .where(eq(paperAuthors.paperId, paperId)),
     ]);
 
     return c.json({ paper, files, authors });
