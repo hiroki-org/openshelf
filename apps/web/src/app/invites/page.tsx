@@ -40,7 +40,7 @@ export default function InvitesPage() {
         const d = await r.json();
         if (!cancelled) setInvites(d.invites ?? []);
       } catch (err) {
-        console.error(err);
+        console.error("Failed to fetch invites:", err);
         if (!cancelled) setInvites([]);
       } finally {
         if (!cancelled) setFetching(false);
@@ -68,7 +68,7 @@ export default function InvitesPage() {
         );
       }
     } catch (err) {
-      console.error(err);
+      console.error(`Failed to ${action} invite ${inviteId}:`, err);
       // Keep UI state unchanged when request fails.
     }
   };
