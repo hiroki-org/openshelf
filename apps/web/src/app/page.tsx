@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "@/components/auth-provider";
+import { apiFetch } from "@/lib/api";
 import { useEffect, useState } from "react";
 
 type Paper = {
@@ -19,7 +20,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!user) return;
-    fetch("/api/papers", { credentials: "include" })
+    apiFetch("/api/papers")
       .then(async (r) => {
         if (!r.ok) return { papers: [] as Paper[] };
         return r.json();
