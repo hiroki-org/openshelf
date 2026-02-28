@@ -88,10 +88,10 @@ papersRoute.post("/", authMiddleware, async (c) => {
                 { error: `File ${file.name} exceeds 50 MB limit` },
                 400,
             );
-        if (file.type && !ALLOWED_MIME_TYPES.includes(file.type))
+        if (!ALLOWED_MIME_TYPES.includes(file.type))
             return c.json(
                 {
-                    error: `File ${file.name} has unsupported type: ${file.type}`,
+                    error: `File ${file.name} has unsupported type: ${file.type || "unknown"}`,
                 },
                 400,
             );

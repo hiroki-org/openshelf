@@ -15,6 +15,7 @@ export const authMiddleware = createMiddleware<{
         const payload = await verify<JwtPayload>(
             token,
             c.env.JWT_SECRET,
+            "HS256"
         );
         c.set("user", payload);
         await next();
