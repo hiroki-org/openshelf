@@ -45,11 +45,20 @@ invitesRoute.get("/received", authMiddleware, async (c) => {
 // PATCH /api/invites/:inviteId — accept or decline
 invitesRoute.patch("/:inviteId", authMiddleware, async (c) => {
     const inviteId = c.req.param("inviteId");
-    const { action } = await c.req.json<{
-        action: "accept" | "decline";
-    }>();
+    let body: { action?: unknown };
+    try {
+        body = await c.req.json();
+    } catch {
+        return c.json({ error: "Invalid JSON body" }, 400);
+    }
 
-    if (!action || !["accept", "decline"].includes(action)) {
+    const action = body.action;
+
+    if (
+        !action ||
+        typeof action !== "string" ||
+        !["accept", "decline"].includes(action)
+    ) {
         return c.json({ error: "action must be accept or decline" }, 400);
     }
 

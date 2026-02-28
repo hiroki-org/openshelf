@@ -176,6 +176,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
         );
     } catch (error) {
         await Promise.all(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
+        // paperAuthors and paperFiles are removed by FK cascade on papers delete.
         await db.delete(papers).where(eq(papers.id, paperId));
         throw error;
     }
@@ -263,8 +264,26 @@ papersRoute.get("/:id", async (c) => {
 // POST /api/papers/:id/invites — send coauthor invite
 papersRoute.post("/:id/invites", authMiddleware, async (c) => {
     const paperId = c.req.param("id");
-    const { inviteeId } = await c.req.json<{ inviteeId: string }>();
-    if (!inviteeId) return c.json({ error: "inviteeId is required" }, 400);
+    let body: { inviteeId?: unknown; inviteeEmail?: unknown };
+    try {
+        body = await c.req.json();
+    } catch {
+        return c.json({ error: "Invalid JSON body" }, 400);
+    }
+
+    const inviteeId =
+        typeof body.inviteeId === "string" && body.inviteeId.trim().length > 0
+            ? body.inviteeId.trim()
+            : null;
+    const inviteeEmail =
+        typeof body.inviteeEmail === "string" &&
+        body.inviteeEmail.trim().length > 0
+            ? body.inviteeEmail.trim().toLowerCase()
+            : null;
+
+    if (!inviteeId && !inviteeEmail) {
+        return c.json({ error: "inviteeId or inviteeEmail is required" }, 400);
+    }
 
     const db = drizzle(c.env.DB);
     await enableForeignKeys(db);
@@ -285,34 +304,52 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
     if (!isUploader)
         return c.json({ error: "Only uploaders can invite" }, 403);
 
-    // Already an author?
-    const alreadyAuthor = await db
-        .select()
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paperId),
-                eq(paperAuthors.userId, inviteeId),
-            ),
-        )
-        .get();
-    if (alreadyAuthor)
-        return c.json({ error: "User is already an author" }, 409);
+    let resolvedInviteeId: string | null = inviteeId;
+    let resolvedInviteeEmail: string | null = inviteeEmail;
 
-    // Invitee exists?
-    const invitee = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, inviteeId))
-        .get();
-    if (!invitee) return c.json({ error: "User not found" }, 404);
+    if (!resolvedInviteeId && resolvedInviteeEmail) {
+        const matchedUser = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(eq(users.email, resolvedInviteeEmail))
+            .get();
+        if (matchedUser) {
+            resolvedInviteeId = matchedUser.id;
+            resolvedInviteeEmail = null;
+        }
+    }
+
+    if (resolvedInviteeId) {
+        // Already an author?
+        const alreadyAuthor = await db
+            .select()
+            .from(paperAuthors)
+            .where(
+                and(
+                    eq(paperAuthors.paperId, paperId),
+                    eq(paperAuthors.userId, resolvedInviteeId),
+                ),
+            )
+            .get();
+        if (alreadyAuthor)
+            return c.json({ error: "User is already an author" }, 409);
+
+        // Invitee exists?
+        const invitee = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(eq(users.id, resolvedInviteeId))
+            .get();
+        if (!invitee) return c.json({ error: "User not found" }, 404);
+    }
 
     try {
         await db.insert(coauthorInvites).values({
             id: crypto.randomUUID(),
             paperId,
             inviterId: userId,
-            inviteeId,
+            inviteeId: resolvedInviteeId,
+            inviteeEmail: resolvedInviteeEmail,
         });
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "";

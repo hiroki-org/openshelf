@@ -27,10 +27,28 @@ export default function InvitesPage() {
 
   useEffect(() => {
     if (!user) return;
-    fetch("/api/invites/received", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => setInvites(d.invites ?? []))
-      .finally(() => setFetching(false));
+    let cancelled = false;
+    setFetching(true);
+    (async () => {
+      try {
+        const r = await fetch("/api/invites/received", {
+          credentials: "include",
+        });
+        if (!r.ok) {
+          if (!cancelled) setInvites([]);
+          return;
+        }
+        const d = await r.json();
+        if (!cancelled) setInvites(d.invites ?? []);
+      } catch {
+        if (!cancelled) setInvites([]);
+      } finally {
+        if (!cancelled) setFetching(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user]);
 
   const respond = async (inviteId: string, action: "accept" | "decline") => {

@@ -70,18 +70,21 @@ auth.get("/github/callback", async (c) => {
         );
     }
 
-    const tokenData = (await tokenRes.json()) as {
-        access_token?: string;
-        error?: string;
-    };
-    if (!tokenData.access_token) {
+    const rawTokenData = (await tokenRes.json()) as unknown;
+    if (
+        !rawTokenData ||
+        typeof rawTokenData !== "object" ||
+        typeof (rawTokenData as { access_token?: unknown }).access_token !==
+            "string"
+    ) {
         return c.json({ error: "Failed to get access token" }, 400);
     }
+    const accessToken = (rawTokenData as { access_token: string }).access_token;
 
     // Get GitHub user info
     const userRes = await fetch("https://api.github.com/user", {
         headers: {
-            Authorization: `Bearer ${tokenData.access_token}`,
+            Authorization: `Bearer ${accessToken}`,
             "User-Agent": "OpenShelf",
         },
     });
@@ -97,50 +100,64 @@ auth.get("/github/callback", async (c) => {
         );
     }
 
-    const ghUser = (await userRes.json()) as {
-        id: number;
-        login: string;
-        name: string | null;
-        avatar_url: string;
-        email: string | null;
-    };
-
-    if (!ghUser?.id || !ghUser?.login) {
+    const rawGhUser = (await userRes.json()) as unknown;
+    if (!rawGhUser || typeof rawGhUser !== "object") {
         return c.json({ error: "Invalid GitHub user payload" }, 502);
     }
+
+    const ghUser = rawGhUser as {
+        id?: unknown;
+        login?: unknown;
+        name?: unknown;
+        avatar_url?: unknown;
+        email?: unknown;
+    };
+
+    if (typeof ghUser.id !== "number" || typeof ghUser.login !== "string") {
+        return c.json({ error: "Invalid GitHub user payload" }, 502);
+    }
+
+    const ghName =
+        typeof ghUser.name === "string" && ghUser.name.length > 0
+            ? ghUser.name
+            : ghUser.login;
+    const ghAvatar =
+        typeof ghUser.avatar_url === "string" ? ghUser.avatar_url : null;
+    const ghEmail = typeof ghUser.email === "string" ? ghUser.email : null;
 
     const db = drizzle(c.env.DB);
     await enableForeignKeys(db);
 
-    // Upsert user
+    // Upsert user atomically by githubId.
     const githubId = String(ghUser.id);
-    const existing = await db
-        .select()
+    const insertedUserId = crypto.randomUUID();
+    await db
+        .insert(users)
+        .values({
+            id: insertedUserId,
+            githubId,
+            name: ghName,
+            avatarUrl: ghAvatar,
+            email: ghEmail,
+        })
+        .onConflictDoUpdate({
+            target: users.githubId,
+            set: {
+                name: ghName,
+                avatarUrl: ghAvatar,
+                email: ghEmail,
+            },
+        });
+
+    const upsertedUser = await db
+        .select({ id: users.id })
         .from(users)
         .where(eq(users.githubId, githubId))
         .get();
-
-    let userId: string;
-    if (existing) {
-        await db
-            .update(users)
-            .set({
-                name: ghUser.name || ghUser.login,
-                avatarUrl: ghUser.avatar_url,
-                email: ghUser.email,
-            })
-            .where(eq(users.id, existing.id));
-        userId = existing.id;
-    } else {
-        userId = crypto.randomUUID();
-        await db.insert(users).values({
-            id: userId,
-            githubId,
-            name: ghUser.name || ghUser.login,
-            avatarUrl: ghUser.avatar_url,
-            email: ghUser.email,
-        });
+    if (!upsertedUser) {
+        return c.json({ error: "Failed to upsert user" }, 500);
     }
+    const userId = upsertedUser.id;
 
     // Generate JWT (7-day expiry)
     const now = Math.floor(Date.now() / 1000);
@@ -148,7 +165,7 @@ auth.get("/github/callback", async (c) => {
         {
             sub: userId,
             githubId,
-            name: ghUser.name || ghUser.login,
+            name: ghName,
             iat: now,
             exp: now + 7 * 24 * 60 * 60,
         },

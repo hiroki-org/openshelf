@@ -93,12 +93,16 @@ export default function PaperDetailPage() {
 
   const fetchInvites = useCallback(async () => {
     if (!isUploader) return;
-    const res = await fetch(`/api/papers/${paperId}/invites`, {
-      credentials: "include",
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setInvites(data.invites);
+    try {
+      const res = await fetch(`/api/papers/${paperId}/invites`, {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInvites(data.invites);
+      }
+    } catch {
+      setInvites([]);
     }
   }, [paperId, isUploader]);
 
@@ -116,12 +120,18 @@ export default function PaperDetailPage() {
       setSearchResults([]);
       return;
     }
-    const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`, {
-      credentials: "include",
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setSearchResults(data.users);
+    try {
+      const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`, {
+        credentials: "include",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSearchResults(data.users);
+      } else {
+        setSearchResults([]);
+      }
+    } catch {
+      setSearchResults([]);
     }
   };
 

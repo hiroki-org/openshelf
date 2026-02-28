@@ -16,6 +16,7 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260218.0",
     "drizzle-kit": "^0.31.9",
     "wrangler": "^4.69.0"
   },
