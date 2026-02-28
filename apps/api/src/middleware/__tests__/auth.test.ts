@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { Hono } from "hono";
-import { authMiddleware } from "./auth";
-import type { Env, Variables } from "../types";
+import { authMiddleware } from "../auth";
+import type { Env, Variables } from "../../types";
 
 // Mock the verify function to avoid the "alg" option error with hono/jwt in tests, since the
 // original code uses verify<JwtPayload>(token, c.env.JWT_SECRET)
