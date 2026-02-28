@@ -1,9 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Hono } from 'hono';
+import type { Context, Next } from 'hono';
 
 // Mock auth middleware before importing users route
 vi.mock('../src/middleware/auth', () => ({
-    authMiddleware: async (c: any, next: any) => {
+    authMiddleware: async (c: Context, next: Next) => {
         c.set('user', { sub: 'user_123' });
         await next();
     }
