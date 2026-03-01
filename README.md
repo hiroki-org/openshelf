@@ -32,14 +32,14 @@ apps/
 
 **Tech Stack:**
 
-| Phase | Tech |
-|-------|------|
+| Phase    | Tech                                               |
+| -------- | -------------------------------------------------- |
 | Frontend | Next.js 16, React 19, TypeScript 5, Tailwind CSS 4 |
-| Backend | Hono 4, Cloudflare Workers |
-| Database | SQLite (D1) |
-| Storage | Cloudflare R2 |
-| Auth | GitHub OAuth 2.0, JWT |
-| Testing | Vitest |
+| Backend  | Hono 4, Cloudflare Workers                         |
+| Database | SQLite (D1)                                        |
+| Storage  | Cloudflare R2                                      |
+| Auth     | GitHub OAuth 2.0, JWT                              |
+| Testing  | Vitest                                             |
 
 ---
 
