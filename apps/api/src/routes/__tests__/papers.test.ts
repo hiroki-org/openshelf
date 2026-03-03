@@ -118,6 +118,24 @@ describe("papers routes", () => {
         expect(res.status).toBe(403);
     });
 
+    it("GET /api/papers/:id returns 500 (not 401) on database error during author check", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "private" } }))
+            .mockImplementationOnce(() => { throw new Error("DB Error") });
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            { headers: { Authorization: `Bearer ${token}` } },
+            env as any
+        );
+
+        expect(res.status).toBe(500);
+    });
+
     it("DELETE /api/papers/:id deletes a paper", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi

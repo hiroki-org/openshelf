@@ -8,6 +8,8 @@ export type Env = {
     JWT_SECRET: string;
     FRONTEND_URL: string;
     ALLOWED_ORIGINS?: string;
+    ENABLE_TEST_AUTH?: string;
+    TEST_AUTH_SECRET?: string;
 };
 
 export type JwtPayload = {
