@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, inArray } from "drizzle-orm";
 import {
@@ -7,6 +7,8 @@ import {
     paperAuthors,
     users,
     coauthorInvites,
+    orgMembers,
+    paperOrgs,
     enableForeignKeys,
 } from "../db/schema";
 import type { Env, Variables } from "../types";
@@ -34,6 +36,76 @@ function sanitizeFilename(filename: string): string {
         .replace(/^\.+/, "")
         .slice(0, 120);
     return cleaned || `file-${crypto.randomUUID()}`;
+}
+
+function isValidUrlScheme(urlStr: string): boolean {
+    try {
+        const url = new URL(urlStr);
+        return ["http:", "https:"].includes(url.protocol);
+    } catch {
+        return false;
+    }
+}
+
+async function authorizePaperAccess(
+    c: Context<{ Bindings: Env; Variables: Variables }>,
+    db: ReturnType<typeof drizzle>,
+    paper: { visibility: string; id: string },
+) {
+    if (paper.visibility === "public") return { ok: true };
+
+    const authHeader = c.req.header("Authorization");
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    if (!token) {
+        return { ok: false, status: 401, error: "Unauthorized" };
+    }
+
+    const { verify } = await import("hono/jwt");
+    let user: { sub: string };
+    try {
+        user = (await verify(token, c.env.JWT_SECRET, "HS256")) as { sub: string };
+    } catch {
+        return { ok: false, status: 401, error: "Invalid token" };
+    }
+
+    // Authors always have access
+    const isAuthor = await db
+        .select()
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paper.id),
+                eq(paperAuthors.userId, user.sub),
+            ),
+        )
+        .get();
+    if (isAuthor) return { ok: true, user };
+
+    if (paper.visibility === "private") {
+        return { ok: false, status: 403, error: "Forbidden" };
+    }
+
+    if (paper.visibility === "org_only") {
+        const isMemberOfPaperOrg = await db
+            .select({ id: orgMembers.userId })
+            .from(orgMembers)
+            .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
+            .where(
+                and(
+                    eq(paperOrgs.paperId, paper.id),
+                    eq(orgMembers.userId, user.sub),
+                ),
+            )
+            .get();
+
+        if (!isMemberOfPaperOrg) {
+            return { ok: false, status: 403, error: "Forbidden" };
+        }
+    } else if (paper.visibility !== "public") {
+        return { ok: false, status: 403, error: "Forbidden" };
+    }
+
+    return { ok: true, user };
 }
 
 // POST /api/papers — create paper + upload files
@@ -64,8 +136,37 @@ papersRoute.post("/", authMiddleware, async (c) => {
     if (!VALID_VISIBILITY.includes(vis))
         return c.json({ error: "Invalid visibility" }, 400);
 
+    const externalUrl = (meta.externalUrl as string) || null;
+    if (externalUrl && !isValidUrlScheme(externalUrl)) {
+        return c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400);
+    }
+
+    const orgId = meta.orgId as string | undefined;
+    if (vis === "org_only" && !orgId) {
+        return c.json({ error: "orgId is required for org_only visibility" }, 400);
+    }
+
     const paperId = crypto.randomUUID();
     const userId = c.get("user").sub;
+
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    if (vis === "org_only" && orgId) {
+        const membership = await db
+            .select({ orgId: orgMembers.orgId })
+            .from(orgMembers)
+            .where(
+                and(
+                    eq(orgMembers.orgId, orgId),
+                    eq(orgMembers.userId, userId),
+                ),
+            )
+            .get();
+        if (!membership) {
+            return c.json({ error: "Invalid orgId or not a member" }, 403);
+        }
+    }
 
     type UploadEntry = {
         file: File;
@@ -113,16 +214,13 @@ papersRoute.post("/", authMiddleware, async (c) => {
         return c.json({ error: "At least one file is required" }, 400);
     }
 
-    const db = drizzle(c.env.DB);
-    await enableForeignKeys(db);
-
     const paperValues: typeof papers.$inferInsert = {
         id: paperId,
         title: title.trim(),
         abstract: (meta.abstract as string) || null,
         visibility: vis as "public" | "org_only" | "private",
         language: (meta.language as string) || null,
-        externalUrl: (meta.externalUrl as string) || null,
+        externalUrl,
         doi: (meta.doi as string) || null,
         venue: (meta.venue as string) || null,
         venueType:
@@ -149,8 +247,6 @@ papersRoute.post("/", authMiddleware, async (c) => {
     const uploadedKeys: string[] = [];
     try {
         for (const entry of uploads) {
-            // Use arrayBuffer for R2 put type compatibility in Workers/Vitest runtime.
-            // Memory impact is bounded by MAX_FILE_SIZE (50 MB).
             const fileBuffer = await entry.file.arrayBuffer();
             await c.env.BUCKET.put(
                 entry.r2Key,
@@ -168,6 +264,10 @@ papersRoute.post("/", authMiddleware, async (c) => {
             .insert(paperAuthors)
             .values({ paperId, userId, role: "uploader" });
 
+        if (vis === "org_only" && orgId) {
+            await db.insert(paperOrgs).values({ paperId, orgId });
+        }
+
         await db.insert(paperFiles).values(
             uploads.map((entry) => ({
                 id: crypto.randomUUID(),
@@ -181,7 +281,6 @@ papersRoute.post("/", authMiddleware, async (c) => {
         );
     } catch (error) {
         await Promise.all(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
-        // paperAuthors and paperFiles are removed by FK cascade on papers delete.
         await db.delete(papers).where(eq(papers.id, paperId));
         throw error;
     }
@@ -221,24 +320,9 @@ papersRoute.get("/:id", async (c) => {
         .get();
     if (!paper) return c.json({ error: "Not found" }, 404);
 
-    // Non-public papers require authentication and authorship
-    if (paper.visibility !== "public") {
-        const authRes = await authMiddleware(c, async () => {});
-        if (authRes) return authRes;
-
-        const user = c.get("user");
-        const isAuthor = await db
-            .select()
-            .from(paperAuthors)
-            .where(
-                and(
-                    eq(paperAuthors.paperId, paperId),
-                    eq(paperAuthors.userId, user.sub as string),
-                ),
-            )
-            .get();
-        if (!isAuthor)
-            return c.json({ error: "Forbidden" }, 403);
+    const access = await authorizePaperAccess(c, db, paper);
+    if (!access.ok) {
+        return c.json({ error: access.error }, access.status as any);
     }
 
     const files = await db
@@ -246,6 +330,15 @@ papersRoute.get("/:id", async (c) => {
         .from(paperFiles)
         .where(eq(paperFiles.paperId, paperId))
         .all();
+
+    const filesWithDownloadUrl = files.map((file) => ({
+        id: file.id,
+        filename: file.filename,
+        fileType: file.fileType,
+        sizeBytes: file.sizeBytes,
+        mimeType: file.mimeType,
+        downloadUrl: `/api/papers/${paperId}/files/${file.id}/download`,
+    }));
 
     const authors = await db
         .select({
@@ -260,7 +353,70 @@ papersRoute.get("/:id", async (c) => {
         .where(eq(paperAuthors.paperId, paperId))
         .all();
 
-    return c.json({ paper, files, authors });
+    return c.json({
+        paper: {
+            id: paper.id,
+            title: paper.title,
+            abstract: paper.abstract,
+            visibility: paper.visibility,
+            externalUrl: paper.externalUrl,
+            venue: paper.venue,
+            venueType: paper.venueType,
+            year: paper.year,
+            category: paper.category,
+            tags: paper.tags,
+            createdAt: paper.createdAt,
+            updatedAt: paper.updatedAt,
+        },
+        files: filesWithDownloadUrl,
+        authors,
+    });
+});
+
+// GET /api/papers/:id/files/:fileId/download — download file
+papersRoute.get("/:id/files/:fileId/download", async (c) => {
+    const paperId = c.req.param("id");
+    const fileId = c.req.param("fileId");
+    const db = drizzle(c.env.DB);
+
+    const paper = await db
+        .select()
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!paper) return c.json({ error: "Not found" }, 404);
+
+    const access = await authorizePaperAccess(c, db, paper);
+    if (!access.ok) {
+        return c.json({ error: access.error }, access.status as any);
+    }
+
+    const file = await db
+        .select()
+        .from(paperFiles)
+        .where(and(eq(paperFiles.id, fileId), eq(paperFiles.paperId, paperId)))
+        .get();
+    if (!file) return c.json({ error: "File not found" }, 404);
+
+    const object = await c.env.BUCKET.get(file.r2Key);
+    if (!object) return c.json({ error: "File not found in storage" }, 404);
+
+    const headers: Record<string, string> = {
+        "Content-Type": object.httpMetadata?.contentType || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${encodeURIComponent(file.filename)}"`,
+    };
+    if (paper.visibility === "public") {
+        headers["Cache-Control"] = "public, max-age=3600";
+    } else {
+        headers["Cache-Control"] = "private, no-store";
+        headers["Pragma"] = "no-cache";
+        headers["Vary"] = "Authorization";
+    }
+    if (object.size) {
+        headers["Content-Length"] = object.size.toString();
+    }
+
+    return new Response(object.body as ReadableStream, { headers });
 });
 
 // POST /api/papers/:id/invites — send coauthor invite
@@ -291,7 +447,6 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
     await enableForeignKeys(db);
     const userId = c.get("user").sub;
 
-    // Only uploaders can invite
     const isUploader = await db
         .select()
         .from(paperAuthors)
@@ -329,7 +484,6 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
     }
 
     if (resolvedInviteeId) {
-        // Already an author?
         const alreadyAuthor = await db
             .select()
             .from(paperAuthors)
@@ -343,7 +497,6 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
         if (alreadyAuthor)
             return c.json({ error: "User is already an author" }, 409);
 
-        // Invitee exists?
         const invitee = await db
             .select({ id: users.id })
             .from(users)
