@@ -20,7 +20,8 @@ describe("papers routes", () => {
             run: vi.fn(async () => undefined),
             select: vi.fn(() => makeQuery()),
             insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
-            delete: vi.fn(() => ({ where: vi.fn(async () => undefined) }))
+            delete: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
+            batch: vi.fn(async (queries) => Promise.all(queries.map((q: any) => q.all ? q.all() : q)))
         };
     });
 
