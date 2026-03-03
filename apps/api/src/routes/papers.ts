@@ -246,24 +246,26 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
     const uploadedKeys: string[] = [];
     try {
-        const results = await Promise.allSettled(
-            uploads.map(async (entry) => {
-                // Use arrayBuffer for R2 put type compatibility in Workers/Vitest runtime.
-                // Memory impact is bounded by MAX_FILE_SIZE (50 MB).
-                const fileBuffer = await entry.file.arrayBuffer();
-                await c.env.BUCKET.put(entry.r2Key, fileBuffer, {
-                    httpMetadata: { contentType: entry.file.type },
-                });
-                return entry.r2Key;
-            }),
-        );
-
+        const MAX_CONCURRENT_UPLOADS = 3;
         const errors: unknown[] = [];
-        for (const result of results) {
-            if (result.status === "fulfilled") {
-                uploadedKeys.push(result.value);
-            } else {
-                errors.push(result.reason);
+        for (let i = 0; i < uploads.length; i += MAX_CONCURRENT_UPLOADS) {
+            const chunk = uploads.slice(i, i + MAX_CONCURRENT_UPLOADS);
+            const results = await Promise.allSettled(
+                chunk.map(async (entry) => {
+                    const fileBuffer = await entry.file.arrayBuffer();
+                    await c.env.BUCKET.put(entry.r2Key, fileBuffer, {
+                        httpMetadata: { contentType: entry.file.type },
+                    });
+                    return entry.r2Key;
+                }),
+            );
+
+            for (const result of results) {
+                if (result.status === "fulfilled") {
+                    uploadedKeys.push(result.value);
+                } else {
+                    errors.push(result.reason);
+                }
             }
         }
 
@@ -376,7 +378,7 @@ papersRoute.get("/:id", async (c) => {
             createdAt: paper.createdAt,
             updatedAt: paper.updatedAt,
         },
-        files: filesWithDownloadUrl,
+        files,
         authors,
     });
 });
