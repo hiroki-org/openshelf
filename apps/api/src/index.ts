@@ -41,7 +41,18 @@ app.use(
             // Bypass CSRF for E2E/API clients without an Origin (since they use Bearer tokens)
             if (!origin) return true;
             try {
-                return origin === new URL(c.env.FRONTEND_URL).origin;
+                const frontendOrigin = new URL(c.env.FRONTEND_URL).origin;
+                if (origin === frontendOrigin) return true;
+
+                const allowedOrigins = c.env.ALLOWED_ORIGINS
+                    ? c.env.ALLOWED_ORIGINS
+                        .split(",")
+                        .map((v) => v.trim())
+                        .filter(Boolean)
+                    : [];
+                if (allowedOrigins.includes(origin)) return true;
+
+                return false;
             } catch {
                 return false;
             }

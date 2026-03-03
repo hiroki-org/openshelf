@@ -25,7 +25,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'npm run dev -- --var ENABLE_TEST_AUTH:true',
+      command: `npm run dev -- --var ENABLE_TEST_AUTH:true --var FRONTEND_URL:${baseURL} --var ALLOWED_ORIGINS:${baseURL}`,
       cwd: path.resolve(__dirname, '../api'),
       url: `${apiURL}/`,
       reuseExistingServer: !process.env.CI,
