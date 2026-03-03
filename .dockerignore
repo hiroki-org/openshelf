@@ -54,6 +54,8 @@ apps/api/wrangler.toml
 apps/api/drizzle.config.ts
 
 # Keep only necessary package.json files
+**/package.json
+package-lock.json
 !package.json
 !apps/web/package.json
 !package-lock.json

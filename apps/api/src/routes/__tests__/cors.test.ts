@@ -79,4 +79,73 @@ describe("CORS configuration", () => {
 
         expect(blockedRes.headers.get("access-control-allow-origin")).toBeNull();
     });
+    it("handles OPTIONS preflight with FRONTEND_URL fallback", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: "https://frontend.example.com",
+            ALLOWED_ORIGINS: undefined
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github",
+            {
+                method: "OPTIONS",
+                headers: {
+                    Origin: "https://frontend.example.com",
+                    "Access-Control-Request-Method": "POST"
+                }
+            },
+            env as any
+        );
+
+        expect(res.headers.get("access-control-allow-origin")).toBe("https://frontend.example.com");
+        expect(res.headers.get("access-control-allow-methods")).toContain("POST");
+        expect(res.headers.get("access-control-allow-headers")).toBeTruthy();
+    });
+
+    it("handles OPTIONS preflight for allowed origins in ALLOWED_ORIGINS", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: "https://frontend.example.com",
+            ALLOWED_ORIGINS: "https://frontend.example.com,http://localhost:3000"
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github",
+            {
+                method: "OPTIONS",
+                headers: {
+                    Origin: "http://localhost:3000",
+                    "Access-Control-Request-Method": "POST"
+                }
+            },
+            env as any
+        );
+
+        expect(res.headers.get("access-control-allow-origin")).toBe("http://localhost:3000");
+        expect(res.headers.get("access-control-allow-methods")).toContain("POST");
+        expect(res.headers.get("access-control-allow-headers")).toBeTruthy();
+    });
+
+    it("blocks OPTIONS preflight for origins not listed in ALLOWED_ORIGINS", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: "https://frontend.example.com",
+            ALLOWED_ORIGINS: "https://frontend.example.com,http://localhost:3000"
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github",
+            {
+                method: "OPTIONS",
+                headers: {
+                    Origin: "https://evil.example.com",
+                    "Access-Control-Request-Method": "POST"
+                }
+            },
+            env as any
+        );
+
+        expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    });
 });
