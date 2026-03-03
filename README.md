@@ -162,4 +162,4 @@ cd apps/e2e && npx playwright test
 
 ## 📄 ライセンス
 
-MIT License
+[MIT License](./LICENSE)
