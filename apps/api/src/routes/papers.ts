@@ -178,6 +178,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
             )
             .get();
         if (!membership) {
+            console.error(`Membership check failed for userId: ${userId}, orgId: ${orgId}`);
             return c.json({ error: "Invalid orgId or not a member" }, 403);
         }
     }
@@ -193,12 +194,14 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
     // Validate all file entries before any upload or DB mutation.
     for (let i = 0; ; i++) {
-        const file = body[`files_${i}`];
-        if (!file) break;
-        if (typeof file === "string") {
-            console.error(`Field files_${i} is a string, not a file`);
+        const fileCandidate = body[`files_${i}`];
+        if (!fileCandidate) break;
+        if (typeof fileCandidate === "string" || Array.isArray(fileCandidate)) {
+            console.error(`Field files_${i} is not a single file`);
             break;
         }
+
+        const file = fileCandidate as File;
         if (!(file instanceof File) && typeof (file as any).slice !== "function") {
             console.error(`Field files_${i} is not a valid File/Blob`);
             break;
