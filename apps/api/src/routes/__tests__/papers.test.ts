@@ -81,6 +81,7 @@ describe("papers routes", () => {
         expect(res.status).toBe(200);
         const body = (await res.json()) as any;
         expect(body.paper.id).toBe("paper-1");
+        expect(mockDb.batch).toHaveBeenCalledTimes(1);
     });
 
     it("DELETE /api/papers/:id deletes a paper", async () => {
