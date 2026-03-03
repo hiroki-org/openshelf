@@ -11,12 +11,14 @@ type Paper = {
   title: string;
   abstract: string | null;
   visibility: string;
+  externalUrl: string | null;
   venue: string | null;
   venueType: string | null;
   year: number | null;
   category: string | null;
   tags: string | null;
   createdAt: string;
+  updatedAt: string;
 };
 
 type PaperFile = {
@@ -25,6 +27,7 @@ type PaperFile = {
   fileType: string;
   sizeBytes: number;
   mimeType: string | null;
+  downloadUrl: string;
 };
 
 type Author = {
@@ -48,6 +51,14 @@ type SearchUser = {
   name: string;
   displayName: string | null;
   avatarUrl: string | null;
+};
+const isValidExternalUrl = (urlStr: string) => {
+  try {
+    const url = new URL(urlStr);
+    return ["http:", "https:"].includes(url.protocol);
+  } catch {
+    return false;
+  }
 };
 
 export default function PaperDetailPage() {
@@ -76,7 +87,15 @@ export default function PaperDetailPage() {
     try {
       const res = await apiFetch(`/api/papers/${paperId}`);
       if (!res.ok) {
-        setError("論文が見つかりません");
+        if (res.status === 401) {
+          setError("ログインが必要です");
+        } else if (res.status === 403) {
+          setError("この論文を閲覧する権限がありません");
+        } else if (res.status === 404) {
+          setError("論文が見つかりません");
+        } else {
+          setError("論文の取得に失敗しました");
+        }
         return;
       }
       const data = await res.json();
@@ -118,7 +137,9 @@ export default function PaperDetailPage() {
       return;
     }
     try {
-      const res = await apiFetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+      const res = await apiFetch(
+        `/api/users/search?q=${encodeURIComponent(q)}`,
+      );
       if (res.ok) {
         const data = await res.json();
         setSearchResults(data.users);
@@ -154,6 +175,36 @@ export default function PaperDetailPage() {
     }
   };
 
+  const handleDownload = async (f: PaperFile) => {
+    try {
+      const res = await apiFetch(f.downloadUrl);
+      if (!res.ok) {
+        if (res.status === 401) {
+          alert("ログインが必要です");
+        } else if (res.status === 403) {
+          alert("このファイルをダウンロードする権限がありません");
+        } else {
+          alert("ダウンロードに失敗しました");
+        }
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      try {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = f.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } finally {
+        window.URL.revokeObjectURL(url);
+      }
+    } catch {
+      alert("ダウンロード中にエラーが発生しました");
+    }
+  };
+
   if (loading) return <div className="text-center py-20">読み込み中...</div>;
   if (error)
     return <div className="text-center py-20 text-red-600">{error}</div>;
@@ -165,13 +216,59 @@ export default function PaperDetailPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const getFileIcon = (fileType: string) => {
+    switch (fileType) {
+      case "paper":
+        return "📄";
+      case "slides":
+        return "📊";
+      case "poster":
+        return "🖼️";
+      case "supplementary":
+        return "📎";
+      default:
+        return "📄";
+    }
+  };
+
+  const getVisibilityBadge = (visibility: string) => {
+    switch (visibility) {
+      case "public":
+        return {
+          label: "公開",
+          className:
+            "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+        };
+      case "org_only":
+        return {
+          label: "組織限定",
+          className:
+            "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
+        };
+      case "private":
+        return {
+          label: "非公開",
+          className:
+            "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+        };
+      default:
+        return {
+          label: visibility,
+          className: "bg-gray-100 text-gray-700 dark:bg-gray-800",
+        };
+    }
+  };
+
+  const visibilityBadge = getVisibilityBadge(paper.visibility);
+  const showExternalLink = paper.externalUrl && isValidExternalUrl(paper.externalUrl);
+
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl font-bold mb-2">{paper.title}</h1>
 
-      <div className="flex gap-2 text-sm text-gray-500 mb-4">
-        <span className="rounded bg-gray-100 px-2 py-0.5 dark:bg-gray-800">
-          {paper.visibility}
+      <div className="flex flex-wrap gap-2 text-sm text-gray-500 mb-4">
+        <span className={`rounded px-2 py-0.5 ${visibilityBadge.className}`}>
+          {visibilityBadge.label}
         </span>
         {paper.year && <span>{paper.year}年</span>}
         {paper.venue && <span>/ {paper.venue}</span>}
@@ -185,22 +282,47 @@ export default function PaperDetailPage() {
         </div>
       )}
 
+      {showExternalLink && (
+        <div className="mb-6">
+          <a
+            href={paper.externalUrl!}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-500 transition-colors"
+          >
+            <span>🔗</span>
+            正式版はこちら
+          </a>
+        </div>
+      )}
+
       {/* Files */}
       <div className="mb-6">
         <h2 className="text-sm font-medium text-gray-500 mb-2">ファイル</h2>
-        <ul className="space-y-1">
+        <ul className="space-y-2">
           {files.map((f) => (
             <li
               key={f.id}
-              className="flex items-center justify-between text-sm border rounded-md p-2 dark:border-gray-700"
+              className="flex items-center justify-between text-sm border rounded-md p-3 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
             >
-              <span>
-                {f.filename}{" "}
-                <span className="text-xs text-gray-400">({f.fileType})</span>
-              </span>
-              <span className="text-xs text-gray-400">
-                {formatSize(f.sizeBytes)}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-xl" title={f.fileType}>
+                  {getFileIcon(f.fileType)}
+                </span>
+                <div className="flex flex-col">
+                  <span className="font-medium">{f.filename}</span>
+                  <span className="text-xs text-gray-400">
+                    {formatSize(f.sizeBytes)}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleDownload(f)}
+                className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white hover:bg-blue-500 transition-colors"
+              >
+                ダウンロード
+              </button>
             </li>
           ))}
         </ul>
