@@ -167,7 +167,8 @@ test.describe('論文ダウンロード', () => {
         const memberToken = await page.evaluate(() => localStorage.getItem('auth_token'));
         const authSecret = process.env.TEST_AUTH_SECRET as string;
 
-        const setupRes = await page.request.post('/api/auth/test-org', {
+        const apiURL = process.env.E2E_API_URL || 'http://localhost:8787';
+        const setupRes = await page.request.post(`${apiURL}/api/auth/test-org`, {
             headers: { 'x-test-auth-secret': authSecret },
             data: { userId: memberUserId, orgId }
         });
@@ -177,7 +178,7 @@ test.describe('論文ダウンロード', () => {
         const pdfPath = path.resolve(__dirname, '../fixtures/test-paper.pdf');
         const pdfContent = fs.readFileSync(pdfPath);
         
-        const uploadRes = await page.request.post('/api/papers', {
+        const uploadRes = await page.request.post(`${apiURL}/api/papers`, {
             headers: { 'Authorization': `Bearer ${memberToken}` },
             multipart: {
                 metadata: JSON.stringify({
@@ -204,7 +205,7 @@ test.describe('論文ダウンロード', () => {
         const fileId = await getFirstFileId(page, paperId);
 
         // 4. メンバーコンテキストによるダウンロード -> 200
-        const memberDownloadRes = await page.request.get(`/api/papers/${paperId}/files/${fileId}/download`, {
+        const memberDownloadRes = await page.request.get(`${apiURL}/api/papers/${paperId}/files/${fileId}/download`, {
             headers: { 'Authorization': `Bearer ${memberToken}` }
         });
         expect(memberDownloadRes.status()).toBe(200);
@@ -217,7 +218,7 @@ test.describe('論文ダウンロード', () => {
             await loginAsTestUser(nonMemberPage); // 別ユーザー(非メンバー)としてログイン
             const nonMemberToken = await nonMemberPage.evaluate(() => localStorage.getItem('auth_token'));
 
-            const nonMemberDownloadRes = await nonMemberPage.request.get(`/api/papers/${paperId}/files/${fileId}/download`, {
+            const nonMemberDownloadRes = await nonMemberPage.request.get(`${apiURL}/api/papers/${paperId}/files/${fileId}/download`, {
                 headers: { 'Authorization': `Bearer ${nonMemberToken}` }
             });
             expect(nonMemberDownloadRes.status()).toBe(403);
