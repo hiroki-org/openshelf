@@ -1,18 +1,47 @@
 # OpenShelf
 
-研究成果物ファイルをホストするためのアプリケーション。
-Next.js (Web) と Hono + Cloudflare Workers (API) で構成されるモノレポです。
+OpenShelf は、研究機関やチーム内で研究成果物（論文、データセット、スライド等）を安全にアップロードし、共有するためのファイルホスティングプラットフォームです。
 
-## 主な機能
+利用者は GitHub アカウントを用いて安全にログインし、成果物を素早く公開・共有できます。
 
-- **ファイルホスティング**: 研究成果物やファイルをアップロード・共有。
-- **GitHub OAuth**: GitHub アカウントによる認証。
-- **招待制システム**: アクセスを制限する招待機能。
-- **Cloudflare エコシステム連携**: D1 (データベース) と R2 (ストレージ) を利用。
+## 主な機能・利用メリット
 
-## Local Setup
+- **シンプルなファイル共有**: ドラッグ＆ドロップで成果物をアップロードし、すぐに共有リンクを発行できます。
+- **GitHub アカウント連携**: 新たなパスワードを管理する必要はありません。お使いの GitHub アカウントでログイン可能です。
+- **招待制アクセス**: 限られたメンバーだけが利用できるように、既存のユーザーが新規ユーザーを招待するシステムを採用しています。
 
-### API (`apps/api`)
+---
+
+## 使い方 (ユーザー向け)
+
+OpenShelf（Vercel 上で提供されている URL）にアクセスして以下の手順で利用を開始します。
+
+### 1. ログイン・新規登録
+- トップ画面の「Sign in with GitHub」ボタンからログインします。
+- **注意**: OpenShelf は招待制です。初めて利用する場合は、すでに利用しているメンバーから**招待リンク (Invite Link)** を発行してもらう必要があります。
+
+### 2. ファイルのアップロード
+- ログイン後、アップロード画面から成果物となるファイルをアップロードします。
+- タイトルや著者名などのメタデータを併せて登録できます。
+
+### 3. ファイルの共有
+- アップロードが完了すると、ファイル専用の URL が発行されます。
+- この URL を共同研究者やチームメンバーに共有することで、ブラウザから簡単に成果物を閲覧・ダウンロードできます。
+
+### 4. メンバーの招待
+- 自分が他のメンバーをチームに加えたい場合は、設定・招待画面から「Create Invite Link」を選択して招待 URL を発行します。
+- 発行した URL を新しいメンバーに送ることで、その人も GitHub アカウントで登録できるようになります。
+
+---
+
+## 開発者・システム管理者向け (Local Setup & Deployment)
+
+OpenShelf は Next.js (Web) と Hono + Cloudflare Workers (API) で構成されるモノレポです。
+ご自身の環境や Vercel/Cloudflare にシステム自体をデプロイする場合は以下を参照してください。
+
+### Local Setup
+
+#### API (`apps/api`)
 
 `apps/api/.dev.vars` を作成して以下を設定します。
 
@@ -22,48 +51,31 @@ GITHUB_CLIENT_SECRET=...
 JWT_SECRET=...
 FRONTEND_URL=http://localhost:3000
 ```
+※ `FRONTEND_URL` は OAuth コールバック後のリダイレクト先と CORS 判定に使われます。
 
-`FRONTEND_URL` は OAuth コールバック後のリダイレクト先と CORS 判定に使われます。
+#### Web (`apps/web`)
 
-### Web (`apps/web`)
-
-`next.config.ts` は `/api/*` を `API_URL` または `NEXT_PUBLIC_API_URL` にプロキシします。
-未設定時は `http://localhost:8787` を使用します。
+`next.config.ts` は `/api/*` を `API_URL` にプロキシします。未設定時は `http://localhost:8787` を使用します。
 
 ```bash
 API_URL=http://localhost:8787
 ```
 
-## Vercel Deployment (Web)
+### Vercel Deployment (Web)
 
 Next.js アプリケーション (`apps/web`) を Vercel にデプロイする手順です。
 
 1. **Vercel にリポジトリをインポート**
 2. **Project Settings の設定**
    - **Framework Preset**: `Next.js`
-   - **Root Directory**: `apps/web` (重要: これを設定しないとビルドに失敗します)
-3. **Environment Variables (環境変数) の設定**
-   - `API_URL`: Cloudflare Workers にデプロイした API の URL (例: `https://api.yourdomain.workers.dev`)
-     - ※ Vercel の API Routes からのリバースプロキシ (Rewrite) に使用されます。
+   - **Root Directory**: `apps/web` (重要: 設定必須)
+3. **Environment Variables の設定**
+   - `API_URL`: Cloudflare Workers にデプロイした API の URL
 
-## Cloudflare Workers Deployment (API)
+### Cloudflare Workers Deployment (API)
 
-Hono API (`apps/api`) を Cloudflare Workers にデプロイする手順です。
+Hono API (`apps/api`) をデプロイする手順です。
 
-1. **Cloudflare D1 データベースと R2 バケットの作成**
-   - Wrangler コマンド等を使用してリソースを作成し、`wrangler.toml` (または相当の設定) にバインディングを追加します。
-2. **環境変数とシークレットの設定**
-   本番環境では Cloudflare のダッシュボード（または `wrangler` CLI）で以下を設定してください。
-
-   - **シークレット (Secrets)**: 機密情報。`wrangler secret put <KEY>` で設定します。
-     - `GITHUB_CLIENT_ID`
-     - `GITHUB_CLIENT_SECRET`
-     - `JWT_SECRET`
-   - **環境変数 (Variables)**:
-     - `FRONTEND_URL`: Vercel にデプロイした Web 側の本番 URL (例: `https://openshelf.vercel.app`)
-       - ※ これを正しく設定しないと、OAuth ログイン後のリダイレクトや CORS でエラーになります。
-3. **デプロイの実行**
-   ```bash
-   cd apps/api
-   npm run deploy
-   ```
+1. **Cloudflare D1 と R2 の作成**: Wrangler コマンドで作成し、バインディングを追加。
+2. **環境変数の設定**: Cloudflare Worker のシークレットとして `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `JWT_SECRET`, `FRONTEND_URL` (VercelのWeb URL) を設定。
+3. **デプロイ**: `cd apps/api && npm run deploy`
