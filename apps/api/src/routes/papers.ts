@@ -193,7 +193,15 @@ papersRoute.post("/", authMiddleware, async (c) => {
     // Validate all file entries before any upload or DB mutation.
     for (let i = 0; ; i++) {
         const file = body[`files_${i}`];
-        if (!file || !(file instanceof File)) break;
+        if (!file) break;
+        if (typeof file === "string") {
+            console.error(`Field files_${i} is a string, not a file`);
+            break;
+        }
+        if (!(file instanceof File) && typeof (file as any).slice !== "function") {
+            console.error(`Field files_${i} is not a valid File/Blob`);
+            break;
+        }
 
         if (file.size > MAX_FILE_SIZE)
             return c.json(
@@ -210,6 +218,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
         const isValidContent = await validateMagicNumbers(file, file.type);
         if (!isValidContent) {
+            console.error(`Magic number validation failed for file ${file.name} (declared: ${file.type})`);
             return c.json(
                 { error: `File ${file.name} does not match expected format for ${file.type}` },
                 400,
