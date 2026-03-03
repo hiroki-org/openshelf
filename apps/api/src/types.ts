@@ -7,6 +7,8 @@ export type Env = {
     GITHUB_CLIENT_SECRET: string;
     JWT_SECRET: string;
     FRONTEND_URL: string;
+    ENABLE_TEST_AUTH?: string;
+    TEST_AUTH_SECRET?: string;
 };
 
 export type JwtPayload = {
