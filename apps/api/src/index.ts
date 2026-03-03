@@ -38,9 +38,10 @@ app.use(
     "/api/*",
     csrf({
         origin: (origin, c) => {
-            // Bypass CSRF for requests with Bearer tokens (safe since CSRF targets cookies)
+            // Bypass CSRF for requests with Bearer tokens or test auth secret
             const authHeader = c.req.header("Authorization");
-            if (authHeader?.startsWith("Bearer ")) return true;
+            const testAuthHeader = c.req.header("x-test-auth-secret");
+            if (authHeader?.startsWith("Bearer ") || testAuthHeader) return true;
 
             // Bypass CSRF if no Origin is present (e.g., from some API clients)
             if (!origin) return true;
