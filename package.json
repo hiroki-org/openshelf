@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "workspaces": [
     "apps/api",
-    "apps/web"
+    "apps/web",
+    "apps/e2e"
   ],
   "scripts": {
     "test": "vitest run",

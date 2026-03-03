@@ -194,4 +194,46 @@ auth.post("/logout", async (c) => {
     return c.json({ ok: true });
 });
 
+// POST /api/auth/test-token — only for E2E testing
+auth.post("/test-token", async (c) => {
+    if (c.env.ENABLE_TEST_AUTH !== "true") {
+        return c.json({ error: "Not Found" }, 404);
+    }
+    const body = await c.req.json<{ sub: string; githubId: string; name: string }>();
+
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    await db
+        .insert(users)
+        .values({
+            id: body.sub,
+            githubId: body.githubId,
+            name: body.name,
+            avatarUrl: null,
+            email: null,
+        })
+        .onConflictDoUpdate({
+            target: users.githubId,
+            set: {
+                name: body.name,
+            },
+        });
+
+    const now = Math.floor(Date.now() / 1000);
+    const jwt = await sign(
+        {
+            sub: body.sub,
+            githubId: body.githubId,
+            name: body.name,
+            iat: now,
+            exp: now + 7 * 24 * 60 * 60,
+        },
+        c.env.JWT_SECRET,
+        "HS256",
+    );
+
+    return c.json({ token: jwt });
+});
+
 export default auth;
