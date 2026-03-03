@@ -22,10 +22,15 @@ export async function loginAsTestUser(page: Page, user?: { sub?: string; githubI
     }
 
     const data = await res.json();
-    if (typeof data.token !== 'string') {
+    if (
+        !data ||
+        typeof data !== 'object' ||
+        typeof (data as { token?: unknown }).token !== 'string' ||
+        (data as { token: string }).token.length === 0
+    ) {
         throw new Error('Invalid token response from /api/auth/test-token');
     }
-    const token = data.token;
+    const token = (data as { token: string }).token;
 
     // Go to home first so that we have a trusted origin to set localStorage on
     await page.goto('/');
