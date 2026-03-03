@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { verify } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, inArray } from "drizzle-orm";
 import {
@@ -224,26 +223,22 @@ papersRoute.get("/:id", async (c) => {
 
     // Non-public papers require authentication and authorship
     if (paper.visibility !== "public") {
-        const authHeader = c.req.header("Authorization");
-        const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-        if (!token) return c.json({ error: "Unauthorized" }, 401);
-        try {
-            const payload = await verify(token, c.env.JWT_SECRET, "HS256");
-            const isAuthor = await db
-                .select()
-                .from(paperAuthors)
-                .where(
-                    and(
-                        eq(paperAuthors.paperId, paperId),
-                        eq(paperAuthors.userId, payload.sub as string),
-                    ),
-                )
-                .get();
-            if (!isAuthor)
-                return c.json({ error: "Forbidden" }, 403);
-        } catch {
-            return c.json({ error: "Unauthorized" }, 401);
-        }
+        const authRes = await authMiddleware(c, async () => {});
+        if (authRes) return authRes;
+
+        const user = c.get("user");
+        const isAuthor = await db
+            .select()
+            .from(paperAuthors)
+            .where(
+                and(
+                    eq(paperAuthors.paperId, paperId),
+                    eq(paperAuthors.userId, user.sub as string),
+                ),
+            )
+            .get();
+        if (!isAuthor)
+            return c.json({ error: "Forbidden" }, 403);
     }
 
     const files = await db
