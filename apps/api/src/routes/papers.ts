@@ -17,6 +17,7 @@ import { authMiddleware } from "../middleware/auth";
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const MAX_CONCURRENT_UPLOADS = 3;
 const ALLOWED_MIME_TYPES = [
     "application/pdf",
     "application/vnd.ms-powerpoint",
@@ -246,7 +247,6 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
     const uploadedKeys: string[] = [];
     try {
-        const MAX_CONCURRENT_UPLOADS = 3;
         const errors: unknown[] = [];
         for (let i = 0; i < uploads.length; i += MAX_CONCURRENT_UPLOADS) {
             const chunk = uploads.slice(i, i + MAX_CONCURRENT_UPLOADS);
@@ -270,6 +270,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
         }
 
         if (errors.length > 0) {
+            console.error("File upload errors:", { errors });
             throw errors[0] ?? new Error("An unknown upload error occurred.");
         }
 
@@ -356,7 +357,10 @@ papersRoute.get("/:id", async (c) => {
             .from(paperAuthors)
             .innerJoin(users, eq(paperAuthors.userId, users.id))
             .where(eq(paperAuthors.paperId, paperId)),
-    ])) as [any[], any[]];
+    ])) as [
+        (typeof paperFiles.$inferSelect)[],
+        { userId: string; role: string; name: string | null; displayName: string | null; avatarUrl: string | null }[]
+    ];
 
     const files = rawFiles.map((file) => ({
         ...file,
