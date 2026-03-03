@@ -52,8 +52,10 @@ app.use(
                     : [];
                 if (allowedOrigins.includes(origin)) return true;
 
+                console.error(`CSRF Origin mismatch: origin=${origin}, frontendOrigin=${frontendOrigin}, allowedOrigins=${JSON.stringify(allowedOrigins)}`);
                 return false;
-            } catch {
+            } catch (err) {
+                console.error(`CSRF Error: ${err}`);
                 return false;
             }
         },
