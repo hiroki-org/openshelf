@@ -193,6 +193,9 @@ test.describe('論文ダウンロード', () => {
                 file_types_0: 'paper'
             }
         });
+        if (!uploadRes.ok()) {
+            console.error(await uploadRes.text());
+        }
         expect(uploadRes.ok()).toBeTruthy();
         const uploadData = await uploadRes.json();
         const paperId = uploadData.paper.id;
