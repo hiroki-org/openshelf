@@ -50,6 +50,35 @@ describe("papers routes", () => {
 
         expect(res.status).toBe(201);
     });
+    
+    it("POST /api/papers rejects upload when content does not match declared MIME", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const form = new FormData();
+        form.set("metadata", JSON.stringify({ title: "Mismatched Paper", visibility: "private" }));
+        // PDF declared but content starts with ZIP header
+        form.set("files_0", new File(["PK\x03\x04zipcontent"], "paper.pdf", { type: "application/pdf" }));
+        form.set("file_types_0", "paper");
+
+        const res = await app.request(
+            "http://localhost/api/papers",
+            {
+                method: "POST",
+                headers: { 
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000"
+                },
+                body: form
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toContain("does not match expected format");
+    });
 
     it("GET /api/papers returns current user's papers", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
