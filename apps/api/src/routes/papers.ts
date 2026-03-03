@@ -198,13 +198,13 @@ papersRoute.post("/", authMiddleware, async (c) => {
         if (!fileCandidate) break;
         if (typeof fileCandidate === "string" || Array.isArray(fileCandidate)) {
             console.error(`Field files_${i} is not a single file`);
-            break;
+            return c.json({ error: `Field files_${i} is not a valid file` }, 400);
         }
 
         const file = fileCandidate as File;
         if (!(file instanceof File) && typeof (file as any).slice !== "function") {
             console.error(`Field files_${i} is not a valid File/Blob`);
-            break;
+            return c.json({ error: `Field files_${i} is not a valid file` }, 400);
         }
 
         if (file.size > MAX_FILE_SIZE)

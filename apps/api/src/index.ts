@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { csrf } from "hono/csrf";
 import type { Env, Variables } from "./types";
 import auth from "./routes/auth";
 import usersRoute from "./routes/users";
@@ -46,9 +45,6 @@ app.use("/api/*", async (c, next) => {
 
     // Bypass CSRF for requests with Bearer tokens or test auth secret
     if (authHeader?.startsWith("Bearer ") || testAuthHeader) return await next();
-
-    // Bypass CSRF if no Origin AND no Referer header (e.g., direct API clients)
-    if (!origin && !referer) return await next();
 
     try {
         const frontendOrigin = new URL(c.env.FRONTEND_URL).origin;
