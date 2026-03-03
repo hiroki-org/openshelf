@@ -10,9 +10,14 @@ import {
     orgMembers,
     paperOrgs,
     enableForeignKeys,
+    VALID_VENUE_TYPES,
+    VALID_CATEGORIES,
+    type VenueType,
+    type CategoryType,
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { validateMagicNumbers } from "../utils/file";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -137,6 +142,14 @@ papersRoute.post("/", authMiddleware, async (c) => {
     if (!VALID_VISIBILITY.includes(vis))
         return c.json({ error: "Invalid visibility" }, 400);
 
+    const venueType = (meta.venueType as string | null | undefined) ?? null;
+    if (venueType !== null && !(VALID_VENUE_TYPES as readonly string[]).includes(venueType))
+        return c.json({ error: "Invalid venueType" }, 400);
+
+    const category = (meta.category as string | null | undefined) ?? null;
+    if (category !== null && !(VALID_CATEGORIES as readonly string[]).includes(category))
+        return c.json({ error: "Invalid category" }, 400);
+
     const externalUrl = (meta.externalUrl as string) || null;
     if (externalUrl && !isValidUrlScheme(externalUrl)) {
         return c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400);
@@ -165,6 +178,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
             )
             .get();
         if (!membership) {
+            console.error(`Membership check failed for userId: ${userId}, orgId: ${orgId}`);
             return c.json({ error: "Invalid orgId or not a member" }, 403);
         }
     }
@@ -180,21 +194,40 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
     // Validate all file entries before any upload or DB mutation.
     for (let i = 0; ; i++) {
-        const file = body[`files_${i}`];
-        if (!file || !(file instanceof File)) break;
+        const fileCandidate = body[`files_${i}`];
+        if (!fileCandidate) break;
+        if (typeof fileCandidate === "string" || Array.isArray(fileCandidate)) {
+            console.error(`Field files_${i} is not a single file`);
+            return c.json({ error: `Field files_${i} is not a valid file` }, 400);
+        }
+
+        const file = fileCandidate as File;
+        if (!(file instanceof File) && typeof (file as any).slice !== "function") {
+            console.error(`Field files_${i} is not a valid File/Blob`);
+            return c.json({ error: `Field files_${i} is not a valid file` }, 400);
+        }
 
         if (file.size > MAX_FILE_SIZE)
             return c.json(
                 { error: `File ${file.name} exceeds 50 MB limit` },
                 400,
             );
-        if (file.type && !ALLOWED_MIME_TYPES.includes(file.type))
+        if (!ALLOWED_MIME_TYPES.includes(file.type))
             return c.json(
                 {
-                    error: `File ${file.name} has unsupported type: ${file.type}`,
+                    error: `File ${file.name} has unsupported type: ${file.type || "unknown"}`,
                 },
                 400,
             );
+
+        const isValidContent = await validateMagicNumbers(file, file.type);
+        if (!isValidContent) {
+            console.error(`Magic number validation failed for file ${file.name} (declared: ${file.type})`);
+            return c.json(
+                { error: `File ${file.name} does not match expected format for ${file.type}` },
+                400,
+            );
+        }
 
         const ft = (body[`file_types_${i}`] as string) || "paper";
         if (!VALID_FILE_TYPES.includes(ft))
@@ -224,24 +257,9 @@ papersRoute.post("/", authMiddleware, async (c) => {
         externalUrl,
         doi: (meta.doi as string) || null,
         venue: (meta.venue as string) || null,
-        venueType:
-            (meta.venueType as
-                | "conference"
-                | "journal"
-                | "workshop"
-                | "other"
-                | null
-                | undefined) ?? null,
+        venueType: venueType as VenueType | null,
         year: meta.year ? Number(meta.year) : null,
-        category:
-            (meta.category as
-                | "thesis_bachelor"
-                | "thesis_master"
-                | "report"
-                | "presentation"
-                | "other"
-                | null
-                | undefined) ?? null,
+        category: category as CategoryType | null,
         tags: meta.tags ? JSON.stringify(meta.tags) : null,
     };
 

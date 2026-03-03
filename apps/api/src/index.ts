@@ -32,6 +32,39 @@ app.use(
     }),
 );
 
+// CSRF
+app.use("/api/*", async (c, next) => {
+    const method = c.req.method;
+    // Skip CSRF for non-mutative methods
+    if (["GET", "HEAD", "OPTIONS", "TRACE"].includes(method)) return await next();
+
+    const origin = c.req.header("Origin");
+    const referer = c.req.header("Referer");
+    const authHeader = c.req.header("Authorization");
+    const testAuthHeader = c.req.header("x-test-auth-secret");
+
+    // Bypass CSRF for requests with Bearer tokens or test auth secret
+    if (authHeader?.startsWith("Bearer ") || testAuthHeader) return await next();
+
+    try {
+        const frontendOrigin = new URL(c.env.FRONTEND_URL).origin;
+        const allowedOrigins = c.env.ALLOWED_ORIGINS
+            ? c.env.ALLOWED_ORIGINS.split(",").map((v: string) => v.trim()).filter(Boolean)
+            : [];
+
+        const isAllowedOrigin = origin && (origin === frontendOrigin || allowedOrigins.includes(origin));
+        const isAllowedReferer = referer && (new URL(referer).origin === frontendOrigin || allowedOrigins.includes(new URL(referer).origin));
+
+        if (isAllowedOrigin || isAllowedReferer) return await next();
+
+        console.error(`CSRF check failed: origin=${origin}, referer=${referer}, frontendOrigin=${frontendOrigin}`);
+    } catch (err) {
+        console.error(`CSRF check error: ${err}`);
+    }
+
+    return c.text("Forbidden", 403);
+});
+
 // Routes
 app.route("/api/auth", auth);
 app.route("/api/users", usersRoute);
