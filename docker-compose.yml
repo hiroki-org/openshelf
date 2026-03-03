@@ -7,8 +7,6 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL?NEXT_PUBLIC_API_URL is required}
     environment:
       API_URL: ${API_URL?API_URL is required}
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID?GITHUB_CLIENT_ID is required}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET?GITHUB_CLIENT_SECRET is required}
     expose:
       - "3000"
 

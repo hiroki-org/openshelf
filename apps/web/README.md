@@ -43,8 +43,6 @@ Required environment variables:
 
 - `NEXT_PUBLIC_API_URL`: Public API base URL embedded at build time for browser requests.
 - `API_URL`: Runtime API base URL used by Next.js server-side rewrite (`/api/*`).
-- `GITHUB_CLIENT_ID`: GitHub OAuth App client ID.
-- `GITHUB_CLIENT_SECRET`: GitHub OAuth App client secret.
 
 Build image (run from monorepo root because `package-lock.json` is at root):
 
@@ -61,12 +59,10 @@ Run container:
 ```bash
 docker run --rm -p 3000:3000 \
 	-e API_URL=https://api.example.com \
-	-e GITHUB_CLIENT_ID=your-client-id \
-	-e GITHUB_CLIENT_SECRET=your-client-secret \
 	openshelf-web:latest
 ```
 
 Note for Workers CORS:
 
-- Add your Docker-hosted frontend origin (for example `http://localhost:3000` or your production domain) to `ALLOWED_ORIGINS` in Cloudflare Workers settings.
-- `FRONTEND_URL` remains as a fallback when `ALLOWED_ORIGINS` is not configured.
+- Add your Docker-hosted frontend origin (for example `http://localhost:3000` or your production domain) to `ALLOWED_ORIGINS` in Cloudflare Workers settings for CORS.
+- Ensure `FRONTEND_URL` is set to the same frontend origin you want GitHub OAuth to redirect back to; `ALLOWED_ORIGINS` only affects CORS and does not change the OAuth redirect target.

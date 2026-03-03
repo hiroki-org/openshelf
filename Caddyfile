@@ -1,4 +1,5 @@
-your-domain.example.com {
+# Replace :80 with your domain (e.g. example.com) before deploying publicly
+:80 {
   encode zstd gzip
   reverse_proxy web:3000
 }
