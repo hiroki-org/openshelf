@@ -12,7 +12,20 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use(
     "/api/*",
     cors({
-        origin: (origin, c) => c.env.FRONTEND_URL,
+        origin: (origin, c) => {
+            const allowedOrigins = c.env.ALLOWED_ORIGINS
+                ? c.env.ALLOWED_ORIGINS
+                    .split(",")
+                    .map((value: string) => value.trim())
+                    .filter(Boolean)
+                : undefined;
+
+            if (allowedOrigins && allowedOrigins.length > 0) {
+                return origin && allowedOrigins.includes(origin) ? origin : "";
+            }
+
+            return c.env.FRONTEND_URL;
+        },
         credentials: true,
         allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allowHeaders: ["Content-Type", "Authorization"],
