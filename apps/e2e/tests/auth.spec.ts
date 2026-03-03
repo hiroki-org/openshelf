@@ -11,7 +11,6 @@ test.describe('認証', () => {
 
     test('認証済みユーザーでトップページにアクセスすると、ユーザー名またはアバターが表示されること', async ({ page }) => {
         await loginAsTestUser(page, { name: 'Token User' });
-        await page.goto('/');
 
         await expect(page.getByText('Token User')).toBeVisible();
         await expect(page.getByRole('heading', { name: 'マイ論文' })).toBeVisible();

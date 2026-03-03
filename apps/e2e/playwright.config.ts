@@ -32,7 +32,7 @@ export default defineConfig({
       timeout: 120 * 1000,
     },
     {
-      command: 'npm run dev',
+      command: process.env.CI ? 'npm start' : 'npm run dev',
       cwd: path.resolve(__dirname, '../web'),
       url: `${baseURL}/`,
       env: {

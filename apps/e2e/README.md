@@ -13,6 +13,7 @@
 
 - リポジトリのルートでのパッケージインストール(`npm install`)が完了していること。
 - Playwrightのインストールが完了していること。
+
   ```bash
   cd apps/e2e
   npm install

@@ -117,6 +117,7 @@ jobs:
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
+        working-directory: apps/e2e
 
       - name: Setup local .dev.vars for Worker
         env:
@@ -124,9 +125,10 @@ jobs:
         run: |
           echo "JWT_SECRET=${E2E_JWT_SECRET:-e2e-ci-only-secret}" > apps/api/.dev.vars
           echo "FRONTEND_URL=http://localhost:3000" >> apps/api/.dev.vars
+          echo "TEST_AUTH_SECRET=e2e-ci-only-secret" >> apps/api/.dev.vars
 
       - name: Set up local D1 schema
-        run: npm run db:migrate:local --workspace apps/api -- -y
+        run: npm run db:migrate:local --workspace apps/api
 
       - name: Build web app for E2E
         run: npm run build -w apps/web
@@ -135,6 +137,7 @@ jobs:
         run: npm run test -w apps/e2e
         env:
           ENABLE_TEST_AUTH: "true"
+          TEST_AUTH_SECRET: "e2e-ci-only-secret"
           E2E_API_URL: http://localhost:8787
           NEXT_PUBLIC_API_URL: http://localhost:8787
 

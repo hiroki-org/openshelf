@@ -1,29 +1,38 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { loginAsTestUser } from '../helpers/auth';
 import path from 'path';
 import { randomUUID } from 'crypto';
+
+async function uploadPaper(page: Page, options: { title: string; visibility: 'public' | 'private'; filePath: string }): Promise<string> {
+    await page.goto('/upload');
+    await page.getByLabel(/タイトル/).fill(options.title);
+    await page.getByLabel('公開範囲').selectOption(options.visibility);
+    await page.setInputFiles('input[type="file"]', options.filePath);
+
+    const uploadResponsePromise = page.waitForResponse(response => 
+        response.url().includes('/api/papers') && response.request().method() === 'POST'
+    );
+    
+    await page.getByRole('button', { name: 'アップロード', exact: true }).click();
+    
+    const response = await uploadResponsePromise;
+    expect(response.ok()).toBeTruthy();
+    const data = await response.json();
+    expect(data.paper).toBeDefined();
+    expect(data.paper.id).toBeDefined();
+    return data.paper.id;
+}
 
 test.describe('論文アップロード', () => {
     test('認証済みユーザーが /upload ページからPDFをアップロードできること、アップロード後、トップページ（マイ論文一覧）に論文タイトルが表示されること', async ({ page }) => {
         const uniqueTitle = `テスト論文 - ${randomUUID()}`;
         await loginAsTestUser(page);
 
-        await page.goto('/upload');
-
-        // タイトル入力
-        await page.getByLabel(/タイトル/).fill(uniqueTitle);
-        
-        // PDFファイル選択
-        await page.setInputFiles('input[type="file"]', path.resolve(__dirname, '../fixtures/test-paper.pdf'));
-        
-        const uploadResponsePromise = page.waitForResponse(response => 
-            response.url().includes('/api/papers') && response.request().method() === 'POST'
-        );
-        
-        // アップロードボタンクリック
-        await page.getByRole('button', { name: 'アップロード', exact: true }).click();
-
-        await uploadResponsePromise;
+        await uploadPaper(page, {
+            title: uniqueTitle,
+            visibility: 'public',
+            filePath: path.resolve(__dirname, '../fixtures/test-paper.pdf')
+        });
         
         // マイ論文一覧(トップページ)へ
         await page.goto('/');
@@ -37,21 +46,11 @@ test.describe('非公開論文の詳細閲覧', () => {
         const paperTitle = `Secret Paper - ${randomUUID()}`;
         await loginAsTestUser(page);
         
-        // アップロード (private)
-        await page.goto('/upload');
-        await page.getByLabel(/タイトル/).fill(paperTitle);
-        await page.getByLabel('公開範囲').selectOption('private');
-        await page.setInputFiles('input[type="file"]', path.resolve(__dirname, '../fixtures/test-paper.pdf'));
-
-        const uploadResponsePromise = page.waitForResponse(response => 
-            response.url().includes('/api/papers') && response.request().method() === 'POST'
-        );
-        
-        await page.getByRole('button', { name: 'アップロード', exact: true }).click();
-        
-        const response = await uploadResponsePromise;
-        const data = await response.json();
-        const testPaperId = data.paper.id;
+        const testPaperId = await uploadPaper(page, {
+            title: paperTitle,
+            visibility: 'private',
+            filePath: path.resolve(__dirname, '../fixtures/test-paper.pdf')
+        });
         
         // 著者本人によるアクセス (詳細ページへの遷移はアプリ側で行われる場合もあるが明示的に遷移)
         await page.goto(`/papers/${testPaperId}`);
@@ -60,39 +59,34 @@ test.describe('非公開論文の詳細閲覧', () => {
         // 未認証ユーザーによるアクセス
         const unauthContext = await browser.newContext();
         const unauthPage = await unauthContext.newPage();
-        await unauthPage.goto(`/papers/${testPaperId}`);
-        
-        // 401 や 404/Not Found によるエラーメッセージが表示されること
-        await expect(unauthPage.getByText('論文が見つかりません').or(unauthPage.getByText('論文の取得に失敗しました'))).toBeVisible();
-        await unauthContext.close();
+        try {
+            await unauthPage.goto(`/papers/${testPaperId}`);
+            
+            // 401 や 404/Not Found によるエラーメッセージが表示されること
+            await expect(unauthPage.getByText('論文が見つかりません').or(unauthPage.getByText('論文の取得に失敗しました'))).toBeVisible();
+        } finally {
+            await unauthContext.close();
+        }
     });
 
     test('公開論文は未認証でも詳細ページを閲覧できること', async ({ page, browser }) => {
         const publicTitle = `Public Paper - ${randomUUID()}`;
         await loginAsTestUser(page);
 
-        // アップロード (public)
-        await page.goto('/upload');
-        await page.getByLabel(/タイトル/).fill(publicTitle);
-        await page.getByLabel('公開範囲').selectOption('public');
-        await page.setInputFiles('input[type="file"]', path.resolve(__dirname, '../fixtures/test-paper.pdf'));
-
-        const uploadResponsePromise = page.waitForResponse(response => 
-            response.url().includes('/api/papers') && response.request().method() === 'POST'
-        );
-        
-        await page.getByRole('button', { name: 'アップロード', exact: true }).click();
-        
-        const response = await uploadResponsePromise;
-        const data = await response.json();
-        const publicPaperId = data.paper.id;
+        const publicPaperId = await uploadPaper(page, {
+            title: publicTitle,
+            visibility: 'public',
+            filePath: path.resolve(__dirname, '../fixtures/test-paper.pdf')
+        });
         
         // 未認証ユーザーによるアクセス
         const unauthContext = await browser.newContext();
         const unauthPage = await unauthContext.newPage();
-        await unauthPage.goto(`/papers/${publicPaperId}`);
-        
-        await expect(unauthPage.getByRole('heading', { name: publicTitle })).toBeVisible();
-        await unauthContext.close();
+        try {
+            await unauthPage.goto(`/papers/${publicPaperId}`);
+            await expect(unauthPage.getByRole('heading', { name: publicTitle })).toBeVisible();
+        } finally {
+            await unauthContext.close();
+        }
     });
 });
