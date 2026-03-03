@@ -38,7 +38,11 @@ app.use(
     "/api/*",
     csrf({
         origin: (origin, c) => {
-            // Bypass CSRF for E2E/API clients without an Origin (since they use Bearer tokens)
+            // Bypass CSRF for requests with Bearer tokens (safe since CSRF targets cookies)
+            const authHeader = c.req.header("Authorization");
+            if (authHeader?.startsWith("Bearer ")) return true;
+
+            // Bypass CSRF if no Origin is present (e.g., from some API clients)
             if (!origin) return true;
             try {
                 const frontendOrigin = new URL(c.env.FRONTEND_URL).origin;
