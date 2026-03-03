@@ -4,6 +4,8 @@ compatibility_date = "2026-02-28"
 
 [vars]
 FRONTEND_URL = "https://open-shelf-delta.vercel.app"
+# ALLOWED_ORIGINS should be configured in Cloudflare Dashboard or via secret/vars
+# example: "https://open-shelf-delta.vercel.app,http://localhost:3000"
 
 [[d1_databases]]
 binding = "DB"

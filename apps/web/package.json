@@ -33,10 +33,16 @@
     "vitest": "^3.2.4"
   },
   "optionalDependencies": {
+    "@next/swc-linux-arm64-gnu": "^16.1.6",
+    "@next/swc-linux-arm64-musl": "^16.1.6",
     "@next/swc-linux-x64-gnu": "^16.1.6",
     "@next/swc-linux-x64-musl": "^16.1.6",
+    "@tailwindcss/oxide-linux-arm64-gnu": "^4.2.1",
+    "@tailwindcss/oxide-linux-arm64-musl": "^4.2.1",
     "@tailwindcss/oxide-linux-x64-gnu": "^4.2.1",
     "@tailwindcss/oxide-linux-x64-musl": "^4.2.1",
+    "lightningcss-linux-arm64-gnu": "^1.31.1",
+    "lightningcss-linux-arm64-musl": "^1.31.1",
     "lightningcss-linux-x64-gnu": "^1.31.1",
     "lightningcss-linux-x64-musl": "^1.31.1"
   }
