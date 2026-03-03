@@ -148,3 +148,21 @@ jobs:
           name: playwright-report
           path: apps/e2e/playwright-report/
           retention-days: 30
+
+  deploy-api:
+    name: Deploy Workers
+    needs: [e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Deploy to Cloudflare Workers
+        run: npx wrangler deploy
+        working-directory: apps/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
