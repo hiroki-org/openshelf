@@ -153,6 +153,9 @@ jobs:
     name: Deploy Workers
     needs: [e2e]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    concurrency:
+      group: deploy-api-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -162,7 +165,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Deploy to Cloudflare Workers
-        run: npx wrangler deploy
+        run: npx --no-install wrangler deploy
         working-directory: apps/api
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
