@@ -13,7 +13,7 @@ export async function loginAsTestUser(page: Page, user?: { sub?: string; githubI
     const res = await page.request.post(`${apiURL}/api/auth/test-token`, {
         data: payload,
         headers: {
-            'x-test-auth-secret': process.env.TEST_AUTH_SECRET || 'e2e-ci-only-secret'
+            'x-test-auth-secret': process.env.TEST_AUTH_SECRET as string
         }
     });
 

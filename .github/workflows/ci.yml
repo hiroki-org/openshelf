@@ -137,7 +137,7 @@ jobs:
         run: npm run test -w apps/e2e
         env:
           ENABLE_TEST_AUTH: "true"
-          TEST_AUTH_SECRET: "e2e-ci-only-secret"
+          TEST_AUTH_SECRET: ${{ secrets.E2E_JWT_SECRET || 'e2e-ci-only-secret' }}
           E2E_API_URL: http://localhost:8787
           NEXT_PUBLIC_API_URL: http://localhost:8787
 
