@@ -20,7 +20,8 @@ describe("papers routes", () => {
             run: vi.fn(async () => undefined),
             select: vi.fn(() => makeQuery()),
             insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
-            delete: vi.fn(() => ({ where: vi.fn(async () => undefined) }))
+            delete: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
+            batch: vi.fn(async (queries) => Promise.all(queries.map((q: any) => q.all ? q.all() : q)))
         };
     });
 
@@ -119,6 +120,7 @@ describe("papers routes", () => {
         expect(res.status).toBe(200);
         const body = (await res.json()) as any;
         expect(body.paper.id).toBe("paper-1");
+        expect(mockDb.batch).toHaveBeenCalledTimes(1);
     });
 
     it("GET /api/papers/:id returns 401 for private paper without Bearer token", async () => {

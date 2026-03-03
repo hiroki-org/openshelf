@@ -6,6 +6,7 @@ const apiOrigin =
   "http://localhost:8787";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   reactCompiler: true,
   images: {
     remotePatterns: [

@@ -34,3 +34,35 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Self-host (Docker)
+
+This app supports standalone Docker deployment for on-prem or VPS environments.
+
+Required environment variables:
+
+- `NEXT_PUBLIC_API_URL`: Public API base URL embedded at build time for browser requests.
+- `API_URL`: Runtime API base URL used by Next.js server-side rewrite (`/api/*`).
+
+Build image (run from monorepo root because `package-lock.json` is at root):
+
+```bash
+docker build \
+	-f apps/web/Dockerfile \
+	-t openshelf-web:latest \
+	--build-arg NEXT_PUBLIC_API_URL=https://api.example.com \
+	.
+```
+
+Run container:
+
+```bash
+docker run --rm -p 3000:3000 \
+	-e API_URL=https://api.example.com \
+	openshelf-web:latest
+```
+
+Note for Workers CORS:
+
+- Add your Docker-hosted frontend origin (for example `http://localhost:3000` or your production domain) to `ALLOWED_ORIGINS` in Cloudflare Workers settings for CORS.
+- Ensure `FRONTEND_URL` is set to the same frontend origin you want GitHub OAuth to redirect back to; `ALLOWED_ORIGINS` only affects CORS and does not change the OAuth redirect target.

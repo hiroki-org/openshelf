@@ -22,6 +22,7 @@ import { validateMagicNumbers } from "../utils/file";
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const MAX_CONCURRENT_UPLOADS = 3;
 const ALLOWED_MIME_TYPES = [
     "application/pdf",
     "application/vnd.ms-powerpoint",
@@ -261,16 +262,31 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
     const uploadedKeys: string[] = [];
     try {
-        for (const entry of uploads) {
-            const fileBuffer = await entry.file.arrayBuffer();
-            await c.env.BUCKET.put(
-                entry.r2Key,
-                fileBuffer,
-                {
-                    httpMetadata: { contentType: entry.file.type },
-                },
+        const errors: unknown[] = [];
+        for (let i = 0; i < uploads.length; i += MAX_CONCURRENT_UPLOADS) {
+            const chunk = uploads.slice(i, i + MAX_CONCURRENT_UPLOADS);
+            const results = await Promise.allSettled(
+                chunk.map(async (entry) => {
+                    const fileBuffer = await entry.file.arrayBuffer();
+                    await c.env.BUCKET.put(entry.r2Key, fileBuffer, {
+                        httpMetadata: { contentType: entry.file.type },
+                    });
+                    return entry.r2Key;
+                }),
             );
-            uploadedKeys.push(entry.r2Key);
+
+            for (const result of results) {
+                if (result.status === "fulfilled") {
+                    uploadedKeys.push(result.value);
+                } else {
+                    errors.push(result.reason);
+                }
+            }
+        }
+
+        if (errors.length > 0) {
+            console.error("File upload errors:", { errors });
+            throw errors[0] ?? new Error("An unknown upload error occurred.");
         }
 
         await db.insert(papers).values(paperValues);
@@ -340,33 +356,31 @@ papersRoute.get("/:id", async (c) => {
         return c.json({ error: access.error }, access.status as any);
     }
 
-    const files = await db
-        .select()
-        .from(paperFiles)
-        .where(eq(paperFiles.paperId, paperId))
-        .all();
+    const [rawFiles, authors] = (await db.batch([
+        db
+            .select()
+            .from(paperFiles)
+            .where(eq(paperFiles.paperId, paperId)),
+        db
+            .select({
+                userId: paperAuthors.userId,
+                role: paperAuthors.role,
+                name: users.name,
+                displayName: users.displayName,
+                avatarUrl: users.avatarUrl,
+            })
+            .from(paperAuthors)
+            .innerJoin(users, eq(paperAuthors.userId, users.id))
+            .where(eq(paperAuthors.paperId, paperId)),
+    ])) as [
+        (typeof paperFiles.$inferSelect)[],
+        { userId: string; role: string; name: string | null; displayName: string | null; avatarUrl: string | null }[]
+    ];
 
-    const filesWithDownloadUrl = files.map((file) => ({
-        id: file.id,
-        filename: file.filename,
-        fileType: file.fileType,
-        sizeBytes: file.sizeBytes,
-        mimeType: file.mimeType,
+    const files = rawFiles.map((file) => ({
+        ...file,
         downloadUrl: `/api/papers/${paperId}/files/${file.id}/download`,
     }));
-
-    const authors = await db
-        .select({
-            userId: paperAuthors.userId,
-            role: paperAuthors.role,
-            name: users.name,
-            displayName: users.displayName,
-            avatarUrl: users.avatarUrl,
-        })
-        .from(paperAuthors)
-        .innerJoin(users, eq(paperAuthors.userId, users.id))
-        .where(eq(paperAuthors.paperId, paperId))
-        .all();
 
     return c.json({
         paper: {
@@ -383,7 +397,7 @@ papersRoute.get("/:id", async (c) => {
             createdAt: paper.createdAt,
             updatedAt: paper.updatedAt,
         },
-        files: filesWithDownloadUrl,
+        files,
         authors,
     });
 });
