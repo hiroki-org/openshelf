@@ -161,8 +161,8 @@ test.describe('論文ダウンロード', () => {
         const orgId = randomUUID();
         
         // 1. メンバーとしてログインし、組織を作成・所属
-        await loginAsTestUser(page);
-        const memberUserId = await page.evaluate(() => localStorage.getItem('user_id'));
+        const userPayload = await loginAsTestUser(page);
+        const memberUserId = userPayload.sub;
         const memberToken = await page.evaluate(() => localStorage.getItem('auth_token'));
         const authSecret = process.env.TEST_AUTH_SECRET as string;
 
