@@ -24,15 +24,15 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: 'npm run dev --workspace apps/api -- --var ENABLE_TEST_AUTH:true',
-      cwd: path.resolve(__dirname, '../..'),
+      command: 'npm run dev -- --var ENABLE_TEST_AUTH:true',
+      cwd: path.resolve(__dirname, '../api'),
       url: `${apiURL}/`,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
     },
     {
-      command: 'npm run dev --workspace apps/web',
-      cwd: path.resolve(__dirname, '../..'),
+      command: 'npm run dev',
+      cwd: path.resolve(__dirname, '../web'),
       url: `${baseURL}/`,
       env: {
         NEXT_PUBLIC_API_URL: apiURL,
