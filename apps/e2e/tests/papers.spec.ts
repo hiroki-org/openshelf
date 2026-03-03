@@ -23,6 +23,20 @@ async function uploadPaper(page: Page, options: { title: string; visibility: 'pu
     return data.paper.id;
 }
 
+async function getFirstFileId(page: Page, paperId: string): Promise<string> {
+    const token = await page.evaluate(() => localStorage.getItem('auth_token'));
+    expect(token, 'auth_token が未設定です').toBeTruthy();
+
+    const detailRes = await page.request.get(`/api/papers/${paperId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    expect(detailRes.ok()).toBeTruthy();
+
+    const detail = await detailRes.json();
+    expect(Array.isArray(detail.files) && detail.files.length > 0).toBeTruthy();
+    return detail.files[0].id as string;
+}
+
 test.describe('論文アップロード', () => {
     test('認証済みユーザーが /upload ページからPDFをアップロードできること、アップロード後、トップページ（マイ論文一覧）に論文タイトルが表示されること', async ({ page }) => {
         const uniqueTitle = `テスト論文 - ${randomUUID()}`;
@@ -103,13 +117,7 @@ test.describe('論文ダウンロード', () => {
         });
 
         // 論文詳細APIを叩いてファイルIDを取得 (認証済みコンテキストを使用)
-        const token = await page.evaluate(() => localStorage.getItem('auth_token'));
-        const detailRes = await page.request.get(`/api/papers/${paperId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        expect(detailRes.ok()).toBeTruthy();
-        const detail = await detailRes.json();
-        const fileId = detail.files[0].id;
+        const fileId = await getFirstFileId(page, paperId);
 
         // 未認証コンテキストによるダウンロード
         const unauthContext = await browser.newContext();
@@ -135,13 +143,7 @@ test.describe('論文ダウンロード', () => {
         });
 
         // 論文詳細APIを叩いてファイルIDを取得 (認証済みコンテキストを使用)
-        const token = await page.evaluate(() => localStorage.getItem('auth_token'));
-        const detailRes = await page.request.get(`/api/papers/${paperId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        expect(detailRes.ok()).toBeTruthy();
-        const detail = await detailRes.json();
-        const fileId = detail.files[0].id;
+        const fileId = await getFirstFileId(page, paperId);
 
         // 未認証コンテキストによるダウンロード
         const unauthContext = await browser.newContext();

@@ -86,30 +86,23 @@ async function authorizePaperAccess(
     }
 
     if (paper.visibility === "org_only") {
-        const paperOrgRows = await db
-            .select({ orgId: paperOrgs.orgId })
-            .from(paperOrgs)
-            .where(eq(paperOrgs.paperId, paper.id))
-            .all();
-        const orgIds = paperOrgRows.map((r) => r.orgId);
-
-        if (orgIds.length === 0) {
-            return { ok: false, status: 403, error: "Forbidden" };
-        }
-
-        const memberRow = await db
-            .select()
+        const isMemberOfPaperOrg = await db
+            .select({ id: orgMembers.userId })
             .from(orgMembers)
+            .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
             .where(
                 and(
-                    inArray(orgMembers.orgId, orgIds),
+                    eq(paperOrgs.paperId, paper.id),
                     eq(orgMembers.userId, user.sub),
                 ),
             )
             .get();
-        if (!memberRow) {
+
+        if (!isMemberOfPaperOrg) {
             return { ok: false, status: 403, error: "Forbidden" };
         }
+    } else if (paper.visibility !== "public") {
+        return { ok: false, status: 403, error: "Forbidden" };
     }
 
     return { ok: true, user };
@@ -156,6 +149,25 @@ papersRoute.post("/", authMiddleware, async (c) => {
     const paperId = crypto.randomUUID();
     const userId = c.get("user").sub;
 
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    if (vis === "org_only" && orgId) {
+        const membership = await db
+            .select({ orgId: orgMembers.orgId })
+            .from(orgMembers)
+            .where(
+                and(
+                    eq(orgMembers.orgId, orgId),
+                    eq(orgMembers.userId, userId),
+                ),
+            )
+            .get();
+        if (!membership) {
+            return c.json({ error: "Invalid orgId or not a member" }, 403);
+        }
+    }
+
     type UploadEntry = {
         file: File;
         fileType: "paper" | "slides" | "poster" | "supplementary";
@@ -201,9 +213,6 @@ papersRoute.post("/", authMiddleware, async (c) => {
     if (uploads.length === 0) {
         return c.json({ error: "At least one file is required" }, 400);
     }
-
-    const db = drizzle(c.env.DB);
-    await enableForeignKeys(db);
 
     const paperValues: typeof papers.$inferInsert = {
         id: paperId,

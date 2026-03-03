@@ -52,6 +52,14 @@ type SearchUser = {
   displayName: string | null;
   avatarUrl: string | null;
 };
+const isValidExternalUrl = (urlStr: string) => {
+  try {
+    const url = new URL(urlStr);
+    return ["http:", "https:"].includes(url.protocol);
+  } catch {
+    return false;
+  }
+};
 
 export default function PaperDetailPage() {
   const params = useParams();
@@ -182,24 +190,18 @@ export default function PaperDetailPage() {
       }
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = f.filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      try {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = f.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } finally {
+        window.URL.revokeObjectURL(url);
+      }
     } catch {
       alert("ダウンロード中にエラーが発生しました");
-    }
-  };
-
-  const isValidExternalUrl = (urlStr: string) => {
-    try {
-      const url = new URL(urlStr);
-      return ["http:", "https:"].includes(url.protocol);
-    } catch {
-      return false;
     }
   };
 
