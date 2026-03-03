@@ -208,7 +208,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
                 400,
             );
 
-        const isValidContent = await validateMagicNumbers(file);
+        const isValidContent = await validateMagicNumbers(file, file.type);
         if (!isValidContent) {
             return c.json(
                 { error: `File ${file.name} does not match expected format for ${file.type}` },
