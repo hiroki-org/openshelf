@@ -9,12 +9,12 @@ async function uploadPaper(page: Page, options: { title: string; visibility: 'pu
     await page.getByLabel('公開範囲').selectOption(options.visibility);
     await page.setInputFiles('input[type="file"]', options.filePath);
 
-    const uploadResponsePromise = page.waitForResponse(response => 
+    const uploadResponsePromise = page.waitForResponse(response =>
         response.url().includes('/api/papers') && response.request().method() === 'POST'
     );
-    
+
     await page.getByRole('button', { name: 'アップロード', exact: true }).click();
-    
+
     const response = await uploadResponsePromise;
     expect(response.ok()).toBeTruthy();
     const data = await response.json();
@@ -33,7 +33,7 @@ test.describe('論文アップロード', () => {
             visibility: 'public',
             filePath: path.resolve(__dirname, '../fixtures/test-paper.pdf')
         });
-        
+
         // マイ論文一覧(トップページ)へ
         await page.goto('/');
 
@@ -45,13 +45,13 @@ test.describe('非公開論文の詳細閲覧', () => {
     test('非公開論文をアップロードした著者本人が、詳細ページを開けること、未認証状態でアクセスするとエラー表示されること', async ({ page, browser }) => {
         const paperTitle = `Secret Paper - ${randomUUID()}`;
         await loginAsTestUser(page);
-        
+
         const testPaperId = await uploadPaper(page, {
             title: paperTitle,
             visibility: 'private',
             filePath: path.resolve(__dirname, '../fixtures/test-paper.pdf')
         });
-        
+
         // 著者本人によるアクセス (詳細ページへの遷移はアプリ側で行われる場合もあるが明示的に遷移)
         await page.goto(`/papers/${testPaperId}`);
         await expect(page.getByRole('heading', { name: paperTitle })).toBeVisible();
@@ -61,9 +61,9 @@ test.describe('非公開論文の詳細閲覧', () => {
         const unauthPage = await unauthContext.newPage();
         try {
             await unauthPage.goto(`/papers/${testPaperId}`);
-            
-            // 401 や 404/Not Found によるエラーメッセージが表示されること
-            await expect(unauthPage.getByText('論文が見つかりません').or(unauthPage.getByText('論文の取得に失敗しました'))).toBeVisible();
+
+            // 401 によるエラーメッセージが表示されること
+            await expect(unauthPage.getByText('ログインが必要です')).toBeVisible();
         } finally {
             await unauthContext.close();
         }
@@ -78,7 +78,7 @@ test.describe('非公開論文の詳細閲覧', () => {
             visibility: 'public',
             filePath: path.resolve(__dirname, '../fixtures/test-paper.pdf')
         });
-        
+
         // 未認証ユーザーによるアクセス
         const unauthContext = await browser.newContext();
         const unauthPage = await unauthContext.newPage();

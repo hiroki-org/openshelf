@@ -7,6 +7,8 @@ import {
     paperAuthors,
     users,
     coauthorInvites,
+    orgMembers,
+    paperOrgs,
     enableForeignKeys,
 } from "../db/schema";
 import type { Env, Variables } from "../types";
@@ -221,24 +223,65 @@ papersRoute.get("/:id", async (c) => {
         .get();
     if (!paper) return c.json({ error: "Not found" }, 404);
 
-    // Non-public papers require authentication and authorship
+    // Visibility control
     if (paper.visibility !== "public") {
-        const authRes = await authMiddleware(c, async () => {});
-        if (authRes) return authRes;
+        const authHeader = c.req.header("Authorization");
+        const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+        if (!token) {
+            return c.json({ error: "Unauthorized" }, 401);
+        }
 
-        const user = c.get("user");
-        const isAuthor = await db
-            .select()
-            .from(paperAuthors)
-            .where(
-                and(
-                    eq(paperAuthors.paperId, paperId),
-                    eq(paperAuthors.userId, user.sub as string),
-                ),
-            )
-            .get();
-        if (!isAuthor)
-            return c.json({ error: "Forbidden" }, 403);
+        // Verify token
+        const { verify } = await import("hono/jwt");
+        let user: { sub: string };
+        try {
+            user = (await verify(token, c.env.JWT_SECRET, "HS256")) as { sub: string };
+        } catch {
+            return c.json({ error: "Invalid token" }, 401);
+        }
+
+        if (paper.visibility === "private") {
+            // Only authors can access private papers
+            const isAuthor = await db
+                .select()
+                .from(paperAuthors)
+                .where(
+                    and(
+                        eq(paperAuthors.paperId, paperId),
+                        eq(paperAuthors.userId, user.sub),
+                    ),
+                )
+                .get();
+            if (!isAuthor) {
+                return c.json({ error: "Forbidden" }, 403);
+            }
+        } else if (paper.visibility === "org_only") {
+            // Only org members can access org_only papers
+            const paperOrgRows = await db
+                .select({ orgId: paperOrgs.orgId })
+                .from(paperOrgs)
+                .where(eq(paperOrgs.paperId, paperId))
+                .all();
+            const orgIds = paperOrgRows.map((r) => r.orgId);
+
+            if (orgIds.length === 0) {
+                return c.json({ error: "Forbidden" }, 403);
+            }
+
+            const memberRow = await db
+                .select()
+                .from(orgMembers)
+                .where(
+                    and(
+                        inArray(orgMembers.orgId, orgIds),
+                        eq(orgMembers.userId, user.sub),
+                    ),
+                )
+                .get();
+            if (!memberRow) {
+                return c.json({ error: "Forbidden" }, 403);
+            }
+        }
     }
 
     const files = await db
@@ -246,6 +289,16 @@ papersRoute.get("/:id", async (c) => {
         .from(paperFiles)
         .where(eq(paperFiles.paperId, paperId))
         .all();
+
+    // Build download URLs pointing to the download endpoint
+    const filesWithDownloadUrl = files.map((file) => ({
+        id: file.id,
+        filename: file.filename,
+        fileType: file.fileType,
+        sizeBytes: file.sizeBytes,
+        mimeType: file.mimeType,
+        downloadUrl: `/api/papers/${paperId}/files/${file.id}/download`,
+    }));
 
     const authors = await db
         .select({
@@ -260,7 +313,120 @@ papersRoute.get("/:id", async (c) => {
         .where(eq(paperAuthors.paperId, paperId))
         .all();
 
-    return c.json({ paper, files, authors });
+    return c.json({
+        paper: {
+            id: paper.id,
+            title: paper.title,
+            abstract: paper.abstract,
+            visibility: paper.visibility,
+            externalUrl: paper.externalUrl,
+            venue: paper.venue,
+            venueType: paper.venueType,
+            year: paper.year,
+            category: paper.category,
+            tags: paper.tags,
+            createdAt: paper.createdAt,
+            updatedAt: paper.updatedAt,
+        },
+        files: filesWithDownloadUrl,
+        authors,
+    });
+});
+
+// GET /api/papers/:id/files/:fileId/download — download file
+papersRoute.get("/:id/files/:fileId/download", async (c) => {
+    const paperId = c.req.param("id");
+    const fileId = c.req.param("fileId");
+    const db = drizzle(c.env.DB);
+
+    // Get paper to check visibility
+    const paper = await db
+        .select()
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!paper) return c.json({ error: "Not found" }, 404);
+
+    // Visibility control (same as detail endpoint)
+    if (paper.visibility !== "public") {
+        const authHeader = c.req.header("Authorization");
+        const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+        if (!token) {
+            return c.json({ error: "Unauthorized" }, 401);
+        }
+
+        const { verify } = await import("hono/jwt");
+        let user: { sub: string };
+        try {
+            user = (await verify(token, c.env.JWT_SECRET, "HS256")) as { sub: string };
+        } catch {
+            return c.json({ error: "Invalid token" }, 401);
+        }
+
+        if (paper.visibility === "private") {
+            const isAuthor = await db
+                .select()
+                .from(paperAuthors)
+                .where(
+                    and(
+                        eq(paperAuthors.paperId, paperId),
+                        eq(paperAuthors.userId, user.sub),
+                    ),
+                )
+                .get();
+            if (!isAuthor) {
+                return c.json({ error: "Forbidden" }, 403);
+            }
+        } else if (paper.visibility === "org_only") {
+            const paperOrgRows = await db
+                .select({ orgId: paperOrgs.orgId })
+                .from(paperOrgs)
+                .where(eq(paperOrgs.paperId, paperId))
+                .all();
+            const orgIds = paperOrgRows.map((r) => r.orgId);
+
+            if (orgIds.length === 0) {
+                return c.json({ error: "Forbidden" }, 403);
+            }
+
+            const memberRow = await db
+                .select()
+                .from(orgMembers)
+                .where(
+                    and(
+                        inArray(orgMembers.orgId, orgIds),
+                        eq(orgMembers.userId, user.sub),
+                    ),
+                )
+                .get();
+            if (!memberRow) {
+                return c.json({ error: "Forbidden" }, 403);
+            }
+        }
+    }
+
+    // Get file
+    const file = await db
+        .select()
+        .from(paperFiles)
+        .where(and(eq(paperFiles.id, fileId), eq(paperFiles.paperId, paperId)))
+        .get();
+    if (!file) return c.json({ error: "File not found" }, 404);
+
+    // Get file from R2
+    const object = await c.env.BUCKET.get(file.r2Key);
+    if (!object) return c.json({ error: "File not found in storage" }, 404);
+
+    // Return file with proper headers
+    const headers: Record<string, string> = {
+        "Content-Type": object.httpMetadata?.contentType || "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${encodeURIComponent(file.filename)}"`,
+    };
+    if (object.size) {
+        headers["Content-Length"] = object.size.toString();
+    }
+
+    return new Response(object.body as ReadableStream, { headers });
 });
 
 // POST /api/papers/:id/invites — send coauthor invite
