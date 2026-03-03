@@ -3,7 +3,7 @@ import { setCookie, deleteCookie, getCookie } from "hono/cookie";
 import { sign } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
-import { users, enableForeignKeys } from "../db/schema";
+import { users, orgs, orgMembers, enableForeignKeys } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 
@@ -268,6 +268,45 @@ auth.post("/test-token", async (c) => {
     );
 
     return c.json({ token: jwt });
+});
+
+// POST /api/auth/test-org — only for E2E testing
+auth.post("/test-org", async (c) => {
+    if (c.env.ENABLE_TEST_AUTH !== "true") {
+        return c.json({ error: "Not Found" }, 404);
+    }
+    const testSecret = c.req.header("x-test-auth-secret");
+    if (!c.env.TEST_AUTH_SECRET || testSecret !== c.env.TEST_AUTH_SECRET) {
+        return c.json({ error: "Unauthorized (E2E)" }, 401);
+    }
+
+    const body = await c.req.json();
+    if (!body.userId || !body.orgId) {
+        return c.json({ error: "userId and orgId are required" }, 400);
+    }
+
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    await db
+        .insert(orgs)
+        .values({
+            id: body.orgId,
+            slug: `test-org-${crypto.randomUUID().slice(0, 8)}`,
+            name: "Test Org",
+        })
+        .onConflictDoNothing({ target: orgs.id });
+
+    await db
+        .insert(orgMembers)
+        .values({
+            orgId: body.orgId,
+            userId: body.userId,
+            role: "member",
+        })
+        .onConflictDoNothing();
+
+    return c.json({ ok: true });
 });
 
 export default auth;

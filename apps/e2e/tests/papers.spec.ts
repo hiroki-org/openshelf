@@ -155,4 +155,71 @@ test.describe('論文ダウンロード', () => {
             await unauthContext.close();
         }
     });
+
+    test('org_only論文のファイルはメンバーならダウンロードでき、非メンバーだと403エラーになること', async ({ page, browser }) => {
+        const orgTitle = `Org Download - ${randomUUID()}`;
+        const orgId = randomUUID();
+        
+        // 1. メンバーとしてログインし、組織を作成・所属
+        await loginAsTestUser(page);
+        const memberUserId = await page.evaluate(() => localStorage.getItem('user_id'));
+        const memberToken = await page.evaluate(() => localStorage.getItem('auth_token'));
+        const authSecret = process.env.TEST_AUTH_SECRET as string;
+
+        const setupRes = await page.request.post('/api/auth/test-org', {
+            headers: { 'x-test-auth-secret': authSecret },
+            data: { userId: memberUserId, orgId }
+        });
+        expect(setupRes.ok()).toBeTruthy();
+
+        // 2. APIで org_only の論文をアップロード
+        const pdfPath = path.resolve(__dirname, '../fixtures/test-paper.pdf');
+        const fs = require('fs');
+        const pdfContent = fs.readFileSync(pdfPath);
+        
+        const uploadRes = await page.request.post('/api/papers', {
+            headers: { 'Authorization': `Bearer ${memberToken}` },
+            multipart: {
+                metadata: JSON.stringify({
+                    title: orgTitle,
+                    visibility: 'org_only',
+                    orgId
+                }),
+                files_0: {
+                    name: 'test-paper.pdf',
+                    mimeType: 'application/pdf',
+                    buffer: pdfContent,
+                },
+                file_types_0: 'paper'
+            }
+        });
+        expect(uploadRes.ok()).toBeTruthy();
+        const uploadData = await uploadRes.json();
+        const paperId = uploadData.paper.id;
+
+        // 3. ファイルIDを取得
+        const fileId = await getFirstFileId(page, paperId);
+
+        // 4. メンバーコンテキストによるダウンロード -> 200
+        const memberDownloadRes = await page.request.get(`/api/papers/${paperId}/files/${fileId}/download`, {
+            headers: { 'Authorization': `Bearer ${memberToken}` }
+        });
+        expect(memberDownloadRes.status()).toBe(200);
+        expect(memberDownloadRes.headers()['content-type']).toBe('application/pdf');
+
+        // 5. 非メンバーコンテキストによるダウンロード -> 403
+        const nonMemberContext = await browser.newContext();
+        const nonMemberPage = await nonMemberContext.newPage();
+        try {
+            await loginAsTestUser(nonMemberPage); // 別ユーザー(非メンバー)としてログイン
+            const nonMemberToken = await nonMemberPage.evaluate(() => localStorage.getItem('auth_token'));
+
+            const nonMemberDownloadRes = await nonMemberPage.request.get(`/api/papers/${paperId}/files/${fileId}/download`, {
+                headers: { 'Authorization': `Bearer ${nonMemberToken}` }
+            });
+            expect(nonMemberDownloadRes.status()).toBe(403);
+        } finally {
+            await nonMemberContext.close();
+        }
+    });
 });

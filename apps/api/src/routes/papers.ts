@@ -405,6 +405,13 @@ papersRoute.get("/:id/files/:fileId/download", async (c) => {
         "Content-Type": object.httpMetadata?.contentType || "application/octet-stream",
         "Content-Disposition": `attachment; filename="${encodeURIComponent(file.filename)}"`,
     };
+    if (paper.visibility === "public") {
+        headers["Cache-Control"] = "public, max-age=3600";
+    } else {
+        headers["Cache-Control"] = "private, no-store";
+        headers["Pragma"] = "no-cache";
+        headers["Vary"] = "Authorization";
+    }
     if (object.size) {
         headers["Content-Length"] = object.size.toString();
     }
