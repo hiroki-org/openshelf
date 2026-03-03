@@ -128,7 +128,7 @@ jobs:
           echo "TEST_AUTH_SECRET=e2e-ci-only-secret" >> apps/api/.dev.vars
 
       - name: Set up local D1 schema
-        run: npm run db:migrate:local --workspace apps/api -- -y
+        run: npm run db:migrate:local --workspace apps/api
 
       - name: Build web app for E2E
         run: npm run build -w apps/web
