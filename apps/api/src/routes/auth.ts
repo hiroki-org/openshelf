@@ -280,7 +280,12 @@ auth.post("/test-org", async (c) => {
         return c.json({ error: "Unauthorized (E2E)" }, 401);
     }
 
-    const body = await c.req.json();
+    let body: { userId?: string; orgId?: string };
+    try {
+        body = await c.req.json();
+    } catch {
+        return c.json({ error: "Invalid JSON" }, 400);
+    }
     if (!body.userId || !body.orgId) {
         return c.json({ error: "userId and orgId are required" }, 400);
     }

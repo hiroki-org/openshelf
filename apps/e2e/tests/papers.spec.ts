@@ -2,6 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import { loginAsTestUser } from '../helpers/auth';
 import path from 'path';
 import { randomUUID } from 'crypto';
+import fs from 'fs';
 
 async function uploadPaper(page: Page, options: { title: string; visibility: 'public' | 'private'; filePath: string }): Promise<string> {
     await page.goto('/upload');
@@ -174,7 +175,6 @@ test.describe('論文ダウンロード', () => {
 
         // 2. APIで org_only の論文をアップロード
         const pdfPath = path.resolve(__dirname, '../fixtures/test-paper.pdf');
-        const fs = require('fs');
         const pdfContent = fs.readFileSync(pdfPath);
         
         const uploadRes = await page.request.post('/api/papers', {
