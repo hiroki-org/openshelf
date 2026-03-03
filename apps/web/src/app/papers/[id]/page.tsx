@@ -167,6 +167,42 @@ export default function PaperDetailPage() {
     }
   };
 
+  const handleDownload = async (f: PaperFile) => {
+    try {
+      const res = await apiFetch(f.downloadUrl);
+      if (!res.ok) {
+        if (res.status === 401) {
+          alert("ログインが必要です");
+        } else if (res.status === 403) {
+          alert("このファイルをダウンロードする権限がありません");
+        } else {
+          alert("ダウンロードに失敗しました");
+        }
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = f.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      alert("ダウンロード中にエラーが発生しました");
+    }
+  };
+
+  const isValidExternalUrl = (urlStr: string) => {
+    try {
+      const url = new URL(urlStr);
+      return ["http:", "https:"].includes(url.protocol);
+    } catch {
+      return false;
+    }
+  };
+
   if (loading) return <div className="text-center py-20">読み込み中...</div>;
   if (error)
     return <div className="text-center py-20 text-red-600">{error}</div>;
@@ -222,6 +258,7 @@ export default function PaperDetailPage() {
   };
 
   const visibilityBadge = getVisibilityBadge(paper.visibility);
+  const showExternalLink = paper.externalUrl && isValidExternalUrl(paper.externalUrl);
 
   return (
     <div className="max-w-3xl">
@@ -243,10 +280,10 @@ export default function PaperDetailPage() {
         </div>
       )}
 
-      {paper.externalUrl && (
+      {showExternalLink && (
         <div className="mb-6">
           <a
-            href={paper.externalUrl}
+            href={paper.externalUrl!}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-500 transition-colors"
@@ -277,13 +314,13 @@ export default function PaperDetailPage() {
                   </span>
                 </div>
               </div>
-              <a
-                href={f.downloadUrl}
+              <button
+                type="button"
+                onClick={() => handleDownload(f)}
                 className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white hover:bg-blue-500 transition-colors"
-                download={f.filename}
               >
                 ダウンロード
-              </a>
+              </button>
             </li>
           ))}
         </ul>

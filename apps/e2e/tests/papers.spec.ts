@@ -90,3 +90,67 @@ test.describe('非公開論文の詳細閲覧', () => {
         }
     });
 });
+
+test.describe('論文ダウンロード', () => {
+    test('公開論文のファイルは未認証でもダウンロードできること', async ({ page, browser }) => {
+        const publicTitle = `Public Download - ${randomUUID()}`;
+        await loginAsTestUser(page);
+
+        const paperId = await uploadPaper(page, {
+            title: publicTitle,
+            visibility: 'public',
+            filePath: path.resolve(__dirname, '../fixtures/test-paper.pdf')
+        });
+
+        // 論文詳細APIを叩いてファイルIDを取得 (認証済みコンテキストを使用)
+        const token = await page.evaluate(() => localStorage.getItem('auth_token'));
+        const detailRes = await page.request.get(`/api/papers/${paperId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        expect(detailRes.ok()).toBeTruthy();
+        const detail = await detailRes.json();
+        const fileId = detail.files[0].id;
+
+        // 未認証コンテキストによるダウンロード
+        const unauthContext = await browser.newContext();
+        const unauthPage = await unauthContext.newPage();
+        try {
+            const downloadRes = await unauthPage.request.get(`/api/papers/${paperId}/files/${fileId}/download`);
+            expect(downloadRes.status()).toBe(200);
+            expect(downloadRes.headers()['content-type']).toBe('application/pdf');
+            expect(downloadRes.headers()['content-disposition']).toContain('attachment');
+        } finally {
+            await unauthContext.close();
+        }
+    });
+
+    test('非公開論文のファイルは未認証だと401エラーになること', async ({ page, browser }) => {
+        const secretTitle = `Secret Download - ${randomUUID()}`;
+        await loginAsTestUser(page);
+
+        const paperId = await uploadPaper(page, {
+            title: secretTitle,
+            visibility: 'private',
+            filePath: path.resolve(__dirname, '../fixtures/test-paper.pdf')
+        });
+
+        // 論文詳細APIを叩いてファイルIDを取得 (認証済みコンテキストを使用)
+        const token = await page.evaluate(() => localStorage.getItem('auth_token'));
+        const detailRes = await page.request.get(`/api/papers/${paperId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        expect(detailRes.ok()).toBeTruthy();
+        const detail = await detailRes.json();
+        const fileId = detail.files[0].id;
+
+        // 未認証コンテキストによるダウンロード
+        const unauthContext = await browser.newContext();
+        const unauthPage = await unauthContext.newPage();
+        try {
+            const downloadRes = await unauthPage.request.get(`/api/papers/${paperId}/files/${fileId}/download`);
+            expect(downloadRes.status()).toBe(401);
+        } finally {
+            await unauthContext.close();
+        }
+    });
+});
