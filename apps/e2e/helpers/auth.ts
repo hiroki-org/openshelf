@@ -6,7 +6,7 @@ const apiURL = process.env.E2E_API_URL || 'http://localhost:8787';
 export async function loginAsTestUser(page: Page, user?: { sub?: string; githubId?: string; name?: string }) {
     const payload = {
         sub: user?.sub || randomUUID(),
-        githubId: user?.githubId || Math.floor(Math.random() * 100000).toString(),
+        githubId: user?.githubId || randomUUID(),
         name: user?.name || 'Test User',
     };
 

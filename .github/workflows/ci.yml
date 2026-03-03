@@ -119,10 +119,17 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Setup local .dev.vars for Worker
-        run: echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" > apps/api/.dev.vars
+        env:
+          E2E_JWT_SECRET: ${{ secrets.E2E_JWT_SECRET }}
+        run: |
+          echo "JWT_SECRET=${E2E_JWT_SECRET:-e2e-ci-only-secret}" > apps/api/.dev.vars
+          echo "FRONTEND_URL=http://localhost:3000" >> apps/api/.dev.vars
 
       - name: Set up local D1 schema
-        run: npm run db:migrate:local --workspace apps/api
+        run: npm run db:migrate:local --workspace apps/api -- -y
+
+      - name: Build web app for E2E
+        run: npm run build -w apps/web
 
       - name: Run Playwright tests
         run: npm run test -w apps/e2e

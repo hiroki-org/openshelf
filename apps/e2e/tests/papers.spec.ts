@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { loginAsTestUser } from '../helpers/auth';
 import path from 'path';
+import { randomUUID } from 'crypto';
 
 test.describe('論文アップロード', () => {
     test('認証済みユーザーが /upload ページからPDFをアップロードできること、アップロード後、トップページ（マイ論文一覧）に論文タイトルが表示されること', async ({ page }) => {
-        const uniqueTitle = `テスト論文 - ${Date.now()}`;
+        const uniqueTitle = `テスト論文 - ${randomUUID()}`;
         await loginAsTestUser(page);
 
         await page.goto('/upload');
@@ -33,7 +34,7 @@ test.describe('論文アップロード', () => {
 
 test.describe('非公開論文の詳細閲覧', () => {
     test('非公開論文をアップロードした著者本人が、詳細ページを開けること、未認証状態でアクセスするとエラー表示されること', async ({ page, browser }) => {
-        const paperTitle = `Secret Paper - ${Date.now()}`;
+        const paperTitle = `Secret Paper - ${randomUUID()}`;
         await loginAsTestUser(page);
         
         // アップロード (private)
@@ -63,10 +64,11 @@ test.describe('非公開論文の詳細閲覧', () => {
         
         // 401 や 404/Not Found によるエラーメッセージが表示されること
         await expect(unauthPage.getByText('論文が見つかりません').or(unauthPage.getByText('論文の取得に失敗しました'))).toBeVisible();
+        await unauthContext.close();
     });
 
     test('公開論文は未認証でも詳細ページを閲覧できること', async ({ page, browser }) => {
-        const publicTitle = `Public Paper - ${Date.now()}`;
+        const publicTitle = `Public Paper - ${randomUUID()}`;
         await loginAsTestUser(page);
 
         // アップロード (public)
@@ -91,5 +93,6 @@ test.describe('非公開論文の詳細閲覧', () => {
         await unauthPage.goto(`/papers/${publicPaperId}`);
         
         await expect(unauthPage.getByRole('heading', { name: publicTitle })).toBeVisible();
+        await unauthContext.close();
     });
 });
