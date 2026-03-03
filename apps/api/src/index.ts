@@ -47,7 +47,7 @@ app.use(
                 const allowedOrigins = c.env.ALLOWED_ORIGINS
                     ? c.env.ALLOWED_ORIGINS
                         .split(",")
-                        .map((v) => v.trim())
+                        .map((v: string) => v.trim())
                         .filter(Boolean)
                     : [];
                 if (allowedOrigins.includes(origin)) return true;
