@@ -1,26 +1,26 @@
 # OpenShelf
 
-研究成果物（論文・発表資料など）を安全に保管・管理・共有するための Web プラットフォーム。
+OpenShelf は、研究成果物（論文、プレゼン資料、データセット等）を安全にアップロードし、共有するためのファイルホスティングプラットフォームです。
 
-## 📋 Overview
+利用者は GitHub アカウントを用いて安全にログインし、成果物を素早く公開・共有できます。Cloudflare Workers (Hono) と Next.js を組み合わせたモダンな構成で、スケーラビリティとセキュリティを両立しています。
 
-**主な機能:**
+## 📋 主な機能・利用メリット
 
-- 📄 **ファイルホスティング**: Cloudflare R2 を活用した安全なファイル保存
-- 🔗 **共有リンク生成**: 論文や資料を簡単にシェア
-- 👥 **コラボレーション**: 共著者リクエストと管理機能
-- 🔐 **認証**: GitHub OAuth を使った安全なログイン
-- 🚀 **複数デプロイ方式**: クラウド（Vercel/Cloudflare）またはオンプレミス（Docker）に対応
+- 📄 **ファイルホスティング**: Cloudflare R2 を活用した安全で低コストなファイル保存。
+- 🔗 **共有リンク生成**: アップロード後、即座に共有用の URL を発行。
+- 👥 **コラボレーション**: 招待制アクセスによるチーム内共有と、共著者（Co-author）管理機能。
+- 🔐 **セキュアな認証**: GitHub OAuth 2.0 と JWT を使用。
+- 🚀 **複数デプロイ対応**: クラウド（Vercel/Cloudflare）またはオンプレミス（Docker）にデプロイ可能。
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ サービス構成 (Architecture)
 
-OpenShelf は npm workspaces を使った monorepo で構成。
+OpenShelf は npm workspaces を使ったモノレポ構成です。
 
 ```
 apps/
-├── web/   ← Next.js 16 フロントエンド (React 19, Tailwind CSS v4)
+├── web/   ← Next.js (React 19, Tailwind CSS v4)
 │           ├─ App Router / TypeScript
 │           └─ Docker self-host + Vercel 両対応
 │
@@ -30,189 +30,136 @@ apps/
             └─ マルチオリジン CORS 対応
 ```
 
-**Tech Stack:**
+**技術スタック:**
 
-| Phase    | Tech                                               |
-| -------- | -------------------------------------------------- |
-| Frontend | Next.js 16, React 19, TypeScript 5, Tailwind CSS 4 |
-| Backend  | Hono 4, Cloudflare Workers                         |
-| Database | SQLite (D1)                                        |
-| Storage  | Cloudflare R2                                      |
-| Auth     | GitHub OAuth 2.0, JWT                              |
-| Testing  | Vitest                                             |
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Node.js 20.x+, npm 10.x+
-- GitHub OAuth App
-- (Optional) Cloudflare account
-
-### 1. Clone & Install
-
-```bash
-git clone https://github.com/Hiroki-org/OpenShelf.git
-cd OpenShelf
-npm install
-```
-
-### 2. Setup GitHub OAuth
-
-1. [GitHub Settings > Developer Settings > OAuth Apps](https://github.com/settings/developers)
-2. **New OAuth App** → Fill in:
-   - Application name: `OpenShelf (Dev)`
-   - Homepage URL: `http://localhost:3000`
-   - Authorization callback: `http://localhost:3000/auth/callback`
-3. Save `Client ID` and `Client Secret`
-
-### 3. Environment Variables
-
-**API (`apps/api/.dev.vars`):**
-
-```env
-GITHUB_CLIENT_ID=<your-client-id>
-GITHUB_CLIENT_SECRET=<your-client-secret>
-JWT_SECRET=dev-secret-change-in-prod
-FRONTEND_URL=http://localhost:3000
-```
-
-**Web (`apps/web/.env.local`):**
-
-```env
-API_URL=http://localhost:8787
-NEXT_PUBLIC_API_URL=http://localhost:8787
-```
-
-### 4. Run Development
-
-```bash
-# Terminal 1: API
-npm run dev --workspace apps/api
-
-# Terminal 2: Web
-npm run dev --workspace apps/web
-```
-
-Open http://localhost:3000
+| Phase    | Tech                                                |
+| -------- | --------------------------------------------------- |
+| Frontend | Next.js 15+, React 19, TypeScript 5, Tailwind CSS 4 |
+| Backend  | Hono 4, Cloudflare Workers                          |
+| Database | SQLite (D1) / Drizzle ORM                           |
+| Storage  | Cloudflare R2                                       |
+| Auth     | GitHub OAuth 2.0, JWT                               |
+| Testing  | Vitest, Playwright (E2E)                            |
 
 ---
 
-## 🧪 Testing & Quality
+## 使い方 (ユーザー向け)
 
-```bash
-npm run test              # All tests
-npm run test:watch       # Watch mode
-npm run test:coverage    # Coverage report
-npm run typecheck        # TypeScript check
-npm run lint             # ESLint check
-```
+### 1. ログイン・新規登録
 
----
+- トップ画面の「Sign in with GitHub」ボタンからログインします。
+- **注意**: OpenShelf は招待制です。初めて利用する場合は、すでに利用しているメンバーから**招待リンク (Invite Link)** を受け取ってください。
 
-## 🚀 Deployment
+### 2. ファイルのアップロード
 
-### Vercel (Recommended)
+- ログイン後、「Upload」画面から成果物となるファイルを登録します。
+- タイトル、アブストラクト、公開範囲（Public, Org-Only, Private）などのメタデータを設定できます。
 
-Frontend is Vercel-ready:
+### 3. ファイルの共有・共著者招待
 
-```bash
-vercel link
-vercel deploy
-```
-
-### Cloudflare Workers
-
-```bash
-wrangler publish
-```
-
-### Docker Self-Host (On-Prem / VPS)
-
-See [apps/web/README.md#self-host-docker](./apps/web/README.md#self-host-docker) for detailed guide.
-
-**Quick Start:**
-
-```bash
-docker build -f apps/web/Dockerfile \
-  -t openshelf-web \
-  --build-arg NEXT_PUBLIC_API_URL=https://api.example.com .
-
-docker run -d --name openshelf \
-  -p 3000:3000 \
-  -e API_URL=https://api.example.com \
-  -e GITHUB_CLIENT_ID=... \
-  -e GITHUB_CLIENT_SECRET=... \
-  openshelf-web
-```
-
-**Docker Compose (HTTPS):**
-
-```bash
-docker-compose up -d
-```
+- アップロード完了後、詳細ページから共有 URL をコピーできます。
+- 「Co-author Invite」機能を使うことで、他のユーザーを共著者として追加し、編集権限を共有できます。
 
 ---
 
-## 🔐 Authentication
+## 開発者・システム管理者向け (Setup & Deployment)
 
-### GitHub OAuth Flow
+### ローカルセットアップ (Local Setup)
 
-1. User clicks **"Sign in with GitHub"**
-2. Redirects to GitHub authorization
-3. Callback → API issues JWT token
-4. Redirect to `/auth/callback#token=<jwt>`
-5. Frontend parses JWT from URL fragment
+1. **リポジトリのクローンとインストール**
 
-### CORS (Multi-Origin)
+   ```bash
+   git clone https://github.com/Hiroki-org/OpenShelf.git
+   cd OpenShelf
+   npm install
+   ```
 
-API supports comma-separated `ALLOWED_ORIGINS`:
+2. **GitHub OAuth App の作成**
+   - [GitHub Developer Settings](https://github.com/settings/developers) で新規アプリを作成。
+   - `Homepage URL`: `http://localhost:3000`
+   - `Authorization callback URL`: `http://localhost:3000/auth/callback`
 
-```env
-ALLOWED_ORIGINS=https://vercel-url.com,http://localhost:3000
-```
+3. **環境変数の設定**
 
-Falls back to `FRONTEND_URL` if not set.
+   **API (`apps/api/.dev.vars`):**
+
+   ```env
+   GITHUB_CLIENT_ID=<your-client-id>
+   GITHUB_CLIENT_SECRET=<your-client-secret>
+   JWT_SECRET=dev-secret-change-in-prod
+   FRONTEND_URL=http://localhost:3000
+   ```
+
+   **Web (`apps/web/.env.local`):**
+
+   ```env
+   API_URL=http://localhost:8787
+   NEXT_PUBLIC_API_URL=http://localhost:8787
+   ```
+
+4. **起動**
+   ```bash
+   # API: cd apps/api && npm run dev
+   # Web: cd apps/web && npm run dev
+   ```
 
 ---
 
-## 📁 Project Structure
+### デプロイ (Deployment)
 
-```
-apps/web/
-├── src/app/           ← Pages, layouts
-├── src/components/    ← React components
-├── src/lib/           ← API client, utilities
-├── Dockerfile         ← Docker build
-└── next.config.ts     ← API rewrite, standalone
+#### Vercel Deployment (Web)
 
-apps/api/
-├── src/index.ts       ← App, CORS setup
-├── src/routes/        ← API endpoints
-├── src/db/            ← Schema (Drizzle)
-├── drizzle/           ← Migrations
-└── wrangler.toml      ← Worker config
+1. Vercel に `apps/web` を Root Directory としてインポート。
+2. **Environment Variables** に以下を設定:
+   - `API_URL`: デプロイ済みの Cloudflare Worker URL
+   - `FRONTEND_URL`: 自身の URL (例: `https://openshelf.vercel.app`)
+
+   **CLI での設定例:**
+
+   ```bash
+   vercel env add FRONTEND_URL production
+   ```
+
+#### Cloudflare Workers Deployment (API)
+
+1. Cloudflare D1 と R2 のバケットを作成し、`wrangler.toml` に設定。
+2. **環境変数の設定**:
+   機密情報は **Secrets**、それ以外は **Vars** として設定します。
+   - **Secrets (npx wrangler secret put で設定)**:
+     - `GITHUB_CLIENT_SECRET`
+     - `JWT_SECRET`
+
+   - **Vars (wrangler.toml [vars] またはデプロイ時)**:
+     - `GITHUB_CLIENT_ID`
+     - `FRONTEND_URL`
+
+   **デプロイ時の注入例:**
+
+   ```bash
+   npx wrangler deploy --var FRONTEND_URL:https://openshelf.vercel.app
+   ```
+
+   > [!IMPORTANT]
+   > `process.env` は Worker 環境では `c.env` にマッピングされないため、Wrangler 経由で明示的に注入する必要があります。
+
+#### Docker (Self-Host / VPS)
+
+詳細は [apps/web/README.md#self-host-docker](./apps/web/README.md#self-host-docker) を参照してください。
+
+---
+
+## 🧪 テスト・品質管理
+
+```bash
+npm run test           # API単体テスト
+npm run typecheck      # 型チェック
+npm run lint           # リンター実行
+# E2Eテスト (apps/e2e)
+cd apps/e2e && npx playwright test
 ```
 
 ---
 
-## 📚 Learn More
-
-- [Next.js Docs](https://nextjs.org/docs)
-- [Hono](https://hono.dev)
-- [Cloudflare Workers](https://developers.cloudflare.com/workers/)
-- [Drizzle ORM](https://orm.drizzle.team)
-
----
-
-## 📄 License
+## 📄 ライセンス
 
 MIT License
-
----
-
-## 🤝 Contributing
-
-Issues & PRs welcome! Fork, branch, commit, and open a PR against `main`.
