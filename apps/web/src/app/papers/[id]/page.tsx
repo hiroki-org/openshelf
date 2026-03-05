@@ -2,9 +2,15 @@
 
 import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
+import dynamic from "next/dynamic";
+
+const PdfViewer = dynamic(
+  () => import("@/components/pdf-viewer").then((mod) => mod.PdfViewer),
+  { ssr: false },
+);
 
 type Paper = {
   id: string;
@@ -52,6 +58,15 @@ type SearchUser = {
   displayName: string | null;
   avatarUrl: string | null;
 };
+
+type PreviewResponse = {
+  url: string;
+  mimeType: string;
+  filename: string;
+};
+
+const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url);
+
 const isValidExternalUrl = (urlStr: string) => {
   try {
     const url = new URL(urlStr);
@@ -72,6 +87,12 @@ export default function PaperDetailPage() {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<
+    Record<string, string>
+  >({});
 
   // Invite dialog
   const [showInvite, setShowInvite] = useState(false);
@@ -129,6 +150,115 @@ export default function PaperDetailPage() {
   useEffect(() => {
     if (isUploader) fetchInvites();
   }, [isUploader, fetchInvites]);
+
+  const pdfFile = useMemo(
+    () => files.find((f) => f.mimeType === "application/pdf") ?? null,
+    [files],
+  );
+  const imageFiles = useMemo(
+    () => files.filter((f) => f.mimeType?.startsWith("image/")),
+    [files],
+  );
+
+  useEffect(() => {
+    const currentPdfFile =
+      files.find((f) => f.mimeType === "application/pdf") ?? null;
+
+    if (!currentPdfFile) {
+      setPreview(null);
+      setPreviewError(false);
+      setPreviewLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    let createdObjectUrl: string | null = null;
+    const fetchPreviewUrl = async () => {
+      setPreviewLoading(true);
+      setPreviewError(false);
+
+      try {
+        const res = await apiFetch(
+          `/api/papers/${paperId}/files/${currentPdfFile.id}/preview`,
+        );
+        if (!res.ok) {
+          throw new Error("preview failed");
+        }
+
+        const data = (await res.json()) as PreviewResponse;
+        let resolvedUrl = data.url;
+        if (!isAbsoluteUrl(data.url)) {
+          const fileRes = await apiFetch(data.url);
+          if (!fileRes.ok) throw new Error("preview stream fetch failed");
+          const blob = await fileRes.blob();
+          resolvedUrl = URL.createObjectURL(blob);
+          createdObjectUrl = resolvedUrl;
+        }
+
+        if (cancelled) return;
+        setPreview({ ...data, url: resolvedUrl });
+      } catch (err) {
+        if (cancelled) return;
+        console.error("プレビューURLの取得に失敗しました:", err);
+        setPreviewError(true);
+        setPreview(null);
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    };
+
+    fetchPreviewUrl();
+    return () => {
+      cancelled = true;
+      if (createdObjectUrl) {
+        URL.revokeObjectURL(createdObjectUrl);
+      }
+    };
+  }, [paperId, files]);
+
+  useEffect(() => {
+    if (imageFiles.length === 0) {
+      setImagePreviewUrls({});
+      return;
+    }
+
+    let cancelled = false;
+    const createdUrls: string[] = [];
+
+    const loadImages = async () => {
+      const entries = await Promise.all(
+        imageFiles.map(async (img) => {
+          const streamPath = `/api/papers/${paperId}/files/${img.id}/stream`;
+          const res = await apiFetch(streamPath);
+          if (!res.ok) return [img.id, ""] as const;
+          const blob = await res.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          createdUrls.push(objectUrl);
+          return [img.id, objectUrl] as const;
+        }),
+      );
+
+      if (cancelled) {
+        for (const url of createdUrls) URL.revokeObjectURL(url);
+        return;
+      }
+
+      setImagePreviewUrls(Object.fromEntries(entries.filter(([, url]) => url)));
+    };
+
+    loadImages().catch(() => {
+      if (!cancelled) {
+        setImagePreviewUrls({});
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      for (const url of createdUrls) {
+        URL.revokeObjectURL(url);
+      }
+    };
+  }, [paperId, files]);
 
   const handleSearch = async (q: string) => {
     setSearchQuery(q);
@@ -260,7 +390,8 @@ export default function PaperDetailPage() {
   };
 
   const visibilityBadge = getVisibilityBadge(paper.visibility);
-  const showExternalLink = paper.externalUrl && isValidExternalUrl(paper.externalUrl);
+  const showExternalLink =
+    paper.externalUrl && isValidExternalUrl(paper.externalUrl);
 
   return (
     <div className="max-w-3xl">
@@ -299,6 +430,56 @@ export default function PaperDetailPage() {
       {/* Files */}
       <div className="mb-6">
         <h2 className="text-sm font-medium text-gray-500 mb-2">ファイル</h2>
+
+        {pdfFile && (
+          <div className="mb-4 space-y-2">
+            <h3 className="text-sm font-medium">PDFプレビュー</h3>
+            {previewLoading && (
+              <div className="h-[420px] animate-pulse rounded-md bg-gray-200 dark:bg-gray-800" />
+            )}
+            {!previewLoading && preview?.url && (
+              <PdfViewer
+                fileUrl={preview.url}
+                onDownloadFallback={() => handleDownload(pdfFile)}
+              />
+            )}
+            {!previewLoading && previewError && (
+              <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+                <p>プレビューを読み込めません</p>
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={() => handleDownload(pdfFile)}
+                >
+                  ダウンロードする
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {imageFiles.length > 0 && (
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {imageFiles.map((img) => (
+              <div
+                key={img.id}
+                className="rounded-md border border-gray-200 p-2 dark:border-gray-700"
+              >
+                {imagePreviewUrls[img.id] ? (
+                  <img
+                    src={imagePreviewUrls[img.id]}
+                    alt={img.filename}
+                    className="h-auto w-full rounded"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="h-[180px] animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
         <ul className="space-y-2">
           {files.map((f) => (
             <li

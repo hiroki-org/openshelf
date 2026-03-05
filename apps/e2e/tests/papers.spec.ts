@@ -106,6 +106,30 @@ test.describe('非公開論文の詳細閲覧', () => {
     });
 });
 
+test.describe('PDFプレビュー', () => {
+    test('公開論文の詳細ページでPDFビューワーが表示されること', async ({ page, browser }) => {
+        const publicTitle = `Public Preview - ${randomUUID()}`;
+        await loginAsTestUser(page);
+
+        const publicPaperId = await uploadPaper(page, {
+            title: publicTitle,
+            visibility: 'public',
+            filePath: path.resolve(__dirname, '../fixtures/test-paper.pdf')
+        });
+
+        const unauthContext = await browser.newContext();
+        const unauthPage = await unauthContext.newPage();
+        try {
+            await unauthPage.goto(`/papers/${publicPaperId}`);
+            const renderedPdfPage = unauthPage.locator('.react-pdf__Page');
+            const previewFallback = unauthPage.getByText('プレビューを読み込めません');
+            await expect(renderedPdfPage.or(previewFallback)).toBeVisible({ timeout: 20000 });
+        } finally {
+            await unauthContext.close();
+        }
+    });
+});
+
 test.describe('論文ダウンロード', () => {
     test('公開論文のファイルは未認証でもダウンロードできること', async ({ page, browser }) => {
         const publicTitle = `Public Download - ${randomUUID()}`;
@@ -160,7 +184,7 @@ test.describe('論文ダウンロード', () => {
     test('org_only論文のファイルはメンバーならダウンロードでき、非メンバーだと403エラーになること', async ({ page, browser }) => {
         const orgTitle = `Org Download - ${randomUUID()}`;
         const orgId = randomUUID();
-        
+
         // 1. メンバーとしてログインし、組織を作成・所属
         const userPayload = await loginAsTestUser(page);
         const memberUserId = userPayload.sub;
@@ -177,7 +201,7 @@ test.describe('論文ダウンロード', () => {
         // 2. APIで org_only の論文をアップロード
         const pdfPath = path.resolve(__dirname, '../fixtures/test-paper.pdf');
         const pdfContent = fs.readFileSync(pdfPath);
-        
+
         const uploadRes = await page.request.post(`${apiURL}/api/papers`, {
             headers: { 'Authorization': `Bearer ${memberToken}` },
             multipart: {

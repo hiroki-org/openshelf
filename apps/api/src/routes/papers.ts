@@ -114,6 +114,30 @@ async function authorizePaperAccess(
     return { ok: true, user };
 }
 
+async function generateSignedPreviewUrl(
+    bucket: Env["BUCKET"],
+    objectKey: string,
+): Promise<string | null> {
+    const bucketLike = bucket as unknown as {
+        createSignedUrl?: (key: string, options?: { expiresIn?: number }) => Promise<string>;
+        presign?: (key: string, options?: { expiresIn?: number }) => Promise<string>;
+    };
+
+    try {
+        if (typeof bucketLike.createSignedUrl === "function") {
+            return await bucketLike.createSignedUrl(objectKey, { expiresIn: 300 });
+        }
+
+        if (typeof bucketLike.presign === "function") {
+            return await bucketLike.presign(objectKey, { expiresIn: 300 });
+        }
+    } catch {
+        return null;
+    }
+
+    return null;
+}
+
 // POST /api/papers — create paper + upload files
 papersRoute.post("/", authMiddleware, async (c) => {
     const body = await c.req.parseBody({ all: true });
@@ -376,9 +400,9 @@ papersRoute.get("/:id", async (c) => {
             .innerJoin(users, eq(paperAuthors.userId, users.id))
             .where(eq(paperAuthors.paperId, paperId)),
     ])) as [
-        (typeof paperFiles.$inferSelect)[],
-        { userId: string; role: string; name: string | null; displayName: string | null; avatarUrl: string | null }[]
-    ];
+            (typeof paperFiles.$inferSelect)[],
+            { userId: string; role: string; name: string | null; displayName: string | null; avatarUrl: string | null }[]
+        ];
 
     const files = rawFiles.map((file) => ({
         ...file,
@@ -444,6 +468,89 @@ papersRoute.get("/:id/files/:fileId/download", async (c) => {
         headers["Pragma"] = "no-cache";
         headers["Vary"] = "Authorization";
     }
+    if (object.size) {
+        headers["Content-Length"] = object.size.toString();
+    }
+
+    return new Response(object.body as ReadableStream, { headers });
+});
+
+// GET /api/papers/:id/files/:fileId/preview — preview URL metadata for inline rendering
+papersRoute.get("/:id/files/:fileId/preview", async (c) => {
+    const paperId = c.req.param("id");
+    const fileId = c.req.param("fileId");
+    const db = drizzle(c.env.DB);
+
+    const paper = await db
+        .select()
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!paper) return c.json({ error: "Not found" }, 404);
+
+    const access = await authorizePaperAccess(c, db, paper);
+    if (!access.ok) {
+        return c.json({ error: access.error }, access.status as any);
+    }
+
+    const file = await db
+        .select()
+        .from(paperFiles)
+        .where(and(eq(paperFiles.id, fileId), eq(paperFiles.paperId, paperId)))
+        .get();
+    if (!file) return c.json({ error: "File not found" }, 404);
+
+    const signedUrl = await generateSignedPreviewUrl(c.env.BUCKET, file.r2Key);
+    const streamUrl = `/api/papers/${paperId}/files/${fileId}/stream`;
+
+    return c.json({
+        url: signedUrl ?? streamUrl,
+        mimeType: file.mimeType || "application/octet-stream",
+        filename: file.filename,
+    });
+});
+
+// GET /api/papers/:id/files/:fileId/stream — inline object stream fallback for preview
+papersRoute.get("/:id/files/:fileId/stream", async (c) => {
+    const paperId = c.req.param("id");
+    const fileId = c.req.param("fileId");
+    const db = drizzle(c.env.DB);
+
+    const paper = await db
+        .select()
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!paper) return c.json({ error: "Not found" }, 404);
+
+    const access = await authorizePaperAccess(c, db, paper);
+    if (!access.ok) {
+        return c.json({ error: access.error }, access.status as any);
+    }
+
+    const file = await db
+        .select()
+        .from(paperFiles)
+        .where(and(eq(paperFiles.id, fileId), eq(paperFiles.paperId, paperId)))
+        .get();
+    if (!file) return c.json({ error: "File not found" }, 404);
+
+    const object = await c.env.BUCKET.get(file.r2Key);
+    if (!object) return c.json({ error: "File not found in storage" }, 404);
+
+    const headers: Record<string, string> = {
+        "Content-Type": object.httpMetadata?.contentType || file.mimeType || "application/octet-stream",
+        "Content-Disposition": `inline; filename="${encodeURIComponent(file.filename)}"`,
+    };
+
+    if (paper.visibility === "public") {
+        headers["Cache-Control"] = "public, max-age=300";
+    } else {
+        headers["Cache-Control"] = "private, no-store";
+        headers["Pragma"] = "no-cache";
+        headers["Vary"] = "Authorization";
+    }
+
     if (object.size) {
         headers["Content-Length"] = object.size.toString();
     }
