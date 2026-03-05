@@ -34,7 +34,9 @@ export default function UserCollectionPage() {
   useEffect(() => {
     (async () => {
       try {
-        const listRes = await apiFetch(`/api/users/${encodeURIComponent(id)}/collections`);
+        const listRes = await apiFetch(
+          `/api/users/${encodeURIComponent(id)}/collections`,
+        );
         const listData = listRes.ok
           ? await listRes.json()
           : { collections: [] };
@@ -48,7 +50,9 @@ export default function UserCollectionPage() {
         }
         setCollection(found);
 
-        const papersRes = await apiFetch(`/api/collections/${encodeURIComponent(found.id)}/papers`);
+        const papersRes = await apiFetch(
+          `/api/collections/${encodeURIComponent(found.id)}/papers`,
+        );
         if (papersRes.ok) {
           const papersData = await papersRes.json();
           setPapers(

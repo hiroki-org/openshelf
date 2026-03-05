@@ -70,7 +70,9 @@ export default function OrgSettingsPage() {
 
   // Papers tab
   const [paperSearch, setPaperSearch] = useState("");
-  const [paperSearchResults, setPaperSearchResults] = useState<{ id: string; title: string }[]>([]);
+  const [paperSearchResults, setPaperSearchResults] = useState<
+    { id: string; title: string }[]
+  >([]);
   const [addingPaper, setAddingPaper] = useState(false);
 
   // Delete dialog
@@ -126,7 +128,8 @@ export default function OrgSettingsPage() {
 
   // Check admin status derived from members list
   const isAdmin = Boolean(
-    user && members.find((m) => m.userId === user.id)?.role.match(/^(admin|owner)$/)
+    user &&
+    members.find((m) => m.userId === user.id)?.role.match(/^(admin|owner)$/),
   );
 
   // Redirect non-admin
@@ -136,8 +139,10 @@ export default function OrgSettingsPage() {
     }
   }, [loading, authLoading, isAdmin, members, slug, router]);
 
-  if (authLoading || loading) return <div className="text-center py-20">読み込み中...</div>;
-  if (error) return <div className="text-center py-20 text-red-600">{error}</div>;
+  if (authLoading || loading)
+    return <div className="text-center py-20">読み込み中...</div>;
+  if (error)
+    return <div className="text-center py-20 text-red-600">{error}</div>;
   if (!org || !isAdmin) return null;
 
   // ── General handlers ──
@@ -176,7 +181,9 @@ export default function OrgSettingsPage() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+        method: "DELETE",
+      });
       if (res.ok) {
         router.push("/");
       } else {
@@ -199,12 +206,16 @@ export default function OrgSettingsPage() {
     }
     const requestId = ++userSearchRef.current;
     try {
-      const res = await apiFetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+      const res = await apiFetch(
+        `/api/users/search?q=${encodeURIComponent(q)}`,
+      );
       if (userSearchRef.current !== requestId) return;
       if (res.ok) {
         const data = await res.json();
         const existingIds = new Set(members.map((m) => m.userId));
-        setSearchResults(data.users.filter((u: SearchUser) => !existingIds.has(u.id)));
+        setSearchResults(
+          data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
+        );
       }
     } catch {
       if (userSearchRef.current !== requestId) return;
@@ -215,11 +226,14 @@ export default function OrgSettingsPage() {
   const handleAddMember = async (userId: string, role: string = "member") => {
     setInviting(true);
     try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, role }),
-      });
+      const res = await apiFetch(
+        `/api/orgs/${encodeURIComponent(slug)}/members`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, role }),
+        },
+      );
       if (res.ok) {
         setSearchQuery("");
         setSearchResults([]);
@@ -237,11 +251,14 @@ export default function OrgSettingsPage() {
 
   const handleChangeRole = async (userId: string, newRole: string) => {
     try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: newRole }),
-      });
+      const res = await apiFetch(
+        `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: newRole }),
+        },
+      );
       if (res.ok) {
         await fetchData();
       } else {
@@ -256,9 +273,12 @@ export default function OrgSettingsPage() {
   const handleRemoveMember = async (userId: string) => {
     if (!confirm("このメンバーを削除しますか？")) return;
     try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`, {
-        method: "DELETE",
-      });
+      const res = await apiFetch(
+        `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
+        {
+          method: "DELETE",
+        },
+      );
       if (res.ok) {
         await fetchData();
       } else {
@@ -302,11 +322,14 @@ export default function OrgSettingsPage() {
   const handleAddPaper = async (paperId: string) => {
     setAddingPaper(true);
     try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paperId }),
-      });
+      const res = await apiFetch(
+        `/api/orgs/${encodeURIComponent(slug)}/papers`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paperId }),
+        },
+      );
       if (res.ok) {
         setPaperSearch("");
         setPaperSearchResults([]);
@@ -325,9 +348,12 @@ export default function OrgSettingsPage() {
   const handleRemovePaper = async (paperId: string) => {
     if (!confirm("この論文の紐づけを解除しますか？")) return;
     try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers/${encodeURIComponent(paperId)}`, {
-        method: "DELETE",
-      });
+      const res = await apiFetch(
+        `/api/orgs/${encodeURIComponent(slug)}/papers/${encodeURIComponent(paperId)}`,
+        {
+          method: "DELETE",
+        },
+      );
       if (res.ok) {
         await fetchData();
       } else {
@@ -349,7 +375,11 @@ export default function OrgSettingsPage() {
   return (
     <div className="max-w-3xl">
       <div className="flex items-center gap-2 mb-6">
-        <button type="button" onClick={() => router.push(`/orgs/${slug}`)} className="text-gray-400 hover:text-gray-600">
+        <button
+          type="button"
+          onClick={() => router.push(`/orgs/${slug}`)}
+          className="text-gray-400 hover:text-gray-600"
+        >
           ←
         </button>
         <h1 className="text-2xl font-bold">{org.name} — 設定</h1>
@@ -357,13 +387,25 @@ export default function OrgSettingsPage() {
 
       {/* Tabs */}
       <div className="flex border-b dark:border-gray-700 mb-6">
-        <button type="button" className={tabClass("general")} onClick={() => setTab("general")}>
+        <button
+          type="button"
+          className={tabClass("general")}
+          onClick={() => setTab("general")}
+        >
           一般
         </button>
-        <button type="button" className={tabClass("members")} onClick={() => setTab("members")}>
+        <button
+          type="button"
+          className={tabClass("members")}
+          onClick={() => setTab("members")}
+        >
           メンバー
         </button>
-        <button type="button" className={tabClass("papers")} onClick={() => setTab("papers")}>
+        <button
+          type="button"
+          className={tabClass("papers")}
+          onClick={() => setTab("papers")}
+        >
           論文
         </button>
       </div>
@@ -372,7 +414,12 @@ export default function OrgSettingsPage() {
       {tab === "general" && (
         <div className="space-y-4">
           <div>
-            <label htmlFor="org-edit-name" className="block text-sm font-medium mb-1">組織名</label>
+            <label
+              htmlFor="org-edit-name"
+              className="block text-sm font-medium mb-1"
+            >
+              組織名
+            </label>
             <input
               id="org-edit-name"
               type="text"
@@ -383,18 +430,32 @@ export default function OrgSettingsPage() {
             />
           </div>
           <div>
-            <label htmlFor="org-edit-slug" className="block text-sm font-medium mb-1">スラッグ</label>
+            <label
+              htmlFor="org-edit-slug"
+              className="block text-sm font-medium mb-1"
+            >
+              スラッグ
+            </label>
             <input
               id="org-edit-slug"
               type="text"
               maxLength={40}
               value={editSlug}
-              onChange={(e) => setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+              onChange={(e) =>
+                setEditSlug(
+                  e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                )
+              }
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             />
           </div>
           <div>
-            <label htmlFor="org-edit-description" className="block text-sm font-medium mb-1">説明</label>
+            <label
+              htmlFor="org-edit-description"
+              className="block text-sm font-medium mb-1"
+            >
+              説明
+            </label>
             <textarea
               id="org-edit-description"
               value={editDescription}
@@ -418,7 +479,9 @@ export default function OrgSettingsPage() {
 
           {/* Danger zone */}
           <div className="mt-10 rounded-md border border-red-300 p-4 dark:border-red-700">
-            <h3 className="text-sm font-medium text-red-600 mb-2">Danger Zone</h3>
+            <h3 className="text-sm font-medium text-red-600 mb-2">
+              Danger Zone
+            </h3>
             <p className="text-xs text-gray-500 mb-3">
               組織を削除すると、メンバー情報と論文の紐づけが全て削除されます。
             </p>
@@ -491,7 +554,13 @@ export default function OrgSettingsPage() {
                   >
                     <div className="flex items-center gap-2">
                       {u.avatarUrl && (
-                        <Image src={u.avatarUrl} alt={u.name} width={20} height={20} className="rounded-full" />
+                        <Image
+                          src={u.avatarUrl}
+                          alt={u.name}
+                          width={20}
+                          height={20}
+                          className="rounded-full"
+                        />
                       )}
                       <span>{u.displayName ?? u.name}</span>
                     </div>
@@ -519,7 +588,13 @@ export default function OrgSettingsPage() {
               >
                 <div className="flex items-center gap-2">
                   {m.avatarUrl && (
-                    <Image src={m.avatarUrl} alt={m.name} width={24} height={24} className="rounded-full" />
+                    <Image
+                      src={m.avatarUrl}
+                      alt={m.name}
+                      width={24}
+                      height={24}
+                      className="rounded-full"
+                    />
                   )}
                   <span>{m.displayName ?? m.name}</span>
                   <span className="text-xs text-gray-400">@{m.githubId}</span>

@@ -33,7 +33,9 @@ export async function GET(request: Request) {
   const safeSubtitle = truncateTitle(subtitle, 110);
   const fontData = await fontDataPromise;
 
-  const badgeLabel = Object.hasOwn(BADGE_LABELS, type) ? BADGE_LABELS[type] : "Paper";
+  const badgeLabel = Object.hasOwn(BADGE_LABELS, type)
+    ? BADGE_LABELS[type]
+    : "Paper";
 
   const image = new ImageResponse(
     <div

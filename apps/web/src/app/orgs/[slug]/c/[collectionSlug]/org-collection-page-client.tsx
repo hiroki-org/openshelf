@@ -49,7 +49,9 @@ export default function OrgCollectionPageClient({
 
   const reload = useCallback(async () => {
     try {
-      const listRes = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/collections`);
+      const listRes = await apiFetch(
+        `/api/orgs/${encodeURIComponent(slug)}/collections`,
+      );
       const listData = listRes.ok ? await listRes.json() : { collections: [] };
       const found =
         (listData.collections ?? []).find(
@@ -104,11 +106,14 @@ export default function OrgCollectionPageClient({
     setPapers(newOrder.map((p, i) => ({ ...p, sortOrder: i })));
 
     try {
-      const res = await apiFetch(`/api/collections/${encodeURIComponent(collection.id)}/papers`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paper_ids: newOrder.map((p) => p.id) }),
-      });
+      const res = await apiFetch(
+        `/api/collections/${encodeURIComponent(collection.id)}/papers`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paper_ids: newOrder.map((p) => p.id) }),
+        },
+      );
       if (!res.ok) {
         throw new Error("Failed to reorder papers");
       }
