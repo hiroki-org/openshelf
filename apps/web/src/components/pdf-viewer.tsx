@@ -5,6 +5,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 
 type PdfViewerProps = {
   fileUrl: string;
+  onDownloadFallback?: () => void;
 };
 
 const ZOOM_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
@@ -14,7 +15,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
-export function PdfViewer({ fileUrl }: PdfViewerProps) {
+export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [numPages, setNumPages] = useState(0);
@@ -155,14 +156,24 @@ export function PdfViewer({ fileUrl }: PdfViewerProps) {
           error={
             <div className="text-center text-sm text-red-600">
               <p>プレビューを読み込めません</p>
-              <a
-                className="underline"
-                href={fileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                ダウンロードする
-              </a>
+              {onDownloadFallback ? (
+                <button
+                  type="button"
+                  className="underline"
+                  onClick={onDownloadFallback}
+                >
+                  ダウンロードする
+                </button>
+              ) : (
+                <a
+                  className="underline"
+                  href={fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  ダウンロードする
+                </a>
+              )}
             </div>
           }
         >

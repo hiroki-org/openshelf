@@ -80,4 +80,46 @@ describe("papers preview routes", () => {
 
         expect(res.status).toBe(401);
     });
+
+    it("GET /api/papers/:id/files/:fileId/preview falls back to stream URL when signed URL generation fails", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public" } }))
+            .mockImplementationOnce(
+                () =>
+                    makeQuery({
+                        getResult: {
+                            id: "file-1",
+                            paperId: "paper-1",
+                            r2Key: "papers/paper-1/paper/sample.pdf",
+                            mimeType: "application/pdf",
+                            filename: "sample.pdf",
+                        },
+                    }),
+            );
+
+        const app = await createTestApp();
+        const env = createTestEnv({
+            BUCKET: {
+                put: vi.fn(async () => undefined),
+                delete: vi.fn(async () => undefined),
+                get: vi.fn(async () => null),
+                createSignedUrl: vi.fn(async () => {
+                    throw new Error("presign failed");
+                }),
+            } as any,
+        });
+
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/files/file-1/preview",
+            {},
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as any;
+        expect(body.url).toBe("/api/papers/paper-1/files/file-1/stream");
+        expect(body.mimeType).toBe("application/pdf");
+        expect(body.filename).toBe("sample.pdf");
+    });
 });

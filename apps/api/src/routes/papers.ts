@@ -123,12 +123,16 @@ async function generateSignedPreviewUrl(
         presign?: (key: string, options?: { expiresIn?: number }) => Promise<string>;
     };
 
-    if (typeof bucketLike.createSignedUrl === "function") {
-        return bucketLike.createSignedUrl(objectKey, { expiresIn: 300 });
-    }
+    try {
+        if (typeof bucketLike.createSignedUrl === "function") {
+            return await bucketLike.createSignedUrl(objectKey, { expiresIn: 300 });
+        }
 
-    if (typeof bucketLike.presign === "function") {
-        return bucketLike.presign(objectKey, { expiresIn: 300 });
+        if (typeof bucketLike.presign === "function") {
+            return await bucketLike.presign(objectKey, { expiresIn: 300 });
+        }
+    } catch {
+        return null;
     }
 
     return null;

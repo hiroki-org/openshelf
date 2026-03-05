@@ -3,7 +3,7 @@
 import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { PdfViewer } from "@/components/pdf-viewer";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 
@@ -60,6 +60,8 @@ type PreviewResponse = {
   filename: string;
 };
 
+const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url);
+
 const isValidExternalUrl = (urlStr: string) => {
   try {
     const url = new URL(urlStr);
@@ -83,6 +85,9 @@ export default function PaperDetailPage() {
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState(false);
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<
+    Record<string, string>
+  >({});
 
   // Invite dialog
   const [showInvite, setShowInvite] = useState(false);
@@ -141,8 +146,14 @@ export default function PaperDetailPage() {
     if (isUploader) fetchInvites();
   }, [isUploader, fetchInvites]);
 
-  const pdfFile = files.find((f) => f.mimeType === "application/pdf") ?? null;
-  const imageFiles = files.filter((f) => f.mimeType?.startsWith("image/"));
+  const pdfFile = useMemo(
+    () => files.find((f) => f.mimeType === "application/pdf") ?? null,
+    [files],
+  );
+  const imageFiles = useMemo(
+    () => files.filter((f) => f.mimeType?.startsWith("image/")),
+    [files],
+  );
 
   useEffect(() => {
     const currentPdfFile =
@@ -156,6 +167,7 @@ export default function PaperDetailPage() {
     }
 
     let cancelled = false;
+    let createdObjectUrl: string | null = null;
     const fetchPreviewUrl = async () => {
       setPreviewLoading(true);
       setPreviewError(false);
@@ -169,10 +181,20 @@ export default function PaperDetailPage() {
         }
 
         const data = (await res.json()) as PreviewResponse;
+        let resolvedUrl = data.url;
+        if (!isAbsoluteUrl(data.url)) {
+          const fileRes = await apiFetch(data.url);
+          if (!fileRes.ok) throw new Error("preview stream fetch failed");
+          const blob = await fileRes.blob();
+          resolvedUrl = URL.createObjectURL(blob);
+          createdObjectUrl = resolvedUrl;
+        }
+
         if (cancelled) return;
-        setPreview(data);
-      } catch {
+        setPreview({ ...data, url: resolvedUrl });
+      } catch (err) {
         if (cancelled) return;
+        console.error("プレビューURLの取得に失敗しました:", err);
         setPreviewError(true);
         setPreview(null);
       } finally {
@@ -183,6 +205,53 @@ export default function PaperDetailPage() {
     fetchPreviewUrl();
     return () => {
       cancelled = true;
+      if (createdObjectUrl) {
+        URL.revokeObjectURL(createdObjectUrl);
+      }
+    };
+  }, [paperId, files]);
+
+  useEffect(() => {
+    if (imageFiles.length === 0) {
+      setImagePreviewUrls({});
+      return;
+    }
+
+    let cancelled = false;
+    const createdUrls: string[] = [];
+
+    const loadImages = async () => {
+      const entries = await Promise.all(
+        imageFiles.map(async (img) => {
+          const streamPath = `/api/papers/${paperId}/files/${img.id}/stream`;
+          const res = await apiFetch(streamPath);
+          if (!res.ok) return [img.id, ""] as const;
+          const blob = await res.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          createdUrls.push(objectUrl);
+          return [img.id, objectUrl] as const;
+        }),
+      );
+
+      if (cancelled) {
+        for (const url of createdUrls) URL.revokeObjectURL(url);
+        return;
+      }
+
+      setImagePreviewUrls(Object.fromEntries(entries.filter(([, url]) => url)));
+    };
+
+    loadImages().catch(() => {
+      if (!cancelled) {
+        setImagePreviewUrls({});
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      for (const url of createdUrls) {
+        URL.revokeObjectURL(url);
+      }
     };
   }, [paperId, files]);
 
@@ -364,17 +433,21 @@ export default function PaperDetailPage() {
               <div className="h-[420px] animate-pulse rounded-md bg-gray-200 dark:bg-gray-800" />
             )}
             {!previewLoading && preview?.url && (
-              <PdfViewer fileUrl={preview.url} />
+              <PdfViewer
+                fileUrl={preview.url}
+                onDownloadFallback={() => handleDownload(pdfFile)}
+              />
             )}
             {!previewLoading && previewError && (
               <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
                 <p>プレビューを読み込めません</p>
-                <a
-                  href={`/api/papers/${paperId}/files/${pdfFile.id}/download`}
+                <button
+                  type="button"
                   className="underline"
+                  onClick={() => handleDownload(pdfFile)}
                 >
                   ダウンロードする
-                </a>
+                </button>
               </div>
             )}
           </div>
@@ -387,13 +460,16 @@ export default function PaperDetailPage() {
                 key={img.id}
                 className="rounded-md border border-gray-200 p-2 dark:border-gray-700"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/api/papers/${paperId}/files/${img.id}/stream`}
-                  alt={img.filename}
-                  className="h-auto w-full rounded"
-                  loading="lazy"
-                />
+                {imagePreviewUrls[img.id] ? (
+                  <img
+                    src={imagePreviewUrls[img.id]}
+                    alt={img.filename}
+                    className="h-auto w-full rounded"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="h-[180px] animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+                )}
               </div>
             ))}
           </div>
