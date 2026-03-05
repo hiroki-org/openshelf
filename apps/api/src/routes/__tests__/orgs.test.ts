@@ -207,7 +207,7 @@ describe("orgs routes", () => {
 
     // ─── Member management ────────────────────────────────────
     describe("POST /api/orgs/:slug/members", () => {
-        it("returns 401 without auth", async () => {
+        it("returns 403 without auth (CSRF blocks before auth middleware)", async () => {
             const app = await createTestApp();
             const env = createTestEnv();
 
@@ -276,7 +276,7 @@ describe("orgs routes", () => {
 
     // ─── Paper association ────────────────────────────────────
     describe("POST /api/orgs/:slug/papers", () => {
-        it("returns 401 without auth", async () => {
+        it("returns 403 without auth (CSRF blocks before auth middleware)", async () => {
             const app = await createTestApp();
             const env = createTestEnv();
 
@@ -308,6 +308,77 @@ describe("orgs routes", () => {
             );
 
             expect(res.status).toBe(404);
+        });
+    });
+
+    // ─── Boundary: last admin protection ──────────────────────
+    describe("last admin protection", () => {
+        it("PATCH prevents demoting the last admin", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            const org = { id: "org-1", slug: "my-lab" };
+            let selectCallCount = 0;
+            mockDb.select = vi.fn(() => {
+                selectCallCount++;
+                if (selectCallCount === 1) return makeQuery({ getResult: org });
+                // actor is admin
+                if (selectCallCount === 2) return makeQuery({ getResult: { orgId: "org-1", userId: "user-1", role: "admin" } });
+                // target is also admin
+                if (selectCallCount === 3) return makeQuery({ getResult: { orgId: "org-1", userId: "user-2", role: "admin" } });
+                // admin count = 1
+                return makeQuery({ getResult: { count: 1 } });
+            });
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/members/user-2",
+                {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ role: "member" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            const body = (await res.json()) as any;
+            expect(body.error).toContain("last admin");
+        });
+
+        it("DELETE prevents removing the last admin", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            const org = { id: "org-1", slug: "my-lab" };
+            let selectCallCount = 0;
+            mockDb.select = vi.fn(() => {
+                selectCallCount++;
+                if (selectCallCount === 1) return makeQuery({ getResult: org });
+                // actor is admin
+                if (selectCallCount === 2) return makeQuery({ getResult: { orgId: "org-1", userId: "user-1", role: "admin" } });
+                // target is also admin
+                if (selectCallCount === 3) return makeQuery({ getResult: { orgId: "org-1", userId: "user-2", role: "admin" } });
+                // admin count = 1
+                return makeQuery({ getResult: { count: 1 } });
+            });
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/members/user-2",
+                {
+                    method: "DELETE",
+                    headers: { Authorization: `Bearer ${token}` },
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            const body = (await res.json()) as any;
+            expect(body.error).toContain("last admin");
         });
     });
 });

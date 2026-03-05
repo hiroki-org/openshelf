@@ -273,13 +273,17 @@ export default function OrgSettingsPage() {
       return;
     }
     try {
-      // Search user's own papers via existing endpoint
-      const res = await apiFetch(`/api/papers?q=${encodeURIComponent(q)}`);
+      // GET /api/papers returns all papers; filter client-side by title
+      const res = await apiFetch("/api/papers");
       if (res.ok) {
         const data = await res.json();
         const existingIds = new Set(orgPapers.map((p) => p.id));
+        const lowerQ = q.toLowerCase();
         setPaperSearchResults(
-          (data.papers || []).filter((p: { id: string }) => !existingIds.has(p.id)),
+          (data.papers || []).filter(
+            (p: { id: string; title: string }) =>
+              !existingIds.has(p.id) && p.title.toLowerCase().includes(lowerQ),
+          ),
         );
       }
     } catch {
@@ -337,7 +341,7 @@ export default function OrgSettingsPage() {
   return (
     <div className="max-w-3xl">
       <div className="flex items-center gap-2 mb-6">
-        <button onClick={() => router.push(`/orgs/${slug}`)} className="text-gray-400 hover:text-gray-600">
+        <button type="button" onClick={() => router.push(`/orgs/${slug}`)} className="text-gray-400 hover:text-gray-600">
           ←
         </button>
         <h1 className="text-2xl font-bold">{org.name} — 設定</h1>
@@ -345,13 +349,13 @@ export default function OrgSettingsPage() {
 
       {/* Tabs */}
       <div className="flex border-b dark:border-gray-700 mb-6">
-        <button className={tabClass("general")} onClick={() => setTab("general")}>
+        <button type="button" className={tabClass("general")} onClick={() => setTab("general")}>
           一般
         </button>
-        <button className={tabClass("members")} onClick={() => setTab("members")}>
+        <button type="button" className={tabClass("members")} onClick={() => setTab("members")}>
           メンバー
         </button>
-        <button className={tabClass("papers")} onClick={() => setTab("papers")}>
+        <button type="button" className={tabClass("papers")} onClick={() => setTab("papers")}>
           論文
         </button>
       </div>
@@ -360,8 +364,9 @@ export default function OrgSettingsPage() {
       {tab === "general" && (
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">組織名</label>
+            <label htmlFor="org-edit-name" className="block text-sm font-medium mb-1">組織名</label>
             <input
+              id="org-edit-name"
               type="text"
               maxLength={100}
               value={editName}
@@ -370,8 +375,9 @@ export default function OrgSettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">スラッグ</label>
+            <label htmlFor="org-edit-slug" className="block text-sm font-medium mb-1">スラッグ</label>
             <input
+              id="org-edit-slug"
               type="text"
               maxLength={40}
               value={editSlug}
@@ -380,8 +386,9 @@ export default function OrgSettingsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">説明</label>
+            <label htmlFor="org-edit-description" className="block text-sm font-medium mb-1">説明</label>
             <textarea
+              id="org-edit-description"
               value={editDescription}
               onChange={(e) => setEditDescription(e.target.value)}
               rows={3}
@@ -393,6 +400,7 @@ export default function OrgSettingsPage() {
           {saveMsg && <p className="text-sm text-gray-600">{saveMsg}</p>}
 
           <button
+            type="button"
             onClick={handleSave}
             disabled={saving}
             className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
@@ -408,6 +416,7 @@ export default function OrgSettingsPage() {
             </p>
             {!showDelete ? (
               <button
+                type="button"
                 onClick={() => setShowDelete(true)}
                 className="rounded-md border border-red-500 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
               >
@@ -426,6 +435,7 @@ export default function OrgSettingsPage() {
                 />
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={handleDelete}
                     disabled={deleting || deleteConfirm !== org.slug}
                     className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:opacity-50"
@@ -433,6 +443,7 @@ export default function OrgSettingsPage() {
                     {deleting ? "削除中..." : "完全に削除する"}
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setShowDelete(false);
                       setDeleteConfirm("");
@@ -475,6 +486,7 @@ export default function OrgSettingsPage() {
                       <span>{u.displayName ?? u.name}</span>
                     </div>
                     <button
+                      type="button"
                       onClick={() => handleAddMember(u.id)}
                       disabled={inviting}
                       className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
@@ -514,6 +526,7 @@ export default function OrgSettingsPage() {
                   </select>
                   {m.userId !== user?.id && (
                     <button
+                      type="button"
                       onClick={() => handleRemoveMember(m.userId)}
                       className="text-red-500 hover:text-red-700 text-xs"
                     >
@@ -549,6 +562,7 @@ export default function OrgSettingsPage() {
                   >
                     <span className="truncate">{p.title}</span>
                     <button
+                      type="button"
                       onClick={() => handleAddPaper(p.id)}
                       disabled={addingPaper}
                       className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50 shrink-0"
@@ -574,6 +588,7 @@ export default function OrgSettingsPage() {
                 >
                   <span className="truncate flex-1 min-w-0">{p.title}</span>
                   <button
+                    type="button"
                     onClick={() => handleRemovePaper(p.id)}
                     className="text-red-500 hover:text-red-700 text-xs shrink-0 ml-2"
                   >

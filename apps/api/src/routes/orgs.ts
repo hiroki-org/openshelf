@@ -97,7 +97,7 @@ orgsRoute.post("/", authMiddleware, async (c) => {
 
     const slug = (body.slug as string).trim().toLowerCase();
     const name = (body.name as string).trim();
-    const description = body.description ? (body.description as string).trim() : null;
+    const description = body.description ? (body.description as string).trim() || null : null;
 
     const db = drizzle(c.env.DB);
     await enableForeignKeys(db);
@@ -109,19 +109,28 @@ orgsRoute.post("/", authMiddleware, async (c) => {
 
     const orgId = crypto.randomUUID();
 
-    await db.insert(orgs).values({
-        id: orgId,
-        slug,
-        name,
-        description,
-    });
+    try {
+        await db.insert(orgs).values({
+            id: orgId,
+            slug,
+            name,
+            description,
+        });
 
-    // Creator becomes admin
-    await db.insert(orgMembers).values({
-        orgId,
-        userId,
-        role: "admin",
-    });
+        // Creator becomes admin
+        await db.insert(orgMembers).values({
+            orgId,
+            userId,
+            role: "admin",
+        });
+    } catch (err: unknown) {
+        // Handle race condition: UNIQUE constraint violation
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes("UNIQUE") || message.includes("unique")) {
+            return c.json({ error: "slug already in use" }, 409);
+        }
+        throw err;
+    }
 
     const org = await db.select().from(orgs).where(eq(orgs.id, orgId)).get();
     return c.json({ org }, 201);
@@ -445,38 +454,32 @@ orgsRoute.get("/:slug/papers", async (c) => {
         .where(inArray(papers.id, paperIds))
         .all();
 
-    // Filter by visibility
-    const filtered = allPapers.filter((p) => {
-        if (p.visibility === "public") return true;
-        if (p.visibility === "org_only" && isMember) return true;
-        // Authors can always see their own papers
-        // (handled below with a separate check for private papers)
-        return false;
-    });
-
-    // For private papers: check if user is an author
+    // Check authorship for non-public papers the user might be an author of
+    let authoredPaperIds = new Set<string>();
     if (currentUserId) {
-        const privatePapers = allPapers.filter(
-            (p) => p.visibility === "private" && !filtered.some((f) => f.id === p.id),
-        );
-        if (privatePapers.length > 0) {
-            const privatePaperIds = privatePapers.map((p) => p.id);
+        const nonPublicPapers = allPapers.filter((p) => p.visibility !== "public");
+        if (nonPublicPapers.length > 0) {
             const authorships = await db
                 .select({ paperId: paperAuthors.paperId })
                 .from(paperAuthors)
                 .where(
                     and(
-                        inArray(paperAuthors.paperId, privatePaperIds),
+                        inArray(paperAuthors.paperId, nonPublicPapers.map((p) => p.id)),
                         eq(paperAuthors.userId, currentUserId),
                     ),
                 )
                 .all();
-            const authoredIds = new Set(authorships.map((a) => a.paperId));
-            for (const p of privatePapers) {
-                if (authoredIds.has(p.id)) filtered.push(p);
-            }
+            authoredPaperIds = new Set(authorships.map((a) => a.paperId));
         }
     }
+
+    // Filter by visibility
+    const filtered = allPapers.filter((p) => {
+        if (p.visibility === "public") return true;
+        if (p.visibility === "org_only" && (isMember || authoredPaperIds.has(p.id))) return true;
+        if (p.visibility === "private" && authoredPaperIds.has(p.id)) return true;
+        return false;
+    });
 
     return c.json({ papers: filtered });
 });

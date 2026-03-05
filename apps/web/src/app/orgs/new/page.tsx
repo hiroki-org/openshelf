@@ -3,7 +3,7 @@
 import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 function slugify(text: string): string {
   return text
@@ -38,21 +38,29 @@ export default function NewOrgPage() {
     }
   }, [name, slugManual]);
 
+  const slugCheckRef = useRef(0);
+
+  const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
+
   // Check slug availability
   const checkSlug = useCallback(async (s: string) => {
-    if (s.length < 3) {
+    if (s.length < 3 || s.length > 40 || !SLUG_RE.test(s) || s.includes("--")) {
       setSlugStatus("invalid");
       return;
     }
+    const requestId = ++slugCheckRef.current;
     setSlugStatus("checking");
     try {
       const res = await apiFetch(`/api/orgs/${encodeURIComponent(s)}`);
+      // Ignore stale responses
+      if (slugCheckRef.current !== requestId) return;
       if (res.status === 404) {
         setSlugStatus("available");
       } else {
         setSlugStatus("taken");
       }
     } catch {
+      if (slugCheckRef.current !== requestId) return;
       setSlugStatus("idle");
     }
   }, []);
