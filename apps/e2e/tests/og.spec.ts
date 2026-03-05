@@ -22,8 +22,27 @@ async function uploadPublicPaper(page: Page, title: string): Promise<string> {
     const response = await uploadResponsePromise;
     expect(response.ok()).toBeTruthy();
 
-    const data = await response.json();
-    return data.paper.id as string;
+    const data: unknown = await response.json();
+    if (
+        !data ||
+        typeof data !== "object" ||
+        !("paper" in data) ||
+        !(data as { paper?: unknown }).paper ||
+        typeof (data as { paper: { id?: unknown } }).paper.id !== "string"
+    ) {
+        throw new Error("Unexpected response shape: missing paper.id");
+    }
+    return (data as { paper: { id: string } }).paper.id;
+}
+
+function getMetaContent(html: string, attrName: "property" | "name", attrValue: string): string | null {
+    const escapedValue = attrValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp(
+        `<meta[^>]*${attrName}=["']${escapedValue}["'][^>]*content=["']([^"']*)["'][^>]*>|<meta[^>]*content=["']([^"']*)["'][^>]*${attrName}=["']${escapedValue}["'][^>]*>`,
+        "i",
+    );
+    const match = html.match(pattern);
+    return match?.[1] ?? match?.[2] ?? null;
 }
 
 test.describe("OG metadata", () => {
@@ -36,10 +55,16 @@ test.describe("OG metadata", () => {
         expect(res.ok()).toBeTruthy();
 
         const html = await res.text();
-        expect(html).toContain('property="og:title"');
-        expect(html).toContain('property="og:description"');
-        expect(html).toContain('property="og:image"');
-        expect(html).toContain('name="twitter:card"');
+        const ogTitle = getMetaContent(html, "property", "og:title");
+        const ogDescription = getMetaContent(html, "property", "og:description");
+        const ogImage = getMetaContent(html, "property", "og:image");
+        const twitterCard = getMetaContent(html, "name", "twitter:card");
+
+        expect(ogTitle).toContain(title);
+        expect(ogDescription).toContain("OpenShelf");
+        expect(ogImage).toContain("/api/og?");
+        expect(ogImage).toContain("type=paper");
+        expect(twitterCard).toBe("summary_large_image");
     });
 
     test("/api/og が PNG を返すこと", async ({ page }) => {

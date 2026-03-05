@@ -4,21 +4,35 @@ export const runtime = "edge";
 
 const WIDTH = 1200;
 const HEIGHT = 630;
+const FONT_URL = "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/files/inter-latin-800-normal.woff";
+
+const BADGE_LABELS: Record<string, string> = {
+  paper: "Paper",
+  org: "Organization",
+  collection: "Collection",
+};
+
+const fontDataPromise = fetch(FONT_URL)
+  .then((response) => (response.ok ? response.arrayBuffer() : null))
+  .catch(() => null);
+
+function truncateTitle(value: string, maxLength = 80): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1)}…`;
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type") ?? "paper";
   const title = searchParams.get("title") ?? "OpenShelf";
   const subtitle = searchParams.get("subtitle") ?? "";
+  const safeTitle = truncateTitle(title);
+  const fontData = await fontDataPromise;
 
-  const badgeLabel =
-    type === "org"
-      ? "Organization"
-      : type === "collection"
-        ? "Collection"
-        : "Paper";
+  const badgeLabel = BADGE_LABELS[type] ?? "Paper";
 
-  return new ImageResponse(
+  const image = new ImageResponse(
     <div
       style={{
         width: "100%",
@@ -30,6 +44,7 @@ export async function GET(request: Request) {
         justifyContent: "space-between",
         padding: "56px",
         border: "2px solid #e5e7eb",
+        fontFamily: "OpenShelfSans, sans-serif",
       }}
     >
       <div
@@ -64,7 +79,7 @@ export async function GET(request: Request) {
             letterSpacing: -1.2,
           }}
         >
-          {title}
+          {safeTitle}
         </div>
         <div
           style={{
@@ -80,6 +95,19 @@ export async function GET(request: Request) {
     {
       width: WIDTH,
       height: HEIGHT,
+      fonts: fontData
+        ? [
+            {
+              name: "OpenShelfSans",
+              data: fontData,
+              weight: 800,
+              style: "normal",
+            },
+          ]
+        : undefined,
     },
   );
+
+  image.headers.set("Cache-Control", "public, max-age=0, s-maxage=86400");
+  return image;
 }
