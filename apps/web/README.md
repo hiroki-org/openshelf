@@ -43,6 +43,7 @@ Required environment variables:
 
 - `NEXT_PUBLIC_API_URL`: Public API base URL embedded at build time for browser requests.
 - `API_URL`: Runtime API base URL used by Next.js server-side rewrite (`/api/*`).
+- `SITE_URL`: Runtime frontend origin used for server-side metadata/OG absolute URLs.
 
 Build image (run from monorepo root because `package-lock.json` is at root):
 
@@ -59,6 +60,7 @@ Run container:
 ```bash
 docker run --rm -p 3000:3000 \
 	-e API_URL=https://api.example.com \
+	-e SITE_URL=https://app.example.com \
 	openshelf-web:latest
 ```
 

@@ -100,13 +100,23 @@ export default function OrgCollectionPageClient({
     const tmp = newOrder[index];
     newOrder[index] = newOrder[next];
     newOrder[next] = tmp;
+    const previousOrder = papers;
     setPapers(newOrder.map((p, i) => ({ ...p, sortOrder: i })));
 
-    await apiFetch(`/api/collections/${collection.id}/papers`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paper_ids: newOrder.map((p) => p.id) }),
-    });
+    try {
+      const res = await apiFetch(`/api/collections/${collection.id}/papers`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paper_ids: newOrder.map((p) => p.id) }),
+      });
+      if (!res.ok) {
+        setPapers(previousOrder);
+        setError("並べ替えに失敗しました");
+      }
+    } catch {
+      setPapers(previousOrder);
+      setError("並べ替えに失敗しました");
+    }
   };
 
   if (error)

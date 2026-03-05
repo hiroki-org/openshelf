@@ -20,8 +20,14 @@ type CollectionsResponse = {
   collections: Collection[];
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787";
-const SITE_BASE = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+const API_BASE =
+  process.env.API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://localhost:8787";
+const SITE_BASE =
+  process.env.SITE_URL ??
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  "http://localhost:3000";
 
 async function fetchCollectionMetadata(slug: string, collectionSlug: string) {
   try {
@@ -107,9 +113,7 @@ export async function generateMetadata(props: {
   };
 }
 
-export default async function OrgCollectionPage(props: {
-  params: Params;
-}) {
+export default async function OrgCollectionPage(props: { params: Params }) {
   const { slug, collectionSlug } = props.params;
   return (
     <OrgCollectionPageClient slug={slug} collectionSlug={collectionSlug} />

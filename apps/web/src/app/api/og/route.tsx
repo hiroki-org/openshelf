@@ -4,7 +4,8 @@ export const runtime = "edge";
 
 const WIDTH = 1200;
 const HEIGHT = 630;
-const FONT_URL = "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/files/inter-latin-800-normal.woff";
+const FONT_URL =
+  "https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.17/files/inter-latin-800-normal.woff";
 
 const BADGE_LABELS: Record<string, string> = {
   paper: "Paper",
@@ -27,7 +28,8 @@ export async function GET(request: Request) {
   const type = searchParams.get("type") ?? "paper";
   const title = searchParams.get("title") ?? "OpenShelf";
   const subtitle = searchParams.get("subtitle") ?? "";
-  const safeTitle = truncateTitle(title);
+  const safeTitle = truncateTitle(title, 80);
+  const safeSubtitle = truncateTitle(subtitle, 110);
   const fontData = await fontDataPromise;
 
   const badgeLabel = BADGE_LABELS[type] ?? "Paper";
@@ -88,7 +90,7 @@ export async function GET(request: Request) {
             lineHeight: 1.3,
           }}
         >
-          {subtitle || "Research artifacts hosting and sharing"}
+          {safeSubtitle || "Research artifacts hosting and sharing"}
         </div>
       </div>
     </div>,

@@ -67,9 +67,19 @@ test.describe("OG metadata", () => {
         expect(twitterCard).toBe("summary_large_image");
     });
 
-    test("/api/og が PNG を返すこと", async ({ page }) => {
-        const res = await page.request.get("/api/og?type=paper&title=Test");
-        expect(res.status()).toBe(200);
-        expect(res.headers()["content-type"]).toContain("image/png");
+    test("/api/og が各typeで PNG を返すこと", async ({ page }) => {
+        const cases = [
+            { type: "paper", title: "Test Paper" },
+            { type: "org", title: "Test Org" },
+            { type: "collection", title: "Test Collection" },
+        ] as const;
+
+        for (const testCase of cases) {
+            const res = await page.request.get(
+                `/api/og?type=${testCase.type}&title=${encodeURIComponent(testCase.title)}`,
+            );
+            expect(res.status()).toBe(200);
+            expect(res.headers()["content-type"]).toContain("image/png");
+        }
     });
 });

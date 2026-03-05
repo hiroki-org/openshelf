@@ -65,11 +65,14 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
 
   const fetchOrg = useCallback(async () => {
     try {
-      const [orgRes, papersRes, membersRes] = await Promise.all([
-        apiFetch(`/api/orgs/${slug}`),
-        apiFetch(`/api/orgs/${slug}/papers`),
-        apiFetch(`/api/orgs/${slug}/members`),
-      ]);
+      const [orgRes, papersRes, membersRes, collectionsRes] = await Promise.all(
+        [
+          apiFetch(`/api/orgs/${slug}`),
+          apiFetch(`/api/orgs/${slug}/papers`),
+          apiFetch(`/api/orgs/${slug}/members`),
+          apiFetch(`/api/orgs/${slug}/collections`),
+        ],
+      );
 
       if (!orgRes.ok) {
         setError(
@@ -92,7 +95,6 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
         setMembers(membersData.members);
       }
 
-      const collectionsRes = await apiFetch(`/api/orgs/${slug}/collections`);
       if (collectionsRes.ok) {
         const collectionsData = await collectionsRes.json();
         setCollections(collectionsData.collections ?? []);
