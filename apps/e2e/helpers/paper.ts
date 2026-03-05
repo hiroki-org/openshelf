@@ -1,4 +1,4 @@
-import { Page, expect } from "@playwright/test";
+import { Page } from "@playwright/test";
 import path from "path";
 
 type PaperUploadResponse = {
@@ -32,7 +32,9 @@ async function uploadPaper(page: Page, title: string, visibility: "public" | "pr
 
     await page.getByRole("button", { name: "アップロード", exact: true }).click();
     const response = await uploadResponsePromise;
-    expect(response.ok()).toBeTruthy();
+    if (!response.ok()) {
+        throw new Error(`uploadPaper failed: ${response.status()} ${await response.text()}`);
+    }
 
     const data = await response.json() as PaperUploadResponse;
     if (!data?.paper?.id) {

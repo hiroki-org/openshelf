@@ -33,16 +33,18 @@ test.describe('Paper Lifecycle', () => {
 
         // Check unauthorized access
         const context = await browser.newContext();
-        const guestPage = await context.newPage();
-        await guestPage.goto(`/papers/${privateId}`);
-        await expect(
-            guestPage
-                .locator('text=ログインが必要です')
-                .or(guestPage.locator('text=この論文を閲覧する権限がありません'))
-                .or(guestPage.locator('text=論文が見つかりません'))
-                .or(guestPage.locator('text=論文の取得に失敗しました')),
-        ).toBeVisible();
-
-        await context.close();
+        try {
+            const guestPage = await context.newPage();
+            await guestPage.goto(`/papers/${privateId}`);
+            await expect(
+                guestPage
+                    .locator('text=ログインが必要です')
+                    .or(guestPage.locator('text=この論文を閲覧する権限がありません'))
+                    .or(guestPage.locator('text=論文が見つかりません'))
+                    .or(guestPage.locator('text=論文の取得に失敗しました')),
+            ).toBeVisible();
+        } finally {
+            await context.close();
+        }
     });
 });

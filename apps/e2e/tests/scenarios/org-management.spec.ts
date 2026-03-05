@@ -6,7 +6,7 @@ import { generateTestOrgName, generateTestPaperTitle } from '../../helpers/fixtu
 
 test.describe('Org Management', () => {
     test('org作成、設定、論文紐づけフロー', async ({ page }) => {
-        await loginAsTestUser(page);
+        const user = await loginAsTestUser(page);
 
         // Org作成
         const orgName = generateTestOrgName();
@@ -21,7 +21,8 @@ test.describe('Org Management', () => {
         // オーナーとして表示されることを確認（設定ページ等）
         await page.goto(`/orgs/${orgSlug}/settings`);
         await page.getByRole('button', { name: 'メンバー' }).click();
-        await expect(page.locator('select').first()).toHaveValue('admin');
+        const memberRow = page.locator('li', { hasText: user.name }).first();
+        await expect(memberRow.locator('select')).toHaveValue('admin');
 
         // 論文アップロード
         const paperTitle = generateTestPaperTitle();
