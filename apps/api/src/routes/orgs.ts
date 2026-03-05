@@ -341,21 +341,23 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
     const membership = await getOrgMembership(db, org.id, targetUserId);
     if (!membership) return c.json({ error: "Member not found" }, 404);
 
-    // Prevent demoting the last admin
+    // Prevent demoting the last admin purely via atomic update check
     if (newRole === "member" && (membership.role === "admin" || membership.role === "owner")) {
-        const adminCount = await db
-            .select({ count: sql<number>`count(*)` })
-            .from(orgMembers)
+        const result = await db
+            .update(orgMembers)
+            .set({ role: newRole })
             .where(
                 and(
                     eq(orgMembers.orgId, org.id),
-                    or(eq(orgMembers.role, "admin"), eq(orgMembers.role, "owner")),
-                ),
-            )
-            .get();
-        if ((adminCount?.count ?? 0) <= 1) {
+                    eq(orgMembers.userId, targetUserId),
+                    sql`(SELECT count(*) FROM ${orgMembers} WHERE ${orgMembers.orgId} = ${org.id} AND (${orgMembers.role} = 'admin' OR ${orgMembers.role} = 'owner')) > 1`
+                )
+            );
+
+        if (result.meta.changes === 0) {
             return c.json({ error: "Cannot demote the last admin" }, 400);
         }
+        return c.json({ ok: true });
     }
 
     await db
@@ -383,21 +385,22 @@ orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
     const membership = await getOrgMembership(db, org.id, targetUserId);
     if (!membership) return c.json({ error: "Member not found" }, 404);
 
-    // Prevent removing the last admin
+    // Prevent removing the last admin purely via atomic delete check
     if (membership.role === "admin" || membership.role === "owner") {
-        const adminCount = await db
-            .select({ count: sql<number>`count(*)` })
-            .from(orgMembers)
+        const result = await db
+            .delete(orgMembers)
             .where(
                 and(
                     eq(orgMembers.orgId, org.id),
-                    or(eq(orgMembers.role, "admin"), eq(orgMembers.role, "owner")),
-                ),
-            )
-            .get();
-        if ((adminCount?.count ?? 0) <= 1) {
+                    eq(orgMembers.userId, targetUserId),
+                    sql`(SELECT count(*) FROM ${orgMembers} WHERE ${orgMembers.orgId} = ${org.id} AND (${orgMembers.role} = 'admin' OR ${orgMembers.role} = 'owner')) > 1`
+                )
+            );
+
+        if (result.meta.changes === 0) {
             return c.json({ error: "Cannot remove the last admin" }, 400);
         }
+        return c.json({ ok: true });
     }
 
     await db

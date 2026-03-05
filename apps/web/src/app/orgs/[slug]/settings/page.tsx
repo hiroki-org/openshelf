@@ -52,7 +52,9 @@ export default function OrgSettingsPage() {
   const [orgPapers, setOrgPapers] = useState<OrgPaper[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [isAdmin, setIsAdmin] = useState(false);
+
+  const userSearchRef = useRef(0);
+  const paperSearchRef = useRef(0);
 
   // General tab
   const [editName, setEditName] = useState("");
@@ -122,17 +124,14 @@ export default function OrgSettingsPage() {
     fetchData();
   }, [authLoading, user, fetchData, router]);
 
-  // Check admin status
-  useEffect(() => {
-    if (user && members.length > 0) {
-      const me = members.find((m) => m.userId === user.id);
-      setIsAdmin(!!me && (me.role === "admin" || me.role === "owner"));
-    }
-  }, [user, members]);
+  // Check admin status derived from members list
+  const isAdmin = Boolean(
+    user && members.find((m) => m.userId === user.id)?.role.match(/^(admin|owner)$/)
+  );
 
   // Redirect non-admin
   useEffect(() => {
-    if (!loading && !authLoading && !isAdmin && members.length > 0) {
+    if (!loading && !authLoading && members.length > 0 && !isAdmin) {
       router.push(`/orgs/${slug}`);
     }
   }, [loading, authLoading, isAdmin, members, slug, router]);
@@ -190,9 +189,6 @@ export default function OrgSettingsPage() {
       setDeleting(false);
     }
   };
-
-  const userSearchRef = useRef(0);
-  const paperSearchRef = useRef(0);
 
   // ── Members handlers ──
   const handleUserSearch = async (q: string) => {

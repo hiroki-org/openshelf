@@ -18,10 +18,10 @@ function createMockDb(overrides: Record<string, any> = {}) {
         select: vi.fn(() => makeQuery()),
         insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
         update: vi.fn(() => ({
-            set: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
+            set: vi.fn(() => ({ where: vi.fn(async () => ({ meta: { changes: 1 } })) })),
         })),
         delete: vi.fn(() => ({
-            where: vi.fn(async () => undefined),
+            where: vi.fn(async () => ({ meta: { changes: 1 } })),
         })),
         ...overrides,
     };
@@ -324,9 +324,14 @@ describe("orgs routes", () => {
                 if (selectCallCount === 2) return makeQuery({ getResult: { orgId: "org-1", userId: "user-1", role: "admin" } });
                 // target is also admin
                 if (selectCallCount === 3) return makeQuery({ getResult: { orgId: "org-1", userId: "user-2", role: "admin" } });
-                // admin count = 1
-                return makeQuery({ getResult: { count: 1 } });
+                return makeQuery({ getResult: null });
             });
+
+            mockDb.update = vi.fn(() => ({
+                set: vi.fn(() => ({
+                    where: vi.fn(async () => ({ meta: { changes: 0 } })),
+                })),
+            }));
 
             const app = await createTestApp();
             const env = createTestEnv();
@@ -360,9 +365,12 @@ describe("orgs routes", () => {
                 if (selectCallCount === 2) return makeQuery({ getResult: { orgId: "org-1", userId: "user-1", role: "admin" } });
                 // target is also admin
                 if (selectCallCount === 3) return makeQuery({ getResult: { orgId: "org-1", userId: "user-2", role: "admin" } });
-                // admin count = 1
-                return makeQuery({ getResult: { count: 1 } });
+                return makeQuery({ getResult: null });
             });
+
+            mockDb.delete = vi.fn(() => ({
+                where: vi.fn(async () => ({ meta: { changes: 0 } })),
+            }));
 
             const app = await createTestApp();
             const env = createTestEnv();
