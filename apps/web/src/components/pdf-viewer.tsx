@@ -10,10 +10,7 @@ type PdfViewerProps = {
 
 const ZOOM_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);

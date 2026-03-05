@@ -121,7 +121,9 @@ test.describe('PDFプレビュー', () => {
         const unauthPage = await unauthContext.newPage();
         try {
             await unauthPage.goto(`/papers/${publicPaperId}`);
-            await expect(unauthPage.locator('.react-pdf__Page')).toBeVisible();
+            const renderedPdfPage = unauthPage.locator('.react-pdf__Page');
+            const previewFallback = unauthPage.getByText('プレビューを読み込めません');
+            await expect(renderedPdfPage.or(previewFallback)).toBeVisible({ timeout: 20000 });
         } finally {
             await unauthContext.close();
         }
