@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
+import { PdfViewer } from "@/components/pdf-viewer";
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
@@ -52,6 +53,13 @@ type SearchUser = {
   displayName: string | null;
   avatarUrl: string | null;
 };
+
+type PreviewResponse = {
+  url: string;
+  mimeType: string;
+  filename: string;
+};
+
 const isValidExternalUrl = (urlStr: string) => {
   try {
     const url = new URL(urlStr);
@@ -72,6 +80,9 @@ export default function PaperDetailPage() {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
 
   // Invite dialog
   const [showInvite, setShowInvite] = useState(false);
@@ -129,6 +140,48 @@ export default function PaperDetailPage() {
   useEffect(() => {
     if (isUploader) fetchInvites();
   }, [isUploader, fetchInvites]);
+
+  const pdfFile = files.find((f) => f.mimeType === "application/pdf") ?? null;
+  const imageFiles = files.filter((f) => f.mimeType?.startsWith("image/"));
+
+  useEffect(() => {
+    if (!pdfFile) {
+      setPreview(null);
+      setPreviewError(false);
+      setPreviewLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchPreviewUrl = async () => {
+      setPreviewLoading(true);
+      setPreviewError(false);
+
+      try {
+        const res = await apiFetch(
+          `/api/papers/${paperId}/files/${pdfFile.id}/preview`,
+        );
+        if (!res.ok) {
+          throw new Error("preview failed");
+        }
+
+        const data = (await res.json()) as PreviewResponse;
+        if (cancelled) return;
+        setPreview(data);
+      } catch {
+        if (cancelled) return;
+        setPreviewError(true);
+        setPreview(null);
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    };
+
+    fetchPreviewUrl();
+    return () => {
+      cancelled = true;
+    };
+  }, [paperId, pdfFile?.id]);
 
   const handleSearch = async (q: string) => {
     setSearchQuery(q);
@@ -260,7 +313,8 @@ export default function PaperDetailPage() {
   };
 
   const visibilityBadge = getVisibilityBadge(paper.visibility);
-  const showExternalLink = paper.externalUrl && isValidExternalUrl(paper.externalUrl);
+  const showExternalLink =
+    paper.externalUrl && isValidExternalUrl(paper.externalUrl);
 
   return (
     <div className="max-w-3xl">
@@ -299,6 +353,48 @@ export default function PaperDetailPage() {
       {/* Files */}
       <div className="mb-6">
         <h2 className="text-sm font-medium text-gray-500 mb-2">ファイル</h2>
+
+        {pdfFile && (
+          <div className="mb-4 space-y-2">
+            <h3 className="text-sm font-medium">PDFプレビュー</h3>
+            {previewLoading && (
+              <div className="h-[420px] animate-pulse rounded-md bg-gray-200 dark:bg-gray-800" />
+            )}
+            {!previewLoading && preview?.url && (
+              <PdfViewer fileUrl={preview.url} />
+            )}
+            {!previewLoading && previewError && (
+              <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
+                <p>プレビューを読み込めません</p>
+                <a
+                  href={`/api/papers/${paperId}/files/${pdfFile.id}/download`}
+                  className="underline"
+                >
+                  ダウンロードする
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
+        {imageFiles.length > 0 && (
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {imageFiles.map((img) => (
+              <div
+                key={img.id}
+                className="rounded-md border border-gray-200 p-2 dark:border-gray-700"
+              >
+                <img
+                  src={`/api/papers/${paperId}/files/${img.id}/stream`}
+                  alt={img.filename}
+                  className="h-auto w-full rounded"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
         <ul className="space-y-2">
           {files.map((f) => (
             <li
