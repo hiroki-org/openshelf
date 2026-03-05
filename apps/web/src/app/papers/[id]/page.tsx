@@ -59,9 +59,9 @@ function buildOgImageUrl(
 }
 
 export async function generateMetadata(props: {
-  params: Params;
+  params: Params | Promise<Params>;
 }): Promise<Metadata> {
-  const { id } = props.params;
+  const { id } = await Promise.resolve(props.params);
   const data = await fetchPaperMetadata(id);
 
   if (!data || data.paper.visibility !== "public") {
@@ -116,7 +116,9 @@ export async function generateMetadata(props: {
   };
 }
 
-export default async function PaperPage(props: { params: Params }) {
-  const { id } = props.params;
+export default async function PaperPage(props: {
+  params: Params | Promise<Params>;
+}) {
+  const { id } = await Promise.resolve(props.params);
   return <PaperDetailClient paperId={id} />;
 }

@@ -66,9 +66,9 @@ function buildOgImageUrl(title: string, subtitle?: string): string {
 }
 
 export async function generateMetadata(props: {
-  params: Params;
+  params: Params | Promise<Params>;
 }): Promise<Metadata> {
-  const { slug, collectionSlug } = props.params;
+  const { slug, collectionSlug } = await Promise.resolve(props.params);
   const data = await fetchCollectionMetadata(slug, collectionSlug);
 
   if (!data) {
@@ -113,8 +113,10 @@ export async function generateMetadata(props: {
   };
 }
 
-export default async function OrgCollectionPage(props: { params: Params }) {
-  const { slug, collectionSlug } = props.params;
+export default async function OrgCollectionPage(props: {
+  params: Params | Promise<Params>;
+}) {
+  const { slug, collectionSlug } = await Promise.resolve(props.params);
   return (
     <OrgCollectionPageClient slug={slug} collectionSlug={collectionSlug} />
   );
