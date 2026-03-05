@@ -23,11 +23,14 @@ export async function loginAsTestUser(page: Page, user?: { sub?: string; githubI
         throw new Error(`Failed to get test token: ${await res.text()}`);
     }
 
-    const data = await res.json() as { token?: unknown };
-    if (typeof data.token !== 'string' || data.token.length === 0) {
-        throw new Error(`Invalid token response: ${JSON.stringify(data)}`);
+    const data = await res.json();
+    if (!data || typeof data !== 'object' || typeof (data as { token?: unknown }).token !== 'string') {
+        throw new Error(`Invalid token response from /api/auth/test-token: ${JSON.stringify(data)}`);
     }
-    const token = data.token;
+    const token = (data as { token: string }).token;
+    if (token.length === 0) {
+        throw new Error('Invalid token response from /api/auth/test-token: empty token');
+    }
 
     await page.goto('/');
     await page.evaluate((jwt) => {

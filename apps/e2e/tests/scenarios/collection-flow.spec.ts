@@ -10,7 +10,7 @@ test.describe('Collection Flow', () => {
   });
 
   test('should create a user collection', async ({ page }) => {
-    const slugName = `user-coll-${randomUUID()}`;
+    const slugName = `user-coll-${randomUUID().slice(0, 8)}`;
     const createdSlug = await createCollection(page, { type: 'user' }, { name: 'My Collection', slug: slugName, visibility: 'public' });
     await expect.poll(() => new URL(page.url()).pathname).toMatch(new RegExp(`^/users/[^/]+/c/${createdSlug}$`));
     await expect(page.locator('h1')).toContainText('My Collection');

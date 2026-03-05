@@ -15,11 +15,16 @@ export async function createCollection(page: Page, owner: { type: "user" } | { t
 
     await page.getByLabel("visibility", { exact: true }).selectOption(visibility);
 
+    // The submit button stays disabled while slug availability is being checked.
+    // Wait explicitly to avoid flaky clicks that never trigger a POST.
+    const submitButton = page.getByRole("button", { name: "作成", exact: true });
+    await expect(submitButton).toBeEnabled({ timeout: 10_000 });
+
     const responsePromise = page.waitForResponse(
         (response) => response.url().includes("/api/collections") && response.request().method() === "POST"
     );
 
-    await page.getByRole("button", { name: "作成", exact: true }).click();
+    await submitButton.click();
 
     const response = await responsePromise;
     if (!response.ok()) {
