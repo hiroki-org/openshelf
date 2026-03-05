@@ -18,7 +18,7 @@ export async function createCollection(page: Page, orgSlug: string, name: string
   await page.click('button[type="submit"]');
   
   // URL changes to /orgs/:orgSlug/c/:slug or /users/:id/c/:slug
-  await page.waitForURL(/\/c\/.+/);
+  await page.waitForURL(new RegExp('/c/.+'));
   
   const parts = page.url().split('/');
   return parts[parts.length - 1];

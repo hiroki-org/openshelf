@@ -12,7 +12,7 @@ export async function uploadPaper(page: Page, opts: { title: string, visibility:
 
   await page.click('button[type="submit"]');
 
-  await page.waitForURL(/\/papers\/.+/);
+  await page.waitForURL(new RegExp('/papers/.+'));
   const parts = page.url().split('/');
   return parts[parts.length - 1];
 }
