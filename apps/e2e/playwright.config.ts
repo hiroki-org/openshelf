@@ -9,7 +9,7 @@ export default defineConfig({
   timeout: 60000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: 1,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
@@ -21,25 +21,25 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-    },
+    }*/,
   ],
-  webServer: [
+  /*webServer: [
     {
       command: `npm run dev -- --var ENABLE_TEST_AUTH:true --var FRONTEND_URL:${baseURL} --var ALLOWED_ORIGINS:${baseURL}`,
       cwd: path.resolve(__dirname, '../api'),
       url: `${apiURL}/`,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
-    },
+    }*/,
     {
       command: process.env.CI ? 'npm start' : 'npm run dev',
       cwd: path.resolve(__dirname, '../web'),
       url: `${baseURL}/`,
       env: {
         NEXT_PUBLIC_API_URL: apiURL,
-      },
+      }*/,
       reuseExistingServer: !process.env.CI,
       timeout: 120 * 1000,
-    }
+    }*/
   ],
 });
