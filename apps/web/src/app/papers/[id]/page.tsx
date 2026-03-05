@@ -145,7 +145,10 @@ export default function PaperDetailPage() {
   const imageFiles = files.filter((f) => f.mimeType?.startsWith("image/"));
 
   useEffect(() => {
-    if (!pdfFile) {
+    const currentPdfFile =
+      files.find((f) => f.mimeType === "application/pdf") ?? null;
+
+    if (!currentPdfFile) {
       setPreview(null);
       setPreviewError(false);
       setPreviewLoading(false);
@@ -159,7 +162,7 @@ export default function PaperDetailPage() {
 
       try {
         const res = await apiFetch(
-          `/api/papers/${paperId}/files/${pdfFile.id}/preview`,
+          `/api/papers/${paperId}/files/${currentPdfFile.id}/preview`,
         );
         if (!res.ok) {
           throw new Error("preview failed");
@@ -181,7 +184,7 @@ export default function PaperDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [paperId, pdfFile?.id]);
+  }, [paperId, files]);
 
   const handleSearch = async (q: string) => {
     setSearchQuery(q);
@@ -384,6 +387,7 @@ export default function PaperDetailPage() {
                 key={img.id}
                 className="rounded-md border border-gray-200 p-2 dark:border-gray-700"
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/api/papers/${paperId}/files/${img.id}/stream`}
                   alt={img.filename}

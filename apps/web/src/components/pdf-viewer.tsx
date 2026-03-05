@@ -23,12 +23,6 @@ export function PdfViewer({ fileUrl }: PdfViewerProps) {
   const [loadingError, setLoadingError] = useState(false);
 
   useEffect(() => {
-    setLoadingError(false);
-    setNumPages(0);
-    setPageNumber(1);
-  }, [fileUrl]);
-
-  useEffect(() => {
     const node = containerRef.current;
     if (!node) return;
 
@@ -51,6 +45,7 @@ export function PdfViewer({ fileUrl }: PdfViewerProps) {
 
   const onDocumentLoadSuccess = useCallback((info: { numPages: number }) => {
     setNumPages(info.numPages);
+    setPageNumber(1);
     setLoadingError(false);
   }, []);
 
@@ -109,6 +104,7 @@ export function PdfViewer({ fileUrl }: PdfViewerProps) {
           </button>
 
           <select
+            aria-label="PDF zoom"
             value={zoom}
             onChange={(e) =>
               setZoom(Number(e.target.value) as (typeof ZOOM_PRESETS)[number])
@@ -149,6 +145,7 @@ export function PdfViewer({ fileUrl }: PdfViewerProps) {
         className="flex min-h-[420px] items-center justify-center overflow-auto rounded bg-gray-50 p-2 dark:bg-gray-950"
       >
         <Document
+          key={fileUrl}
           file={fileUrl}
           onLoadSuccess={onDocumentLoadSuccess}
           onLoadError={onDocumentLoadError}
