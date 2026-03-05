@@ -5,6 +5,7 @@ import auth from "./routes/auth";
 import usersRoute from "./routes/users";
 import papersRoute from "./routes/papers";
 import invitesRoute from "./routes/invites";
+import orgsRoute from "./routes/orgs";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -70,6 +71,7 @@ app.route("/api/auth", auth);
 app.route("/api/users", usersRoute);
 app.route("/api/papers", papersRoute);
 app.route("/api/invites", invitesRoute);
+app.route("/api/orgs", orgsRoute);
 
 // Health
 app.get("/", (c) => c.json({ status: "ok", service: "openshelf-api" }));
