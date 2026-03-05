@@ -28,7 +28,7 @@ export default function NewCollectionPage() {
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<
     "public" | "org_only" | "private"
-  >("public");
+  >("private");
 
   const [slugStatus, setSlugStatus] = useState<
     "idle" | "checking" | "available" | "taken" | "invalid"

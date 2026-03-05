@@ -8,6 +8,8 @@ import {
     enableForeignKeys,
     orgMembers,
     orgs,
+    paperAuthors,
+    paperOrgs,
     papers,
     touchUpdatedAt,
 } from "../db/schema";
@@ -122,6 +124,33 @@ async function canManageCollection(
         return collection.ownerId === userId;
     }
     return isOrgAdmin(db, collection.ownerId, userId);
+}
+
+async function canViewPaper(
+    db: ReturnType<typeof drizzle>,
+    paper: { id: string; visibility: string },
+    userId: string | null,
+): Promise<boolean> {
+    if (paper.visibility === "public") return true;
+    if (!userId) return false;
+
+    const isAuthor = await db
+        .select({ paperId: paperAuthors.paperId })
+        .from(paperAuthors)
+        .where(and(eq(paperAuthors.paperId, paper.id), eq(paperAuthors.userId, userId)))
+        .get();
+    if (isAuthor) return true;
+
+    if (paper.visibility === "private") return false;
+
+    // org_only: user must be a member of an org that owns this paper
+    const membership = await db
+        .select({ orgId: orgMembers.orgId })
+        .from(orgMembers)
+        .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
+        .where(and(eq(paperOrgs.paperId, paper.id), eq(orgMembers.userId, userId)))
+        .get();
+    return !!membership;
 }
 
 collectionsRoute.post("/collections", authMiddleware, async (c) => {
@@ -359,6 +388,10 @@ collectionsRoute.post("/collections/:id/papers", authMiddleware, async (c) => {
     const paper = await db.select().from(papers).where(eq(papers.id, paperId)).get();
     if (!paper) return c.json({ error: "Paper not found" }, 404);
 
+    // Only allow adding papers the collection manager can actually view
+    const canView = await canViewPaper(db, paper, requesterId);
+    if (!canView) return c.json({ error: "Paper not found" }, 404);
+
     const maxOrderRow = await db
         .select({ maxOrder: sql<number>`COALESCE(MAX(${collectionPapers.sortOrder}), -1)` })
         .from(collectionPapers)
@@ -477,7 +510,15 @@ collectionsRoute.get("/collections/:id/papers", async (c) => {
         .orderBy(asc(collectionPapers.sortOrder))
         .all();
 
-    return c.json({ papers: rows });
+    const currentUserId = currentUser?.id ?? null;
+    const visiblePapers: typeof rows = [];
+    for (const row of rows) {
+        if (await canViewPaper(db, row, currentUserId)) {
+            visiblePapers.push(row);
+        }
+    }
+
+    return c.json({ papers: visiblePapers });
 });
 
 export default collectionsRoute;
