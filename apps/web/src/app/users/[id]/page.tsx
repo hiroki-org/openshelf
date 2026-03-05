@@ -35,8 +35,8 @@ export default function UserPage() {
     (async () => {
       try {
         const [profileRes, collectionsRes] = await Promise.all([
-          apiFetch(`/api/users/${id}`),
-          apiFetch(`/api/users/${id}/collections`),
+          apiFetch(`/api/users/${encodeURIComponent(id)}`),
+          apiFetch(`/api/users/${encodeURIComponent(id)}/collections`),
         ]);
 
         if (!profileRes.ok) {

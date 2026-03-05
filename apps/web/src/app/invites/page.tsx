@@ -53,7 +53,7 @@ export default function InvitesPage() {
 
   const respond = async (inviteId: string, action: "accept" | "decline") => {
     try {
-      const res = await apiFetch(`/api/invites/${inviteId}`, {
+      const res = await apiFetch(`/api/invites/${encodeURIComponent(inviteId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),

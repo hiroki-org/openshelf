@@ -81,9 +81,9 @@ export default function OrgSettingsPage() {
   const fetchData = useCallback(async () => {
     try {
       const [orgRes, membersRes, papersRes] = await Promise.all([
-        apiFetch(`/api/orgs/${slug}`),
-        apiFetch(`/api/orgs/${slug}/members`),
-        apiFetch(`/api/orgs/${slug}/papers`),
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}`),
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`),
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`),
       ]);
 
       if (!orgRes.ok) {
@@ -145,7 +145,7 @@ export default function OrgSettingsPage() {
     setSaving(true);
     setSaveMsg("");
     try {
-      const res = await apiFetch(`/api/orgs/${slug}`, {
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -176,7 +176,7 @@ export default function OrgSettingsPage() {
   const handleDelete = async () => {
     setDeleting(true);
     try {
-      const res = await apiFetch(`/api/orgs/${slug}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, { method: "DELETE" });
       if (res.ok) {
         router.push("/");
       } else {
@@ -215,7 +215,7 @@ export default function OrgSettingsPage() {
   const handleAddMember = async (userId: string, role: string = "member") => {
     setInviting(true);
     try {
-      const res = await apiFetch(`/api/orgs/${slug}/members`, {
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, role }),
@@ -237,7 +237,7 @@ export default function OrgSettingsPage() {
 
   const handleChangeRole = async (userId: string, newRole: string) => {
     try {
-      const res = await apiFetch(`/api/orgs/${slug}/members/${userId}`, {
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: newRole }),
@@ -256,7 +256,7 @@ export default function OrgSettingsPage() {
   const handleRemoveMember = async (userId: string) => {
     if (!confirm("このメンバーを削除しますか？")) return;
     try {
-      const res = await apiFetch(`/api/orgs/${slug}/members/${userId}`, {
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -302,7 +302,7 @@ export default function OrgSettingsPage() {
   const handleAddPaper = async (paperId: string) => {
     setAddingPaper(true);
     try {
-      const res = await apiFetch(`/api/orgs/${slug}/papers`, {
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ paperId }),
@@ -325,7 +325,7 @@ export default function OrgSettingsPage() {
   const handleRemovePaper = async (paperId: string) => {
     if (!confirm("この論文の紐づけを解除しますか？")) return;
     try {
-      const res = await apiFetch(`/api/orgs/${slug}/papers/${paperId}`, {
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers/${encodeURIComponent(paperId)}`, {
         method: "DELETE",
       });
       if (res.ok) {

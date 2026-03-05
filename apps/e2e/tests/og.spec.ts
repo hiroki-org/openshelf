@@ -35,30 +35,18 @@ async function uploadPublicPaper(page: Page, title: string): Promise<string> {
     return (data as { paper: { id: string } }).paper.id;
 }
 
-function getMetaContent(html: string, attrName: "property" | "name", attrValue: string): string | null {
-    const escapedValue = attrValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const pattern = new RegExp(
-        `<meta[^>]*${attrName}=["']${escapedValue}["'][^>]*content=["']([^"']*)["'][^>]*>|<meta[^>]*content=["']([^"']*)["'][^>]*${attrName}=["']${escapedValue}["'][^>]*>`,
-        "i",
-    );
-    const match = html.match(pattern);
-    return match?.[1] ?? match?.[2] ?? null;
-}
-
 test.describe("OG metadata", () => {
     test("論文ページにOGメタタグが含まれること", async ({ page }) => {
         await loginAsTestUser(page);
         const title = `OG Test Paper - ${randomUUID()}`;
         const paperId = await uploadPublicPaper(page, title);
 
-        const res = await page.request.get(`/papers/${paperId}`);
-        expect(res.ok()).toBeTruthy();
+        await page.goto(`/papers/${paperId}`);
 
-        const html = await res.text();
-        const ogTitle = getMetaContent(html, "property", "og:title");
-        const ogDescription = getMetaContent(html, "property", "og:description");
-        const ogImage = getMetaContent(html, "property", "og:image");
-        const twitterCard = getMetaContent(html, "name", "twitter:card");
+        const ogTitle = await page.locator('meta[property="og:title"]').getAttribute("content");
+        const ogDescription = await page.locator('meta[property="og:description"]').getAttribute("content");
+        const ogImage = await page.locator('meta[property="og:image"]').getAttribute("content");
+        const twitterCard = await page.locator('meta[name="twitter:card"]').getAttribute("content");
 
         expect(ogTitle).toContain(title);
         expect(ogDescription).toContain("OpenShelf");

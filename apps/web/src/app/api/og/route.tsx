@@ -19,8 +19,9 @@ const fontDataPromise = fetch(FONT_URL)
 
 function truncateTitle(value: string, maxLength = 80): string {
   const normalized = value.replace(/\s+/g, " ").trim();
-  if (normalized.length <= maxLength) return normalized;
-  return `${normalized.slice(0, maxLength - 1)}…`;
+  const chars = [...normalized];
+  if (chars.length <= maxLength) return normalized;
+  return `${chars.slice(0, maxLength - 1).join("")}…`;
 }
 
 export async function GET(request: Request) {
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
   const safeSubtitle = truncateTitle(subtitle, 110);
   const fontData = await fontDataPromise;
 
-  const badgeLabel = BADGE_LABELS[type] ?? "Paper";
+  const badgeLabel = Object.hasOwn(BADGE_LABELS, type) ? BADGE_LABELS[type] : "Paper";
 
   const image = new ImageResponse(
     <div

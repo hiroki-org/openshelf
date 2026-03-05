@@ -107,7 +107,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   const fetchPaper = useCallback(async () => {
     try {
-      const res = await apiFetch(`/api/papers/${paperId}`);
+      const res = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}`);
       if (!res.ok) {
         if (res.status === 401) {
           setError("ログインが必要です");
@@ -134,7 +134,9 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const fetchInvites = useCallback(async () => {
     if (!isUploader) return;
     try {
-      const res = await apiFetch(`/api/papers/${paperId}/invites`);
+      const res = await apiFetch(
+        `/api/papers/${encodeURIComponent(paperId)}/invites`,
+      );
       if (res.ok) {
         const data = await res.json();
         setInvites(data.invites);
@@ -285,11 +287,14 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const handleInvite = async (inviteeId: string) => {
     setInviting(true);
     try {
-      const res = await apiFetch(`/api/papers/${paperId}/invites`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inviteeId }),
-      });
+      const res = await apiFetch(
+        `/api/papers/${encodeURIComponent(paperId)}/invites`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ inviteeId }),
+        },
+      );
       if (res.ok) {
         setShowInvite(false);
         setSearchQuery("");

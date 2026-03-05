@@ -29,9 +29,12 @@ async function fetchPaperMetadata(
   id: string,
 ): Promise<PaperMetadataResponse | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/papers/${id}`, {
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `${API_BASE}/api/papers/${encodeURIComponent(id)}`,
+      {
+        cache: "no-store",
+      },
+    );
     if (!res.ok) return null;
     return (await res.json()) as PaperMetadataResponse;
   } catch {
@@ -41,7 +44,7 @@ async function fetchPaperMetadata(
 
 function toDescription(value: string | null | undefined): string | undefined {
   if (!value) return undefined;
-  return value.slice(0, 200);
+  return [...value].slice(0, 200).join("");
 }
 
 function buildOgImageUrl(

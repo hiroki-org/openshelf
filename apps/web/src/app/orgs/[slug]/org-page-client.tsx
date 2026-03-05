@@ -67,10 +67,10 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
     try {
       const [orgRes, papersRes, membersRes, collectionsRes] = await Promise.all(
         [
-          apiFetch(`/api/orgs/${slug}`),
-          apiFetch(`/api/orgs/${slug}/papers`),
-          apiFetch(`/api/orgs/${slug}/members`),
-          apiFetch(`/api/orgs/${slug}/collections`),
+          apiFetch(`/api/orgs/${encodeURIComponent(slug)}`),
+          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`),
+          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`),
+          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/collections`),
         ],
       );
 

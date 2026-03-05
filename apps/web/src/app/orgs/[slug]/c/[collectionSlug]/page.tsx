@@ -32,8 +32,12 @@ const SITE_BASE =
 async function fetchCollectionMetadata(slug: string, collectionSlug: string) {
   try {
     const [orgRes, collectionsRes] = await Promise.all([
-      fetch(`${API_BASE}/api/orgs/${slug}`, { cache: "no-store" }),
-      fetch(`${API_BASE}/api/orgs/${slug}/collections`, { cache: "no-store" }),
+      fetch(`${API_BASE}/api/orgs/${encodeURIComponent(slug)}`, {
+        cache: "no-store",
+      }),
+      fetch(`${API_BASE}/api/orgs/${encodeURIComponent(slug)}/collections`, {
+        cache: "no-store",
+      }),
     ]);
 
     if (!orgRes.ok || !collectionsRes.ok) return null;

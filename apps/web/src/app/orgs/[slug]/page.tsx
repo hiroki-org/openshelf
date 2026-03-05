@@ -22,9 +22,12 @@ const SITE_BASE =
 
 async function fetchOrgMetadata(slug: string): Promise<OrgResponse | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/orgs/${slug}`, {
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `${API_BASE}/api/orgs/${encodeURIComponent(slug)}`,
+      {
+        cache: "no-store",
+      },
+    );
     if (!res.ok) return null;
     return (await res.json()) as OrgResponse;
   } catch {
