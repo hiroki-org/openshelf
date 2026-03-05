@@ -186,6 +186,7 @@ collectionsRoute.post("/collections", authMiddleware, async (c) => {
     }
 
     let ownerId = requesterId;
+    let ownerOrgSlug: string | null = null;
     if (ownerType === "org") {
         const inputOrgSlug = typeof body?.org_slug === "string" ? body.org_slug.trim().toLowerCase() : "";
         const inputOwnerId = typeof body?.owner_id === "string" ? body.owner_id.trim() : "";
@@ -203,6 +204,7 @@ collectionsRoute.post("/collections", authMiddleware, async (c) => {
         if (!admin) return c.json({ error: "Forbidden: admin access required" }, 403);
 
         ownerId = org.id;
+        ownerOrgSlug = org.slug;
     }
 
     const id = crypto.randomUUID();
@@ -212,7 +214,9 @@ collectionsRoute.post("/collections", authMiddleware, async (c) => {
         await db.insert(collections).values({
             id,
             ownerType,
-            ownerId, name: (body.name as string).trim(),
+            ownerId,
+            orgSlug: ownerOrgSlug,
+            name: (body.name as string).trim(),
             slug,
             description: body?.description ? (body.description as string).trim() : null,
             visibility,
@@ -337,10 +341,21 @@ collectionsRoute.get("/orgs/:slug/collections", async (c) => {
         .where(and(eq(collections.ownerType, "org"), eq(collections.ownerId, org.id)))
         .all();
 
-    const filtered: typeof rows = [];
-    for (const row of rows) {
-        if (await canViewCollection(db, row, currentUser)) filtered.push(row);
+    // Pre-fetch membership once to avoid N+1 queries across collection rows
+    let currentUserIsMember = false;
+    let currentUserIsAdmin = false;
+    if (currentUser) {
+        const membership = await getOrgMembership(db, org.id, currentUser.id);
+        currentUserIsMember = !!membership;
+        currentUserIsAdmin = !!membership && (membership.role === "admin" || membership.role === "owner");
     }
+
+    const filtered = rows.filter(row => {
+        if (row.visibility === "public") return true;
+        if (!currentUser) return false;
+        if (row.visibility === "private") return currentUserIsAdmin;
+        return currentUserIsMember;
+    });
 
     return c.json({ collections: filtered });
 });
