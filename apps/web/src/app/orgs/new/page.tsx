@@ -119,20 +119,16 @@ export default function NewOrgPage() {
   const slugStatusText = () => {
     switch (slugStatus) {
       case "checking":
-        return (
-          <span className="text-gray-400 text-xs">確認中...</span>
-        );
+        return <span className="text-gray-400 text-xs">確認中...</span>;
       case "available":
-        return (
-          <span className="text-green-600 text-xs">✓ 使用可能</span>
-        );
+        return <span className="text-green-600 text-xs">✓ 使用可能</span>;
       case "taken":
-        return (
-          <span className="text-red-600 text-xs">✗ 使用済み</span>
-        );
+        return <span className="text-red-600 text-xs">✗ 使用済み</span>;
       case "invalid":
         return (
-          <span className="text-red-600 text-xs">※ 3〜40文字、英小文字・数字・ハイフンのみ</span>
+          <span className="text-red-600 text-xs">
+            ※ 3〜40文字、英小文字・数字・ハイフンのみ
+          </span>
         );
       default:
         return null;
@@ -172,7 +168,9 @@ export default function NewOrgPage() {
               value={slug}
               onChange={(e) => {
                 setSlugManual(true);
-                setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
+                setSlug(
+                  e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                );
               }}
               className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
               required
@@ -182,7 +180,10 @@ export default function NewOrgPage() {
         </div>
 
         <div>
-          <label htmlFor="org-description" className="block text-sm font-medium mb-1">
+          <label
+            htmlFor="org-description"
+            className="block text-sm font-medium mb-1"
+          >
             説明
           </label>
           <textarea
@@ -199,7 +200,9 @@ export default function NewOrgPage() {
 
         <button
           type="submit"
-          disabled={submitting || slugStatus === "taken" || slugStatus === "invalid"}
+          disabled={
+            submitting || slugStatus === "taken" || slugStatus === "invalid"
+          }
           className="w-full rounded-md bg-gray-900 px-4 py-2.5 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
         >
           {submitting ? "作成中..." : "作成"}

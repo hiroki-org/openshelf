@@ -44,11 +44,11 @@ function validateDescription(description: unknown): string | null {
     return null;
 }
 
-function parseVisibility(value: unknown): Visibility {
+function parseVisibility(value: unknown): Visibility | null {
     if (typeof value === "string" && VALID_VISIBILITY.includes(value as Visibility)) {
         return value as Visibility;
     }
-    return "public";
+    return null;
 }
 
 function isUniqueConstraintError(err: unknown): boolean {
@@ -150,7 +150,11 @@ collectionsRoute.post("/collections", authMiddleware, async (c) => {
     if (descErr) return c.json({ error: descErr }, 400);
 
     const requesterId = c.get("user").sub;
-    const visibility = parseVisibility(body?.visibility);
+    const visibility =
+        body?.visibility === undefined ? "private" : parseVisibility(body?.visibility);
+    if (!visibility) {
+        return c.json({ error: "Invalid visibility" }, 400);
+    }
 
     let ownerId = requesterId;
     if (ownerType === "org") {
@@ -427,6 +431,13 @@ collectionsRoute.patch("/collections/:id/papers", authMiddleware, async (c) => {
         .all();
 
     const existingSet = new Set(existingRows.map((r) => r.paperId));
+    const uniqueInput = new Set(paperIds);
+    if (uniqueInput.size !== paperIds.length) {
+        return c.json({ error: "paper_ids must not contain duplicates" }, 400);
+    }
+    if (paperIds.length !== existingRows.length) {
+        return c.json({ error: "paper_ids must include all papers in collection" }, 400);
+    }
     if (paperIds.some((id: string) => !existingSet.has(id))) {
         return c.json({ error: "paper_ids contains paper not in collection" }, 400);
     }

@@ -31,8 +31,7 @@ export const users = sqliteTable(
         avatarUrl: text("avatar_url"),
         email: text("email"),
         createdAt: createdAt(),
-        updatedAt: text("updated_at"),
-
+        updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
     },
     (t) => [uniqueIndex("users_github_id_idx").on(t.githubId)],
 );
@@ -93,8 +92,7 @@ export const paperFiles = sqliteTable(
         sizeBytes: integer("size_bytes").notNull(),
         mimeType: text("mime_type"),
         createdAt: createdAt(),
-        updatedAt: text("updated_at"),
-
+        updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
     },
     (t) => [index("paper_files_paper_id_idx").on(t.paperId)],
 );
@@ -126,8 +124,7 @@ export const orgs = sqliteTable(
         name: text("name").notNull(),
         description: text("description"),
         createdAt: createdAt(),
-        updatedAt: text("updated_at"),
-
+        updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
     },
     (t) => [uniqueIndex("orgs_slug_idx").on(t.slug)],
 );
@@ -234,8 +231,7 @@ export const coauthorInvites = sqliteTable(
             .notNull()
             .default("pending"),
         createdAt: createdAt(),
-        updatedAt: text("updated_at"),
-
+        updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
         respondedAt: text("responded_at"),
     },
     (t) => [

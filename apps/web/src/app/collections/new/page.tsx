@@ -119,6 +119,16 @@ export default function NewCollectionPage() {
             return;
           }
 
+          if (slug.length < 3) {
+            setError("slug は3文字以上必要です");
+            return;
+          }
+
+          if (slugStatus === "checking") {
+            setError("slug の確認完了を待ってください");
+            return;
+          }
+
           if (slugStatus === "invalid" || slugStatus === "taken") {
             setError("slug を修正してください");
             return;
@@ -291,7 +301,11 @@ export default function NewCollectionPage() {
         <button
           type="submit"
           disabled={
-            submitting || slugStatus === "taken" || slugStatus === "invalid"
+            submitting ||
+            slug.length < 3 ||
+            slugStatus === "checking" ||
+            slugStatus === "taken" ||
+            slugStatus === "invalid"
           }
           className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
         >
