@@ -57,13 +57,16 @@ export default function UserPage() {
     })();
   }, [id]);
 
-  if (error) return <div className="text-center py-16 text-red-600">{error}</div>;
+  if (error)
+    return <div className="text-center py-16 text-red-600">{error}</div>;
   if (!profile) return <div className="text-center py-16">読み込み中...</div>;
 
   return (
     <div className="max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold">{profile.displayName ?? profile.name}</h1>
+        <h1 className="text-2xl font-bold">
+          {profile.displayName ?? profile.name}
+        </h1>
         <p className="text-sm text-gray-500 mt-1">@{profile.githubId}</p>
       </div>
 
@@ -92,7 +95,11 @@ export default function UserPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h3 className="font-medium text-sm">{c.name}</h3>
-                    {c.description && <p className="text-xs text-gray-500 mt-1">{c.description}</p>}
+                    {c.description && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {c.description}
+                      </p>
+                    )}
                   </div>
                   <span className="text-xs text-gray-400">{c.visibility}</span>
                 </div>

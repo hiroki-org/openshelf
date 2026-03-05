@@ -5,6 +5,8 @@ import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 
+const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
+
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -39,8 +41,6 @@ export default function NewOrgPage() {
   }, [name, slugManual]);
 
   const slugCheckRef = useRef(0);
-
-  const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 
   // Check slug availability
   const checkSlug = useCallback(async (s: string) => {

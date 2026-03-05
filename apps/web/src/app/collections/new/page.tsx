@@ -5,8 +5,6 @@ import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-type Org = { id: string; slug: string; name: string; role: string };
-
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -23,15 +21,18 @@ export default function NewCollectionPage() {
 
   const [ownerType, setOwnerType] = useState<"user" | "org">("user");
   const [orgSlug, setOrgSlug] = useState("");
-  const [orgOptions, setOrgOptions] = useState<Org[]>([]);
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugManual, setSlugManual] = useState(false);
   const [description, setDescription] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "org_only" | "private">("public");
+  const [visibility, setVisibility] = useState<
+    "public" | "org_only" | "private"
+  >("public");
 
-  const [slugStatus, setSlugStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
+  const [slugStatus, setSlugStatus] = useState<
+    "idle" | "checking" | "available" | "taken" | "invalid"
+  >("idle");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -45,25 +46,9 @@ export default function NewCollectionPage() {
     if (!slugManual) setSlug(slugify(name));
   }, [name, slugManual]);
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      try {
-        const profileRes = await apiFetch(`/api/users/${user.id}`);
-        if (!profileRes.ok) return;
-        const meOrgs = await Promise.all([
-          apiFetch(`/api/orgs/newton-lab/members`).catch(() => null),
-        ]);
-        void meOrgs;
-        setOrgOptions([]);
-      } catch {
-        setOrgOptions([]);
-      }
-    })();
-  }, [user]);
-
   const ownerHint = useMemo(() => {
-    if (ownerType === "user") return "あなたの個人コレクションとして作成されます";
+    if (ownerType === "user")
+      return "あなたの個人コレクションとして作成されます";
     if (!orgSlug) return "組織スラッグを入力してください";
     return `組織 @${orgSlug} のコレクションとして作成されます`;
   }, [ownerType, orgSlug]);
@@ -73,7 +58,12 @@ export default function NewCollectionPage() {
       setSlugStatus("idle");
       return;
     }
-    if (slug.length < 3 || slug.length > 40 || !SLUG_RE.test(slug) || slug.includes("--")) {
+    if (
+      slug.length < 3 ||
+      slug.length > 40 ||
+      !SLUG_RE.test(slug) ||
+      slug.includes("--")
+    ) {
       setSlugStatus("invalid");
       return;
     }
@@ -85,9 +75,10 @@ export default function NewCollectionPage() {
       try {
         if (!user) return;
 
-        const url = ownerType === "user"
-          ? `/api/users/${user.id}/collections`
-          : `/api/orgs/${encodeURIComponent(orgSlug)}/collections`;
+        const url =
+          ownerType === "user"
+            ? `/api/users/${user.id}/collections`
+            : `/api/orgs/${encodeURIComponent(orgSlug)}/collections`;
 
         const res = await apiFetch(url);
         if (slugCheckRef.current !== requestId) return;
@@ -98,7 +89,9 @@ export default function NewCollectionPage() {
         }
 
         const data = await res.json();
-        const exists = (data.collections ?? []).some((c: { slug: string }) => c.slug === slug);
+        const exists = (data.collections ?? []).some(
+          (c: { slug: string }) => c.slug === slug,
+        );
         setSlugStatus(exists ? "taken" : "available");
       } catch {
         if (slugCheckRef.current !== requestId) return;
@@ -143,7 +136,10 @@ export default function NewCollectionPage() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 owner_type: ownerType,
-                org_slug: ownerType === "org" ? orgSlug.trim().toLowerCase() : undefined,
+                org_slug:
+                  ownerType === "org"
+                    ? orgSlug.trim().toLowerCase()
+                    : undefined,
                 name: name.trim(),
                 slug: slug.trim().toLowerCase(),
                 description: description.trim() || null,
@@ -170,27 +166,47 @@ export default function NewCollectionPage() {
         }}
       >
         <div>
-          <label className="block text-sm font-medium mb-1">owner_type</label>
-          <div className="flex gap-4 text-sm">
-            <label className="flex items-center gap-2">
-              <input type="radio" checked={ownerType === "user"} onChange={() => setOwnerType("user")} />
-              user
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="radio" checked={ownerType === "org"} onChange={() => setOwnerType("org")} />
-              org
-            </label>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">{ownerHint}</p>
+          <fieldset>
+            <legend className="block text-sm font-medium mb-1">
+              owner_type
+            </legend>
+            <div className="flex gap-4 text-sm">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="ownerType"
+                  checked={ownerType === "user"}
+                  onChange={() => setOwnerType("user")}
+                />
+                user
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="ownerType"
+                  checked={ownerType === "org"}
+                  onChange={() => setOwnerType("org")}
+                />
+                org
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">{ownerHint}</p>
+          </fieldset>
         </div>
 
         {ownerType === "org" && (
           <div>
-            <label htmlFor="orgSlug" className="block text-sm font-medium mb-1">org slug</label>
+            <label htmlFor="orgSlug" className="block text-sm font-medium mb-1">
+              org slug
+            </label>
             <input
               id="orgSlug"
               value={orgSlug}
-              onChange={(e) => setOrgSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+              onChange={(e) =>
+                setOrgSlug(
+                  e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                )
+              }
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
               placeholder="example-org"
             />
@@ -198,7 +214,9 @@ export default function NewCollectionPage() {
         )}
 
         <div>
-          <label htmlFor="name" className="block text-sm font-medium mb-1">name</label>
+          <label htmlFor="name" className="block text-sm font-medium mb-1">
+            name
+          </label>
           <input
             id="name"
             value={name}
@@ -209,7 +227,9 @@ export default function NewCollectionPage() {
         </div>
 
         <div>
-          <label htmlFor="slug" className="block text-sm font-medium mb-1">slug</label>
+          <label htmlFor="slug" className="block text-sm font-medium mb-1">
+            slug
+          </label>
           <input
             id="slug"
             value={slug}
@@ -229,7 +249,12 @@ export default function NewCollectionPage() {
         </div>
 
         <div>
-          <label htmlFor="description" className="block text-sm font-medium mb-1">description</label>
+          <label
+            htmlFor="description"
+            className="block text-sm font-medium mb-1"
+          >
+            description
+          </label>
           <textarea
             id="description"
             value={description}
@@ -241,11 +266,18 @@ export default function NewCollectionPage() {
         </div>
 
         <div>
-          <label htmlFor="visibility" className="block text-sm font-medium mb-1">visibility</label>
+          <label
+            htmlFor="visibility"
+            className="block text-sm font-medium mb-1"
+          >
+            visibility
+          </label>
           <select
             id="visibility"
             value={visibility}
-            onChange={(e) => setVisibility(e.target.value as "public" | "org_only" | "private")}
+            onChange={(e) =>
+              setVisibility(e.target.value as "public" | "org_only" | "private")
+            }
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           >
             <option value="public">public</option>
@@ -258,7 +290,9 @@ export default function NewCollectionPage() {
 
         <button
           type="submit"
-          disabled={submitting || slugStatus === "taken" || slugStatus === "invalid"}
+          disabled={
+            submitting || slugStatus === "taken" || slugStatus === "invalid"
+          }
           className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
         >
           {submitting ? "作成中..." : "作成"}

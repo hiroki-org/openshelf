@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { verify } from "hono/jwt";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import {
@@ -7,7 +8,8 @@ import {
     enableForeignKeys,
     orgMembers,
     orgs,
-    papers
+    papers,
+    touchUpdatedAt,
 } from "../db/schema";
 import { authMiddleware } from "../middleware/auth";
 import type { Env, Variables } from "../types";
@@ -55,12 +57,14 @@ function isUniqueConstraintError(err: unknown): boolean {
 }
 
 async function getCurrentUser(c: any): Promise<CurrentUser> {
+    const middlewareUser = c.get("user") as { sub?: string } | undefined;
+    if (middlewareUser?.sub) return { id: middlewareUser.sub };
+
     const authHeader = c.req.header("Authorization");
     const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     if (!token) return null;
 
     try {
-        const { verify } = await import("hono/jwt");
         const payload = (await verify(token, c.env.JWT_SECRET, "HS256")) as { sub?: string };
         if (!payload?.sub) return null;
         return { id: payload.sub };
@@ -165,7 +169,8 @@ collectionsRoute.post("/collections", authMiddleware, async (c) => {
         const admin = await isOrgAdmin(db, org.id, requesterId);
         if (!admin) return c.json({ error: "Forbidden: admin access required" }, 403);
 
-        ownerId = org.id;    }
+        ownerId = org.id;
+    }
 
     const id = crypto.randomUUID();
     const slug = (body.slug as string).trim().toLowerCase();
@@ -174,7 +179,7 @@ collectionsRoute.post("/collections", authMiddleware, async (c) => {
         await db.insert(collections).values({
             id,
             ownerType,
-            ownerId,            name: (body.name as string).trim(),
+            ownerId, name: (body.name as string).trim(),
             slug,
             description: body?.description ? (body.description as string).trim() : null,
             visibility,
@@ -255,7 +260,10 @@ collectionsRoute.patch("/collections/:id", authMiddleware, async (c) => {
     }
 
     try {
-        await db.update(collections).set(updates).where(eq(collections.id, id));
+        await db
+            .update(collections)
+            .set({ ...updates, ...touchUpdatedAt() })
+            .where(eq(collections.id, id));
     } catch (err) {
         if (isUniqueConstraintError(err)) {
             return c.json({ error: "slug already in use" }, 409);
@@ -364,7 +372,7 @@ collectionsRoute.post("/collections/:id/papers", authMiddleware, async (c) => {
             return c.json({ error: "Paper already added" }, 409);
         }
         throw err;
-    }    return c.json({ ok: true }, 201);
+    } return c.json({ ok: true }, 201);
 });
 
 collectionsRoute.delete("/collections/:id/papers/:paperId", authMiddleware, async (c) => {
@@ -385,7 +393,7 @@ collectionsRoute.delete("/collections/:id/papers/:paperId", authMiddleware, asyn
 
     if ((result as any).meta?.changes === 0) {
         return c.json({ error: "Paper not in collection" }, 404);
-    }    return c.json({ ok: true });
+    } return c.json({ ok: true });
 });
 
 collectionsRoute.patch("/collections/:id/papers", authMiddleware, async (c) => {
@@ -428,7 +436,7 @@ collectionsRoute.patch("/collections/:id/papers", authMiddleware, async (c) => {
             .update(collectionPapers)
             .set({ sortOrder: i })
             .where(and(eq(collectionPapers.collectionId, collection.id), eq(collectionPapers.paperId, paperIds[i])));
-    }    return c.json({ ok: true });
+    } return c.json({ ok: true });
 });
 
 collectionsRoute.get("/collections/:id/papers", async (c) => {

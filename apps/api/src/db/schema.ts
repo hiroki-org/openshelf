@@ -182,7 +182,9 @@ export const collections = sqliteTable(
             .notNull()
             .default("private"),
         createdAt: createdAt(),
-        updatedAt: text("updated_at"),
+        updatedAt: text("updated_at")
+            .notNull()
+            .default(sql`(datetime('now'))`),
 
     },
     (t) => [
@@ -201,7 +203,9 @@ export const collectionPapers = sqliteTable(
             .notNull()
             .references(() => papers.id, { onDelete: "cascade" }),
         sortOrder: integer("sort_order").notNull().default(0),
-        addedAt: text("added_at"),
+        addedAt: text("added_at")
+            .notNull()
+            .default(sql`(datetime('now'))`),
 
     },
     (t) => [
