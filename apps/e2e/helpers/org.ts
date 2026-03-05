@@ -14,7 +14,9 @@ export async function createOrg(page: Page, { name, slug, description }: { name:
 
     await page.getByRole("button", { name: "作成", exact: true }).click();
     const response = await responsePromise;
-    expect(response.ok()).toBeTruthy();
+    if (!response.ok()) {
+        throw new Error(`createOrg failed: ${response.status()} ${await response.text()}`);
+    }
 
     const data: any = await response.json();
     return data.org.slug;

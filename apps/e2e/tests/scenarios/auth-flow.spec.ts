@@ -18,6 +18,9 @@ test.describe('Auth Flow', () => {
 
         // ログアウト処理
         await page.getByRole('button', { name: 'ログアウト' }).click();
+        await expect.poll(async () => {
+            return page.evaluate(() => localStorage.getItem('auth_token'));
+        }).toBeNull();
 
         // '/upload' にアクセスすると未認証状態としてルートなどにリダイレクトされることを確認
         await page.goto('/upload');

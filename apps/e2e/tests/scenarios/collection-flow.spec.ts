@@ -11,8 +11,8 @@ test.describe('Collection Flow', () => {
 
   test('should create a user collection', async ({ page }) => {
     const slugName = `user-coll-${randomUUID()}`;
-    await createCollection(page, { type: 'user' }, { name: 'My Collection', slug: slugName, visibility: 'public' });
-    await expect(page).toHaveURL(/\/users\/.*\/c\/.+/);
+    const createdSlug = await createCollection(page, { type: 'user' }, { name: 'My Collection', slug: slugName, visibility: 'public' });
+    await expect(page).toHaveURL(new RegExp(`/users/.*/c/${createdSlug}$`));
     await expect(page.locator('h1')).toContainText('My Collection');
   });
 
@@ -21,8 +21,8 @@ test.describe('Collection Flow', () => {
     await createOrg(page, { name: 'Test Org', slug: orgSlug });
 
     const collSlug = `org-coll-${randomUUID().slice(0, 8)}`;
-    await createCollection(page, { type: 'org', orgSlug: orgSlug }, { name: 'My Org Collection', slug: collSlug, visibility: 'public' });
-    await expect(page).toHaveURL(/\/orgs\/.*\/c\/.+/);
+    const createdSlug = await createCollection(page, { type: 'org', orgSlug: orgSlug }, { name: 'My Org Collection', slug: collSlug, visibility: 'public' });
+    await expect(page).toHaveURL(new RegExp(`/orgs/.*/c/${createdSlug}$`));
     await expect(page.locator('h1')).toContainText('My Org Collection');
   });
 });

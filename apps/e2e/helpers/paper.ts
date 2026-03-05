@@ -1,6 +1,12 @@
 import { Page, expect } from "@playwright/test";
 import path from "path";
 
+type PaperUploadResponse = {
+    paper: {
+        id: string;
+    };
+};
+
 export async function uploadPublicPaper(page: Page, title: string): Promise<string> {
     return uploadPaper(page, title, "public");
 }
@@ -28,6 +34,9 @@ async function uploadPaper(page: Page, title: string, visibility: "public" | "pr
     const response = await uploadResponsePromise;
     expect(response.ok()).toBeTruthy();
 
-    const data: any = await response.json();
+    const data = await response.json() as PaperUploadResponse;
+    if (!data?.paper?.id) {
+        throw new Error(`Invalid paper upload response: ${JSON.stringify(data)}`);
+    }
     return data.paper.id;
 }

@@ -31,7 +31,8 @@ test.describe('Org Management', () => {
         await page.goto(`/orgs/${orgSlug}/settings`);
         await page.getByRole('button', { name: '論文' }).click();
         await page.getByPlaceholder(/論文タイトルで検索/).fill(paperTitle);
-        await page.getByRole('button', { name: '追加' }).first().click();
+        const resultRow = page.locator('li', { hasText: paperTitle }).first();
+        await resultRow.getByRole('button', { name: '追加' }).click();
 
         // org ページの論文一覧に反映されること
         await page.goto(`/orgs/${orgSlug}`);

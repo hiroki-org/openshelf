@@ -16,17 +16,19 @@ test.describe('Security Checks', () => {
         const paperId = await uploadPrivatePaper(page, title);
 
         const guestContext = await browser.newContext();
-        const guestPage = await guestContext.newPage();
-        await guestPage.goto(`/papers/${paperId}`);
+        try {
+            const guestPage = await guestContext.newPage();
+            await guestPage.goto(`/papers/${paperId}`);
 
-        await expect(
-            guestPage
-                .locator('text=ログインが必要です')
-                .or(guestPage.locator('text=この論文を閲覧する権限がありません'))
-                .or(guestPage.locator('text=論文が見つかりません'))
-                .or(guestPage.locator('text=論文の取得に失敗しました')),
-        ).toBeVisible();
-
-        await guestContext.close();
+            await expect(
+                guestPage
+                    .locator('text=ログインが必要です')
+                    .or(guestPage.locator('text=この論文を閲覧する権限がありません'))
+                    .or(guestPage.locator('text=論文が見つかりません'))
+                    .or(guestPage.locator('text=論文の取得に失敗しました')),
+            ).toBeVisible();
+        } finally {
+            await guestContext.close();
+        }
     });
 });

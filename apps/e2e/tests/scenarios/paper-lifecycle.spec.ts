@@ -15,8 +15,13 @@ test.describe('Paper Lifecycle', () => {
         await expect(page.getByRole('heading', { name: publicTitle })).toBeVisible();
         await expect(page.getByText('公開')).toBeVisible();
 
-        // Download check (button exists and can be clicked)
-        await page.getByRole('button', { name: 'ダウンロード' }).first().click();
+        // Download check
+        const [download] = await Promise.all([
+            page.waitForEvent('download'),
+            page.getByRole('button', { name: 'ダウンロード' }).first().click(),
+        ]);
+        await download.path();
+        expect(download.suggestedFilename().length).toBeGreaterThan(0);
 
         // Private paper
         const privateTitle = generateTestPaperTitle();
