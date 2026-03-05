@@ -68,8 +68,8 @@ export default function NewCollectionPage() {
       return;
     }
 
+    const requestId = ++slugCheckRef.current;
     const t = setTimeout(async () => {
-      const requestId = ++slugCheckRef.current;
       setSlugStatus("checking");
 
       try {
