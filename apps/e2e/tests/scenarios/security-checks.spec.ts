@@ -17,7 +17,7 @@ test.describe('Security Checks', () => {
         const jwt = await page.evaluate(() => localStorage.getItem('auth_token'));
 
         // Mock a FormData request
-        const res = await page.request.post(`${apiURL}/api/papers/upload`, {
+        const res = await page.request.post(`${apiURL}/api/papers`, {
             headers: { Authorization: `Bearer ${jwt}` },
             multipart: {
                 "metadata": JSON.stringify({ title: "Bad file", visibility: "public" }),
@@ -42,6 +42,6 @@ test.describe('Security Checks', () => {
 
     test('OG route does not crash on prototype pollution attempt', async ({ request }) => {
         const res = await request.get(`${apiURL}/api/og?type=__proto__&title=test`);
-        expect(res.status()).toBe(200); // Or 400 depending on exact implementation, but not 500
+        expect([200, 400]).toContain(res.status()); // It shouldn't crash (500)
     });
 });
