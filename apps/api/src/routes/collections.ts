@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { verify } from "hono/jwt";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import {
     collectionPapers,
@@ -452,10 +452,11 @@ collectionsRoute.patch("/collections/:id/papers", authMiddleware, async (c) => {
         return c.json({ error: "Invalid JSON body" }, 400);
     }
 
-    const paperIds = Array.isArray(body?.paper_ids)
-        ? body.paper_ids.filter((v: unknown) => typeof v === "string")
-        : [];
+    const paperIds = Array.isArray(body?.paper_ids) ? body.paper_ids : [];
     if (paperIds.length === 0) return c.json({ error: "paper_ids is required" }, 400);
+    if (paperIds.some((v: unknown) => typeof v !== "string" || (v as string).trim() === "")) {
+        return c.json({ error: "paper_ids must be an array of non-empty strings" }, 400);
+    }
 
     const existingRows = await db
         .select({ paperId: collectionPapers.paperId })
@@ -475,12 +476,15 @@ collectionsRoute.patch("/collections/:id/papers", authMiddleware, async (c) => {
         return c.json({ error: "paper_ids contains paper not in collection" }, 400);
     }
 
-    for (let i = 0; i < paperIds.length; i++) {
-        await db
+    // Atomically apply all sort order changes via D1 batch
+    const updateStatements = paperIds.map((pid: string, i: number) =>
+        db
             .update(collectionPapers)
             .set({ sortOrder: i })
-            .where(and(eq(collectionPapers.collectionId, collection.id), eq(collectionPapers.paperId, paperIds[i])));
-    } return c.json({ ok: true });
+            .where(and(eq(collectionPapers.collectionId, collection.id), eq(collectionPapers.paperId, pid)))
+    );
+    await db.batch(updateStatements as [typeof updateStatements[0], ...typeof updateStatements]);
+    return c.json({ ok: true });
 });
 
 collectionsRoute.get("/collections/:id/papers", async (c) => {
@@ -511,11 +515,46 @@ collectionsRoute.get("/collections/:id/papers", async (c) => {
         .all();
 
     const currentUserId = currentUser?.id ?? null;
-    const visiblePapers: typeof rows = [];
-    for (const row of rows) {
-        if (await canViewPaper(db, row, currentUserId)) {
-            visiblePapers.push(row);
+    let visiblePapers: typeof rows;
+
+    const restrictedRows = rows.filter(r => r.visibility !== "public");
+    if (restrictedRows.length === 0) {
+        // All papers are public – no authz queries needed
+        visiblePapers = rows;
+    } else if (!currentUserId) {
+        visiblePapers = rows.filter(r => r.visibility === "public");
+    } else {
+        const restrictedIds = restrictedRows.map(r => r.id);
+
+        // Batch 1: which restricted papers is this user an author of?
+        const authoredRows = await db
+            .select({ paperId: paperAuthors.paperId })
+            .from(paperAuthors)
+            .where(and(inArray(paperAuthors.paperId, restrictedIds), eq(paperAuthors.userId, currentUserId)))
+            .all();
+        const authoredSet = new Set(authoredRows.map(r => r.paperId));
+
+        // Batch 2: which org_only papers can the user see via org membership?
+        const orgOnlyIds = restrictedRows
+            .filter(r => r.visibility === "org_only" && !authoredSet.has(r.id))
+            .map(r => r.id);
+        const orgAccessSet = new Set<string>();
+        if (orgOnlyIds.length > 0) {
+            const orgAccessRows = await db
+                .select({ paperId: paperOrgs.paperId })
+                .from(orgMembers)
+                .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
+                .where(and(inArray(paperOrgs.paperId, orgOnlyIds), eq(orgMembers.userId, currentUserId)))
+                .all();
+            for (const r of orgAccessRows) orgAccessSet.add(r.paperId);
         }
+
+        visiblePapers = rows.filter(r => {
+            if (r.visibility === "public") return true;
+            if (authoredSet.has(r.id)) return true;
+            if (r.visibility === "org_only" && orgAccessSet.has(r.id)) return true;
+            return false;
+        });
     }
 
     return c.json({ papers: visiblePapers });

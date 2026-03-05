@@ -74,6 +74,10 @@ export default function NewCollectionPage() {
 
       try {
         if (!user) return;
+        if (ownerType === "org" && !orgSlug.trim()) {
+          setSlugStatus("idle");
+          return;
+        }
 
         const url =
           ownerType === "user"
