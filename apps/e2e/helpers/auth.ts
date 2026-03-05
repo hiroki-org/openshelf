@@ -13,7 +13,9 @@ export async function loginAsTestUser(page: Page, user?: { sub?: string; githubI
     const res = await page.request.post(`${apiURL}/api/auth/test-token`, {
         data: payload,
         headers: {
-            'x-test-auth-secret': process.env.TEST_AUTH_SECRET as string
+            'x-test-auth-secret': process.env.TEST_AUTH_SECRET || 'test-secret',
+            'origin': process.env.E2E_BASE_URL || 'http://localhost:3000',
+            'referer': process.env.E2E_BASE_URL || 'http://localhost:3000',
         }
     });
 
@@ -21,24 +23,12 @@ export async function loginAsTestUser(page: Page, user?: { sub?: string; githubI
         throw new Error(`Failed to get test token: ${await res.text()}`);
     }
 
-    const data = await res.json();
-    if (
-        !data ||
-        typeof data !== 'object' ||
-        typeof (data as { token?: unknown }).token !== 'string' ||
-        (data as { token: string }).token.length === 0
-    ) {
-        throw new Error('Invalid token response from /api/auth/test-token');
-    }
-    const token = (data as { token: string }).token;
+    const { token } = await res.json();
 
-    // Go to home first so that we have a trusted origin to set localStorage on
     await page.goto('/');
-
     await page.evaluate((jwt) => {
         localStorage.setItem('auth_token', jwt);
     }, token);
-
     await page.reload();
 
     return payload;

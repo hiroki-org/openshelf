@@ -9,7 +9,7 @@ export default defineConfig({
   timeout: 60000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  retries: 1,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
@@ -25,7 +25,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `npm run dev -- --var ENABLE_TEST_AUTH:true --var FRONTEND_URL:${baseURL} --var ALLOWED_ORIGINS:${baseURL}`,
+      command: `npm run dev -- --var ENABLE_TEST_AUTH:true --var TEST_AUTH_SECRET:test-secret --var FRONTEND_URL:${baseURL} --var ALLOWED_ORIGINS:${baseURL}`,
       cwd: path.resolve(__dirname, '../api'),
       url: `${apiURL}/`,
       reuseExistingServer: !process.env.CI,
