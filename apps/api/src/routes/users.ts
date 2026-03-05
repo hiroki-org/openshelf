@@ -96,4 +96,23 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     return c.json({ users: results });
 });
 
+// GET /api/users/:id — public profile
+usersRoute.get("/:id", async (c) => {
+    const db = drizzle(c.env.DB);
+    const user = await db
+        .select({
+            id: users.id,
+            name: users.name,
+            displayName: users.displayName,
+            avatarUrl: users.avatarUrl,
+            githubId: users.githubId,
+        })
+        .from(users)
+        .where(eq(users.id, c.req.param("id")))
+        .get();
+
+    if (!user) return c.json({ error: "User not found" }, 404);
+    return c.json({ user });
+});
+
 export default usersRoute;

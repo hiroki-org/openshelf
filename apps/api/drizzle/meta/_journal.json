@@ -8,6 +8,20 @@
       "when": 1772296744052,
       "tag": "0000_clammy_ares",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772699000000,
+      "tag": "0001_collections_owner_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772699800000,
+      "tag": "0002_backfill_updated_at_columns",
+      "breakpoints": true
     }
   ]
 }

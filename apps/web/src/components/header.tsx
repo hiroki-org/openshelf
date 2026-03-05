@@ -23,6 +23,12 @@ export function Header() {
                 アップロード
               </Link>
               <Link
+                href="/collections/new"
+                className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+              >
+                コレクション
+              </Link>
+              <Link
                 href="/invites"
                 className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
               >

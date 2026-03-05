@@ -31,6 +31,7 @@ export const users = sqliteTable(
         avatarUrl: text("avatar_url"),
         email: text("email"),
         createdAt: createdAt(),
+        updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
     },
     (t) => [uniqueIndex("users_github_id_idx").on(t.githubId)],
 );
@@ -91,6 +92,7 @@ export const paperFiles = sqliteTable(
         sizeBytes: integer("size_bytes").notNull(),
         mimeType: text("mime_type"),
         createdAt: createdAt(),
+        updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
     },
     (t) => [index("paper_files_paper_id_idx").on(t.paperId)],
 );
@@ -122,6 +124,7 @@ export const orgs = sqliteTable(
         name: text("name").notNull(),
         description: text("description"),
         createdAt: createdAt(),
+        updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
     },
     (t) => [uniqueIndex("orgs_slug_idx").on(t.slug)],
 );
@@ -167,6 +170,8 @@ export const collections = sqliteTable(
         id: id(),
         ownerType: text("owner_type", { enum: ["user", "org"] }).notNull(),
         ownerId: text("owner_id").notNull(),
+        orgSlug: text("org_slug"),
+
         slug: text("slug").notNull(),
         name: text("name").notNull(),
         description: text("description"),
@@ -174,6 +179,10 @@ export const collections = sqliteTable(
             .notNull()
             .default("private"),
         createdAt: createdAt(),
+        updatedAt: text("updated_at")
+            .notNull()
+            .default(sql`(datetime('now'))`),
+
     },
     (t) => [
         uniqueIndex("collections_owner_slug_idx").on(t.ownerType, t.ownerId, t.slug),
@@ -191,6 +200,10 @@ export const collectionPapers = sqliteTable(
             .notNull()
             .references(() => papers.id, { onDelete: "cascade" }),
         sortOrder: integer("sort_order").notNull().default(0),
+        addedAt: text("added_at")
+            .notNull()
+            .default(sql`(datetime('now'))`),
+
     },
     (t) => [
         primaryKey({ columns: [t.collectionId, t.paperId] }),
@@ -218,6 +231,7 @@ export const coauthorInvites = sqliteTable(
             .notNull()
             .default("pending"),
         createdAt: createdAt(),
+        updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
         respondedAt: text("responded_at"),
     },
     (t) => [
