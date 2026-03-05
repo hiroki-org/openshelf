@@ -3,7 +3,7 @@
 import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 
 type Org = {
@@ -98,6 +98,9 @@ export default function OrgSettingsPage() {
       if (membersRes.ok) {
         const membersData = await membersRes.json();
         setMembers(membersData.members);
+      } else {
+        setError("メンバー情報の取得に失敗しました");
+        return;
       }
 
       if (papersRes.ok) {
@@ -188,6 +191,9 @@ export default function OrgSettingsPage() {
     }
   };
 
+  const userSearchRef = useRef(0);
+  const paperSearchRef = useRef(0);
+
   // ── Members handlers ──
   const handleUserSearch = async (q: string) => {
     setSearchQuery(q);
@@ -195,14 +201,17 @@ export default function OrgSettingsPage() {
       setSearchResults([]);
       return;
     }
+    const requestId = ++userSearchRef.current;
     try {
       const res = await apiFetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+      if (userSearchRef.current !== requestId) return;
       if (res.ok) {
         const data = await res.json();
         const existingIds = new Set(members.map((m) => m.userId));
         setSearchResults(data.users.filter((u: SearchUser) => !existingIds.has(u.id)));
       }
     } catch {
+      if (userSearchRef.current !== requestId) return;
       setSearchResults([]);
     }
   };
@@ -272,9 +281,11 @@ export default function OrgSettingsPage() {
       setPaperSearchResults([]);
       return;
     }
+    const requestId = ++paperSearchRef.current;
     try {
       // GET /api/papers returns all papers; filter client-side by title
       const res = await apiFetch("/api/papers");
+      if (paperSearchRef.current !== requestId) return;
       if (res.ok) {
         const data = await res.json();
         const existingIds = new Set(orgPapers.map((p) => p.id));
@@ -287,6 +298,7 @@ export default function OrgSettingsPage() {
         );
       }
     } catch {
+      if (paperSearchRef.current !== requestId) return;
       setPaperSearchResults([]);
     }
   };
@@ -431,6 +443,7 @@ export default function OrgSettingsPage() {
                   type="text"
                   value={deleteConfirm}
                   onChange={(e) => setDeleteConfirm(e.target.value)}
+                  aria-label="削除確認のためスラッグを入力"
                   className="w-full rounded-md border border-red-300 px-3 py-2 text-sm dark:border-red-700 dark:bg-gray-900"
                 />
                 <div className="flex gap-2">
@@ -470,6 +483,7 @@ export default function OrgSettingsPage() {
               value={searchQuery}
               onChange={(e) => handleUserSearch(e.target.value)}
               placeholder="ユーザー名またはGitHub IDで検索..."
+              aria-label="メンバー検索"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm mb-2 dark:border-gray-700 dark:bg-gray-900"
             />
             {searchResults.length > 0 && (
@@ -551,6 +565,7 @@ export default function OrgSettingsPage() {
               value={paperSearch}
               onChange={(e) => handlePaperSearch(e.target.value)}
               placeholder="論文タイトルで検索..."
+              aria-label="論文検索"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm mb-2 dark:border-gray-700 dark:bg-gray-900"
             />
             {paperSearchResults.length > 0 && (

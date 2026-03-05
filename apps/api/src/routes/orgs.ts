@@ -295,11 +295,19 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     const existing = await getOrgMembership(db, org.id, targetUserId.trim());
     if (existing) return c.json({ error: "User is already a member" }, 409);
 
-    await db.insert(orgMembers).values({
-        orgId: org.id,
-        userId: targetUserId.trim(),
-        role,
-    });
+    try {
+        await db.insert(orgMembers).values({
+            orgId: org.id,
+            userId: targetUserId.trim(),
+            role,
+        });
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes("UNIQUE") || message.includes("unique")) {
+            return c.json({ error: "User is already a member" }, 409);
+        }
+        throw err;
+    }
 
     return c.json({ ok: true }, 201);
 });
@@ -526,10 +534,18 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
         .get();
     if (existing) return c.json({ error: "Paper is already associated with this org" }, 409);
 
-    await db.insert(paperOrgs).values({
-        paperId: paperId.trim(),
-        orgId: org.id,
-    });
+    try {
+        await db.insert(paperOrgs).values({
+            paperId: paperId.trim(),
+            orgId: org.id,
+        });
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.includes("UNIQUE") || message.includes("unique")) {
+            return c.json({ error: "Paper is already associated with this org" }, 409);
+        }
+        throw err;
+    }
 
     return c.json({ ok: true }, 201);
 });
