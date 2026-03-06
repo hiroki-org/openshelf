@@ -6,8 +6,8 @@ vi.mock("react-pdf", () => ({
   Document: vi.fn(({ children, options, file, onLoadSuccess, onLoadError, error }) => (
     <div data-testid="mock-document" data-file={file} data-options={JSON.stringify(options)}>
       {children}
-      <button data-testid="load-success" onClick={() => onLoadSuccess({ numPages: 5 })} />
-      <button data-testid="load-error" onClick={() => onLoadError(new Error('test'))} />
+      <button type="button" data-testid="load-success" onClick={() => onLoadSuccess({ numPages: 5 })} />
+      <button type="button" data-testid="load-error" onClick={() => onLoadError(new Error('test'))} />
       <div data-testid="error-state">{error}</div>
     </div>
   )),
