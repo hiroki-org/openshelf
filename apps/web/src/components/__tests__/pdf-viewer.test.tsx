@@ -58,7 +58,7 @@ describe("PdfViewer", () => {
     const options = JSON.parse(optionsAttr!);
 
     // Verify cMapUrl is correctly set to unpkg cdn
-    expect(options.cMapUrl).toBe(`https://unpkg.com/pdfjs-dist@3.11.174/cmaps/`);
+    expect(options.cMapUrl).toBe(`https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`);
     // Verify cMapPacked is true
     expect(options.cMapPacked).toBe(true);
   });
