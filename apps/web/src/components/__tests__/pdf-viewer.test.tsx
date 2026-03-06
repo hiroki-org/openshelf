@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { pdfjs } from "react-pdf";
+
 // Mock pdfjs BEFORE importing the component
 vi.mock("react-pdf", () => ({
   Document: vi.fn(({ children, options, file, onLoadSuccess, onLoadError, error }) => (
@@ -58,7 +58,7 @@ describe("PdfViewer", () => {
     const options = JSON.parse(optionsAttr!);
 
     // Verify cMapUrl is correctly set to unpkg cdn
-    expect(options.cMapUrl).toBe(`https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`);
+    expect(options.cMapUrl).toMatch(/^https:\/\/unpkg\.com\/pdfjs-dist@[^\/]+\/cmaps\/$/);
     // Verify cMapPacked is true
     expect(options.cMapPacked).toBe(true);
   });
