@@ -12,6 +12,11 @@ const ZOOM_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
+const options = {
+  cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+  cMapPacked: true,
+};
+
 export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
@@ -145,6 +150,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
         <Document
           key={fileUrl}
           file={fileUrl}
+          options={options}
           onLoadSuccess={onDocumentLoadSuccess}
           onLoadError={onDocumentLoadError}
           loading={
