@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-
+import { pdfjs } from "react-pdf";
 // Mock pdfjs BEFORE importing the component
 vi.mock("react-pdf", () => ({
   Document: vi.fn(({ children, options, file, onLoadSuccess, onLoadError, error }) => (
