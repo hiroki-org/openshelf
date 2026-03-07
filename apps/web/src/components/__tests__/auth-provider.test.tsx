@@ -5,7 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi, Mock } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "../auth-provider";
 import { apiFetch } from "@/lib/api";
 
@@ -37,15 +37,17 @@ describe("AuthProvider", () => {
     localStorage.clear();
     vi.clearAllMocks();
 
-    // Mock window.location for login tests
+    // We must cast the custom object to any to bypass the readonly Location type.
+    // In JSDOM, deleting window.location is permitted if done carefully.
     // @ts-ignore
     delete window.location;
-    window.location = { ...originalLocation, href: "" };
+    window.location = { ...originalLocation, href: "" } as any;
   });
 
   afterEach(() => {
     cleanup();
-    window.location = originalLocation;
+    window.location = originalLocation as any;
+    vi.unstubAllEnvs();
   });
 
   it("sets user when token exists and /api/auth/me succeeds", async () => {
@@ -165,15 +167,11 @@ describe("AuthProvider", () => {
       </AuthProvider>,
     );
 
-    // Default case where NEXT_PUBLIC_API_URL is undefined
-    const originalEnv = process.env.NEXT_PUBLIC_API_URL;
-    process.env.NEXT_PUBLIC_API_URL = "http://localhost:8787";
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://localhost:8787");
 
     fireEvent.click(screen.getByRole("button", { name: "login" }));
 
     expect(window.location.href).toBe("http://localhost:8787/api/auth/github");
-
-    process.env.NEXT_PUBLIC_API_URL = originalEnv;
   });
 
   it("redirects to github auth on login without NEXT_PUBLIC_API_URL", async () => {
@@ -183,15 +181,12 @@ describe("AuthProvider", () => {
       </AuthProvider>,
     );
 
-    // Default case where NEXT_PUBLIC_API_URL is undefined
-    const originalEnv = process.env.NEXT_PUBLIC_API_URL;
-    delete process.env.NEXT_PUBLIC_API_URL;
+    // Explicitly delete it so it falls back to the default ""
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
 
     fireEvent.click(screen.getByRole("button", { name: "login" }));
 
     expect(window.location.href).toBe("/api/auth/github");
-
-    process.env.NEXT_PUBLIC_API_URL = originalEnv;
   });
 
   it("useAuth throws an error when used outside AuthProvider", () => {
