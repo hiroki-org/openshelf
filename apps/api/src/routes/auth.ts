@@ -195,8 +195,10 @@ auth.post("/logout", async (c) => {
     return c.json({ ok: true });
 });
 
-// POST /api/auth/test-token — only for E2E testing
-auth.post("/test-token", async (c) => {
+// Register E2E testing endpoints only in non-production environments
+if (process.env.NODE_ENV !== "production") {
+    // POST /api/auth/test-token — only for E2E testing
+    auth.post("/test-token", async (c) => {
     // Double check: flag must be true AND a secret key must match
     if (c.env.ENABLE_TEST_AUTH !== "true") {
         return c.json({ error: "Not Found" }, 404);
@@ -313,5 +315,6 @@ auth.post("/test-org", async (c) => {
 
     return c.json({ ok: true });
 });
+}
 
 export default auth;
