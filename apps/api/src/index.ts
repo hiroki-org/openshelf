@@ -22,11 +22,12 @@ app.use(
                     .filter(Boolean)
                 : undefined;
 
-            if (allowedOrigins && allowedOrigins.length > 0) {
-                return origin && allowedOrigins.includes(origin) ? origin : "";
-            }
+            if (!origin) return c.env.FRONTEND_URL;
 
-            return c.env.FRONTEND_URL;
+            if (origin === c.env.FRONTEND_URL) return origin;
+            if (allowedOrigins && allowedOrigins.includes(origin)) return origin;
+
+            return null;
         },
         credentials: true,
         allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
