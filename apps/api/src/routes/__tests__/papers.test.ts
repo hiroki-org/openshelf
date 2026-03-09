@@ -59,8 +59,8 @@ describe("papers routes", () => {
 
         const form = new FormData();
         form.set("metadata", JSON.stringify({ title: "Mismatched Paper", visibility: "private" }));
-        // PDF declared but content starts with ZIP header
-        form.set("files_0", new File(["PK\x03\x04zipcontent"], "paper.pdf", { type: "application/pdf" }));
+        // PDF declared but content starts with unallowed header
+        form.set("files_0", new File(["MZ\x90\x00\x03exe"], "paper.pdf", { type: "application/pdf" }));
         form.set("file_types_0", "paper");
 
         const res = await app.request(

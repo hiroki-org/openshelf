@@ -15,7 +15,7 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
     ["504B0304", "application/zip"],
 ];
 
-export async function validateMagicNumbers(file: File, declaredMime: string): Promise<boolean> {
+export async function validateMagicNumbers(file: File, allowedMimeTypes: string[]): Promise<boolean> {
     const buffer = await file.slice(0, 8).arrayBuffer();
     const bytes = new Uint8Array(buffer);
     const hex = Array.from(bytes)
@@ -26,5 +26,5 @@ export async function validateMagicNumbers(file: File, declaredMime: string): Pr
 
     if (!detectedType) return false;
     
-    return (MIME_COMPATIBILITY[declaredMime] ?? []).includes(detectedType);
+    return allowedMimeTypes.some(allowed => (MIME_COMPATIBILITY[allowed] ?? []).includes(detectedType));
 }

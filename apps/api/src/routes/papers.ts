@@ -244,7 +244,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
                 400,
             );
 
-        const isValidContent = await validateMagicNumbers(file, file.type);
+        const isValidContent = await validateMagicNumbers(file, ALLOWED_MIME_TYPES);
         if (!isValidContent) {
             console.error(`Magic number validation failed for file ${file.name} (declared: ${file.type})`);
             return c.json(
