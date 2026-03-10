@@ -2,6 +2,8 @@ const MIME_COMPATIBILITY: Record<string, readonly string[]> = {
     "application/pdf": ["application/pdf"],
     "image/png": ["image/png"],
     "image/jpeg": ["image/jpeg"],
+    // The validation for PPT/PPTX files is a best-effort check on the container format (OLE/ZIP).
+    // Deeper inspection was considered but omitted to avoid implementation complexity.
     "application/vnd.ms-powerpoint": ["application/x-ole-storage"],
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": ["application/zip"],
 };

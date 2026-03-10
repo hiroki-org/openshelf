@@ -1,4 +1,5 @@
 import { Hono, type Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, inArray } from "drizzle-orm";
 import {
@@ -17,11 +18,15 @@ import { parseAndValidateMetadata, parseAndValidateFiles, insertPaperAndFiles } 
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+type AuthResult =
+    | { ok: true; user?: { sub: string } }
+    | { ok: false; status: ContentfulStatusCode; error: string };
+
 async function authorizePaperAccess(
     c: Context<{ Bindings: Env; Variables: Variables }>,
     db: ReturnType<typeof drizzle>,
     paper: { visibility: string; id: string },
-) {
+): Promise<AuthResult> {
     if (paper.visibility === "public") return { ok: true };
 
     const authHeader = c.req.header("Authorization");
@@ -185,7 +190,7 @@ papersRoute.get("/:id", async (c) => {
 
     const access = await authorizePaperAccess(c, db, paper);
     if (!access.ok) {
-        return c.json({ error: access.error }, access.status as any);
+        return c.json({ error: access.error }, access.status);
     }
 
     const [rawFiles, authors] = (await db.batch([
@@ -249,7 +254,7 @@ papersRoute.get("/:id/files/:fileId/download", async (c) => {
 
     const access = await authorizePaperAccess(c, db, paper);
     if (!access.ok) {
-        return c.json({ error: access.error }, access.status as any);
+        return c.json({ error: access.error }, access.status);
     }
 
     const file = await db
@@ -295,7 +300,7 @@ papersRoute.get("/:id/files/:fileId/preview", async (c) => {
 
     const access = await authorizePaperAccess(c, db, paper);
     if (!access.ok) {
-        return c.json({ error: access.error }, access.status as any);
+        return c.json({ error: access.error }, access.status);
     }
 
     const file = await db
@@ -330,7 +335,7 @@ papersRoute.get("/:id/files/:fileId/stream", async (c) => {
 
     const access = await authorizePaperAccess(c, db, paper);
     if (!access.ok) {
-        return c.json({ error: access.error }, access.status as any);
+        return c.json({ error: access.error }, access.status);
     }
 
     const file = await db
