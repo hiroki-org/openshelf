@@ -198,11 +198,12 @@ describe("AuthProvider", () => {
     // Suppress React error boundaries logging to console.error
     const originalError = console.error;
     console.error = vi.fn();
-
-    expect(() => render(<OutsideConsumer />)).toThrow(
-      "useAuth must be used within AuthProvider"
-    );
-
-    console.error = originalError;
+    try {
+      expect(() => render(<OutsideConsumer />)).toThrow(
+        "useAuth must be used within AuthProvider"
+      );
+    } finally {
+      console.error = originalError;
+    }
   });
 });
