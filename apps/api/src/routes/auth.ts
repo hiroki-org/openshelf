@@ -195,12 +195,9 @@ auth.post("/logout", async (c) => {
     return c.json({ ok: true });
 });
 
-// E2E testing endpoints — guarded by ENABLE_TEST_AUTH env var.
-// These routes are always registered but return 404 unless ENABLE_TEST_AUTH === "true".
-// This avoids relying on process.env.NODE_ENV which is unreliable in Cloudflare Workers.
-
 // POST /api/auth/test-token — only for E2E testing
 auth.post("/test-token", async (c) => {
+    // Double check: flag must be true AND a secret key must match
     if (c.env.ENABLE_TEST_AUTH !== "true") {
         return c.json({ error: "Not Found" }, 404);
     }
