@@ -248,7 +248,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
         if (!isValidContent) {
             console.error(`Magic number validation failed for file ${file.name} (declared: ${file.type})`);
             return c.json(
-                { error: `File ${file.name} does not match expected format for ${file.type}` },
+                { error: `File content of '${file.name}' is invalid or is of an unsupported type.` },
                 400,
             );
         }
