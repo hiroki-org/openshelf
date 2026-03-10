@@ -70,8 +70,8 @@ describe("PdfViewer", () => {
     // Multiple mock-documents might be rendered due to React.StrictMode or re-renders
     const loadErrorButtons = screen.getAllByTestId("load-error");
 
-    // Trigger load error on the first one
-    fireEvent.click(loadErrorButtons[0]);
+    // Trigger load error on the last one (consistent with Strict Mode re-renders)
+    fireEvent.click(loadErrorButtons[loadErrorButtons.length - 1]);
 
     // Check if error message is shown in the mock error render
     expect(screen.getAllByText("プレビューを読み込めません").length).toBeGreaterThan(0);
@@ -90,8 +90,8 @@ describe("PdfViewer", () => {
     // Multiple mock-documents might be rendered
     const loadSuccessButtons = screen.getAllByTestId("load-success");
 
-    // Trigger load success with 5 pages
-    fireEvent.click(loadSuccessButtons[0]);
+    // Trigger load success with 5 pages (use last for Strict Mode consistency)
+    fireEvent.click(loadSuccessButtons[loadSuccessButtons.length - 1]);
 
     // Navigation buttons
     const prevBtns = screen.getAllByRole("button", { name: "前へ" });
