@@ -468,19 +468,24 @@ orgsRoute.get("/:slug/papers", async (c) => {
     // Check authorship for non-public papers the user might be an author of
     let authoredPaperIds = new Set<string>();
     if (currentUserId) {
-        const nonPublicPapers = allPapers.filter((p) => p.visibility !== "public");
-        if (nonPublicPapers.length > 0) {
+        const nonPublicPaperIds = allPapers.reduce<string[]>((acc, p) => {
+            if (p.visibility !== "public") {
+                acc.push(p.id);
+            }
+            return acc;
+        }, []);
+        if (nonPublicPaperIds.length > 0) {
             const authorships = await db
                 .select({ paperId: paperAuthors.paperId })
                 .from(paperAuthors)
                 .where(
                     and(
-                        inArray(paperAuthors.paperId, nonPublicPapers.map((p) => p.id)),
+                        inArray(paperAuthors.paperId, nonPublicPaperIds),
                         eq(paperAuthors.userId, currentUserId),
                     ),
                 )
                 .all();
-            authoredPaperIds = new Set(authorships.map((a) => a.paperId));
+            authoredPaperIds = authorships.reduce((acc, a) => acc.add(a.paperId), new Set<string>());
         }
     }
 
