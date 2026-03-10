@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useAuth } from "@/components/auth-provider";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { authHeaders } from "@/lib/api";
 
 type Paper = {
@@ -12,6 +12,21 @@ type Paper = {
   year: number | null;
   category: string | null;
   createdAt: string;
+};
+
+const visibilityLabel: Record<string, string> = {
+  public: "公開",
+  org_only: "組織内",
+  private: "非公開",
+};
+
+const visibilityClassName: Record<string, string> = {
+  public:
+    "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900",
+  org_only:
+    "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900",
+  private:
+    "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700",
 };
 
 export default function Home() {
@@ -29,67 +44,223 @@ export default function Home() {
       .catch(() => setPapers([]));
   }, [user]);
 
-  if (loading) return <div className="text-center py-20">読み込み中...</div>;
+  const recentPapers = useMemo(
+    () =>
+      [...papers].sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      ),
+    [papers],
+  );
+
+  const stats = useMemo(() => {
+    return {
+      total: papers.length,
+      publicCount: papers.filter((paper) => paper.visibility === "public")
+        .length,
+      withCategory: papers.filter((paper) => Boolean(paper.category)).length,
+    };
+  }, [papers]);
+
+  if (loading) return <div className="py-20 text-center">読み込み中...</div>;
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 gap-6">
-        <h1 className="text-4xl font-bold">OpenShelf</h1>
-        <p className="text-gray-600 dark:text-gray-400 text-lg text-center max-w-md">
-          研究成果物をアップロードし、永続URLで共有できるホスティングサービス
-        </p>
-        <button
-          type="button"
-          onClick={login}
-          className="rounded-md bg-gray-900 px-6 py-2.5 text-white hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
-        >
-          GitHubでログイン
-        </button>
+      <div className="mx-auto max-w-5xl">
+        <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white/90 px-6 py-10 shadow-sm dark:border-gray-800 dark:bg-gray-950/80 sm:px-10 sm:py-14">
+          <div className="grid gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] lg:items-center">
+            <div>
+              <div className="mb-4 inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
+                Research output hosting
+              </div>
+              <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-gray-950 dark:text-gray-50 sm:text-5xl">
+                研究成果物を、整った形で保存して共有する。
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-gray-600 dark:text-gray-400 sm:text-lg">
+                OpenShelf は、論文・スライド・補足資料をまとめて管理し、
+                永続URLで落ち着いて共有できるホスティング基盤です。
+                華美に飾るのではなく、研究情報が読みやすく伝わることを大事にしています。
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={login}
+                  className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+                >
+                  GitHubでログイン
+                </button>
+                <Link
+                  href="/upload"
+                  className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                >
+                  アップロード画面を見る
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid gap-4">
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  1. 成果物をまとめる
+                </p>
+                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                  論文、発表資料、ポスター、補足資料をひとつの単位で整理できます。
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  2. 公開範囲を選ぶ
+                </p>
+                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                  非公開・組織内・公開を使い分けて、共有先に応じた見せ方にできます。
+                </p>
+              </div>
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 dark:border-gray-800 dark:bg-gray-900">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  3. 永続URLで共有
+                </p>
+                <p className="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                  研究室内の参照や外部向け案内にも使いやすい、安定した導線を用意できます。
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">マイ論文</h1>
-        <Link
-          href="/upload"
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
-        >
-          + アップロード
-        </Link>
-      </div>
-      {papers.length === 0 ? (
-        <p className="text-gray-500 py-12 text-center">
-          まだ論文がありません。
-          <Link href="/upload" className="underline">
-            アップロード
+    <div className="space-y-8">
+      <section className="rounded-3xl border border-gray-200 bg-white px-6 py-6 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:px-8 sm:py-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              ダッシュボード
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 dark:text-gray-50">
+              マイ論文
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
+              アップロード済みの研究成果物を一覧で確認できます。タイトル、公開範囲、
+              基本メタデータをすばやく見直せます。
+            </p>
+          </div>
+          <Link
+            href="/upload"
+            className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+          >
+            + アップロード
           </Link>
-          してみましょう。
-        </p>
+        </div>
+
+        <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+            <p className="text-sm text-gray-500 dark:text-gray-400">登録済み</p>
+            <p className="mt-2 text-2xl font-semibold text-gray-950 dark:text-gray-50">
+              {stats.total}
+            </p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              すべての成果物
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+            <p className="text-sm text-gray-500 dark:text-gray-400">公開中</p>
+            <p className="mt-2 text-2xl font-semibold text-gray-950 dark:text-gray-50">
+              {stats.publicCount}
+            </p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              外部共有可能
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              カテゴリ設定済み
+            </p>
+            <p className="mt-2 text-2xl font-semibold text-gray-950 dark:text-gray-50">
+              {stats.withCategory}
+            </p>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              分類情報あり
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {recentPapers.length === 0 ? (
+        <section className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center dark:border-gray-700 dark:bg-gray-900/60">
+          <div className="mx-auto max-w-md">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              まだ論文がありません
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">
+              最初の成果物を追加すると、この画面から一覧で確認できるようになります。
+            </p>
+            <Link
+              href="/upload"
+              className="mt-6 inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+            >
+              アップロードをはじめる
+            </Link>
+          </div>
+        </section>
       ) : (
-        <ul className="space-y-3">
-          {papers.map((p) => (
-            <li key={p.id}>
-              <Link
-                href={`/papers/${p.id}`}
-                className="block rounded-lg border border-gray-200 p-4 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-900"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">{p.title}</span>
-                  <span className="text-xs text-gray-400">{p.visibility}</span>
-                </div>
-                {(p.year || p.category) && (
-                  <div className="mt-1 text-sm text-gray-500">
-                    {p.year && <span>{p.year}年</span>}
-                    {p.category && <span className="ml-2">{p.category}</span>}
+        <section className="space-y-4">
+          <div className="flex items-end justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-950 dark:text-gray-50">
+                最近の成果物
+              </h2>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                新しい順に表示しています。
+              </p>
+            </div>
+          </div>
+
+          <ul className="space-y-3">
+            {recentPapers.map((p) => (
+              <li key={p.id}>
+                <Link
+                  href={`/papers/${p.id}`}
+                  className="group block rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-900"
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                            visibilityClassName[p.visibility] ??
+                            "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700"
+                          }`}
+                        >
+                          {visibilityLabel[p.visibility] ?? p.visibility}
+                        </span>
+                        {p.year && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {p.year}年
+                          </span>
+                        )}
+                        {p.category && (
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {p.category}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="mt-3 text-base font-semibold text-gray-950 transition-colors group-hover:text-gray-700 dark:text-gray-50 dark:group-hover:text-gray-200">
+                        {p.title}
+                      </h3>
+                    </div>
+
+                    <div className="text-sm text-gray-400 transition-transform group-hover:translate-x-0.5">
+                      →
+                    </div>
                   </div>
-                )}
-              </Link>
-            </li>
-          ))}
-        </ul>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

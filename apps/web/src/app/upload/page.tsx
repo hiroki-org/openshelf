@@ -132,239 +132,317 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold mb-2">論文アップロード</h1>
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-8 rounded-3xl border border-gray-200 bg-white px-6 py-6 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:px-8 sm:py-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              Upload
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 dark:text-gray-50">
+              論文アップロード
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
+              タイトルや公開範囲、関連ファイルをまとめて登録します。必要な情報から順に入力できるよう、
+              セクションごとに整理しています。
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
+            <p className="font-medium text-gray-900 dark:text-gray-100">
+              添付ファイル
+            </p>
+            <p className="mt-1">{files.length} 件選択中</p>
+          </div>
+        </div>
 
-      <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
-        著者最終稿（Author Accepted
-        Manuscript）をアップロードしてください。出版社版のアップロードは著作権上の問題がある場合があります。
+        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm leading-6 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-200">
+          著者最終稿（Author Accepted Manuscript）をアップロードしてください。
+          出版社版のアップロードは著作権上の問題がある場合があります。
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label
-            htmlFor="paper-title"
-            className="block text-sm font-medium mb-1"
-          >
-            タイトル <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="paper-title"
-            type="text"
-            maxLength={300}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            required
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="paper-abstract"
-            className="block text-sm font-medium mb-1"
-          >
-            概要
-          </label>
-          <textarea
-            id="paper-abstract"
-            value={abstract}
-            onChange={(e) => setAbstract(e.target.value)}
-            rows={4}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label
-              htmlFor="paper-visibility"
-              className="block text-sm font-medium mb-1"
-            >
-              公開範囲
-            </label>
-            <select
-              id="paper-visibility"
-              value={visibility}
-              onChange={(e) =>
-                setVisibility(
-                  e.target
-                    .value as (typeof VISIBILITY_OPTIONS)[number]["value"],
-                )
-              }
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            >
-              {VISIBILITY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:p-7">
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold text-gray-950 dark:text-gray-50">
+              基本情報
+            </h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              まずは論文のタイトルと概要を入力します。
+            </p>
           </div>
-          <div>
-            <label
-              htmlFor="paper-year"
-              className="block text-sm font-medium mb-1"
-            >
-              発表年
-            </label>
-            <input
-              id="paper-year"
-              type="number"
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            />
-          </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label
-              htmlFor="paper-venue"
-              className="block text-sm font-medium mb-1"
-            >
-              会場名
-            </label>
-            <input
-              id="paper-venue"
-              type="text"
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="paper-venue-type"
-              className="block text-sm font-medium mb-1"
-            >
-              会場種別
-            </label>
-            <select
-              id="paper-venue-type"
-              value={venueType}
-              onChange={(e) => setVenueType(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            >
-              {VENUE_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+          <div className="space-y-4">
+            <div>
+              <label
+                htmlFor="paper-title"
+                className="mb-1 block text-sm font-medium"
+              >
+                タイトル <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="paper-title"
+                type="text"
+                maxLength={300}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-900"
+                required
+              />
+            </div>
 
-        <div>
-          <label
-            htmlFor="paper-category"
-            className="block text-sm font-medium mb-1"
-          >
-            カテゴリ
-          </label>
-          <select
-            id="paper-category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-          >
-            {CATEGORY_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
+            <div>
+              <label
+                htmlFor="paper-abstract"
+                className="mb-1 block text-sm font-medium"
+              >
+                概要
+              </label>
+              <textarea
+                id="paper-abstract"
+                value={abstract}
+                onChange={(e) => setAbstract(e.target.value)}
+                rows={5}
+                className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-900"
+              />
+            </div>
+          </div>
+        </section>
 
-        <div>
-          <label
-            htmlFor="paper-tags"
-            className="block text-sm font-medium mb-1"
-          >
-            タグ（カンマ区切り）
-          </label>
-          <input
-            id="paper-tags"
-            type="text"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            placeholder="例: NLP, LLM, attention"
-          />
-        </div>
+        <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:p-7">
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold text-gray-950 dark:text-gray-50">
+              メタデータ
+            </h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              検索や整理に役立つ情報を任意で追加できます。
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="paper-visibility"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  公開範囲
+                </label>
+                <select
+                  id="paper-visibility"
+                  value={visibility}
+                  onChange={(e) =>
+                    setVisibility(
+                      e.target
+                        .value as (typeof VISIBILITY_OPTIONS)[number]["value"],
+                    )
+                  }
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-900"
+                >
+                  {VISIBILITY_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="paper-year"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  発表年
+                </label>
+                <input
+                  id="paper-year"
+                  type="number"
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-900"
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="paper-venue"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  会場名
+                </label>
+                <input
+                  id="paper-venue"
+                  type="text"
+                  value={venue}
+                  onChange={(e) => setVenue(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-900"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="paper-venue-type"
+                  className="mb-1 block text-sm font-medium"
+                >
+                  会場種別
+                </label>
+                <select
+                  id="paper-venue-type"
+                  value={venueType}
+                  onChange={(e) => setVenueType(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-900"
+                >
+                  {VENUE_TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label
+                htmlFor="paper-category"
+                className="mb-1 block text-sm font-medium"
+              >
+                カテゴリ
+              </label>
+              <select
+                id="paper-category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-900"
+              >
+                {CATEGORY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="paper-tags"
+                className="mb-1 block text-sm font-medium"
+              >
+                タグ（カンマ区切り）
+              </label>
+              <input
+                id="paper-tags"
+                type="text"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-900"
+                placeholder="例: NLP, LLM, attention"
+              />
+            </div>
+          </div>
+        </section>
 
         {/* File uploads */}
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            ファイル <span className="text-red-500">*</span>
-          </label>
-          <input
-            ref={fileInputRef}
-            aria-label="アップロードファイル"
-            type="file"
-            multiple
-            accept=".pdf,.ppt,.pptx,.png,.jpg,.jpeg"
-            onChange={(e) => addFiles(e.target.files)}
-            className="hidden"
-          />
+        <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:p-7">
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold text-gray-950 dark:text-gray-50">
+              ファイル
+            </h2>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              PDF、スライド、画像などの関連資料を追加できます。
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium">
+              添付ファイル <span className="text-red-500">*</span>
+            </label>
+            <input
+              ref={fileInputRef}
+              aria-label="アップロードファイル"
+              type="file"
+              multiple
+              accept=".pdf,.ppt,.pptx,.png,.jpg,.jpeg"
+              onChange={(e) => addFiles(e.target.files)}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full rounded-2xl border border-dashed border-gray-300 bg-gray-50 px-5 py-10 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900/60 dark:text-gray-300 dark:hover:bg-gray-900"
+            >
+              <span className="block font-medium text-gray-900 dark:text-gray-100">
+                クリックしてファイルを選択
+              </span>
+              <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+                PDF, PPT, 画像 / 最大50MB
+              </span>
+            </button>
+
+            {files.length > 0 && (
+              <ul className="mt-4 space-y-3">
+                {files.map((entry, i) => (
+                  <li
+                    key={i}
+                    className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/60 sm:flex-row sm:items-center"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                        {entry.file.name}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        種別を選択して整理できます
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        aria-label="ファイル種別"
+                        value={entry.fileType}
+                        onChange={(e) => {
+                          const updated = [...files];
+                          updated[i] = {
+                            ...entry,
+                            fileType: e.target.value as FileEntry["fileType"],
+                          };
+                          setFiles(updated);
+                        }}
+                        className="rounded-xl border border-gray-300 px-3 py-2 text-xs dark:border-gray-700 dark:bg-gray-900"
+                      >
+                        {VALID_FILE_TYPES.map((ft) => (
+                          <option key={ft} value={ft}>
+                            {ft}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(i)}
+                        className="rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-900/60 dark:text-red-400 dark:hover:bg-red-950/40"
+                      >
+                        削除
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+
+        {error && (
+          <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+            {error}
+          </p>
+        )}
+
+        <div className="flex justify-end">
           <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="rounded-md border border-dashed border-gray-400 px-4 py-8 w-full text-sm text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-900"
+            type="submit"
+            disabled={uploading}
+            className="inline-flex min-w-40 items-center justify-center rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
           >
-            クリックしてファイルを選択（PDF, PPT, 画像 / 最大50MB）
+            {uploading ? "アップロード中..." : "アップロード"}
           </button>
-
-          {files.length > 0 && (
-            <ul className="mt-2 space-y-2">
-              {files.map((entry, i) => (
-                <li
-                  key={i}
-                  className="flex items-center gap-2 text-sm border rounded-md p-2 dark:border-gray-700"
-                >
-                  <span className="flex-1 truncate">{entry.file.name}</span>
-                  <select
-                    aria-label="ファイル種別"
-                    value={entry.fileType}
-                    onChange={(e) => {
-                      const updated = [...files];
-                      updated[i] = {
-                        ...entry,
-                        fileType: e.target.value as FileEntry["fileType"],
-                      };
-                      setFiles(updated);
-                    }}
-                    className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
-                  >
-                    {VALID_FILE_TYPES.map((ft) => (
-                      <option key={ft} value={ft}>
-                        {ft}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(i)}
-                    className="text-red-500 hover:text-red-700 text-xs"
-                  >
-                    削除
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
-
-        {error && <p className="text-sm text-red-600">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={uploading}
-          className="w-full rounded-md bg-gray-900 px-4 py-2.5 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
-        >
-          {uploading ? "アップロード中..." : "アップロード"}
-        </button>
       </form>
     </div>
   );

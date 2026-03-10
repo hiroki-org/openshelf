@@ -27,11 +27,15 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} min-h-screen bg-gray-50/70 antialiased dark:bg-gray-950`}
       >
         <AuthProvider>
-          <Header />
-          <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+          <div className="min-h-screen">
+            <Header />
+            <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+              {children}
+            </main>
+          </div>
         </AuthProvider>
       </body>
     </html>
