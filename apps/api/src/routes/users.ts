@@ -76,25 +76,21 @@ const MAX_CACHE_SIZE = 1000;
 
 function getCachedResults(key: string): any[] | null {
     const cached = searchCache.get(key);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-        return cached.data;
+    if (cached) {
+        if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
+            return cached.data;
+        }
+        searchCache.delete(key);
     }
     return null;
 }
 
 function setCachedResults(key: string, data: any[]) {
-    // cleanup old cache randomly to prevent memory leak
+    // FIFO eviction: remove the oldest entry when cache is full
     if (searchCache.size >= MAX_CACHE_SIZE) {
-        const now = Date.now();
-        for (const [k, v] of searchCache.entries()) {
-            if (now - v.timestamp > CACHE_TTL_MS) {
-                searchCache.delete(k);
-            }
-        }
-
-        // if still too large, clear to prevent memory leak
-        if (searchCache.size >= MAX_CACHE_SIZE) {
-            searchCache.clear();
+        const oldestKey = searchCache.keys().next().value;
+        if (oldestKey) {
+            searchCache.delete(oldestKey);
         }
     }
     searchCache.set(key, { data, timestamp: Date.now() });
@@ -106,7 +102,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     if (!q || q.length < 2) return c.json({ users: [] });
 
     const currentUserId = c.get("user").sub;
-    const cacheKey = `${q}-${currentUserId}`;
+    const cacheKey = `${currentUserId}\0${q}`;
 
     const cachedUsers = getCachedResults(cacheKey);
     if (cachedUsers) {
