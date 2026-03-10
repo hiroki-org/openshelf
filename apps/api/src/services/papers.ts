@@ -105,7 +105,7 @@ export function parseAndValidateMetadata(metadataStr: unknown) {
             language: (meta.language as string) || null,
             doi: (meta.doi as string) || null,
             venue: (meta.venue as string) || null,
-            year: meta.year ? Number(meta.year) : null,
+            year: meta.year != null && !Number.isNaN(Number(meta.year)) ? Number(meta.year) : null,
             tags: meta.tags ? JSON.stringify(meta.tags) : null,
         },
     };
@@ -140,6 +140,7 @@ export async function parseAndValidateFiles(body: Record<string, unknown>, paper
         }
         if (!ALLOWED_MIME_TYPES.includes(file.type)) {
             return {
+                ok: false,
                 error: `File ${file.name} has unsupported type: ${file.type || "unknown"}`,
                 status: 400,
             };
@@ -149,6 +150,7 @@ export async function parseAndValidateFiles(body: Record<string, unknown>, paper
         if (!isValidContent) {
             console.error(`Magic number validation failed for file ${file.name} (declared: ${file.type})`);
             return {
+                ok: false,
                 error: `File ${file.name} does not match expected format for ${file.type}`,
                 status: 400,
             };
@@ -231,6 +233,8 @@ export async function insertPaperAndFiles(
             tags: metaData.tags,
         };
 
+        // NOTE: D1 does not support transactions. If any insert fails,
+        // cleanup in catch block will delete the paper (cascading to related records).
         await db.insert(papers).values(paperValues);
 
         await db
@@ -255,8 +259,12 @@ export async function insertPaperAndFiles(
 
         return { ok: true };
     } catch (error) {
-        await Promise.allSettled(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
-        await db.delete(papers).where(eq(papers.id, paperId));
+        console.error("Error during paper insertion and file upload, rolling back.", error);
+        // Cleanup: best-effort, don't mask original error
+        await Promise.allSettled([
+            ...uploadedKeys.map((key) => c.env.BUCKET.delete(key)),
+            db.delete(papers).where(eq(papers.id, paperId)),
+        ]);
         return { ok: false, error: error instanceof Error ? error.message : "Failed to upload or insert", status: 500 };
     }
 }
