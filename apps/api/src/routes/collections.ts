@@ -443,7 +443,7 @@ collectionsRoute.delete("/collections/:id/papers/:paperId", authMiddleware, asyn
         .delete(collectionPapers)
         .where(and(eq(collectionPapers.collectionId, collection.id), eq(collectionPapers.paperId, c.req.param("paperId"))));
 
-    if (result.meta?.changes === 0) {
+    if (!result.meta?.changes) {
         return c.json({ error: "Paper not in collection" }, 404);
     } return c.json({ ok: true });
 });

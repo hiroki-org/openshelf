@@ -130,7 +130,7 @@ export async function parseAndValidateFiles(body: Record<string, unknown>, paper
         }
 
         const file = fileCandidate as File;
-        if (!(file instanceof File) && typeof (file as any).slice !== "function") {
+        if (!(file instanceof File) && typeof (file as Blob).slice !== "function") {
             console.error(`Field files_${i} is not a valid File/Blob`);
             return { ok: false, error: `Field files_${i} is not a valid file`, status: 400 };
         }
