@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useAuth } from "@/components/auth-provider";
 import { useEffect, useMemo, useState } from "react";
 import { authHeaders } from "@/lib/api";
+import { getVisibilityBadge } from "@/lib/presentation";
 
 type Paper = {
   id: string;
@@ -12,21 +13,6 @@ type Paper = {
   year: number | null;
   category: string | null;
   createdAt: string;
-};
-
-const visibilityLabel: Record<string, string> = {
-  public: "公開",
-  org_only: "組織内",
-  private: "非公開",
-};
-
-const visibilityClassName: Record<string, string> = {
-  public:
-    "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900",
-  org_only:
-    "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900",
-  private:
-    "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700",
 };
 
 export default function Home() {
@@ -227,14 +213,16 @@ export default function Home() {
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
-                            visibilityClassName[p.visibility] ??
-                            "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700"
-                          }`}
-                        >
-                          {visibilityLabel[p.visibility] ?? p.visibility}
-                        </span>
+                        {(() => {
+                          const badge = getVisibilityBadge(p.visibility);
+                          return (
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
+                            >
+                              {badge.label}
+                            </span>
+                          );
+                        })()}
                         {p.year && (
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             {p.year}年
