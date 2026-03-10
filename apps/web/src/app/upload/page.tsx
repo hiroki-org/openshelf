@@ -99,11 +99,10 @@ export default function UploadPage() {
           venueType: venueType || null,
           year: year ? Number(year) : null,
           category: category || null,
-          tags: tags.split(",").reduce((acc: string[], t) => {
+          tags: tags.split(",").flatMap((t) => {
             const trimmed = t.trim();
-            if (trimmed) acc.push(trimmed);
-            return acc;
-          }, []),
+            return trimmed ? [trimmed] : [];
+          }),
         }),
       );
 

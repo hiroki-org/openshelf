@@ -260,9 +260,9 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       if (createdUrls.length === 0) return;
 
       let i = 0;
-      const batchSize = 10;
+      const REVOKE_BATCH_SIZE = 10;
       function revokeBatch() {
-        const end = Math.min(i + batchSize, createdUrls.length);
+        const end = Math.min(i + REVOKE_BATCH_SIZE, createdUrls.length);
         while (i < end) {
           URL.revokeObjectURL(createdUrls[i]);
           i++;
