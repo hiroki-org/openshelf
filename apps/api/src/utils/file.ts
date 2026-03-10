@@ -17,6 +17,9 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
 
 
 
+const MIME_PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+const MIME_PPT = "application/vnd.ms-powerpoint";
+
 // Helper function to search for a byte sequence within a file in chunks
 async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promise<boolean> {
     const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
@@ -30,16 +33,11 @@ async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promis
 
         let i = chunk.indexOf(searchBytes[0]);
         while (i !== -1 && i <= chunk.length - searchLen) {
-            let match = true;
-            for (let j = 1; j < searchLen; j++) {
-                if (chunk[i + j] !== searchBytes[j]) {
-                    match = false;
-                    break;
-                }
+            let j = 1;
+            for (; j < searchLen; j++) {
+                if (chunk[i + j] !== searchBytes[j]) break;
             }
-            if (match) {
-                return true;
-            }
+            if (j === searchLen) return true;
             i = chunk.indexOf(searchBytes[0], i + 1);
         }
     }
@@ -62,11 +60,11 @@ export async function validateMagicNumbers(file: File, declaredMime: string): Pr
     if (!isValidBasic) return false;
 
     // Deeper inspection of PPT/PPTX files
-    if (declaredMime === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+    if (declaredMime === MIME_PPTX) {
         const searchString = "ppt/presentation.xml";
         const searchBytes = new TextEncoder().encode(searchString);
         return searchSequenceInFile(file, searchBytes);
-    } else if (declaredMime === "application/vnd.ms-powerpoint") {
+    } else if (declaredMime === MIME_PPT) {
         const searchString = "PowerPoint Document";
         // UTF-16LE encoding for OLE2 string
         const searchBytes = new Uint8Array(searchString.length * 2);
