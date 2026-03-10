@@ -64,7 +64,7 @@ const updateMeHandler = async (c: any) => {
 usersRoute.patch("/me", authMiddleware, updateMeHandler);
 usersRoute.put("/me", authMiddleware, updateMeHandler);
 
-// GET /api/users/search?q=xxx — search users for coauthor invite
+// GET /api/users/search?q={query} — search users for coauthor invite
 usersRoute.get("/search", authMiddleware, async (c) => {
     const q = c.req.query("q");
     if (!q || q.length < 2) return c.json({ users: [] });
