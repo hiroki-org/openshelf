@@ -69,7 +69,10 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   }, []);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
+    <div
+      data-testid="pdf-viewer"
+      className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
+    >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <button
@@ -145,6 +148,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
       <div
         ref={containerRef}
+        data-testid="pdf-viewer-surface"
         className="flex min-h-[420px] items-center justify-center overflow-auto rounded bg-gray-50 p-2 dark:bg-gray-950"
       >
         <Document
