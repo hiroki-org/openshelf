@@ -9,7 +9,7 @@ vi.mock("hono/jwt", async (importOriginal) => {
     const mod = await importOriginal<typeof import("hono/jwt")>();
     return {
         ...mod,
-        verify: vi.fn().mockImplementation(async (token, secret) => {
+        verify: vi.fn().mockImplementation(async (token, _secret) => {
             if (token === "invalid-token") {
                 throw new Error("Invalid token");
             }
