@@ -61,7 +61,7 @@ export function Header() {
                 height={32}
                 className="rounded-full ring-1 ring-gray-200 dark:ring-gray-700"
               />
-              <div className="hidden text-right sm:block">
+              <div className="flex flex-col items-end text-right">
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {user.displayName ?? user.name}
                 </p>

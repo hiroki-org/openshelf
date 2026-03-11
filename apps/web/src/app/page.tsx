@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useAuth } from "@/components/auth-provider";
 import { useEffect, useMemo, useState } from "react";
-import { authHeaders } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import { getVisibilityBadge } from "@/lib/presentation";
 
 type Paper = {
@@ -21,7 +21,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!user) return;
-    fetch("/api/papers", { credentials: "include", headers: authHeaders() })
+    apiFetch("/api/papers", { credentials: "include" })
       .then(async (r) => {
         if (!r.ok) return { papers: [] as Paper[] };
         return r.json();
