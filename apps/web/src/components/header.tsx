@@ -65,9 +65,6 @@ export function Header() {
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                   {user.displayName ?? user.name}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  @{user.name}
-                </p>
               </div>
               <button
                 type="button"
