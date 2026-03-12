@@ -18,7 +18,7 @@ export function Header() {
 
   return (
     <header className="border-b border-gray-200/80 bg-white/90 backdrop-blur-sm dark:border-gray-800 dark:bg-gray-950/90">
-      <div className="mx-auto flex min-h-16 max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <div className="mx-auto flex min-h-16 max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div className="flex min-w-0 items-center gap-6">
           <Link
             href="/"
@@ -30,7 +30,8 @@ export function Header() {
             <nav className="flex flex-wrap items-center gap-1 text-sm">
               {navItems.map((item) => {
                 const isActive =
-                  pathname === item.href || pathname.startsWith(`${item.href}/`);
+                  pathname === item.href ||
+                  pathname.startsWith(`${item.href}/`);
 
                 return (
                   <Link
@@ -56,7 +57,7 @@ export function Header() {
             <div className="flex items-center gap-3">
               <Image
                 src={user.avatarUrl}
-                alt={user.name}
+                alt={user.displayName ?? user.name}
                 width={32}
                 height={32}
                 className="rounded-full ring-1 ring-gray-200 dark:ring-gray-700"

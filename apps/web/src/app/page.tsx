@@ -6,6 +6,15 @@ import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { getVisibilityBadge } from "@/lib/presentation";
 
+const CATEGORY_LABELS: Record<string, string> = {
+  thesis_bachelor: "学士論文",
+  thesis_master: "修士論文",
+  report: "レポート",
+  conference_paper: "学会論文",
+  journal_paper: "学術論文",
+  other: "その他",
+};
+
 type Paper = {
   id: string;
   title: string;
@@ -18,16 +27,22 @@ type Paper = {
 export default function Home() {
   const { user, loading, login } = useAuth();
   const [papers, setPapers] = useState<Paper[]>([]);
+  const [papersLoading, setPapersLoading] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setPapers([]);
+      return;
+    }
+    setPapersLoading(true);
     apiFetch("/api/papers", { credentials: "include" })
       .then(async (r) => {
         if (!r.ok) return { papers: [] as Paper[] };
         return r.json();
       })
       .then((d) => setPapers(d.papers ?? []))
-      .catch(() => setPapers([]));
+      .catch(() => setPapers([]))
+      .finally(() => setPapersLoading(false));
   }, [user]);
 
   const toCreatedAtMs = (value: string) =>
@@ -176,7 +191,7 @@ export default function Home() {
         </div>
       </section>
 
-      {recentPapers.length === 0 ? (
+      {!papersLoading && recentPapers.length === 0 ? (
         <section className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center dark:border-gray-700 dark:bg-gray-900/60">
           <div className="mx-auto max-w-md">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
@@ -233,7 +248,7 @@ export default function Home() {
                         )}
                         {p.category && (
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {p.category}
+                            {CATEGORY_LABELS[p.category] ?? p.category}
                           </span>
                         )}
                       </div>
