@@ -143,6 +143,7 @@ When responding to PR reviews using the `gh` CLI:
 - If a suggestion is implemented with an alternative approach, explain the implementation and the reasoning before resolving the conversation.
 - Ensure that the number of unresolved conversations (`isResolved: false`) is strictly 0.
 
+
 ### CI Status
 - If CI is configured, check its status.
 - If CI succeeds, proceed.
