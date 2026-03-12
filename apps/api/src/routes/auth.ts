@@ -6,9 +6,18 @@ import { eq } from "drizzle-orm";
 import { users, orgs, orgMembers, enableForeignKeys } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { persistGitHubUser } from "../utils/user-persistence";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
+const authUserSelection = {
+    id: users.id,
+    githubId: users.githubId,
+    name: users.name,
+    displayName: users.displayName,
+    avatarUrl: users.avatarUrl,
+    email: users.email,
+};
 
 // GET /api/auth/github — redirect to GitHub OAuth
 auth.get("/github", async (c) => {
@@ -149,43 +158,21 @@ auth.get("/github/callback", async (c) => {
         typeof ghUser.avatar_url === "string" ? ghUser.avatar_url : null;
     const ghEmail = typeof ghUser.email === "string" ? ghUser.email : null;
 
-    // Upsert user atomically by githubId.
+    // Persist user and re-read it through a primary-anchored D1 session.
     const githubId = String(ghUser.id);
-    const insertedUserId = crypto.randomUUID();
-    const db = drizzle(c.env.DB);
     let userId: string;
     try {
-        await enableForeignKeys(db);
-        await db
-            .insert(users)
-            .values({
-                id: insertedUserId,
+        userId = (
+            await persistGitHubUser(c.env.DB, {
+                candidateUserId: crypto.randomUUID(),
                 githubId,
                 name: ghName,
                 avatarUrl: ghAvatar,
                 email: ghEmail,
+                source: "oauth-callback",
             })
-            .onConflictDoUpdate({
-                target: users.githubId,
-                set: {
-                    name: ghName,
-                    avatarUrl: ghAvatar,
-                    email: ghEmail,
-                },
-            });
-
-        const upsertedUser = await db
-            .select({ id: users.id })
-            .from(users)
-            .where(eq(users.githubId, githubId))
-            .get();
-        if (!upsertedUser) {
-            console.error(`GitHub OAuth user lookup returned no row for githubId=${githubId}`);
-            return c.json({ error: "Failed to persist GitHub user" }, 500);
-        }
-        userId = upsertedUser.id;
-    } catch (error) {
-        console.error(`GitHub OAuth user persistence failed for githubId=${githubId}:`, error);
+        ).userId;
+    } catch {
         return c.json({ error: "Failed to persist GitHub user" }, 500);
     }
 
@@ -218,7 +205,7 @@ auth.get("/me", authMiddleware, async (c) => {
     const payload = c.get("user");
     const db = drizzle(c.env.DB);
     const user = await db
-        .select()
+        .select(authUserSelection)
         .from(users)
         .where(eq(users.id, payload.sub))
         .get();
@@ -259,41 +246,26 @@ auth.post("/test-token", async (c) => {
         return c.json({ error: "Invalid JSON" }, 400);
     }
 
-    const db = drizzle(c.env.DB);
-    await enableForeignKeys(db);
-
-    // Upsert user
-    await db
-        .insert(users)
-        .values({
-            id: body.sub,
-            githubId: body.githubId,
-            name: body.name,
-            avatarUrl: null,
-            email: null,
-        })
-        .onConflictDoUpdate({
-            target: users.githubId,
-            set: {
+    let persistedUserId: string;
+    try {
+        persistedUserId = (
+            await persistGitHubUser(c.env.DB, {
+                candidateUserId: body.sub,
+                githubId: body.githubId,
                 name: body.name,
-            },
-        });
-
-    // Fetch the actual persisted user ID (in case of conflict on githubId)
-    const persistedUser = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.githubId, body.githubId))
-        .get();
-
-    if (!persistedUser) {
+                avatarUrl: null,
+                email: null,
+                source: "test-token",
+            })
+        ).userId;
+    } catch {
         return c.json({ error: "Failed to persist user" }, 500);
     }
 
     const now = Math.floor(Date.now() / 1000);
     const jwt = await sign(
         {
-            sub: persistedUser.id,
+            sub: persistedUserId,
             githubId: body.githubId,
             name: body.name,
             iat: now,

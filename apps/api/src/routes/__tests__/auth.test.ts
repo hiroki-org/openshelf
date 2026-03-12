@@ -4,6 +4,7 @@ import {
     createTestApp,
     createTestEnv,
     createTestJWT,
+    createMockD1,
     makeQuery,
 } from "../../test/helpers";
 
@@ -42,9 +43,20 @@ describe("auth routes", () => {
     });
 
     it("GET /api/auth/github/callback returns frontend redirect with JWT", async () => {
-        mockDb.select = vi
-            .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-1" } }));
+        const { db, withSession } = createMockD1({
+            sessionHandler: (query) => {
+                if (query.includes("INSERT INTO users")) {
+                    return {
+                        run: async () => ({ results: [] }),
+                    };
+                }
+                if (query.includes("SELECT id")) {
+                    return {
+                        first: async () => ({ id: "user-1" }),
+                    };
+                }
+            },
+        });
 
         vi.stubGlobal(
             "fetch",
@@ -61,7 +73,7 @@ describe("auth routes", () => {
         );
 
         const app = await createTestApp();
-        const env = createTestEnv();
+        const env = createTestEnv({ DB: db });
 
         const res = await app.request(
             "http://localhost/api/auth/github/callback?code=code123&state=good-state",
@@ -77,6 +89,7 @@ describe("auth routes", () => {
         const location = res.headers.get("location") ?? "";
         expect(location).toContain("http://localhost:3000/auth/callback#token=");
         expect(res.headers.get("set-cookie") ?? "").toContain("oauth_state=");
+        expect(withSession).toHaveBeenCalledWith("first-primary");
     });
 
     it("GET /api/auth/github/callback returns 400 for invalid state", async () => {
@@ -98,14 +111,48 @@ describe("auth routes", () => {
 
     it("GET /api/auth/github/callback returns controlled 500 when user persistence fails", async () => {
         const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
-
-        mockDb.insert = vi.fn(() => ({
-            values: vi.fn(() => ({
-                onConflictDoUpdate: vi.fn(async () => {
-                    throw new Error("D1 unavailable");
-                })
-            }))
-        }));
+        const { db } = createMockD1({
+            sessionHandler: (query) => {
+                if (query.includes("INSERT INTO users")) {
+                    return {
+                        run: async () => {
+                            throw new Error("D1 unavailable");
+                        },
+                    };
+                }
+            },
+            dbHandler: (query) => {
+                if (query === "PRAGMA table_info(users)") {
+                    return {
+                        all: async () => ({
+                            results: [
+                                { name: "id" },
+                                { name: "github_id" },
+                                { name: "name" },
+                                { name: "avatar_url" },
+                                { name: "email" },
+                                { name: "created_at" },
+                                { name: "updated_at" },
+                            ],
+                        }),
+                    };
+                }
+                if (query === "PRAGMA index_list(users)") {
+                    return {
+                        all: async () => ({
+                            results: [{ name: "users_github_id_unique", unique: 1 }],
+                        }),
+                    };
+                }
+                if (query.includes('PRAGMA index_info("users_github_id_unique")')) {
+                    return {
+                        all: async () => ({
+                            results: [{ name: "github_id" }],
+                        }),
+                    };
+                }
+            },
+        });
 
         vi.stubGlobal(
             "fetch",
@@ -122,7 +169,7 @@ describe("auth routes", () => {
         );
 
         const app = await createTestApp();
-        const env = createTestEnv();
+        const env = createTestEnv({ DB: db });
 
         const res = await app.request(
             "http://localhost/api/auth/github/callback?code=code123&state=good-state",
