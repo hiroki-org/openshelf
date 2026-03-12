@@ -102,7 +102,7 @@ visibility: "public" | "org_only" | "private"
 ### TypeScript
 - All files use `kebab-case` names (e.g., `auth-provider.tsx`, `paper-detail-client.tsx`)
 - React components: PascalCase exports
-- DB columns: `snake_case` in SQL, mapped to `camelCase` in Drizzle schema
+- DB columns: `snake_case` in SQL, which Drizzle automatically maps to `camelCase` properties on objects.
 
 ### Error Responses
 API errors always return `{ error: "message" }` JSON with an appropriate HTTP status code. Never return bare strings.
