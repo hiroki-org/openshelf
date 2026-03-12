@@ -73,6 +73,7 @@ const updateMeHandler = async (c: any) => {
         .from(users)
         .where(eq(users.id, userId))
         .get();
+    if (!user) return c.json({ error: "User not found" }, 404);
     return c.json({ user });
 };
 

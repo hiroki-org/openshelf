@@ -90,6 +90,11 @@ describe("auth routes", () => {
         expect(location).toContain("http://localhost:3000/auth/callback#token=");
         expect(res.headers.get("set-cookie") ?? "").toContain("oauth_state=");
         expect(withSession).toHaveBeenCalledWith("first-primary");
+        const token = location.split("#token=")[1];
+        const payload = JSON.parse(
+            Buffer.from(token.split(".")[1], "base64url").toString("utf8"),
+        ) as { sub: string };
+        expect(payload.sub).toBe("user-1");
     });
 
     it("GET /api/auth/github/callback returns 400 for invalid state", async () => {
@@ -185,6 +190,34 @@ describe("auth routes", () => {
         expect(await res.json()).toEqual({ error: "Failed to persist GitHub user" });
         expect(res.headers.get("set-cookie")).toBeNull();
         expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    it("POST /api/auth/test-token returns 400 when values exceed length limits", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            ENABLE_TEST_AUTH: "true",
+            TEST_AUTH_SECRET: "test-auth-secret",
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/test-token",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-test-auth-secret": "test-auth-secret",
+                },
+                body: JSON.stringify({
+                    sub: "user-1",
+                    githubId: "1".repeat(65),
+                    name: "Tester",
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ error: "Invalid request body" });
     });
 
     it("GET /api/auth/me returns 200 for valid Bearer token", async () => {

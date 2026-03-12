@@ -10,6 +10,11 @@ import { persistGitHubUser } from "../utils/user-persistence";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
+const USER_ID_MAX_LENGTH = 128;
+const GITHUB_ID_MAX_LENGTH = 64;
+const USER_NAME_MAX_LENGTH = 100;
+const AVATAR_URL_MAX_LENGTH = 2048;
+const EMAIL_MAX_LENGTH = 320;
 const authUserSelection = {
     id: users.id,
     githubId: users.githubId,
@@ -18,6 +23,25 @@ const authUserSelection = {
     avatarUrl: users.avatarUrl,
     email: users.email,
 };
+
+const hasPersistableUserLengths = ({
+    candidateUserId,
+    githubId,
+    name,
+    avatarUrl,
+    email,
+}: {
+    candidateUserId: string;
+    githubId: string;
+    name: string;
+    avatarUrl: string | null;
+    email: string | null;
+}) =>
+    candidateUserId.length <= USER_ID_MAX_LENGTH &&
+    githubId.length <= GITHUB_ID_MAX_LENGTH &&
+    name.length <= USER_NAME_MAX_LENGTH &&
+    (avatarUrl === null || avatarUrl.length <= AVATAR_URL_MAX_LENGTH) &&
+    (email === null || email.length <= EMAIL_MAX_LENGTH);
 
 // GET /api/auth/github — redirect to GitHub OAuth
 auth.get("/github", async (c) => {
@@ -160,11 +184,23 @@ auth.get("/github/callback", async (c) => {
 
     // Persist user and re-read it through a primary-anchored D1 session.
     const githubId = String(ghUser.id);
+    const candidateUserId = crypto.randomUUID();
+    if (
+        !hasPersistableUserLengths({
+            candidateUserId,
+            githubId,
+            name: ghName,
+            avatarUrl: ghAvatar,
+            email: ghEmail,
+        })
+    ) {
+        return c.json({ error: "Invalid GitHub user payload" }, 502);
+    }
     let userId: string;
     try {
         userId = (
             await persistGitHubUser(c.env.DB, {
-                candidateUserId: crypto.randomUUID(),
+                candidateUserId,
                 githubId,
                 name: ghName,
                 avatarUrl: ghAvatar,
@@ -244,6 +280,17 @@ auth.post("/test-token", async (c) => {
         body = raw;
     } catch {
         return c.json({ error: "Invalid JSON" }, 400);
+    }
+    if (
+        !hasPersistableUserLengths({
+            candidateUserId: body.sub,
+            githubId: body.githubId,
+            name: body.name,
+            avatarUrl: null,
+            email: null,
+        })
+    ) {
+        return c.json({ error: "Invalid request body" }, 400);
     }
 
     let persistedUserId: string;
