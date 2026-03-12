@@ -73,6 +73,9 @@ type CachedSearchResult = {
 const searchCache = new Map<string, CachedSearchResult>();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
 const MAX_CACHE_SIZE = 1000;
+// Queries longer than this are unlikely to benefit from caching and would
+// allow unbounded Map key sizes that waste isolate memory.
+const MAX_CACHEABLE_QUERY_LENGTH = 128;
 
 function getCachedResults(key: string): any[] | null {
     const cached = searchCache.get(key);
@@ -102,9 +105,11 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     if (!q || q.length < 2) return c.json({ users: [] });
 
     const currentUserId = c.get("user").sub;
-    const cacheKey = `${currentUserId}\0${q}`;
+    const cacheKey = q.length <= MAX_CACHEABLE_QUERY_LENGTH
+        ? `${currentUserId}\0${q}`
+        : null;
 
-    const cachedUsers = getCachedResults(cacheKey);
+    const cachedUsers = cacheKey ? getCachedResults(cacheKey) : null;
     if (cachedUsers) {
         return c.json({ users: cachedUsers });
     }
@@ -132,7 +137,9 @@ usersRoute.get("/search", authMiddleware, async (c) => {
         .limit(10)
         .all();
 
-    setCachedResults(cacheKey, results);
+    if (cacheKey) {
+        setCachedResults(cacheKey, results);
+    }
 
     return c.json({ users: results });
 });
