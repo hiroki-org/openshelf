@@ -132,8 +132,8 @@ E2E tests skip real GitHub OAuth by calling `/api/auth/test-token` (only active 
 
 When you receive instructions, follow these guidelines based on the context:
 
-- **New Tasks**: Create a new branch and open a Pull Request.
-- **Existing Improvements**: Checkout the existing branch and edit the code.
+- **New Feature or Task**: Create a new branch from the default branch and open a Pull Request.
+- **Improving an Existing PR/Branch**: Checkout the existing feature branch and push your changes.
 
  - If ignoring a suggestion, reply with a clear reason why it is being skipped, and resolve the conversation.
  - Ensure that the number of unresolved conversations (`isResolved: false`) is strictly 0.
