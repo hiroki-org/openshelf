@@ -1,8 +1,8 @@
 {
+  "id": "1a81d2ab-cce3-4e87-9b90-e7e88e9bdca2",
+  "prevId": "abc529fb-ceba-421c-8395-c335bd586cab",
   "version": "6",
   "dialect": "sqlite",
-  "id": "3f9aa4d4-418d-4dc3-8585-0df2679802c5",
-  "prevId": "abc529fb-ceba-421c-8395-c335bd586cab",
   "tables": {
     "coauthor_invites": {
       "name": "coauthor_invites",
@@ -65,14 +65,6 @@
           "autoincrement": false,
           "default": "(datetime('now'))"
         },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(datetime('now'))"
-        },
         "responded_at": {
           "name": "responded_at",
           "type": "text",
@@ -109,8 +101,8 @@
             "paper_id",
             "invitee_id"
           ],
-          "isUnique": true,
-          "where": "invitee_id IS NOT NULL"
+          "where": "invitee_id IS NOT NULL",
+          "isUnique": true
         },
         "coauthor_invites_paper_email_idx": {
           "name": "coauthor_invites_paper_email_idx",
@@ -118,49 +110,49 @@
             "paper_id",
             "invitee_email"
           ],
-          "isUnique": true,
-          "where": "invitee_email IS NOT NULL"
+          "where": "invitee_email IS NOT NULL",
+          "isUnique": true
         }
       },
       "foreignKeys": {
         "coauthor_invites_paper_id_papers_id_fk": {
           "name": "coauthor_invites_paper_id_papers_id_fk",
           "tableFrom": "coauthor_invites",
-          "tableTo": "papers",
           "columnsFrom": [
             "paper_id"
           ],
+          "tableTo": "papers",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "coauthor_invites_inviter_id_users_id_fk": {
           "name": "coauthor_invites_inviter_id_users_id_fk",
           "tableFrom": "coauthor_invites",
-          "tableTo": "users",
           "columnsFrom": [
             "inviter_id"
           ],
+          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "coauthor_invites_invitee_id_users_id_fk": {
           "name": "coauthor_invites_invitee_id_users_id_fk",
           "tableFrom": "coauthor_invites",
-          "tableTo": "users",
           "columnsFrom": [
             "invitee_id"
           ],
+          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
@@ -191,14 +183,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": 0
-        },
-        "added_at": {
-          "name": "added_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(datetime('now'))"
         }
       },
       "indexes": {
@@ -214,28 +198,28 @@
         "collection_papers_collection_id_collections_id_fk": {
           "name": "collection_papers_collection_id_collections_id_fk",
           "tableFrom": "collection_papers",
-          "tableTo": "collections",
           "columnsFrom": [
             "collection_id"
           ],
+          "tableTo": "collections",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "collection_papers_paper_id_papers_id_fk": {
           "name": "collection_papers_paper_id_papers_id_fk",
           "tableFrom": "collection_papers",
-          "tableTo": "papers",
           "columnsFrom": [
             "paper_id"
           ],
+          "tableTo": "papers",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -274,13 +258,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "org_slug": {
-          "name": "org_slug",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "slug": {
           "name": "slug",
           "type": "text",
@@ -312,14 +289,6 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(datetime('now'))"
-        },
-        "updated_at": {
-          "name": "updated_at",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -374,28 +343,28 @@
         "org_members_org_id_orgs_id_fk": {
           "name": "org_members_org_id_orgs_id_fk",
           "tableFrom": "org_members",
-          "tableTo": "orgs",
           "columnsFrom": [
             "org_id"
           ],
+          "tableTo": "orgs",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "org_members_user_id_users_id_fk": {
           "name": "org_members_user_id_users_id_fk",
           "tableFrom": "org_members",
-          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
+          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -443,14 +412,6 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(datetime('now'))"
-        },
-        "updated_at": {
-          "name": "updated_at",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -510,28 +471,28 @@
         "paper_authors_paper_id_papers_id_fk": {
           "name": "paper_authors_paper_id_papers_id_fk",
           "tableFrom": "paper_authors",
-          "tableTo": "papers",
           "columnsFrom": [
             "paper_id"
           ],
+          "tableTo": "papers",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "paper_authors_user_id_users_id_fk": {
           "name": "paper_authors_user_id_users_id_fk",
           "tableFrom": "paper_authors",
-          "tableTo": "users",
           "columnsFrom": [
             "user_id"
           ],
+          "tableTo": "users",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -605,14 +566,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(datetime('now'))"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(datetime('now'))"
         }
       },
       "indexes": {
@@ -628,15 +581,15 @@
         "paper_files_paper_id_papers_id_fk": {
           "name": "paper_files_paper_id_papers_id_fk",
           "tableFrom": "paper_files",
-          "tableTo": "papers",
           "columnsFrom": [
             "paper_id"
           ],
+          "tableTo": "papers",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -674,28 +627,28 @@
         "paper_orgs_paper_id_papers_id_fk": {
           "name": "paper_orgs_paper_id_papers_id_fk",
           "tableFrom": "paper_orgs",
-          "tableTo": "papers",
           "columnsFrom": [
             "paper_id"
           ],
+          "tableTo": "papers",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "paper_orgs_org_id_orgs_id_fk": {
           "name": "paper_orgs_org_id_orgs_id_fk",
           "tableFrom": "paper_orgs",
-          "tableTo": "orgs",
           "columnsFrom": [
             "org_id"
           ],
+          "tableTo": "orgs",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -888,24 +841,9 @@
           "notNull": true,
           "autoincrement": false,
           "default": "(datetime('now'))"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(datetime('now'))"
         }
       },
       "indexes": {
-        "users_github_id_unique": {
-          "name": "users_github_id_unique",
-          "columns": [
-            "github_id"
-          ],
-          "isUnique": true
-        },
         "users_github_id_idx": {
           "name": "users_github_id_idx",
           "columns": [
@@ -923,9 +861,9 @@
   "views": {},
   "enums": {},
   "_meta": {
+    "columns": {},
     "schemas": {},
-    "tables": {},
-    "columns": {}
+    "tables": {}
   },
   "internal": {
     "indexes": {}
