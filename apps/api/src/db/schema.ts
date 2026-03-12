@@ -25,7 +25,7 @@ export const users = sqliteTable(
     "users",
     {
         id: id(),
-        githubId: text("github_id").notNull(),
+        githubId: text("github_id").notNull().unique(),
         name: text("name").notNull(),
         displayName: text("display_name"),
         avatarUrl: text("avatar_url"),
