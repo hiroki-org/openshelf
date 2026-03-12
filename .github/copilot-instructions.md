@@ -135,7 +135,11 @@ When you receive instructions, follow these guidelines based on the context:
 - **New Tasks**: Create a new branch and open a Pull Request.
 - **Existing Improvements**: Checkout the existing branch and edit the code.
 
+ - If ignoring a suggestion, reply with a clear reason why it is being skipped, and resolve the conversation.
+ - Ensure that the number of unresolved conversations (`isResolved: false`) is strictly 0.
+
 ### Pull Request Reviews
+When responding to PR reviews using the `gh` CLI:
 When responding to PR reviews using the `gh` CLI:
 - Always reply to and resolve the GitHub conversation for each comment.
 - If accepting a suggestion, apply the change, reply with the commit details explaining how it was addressed, and resolve the conversation.
