@@ -41,24 +41,29 @@ auth.get("/github/callback", async (c) => {
     if (!code || !state || state !== storedState) {
         return c.json({ error: "Invalid OAuth state" }, 400);
     }
-    deleteCookie(c, "oauth_state", { path: "/" });
 
     // Exchange code for access token
-    const tokenRes = await fetch(
-        "https://github.com/login/oauth/access_token",
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
+    let tokenRes: Response;
+    try {
+        tokenRes = await fetch(
+            "https://github.com/login/oauth/access_token",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                },
+                body: JSON.stringify({
+                    client_id: c.env.GITHUB_CLIENT_ID,
+                    client_secret: c.env.GITHUB_CLIENT_SECRET,
+                    code,
+                }),
             },
-            body: JSON.stringify({
-                client_id: c.env.GITHUB_CLIENT_ID,
-                client_secret: c.env.GITHUB_CLIENT_SECRET,
-                code,
-            }),
-        },
-    );
+        );
+    } catch (error) {
+        console.error("GitHub OAuth token exchange request failed:", error);
+        return c.json({ error: "Failed to exchange OAuth code" }, 502);
+    }
 
     if (!tokenRes.ok) {
         const tokenErr = await tokenRes.text();
@@ -71,24 +76,36 @@ auth.get("/github/callback", async (c) => {
         );
     }
 
-    const rawTokenData = (await tokenRes.json()) as unknown;
+    let rawTokenData: unknown;
+    try {
+        rawTokenData = (await tokenRes.json()) as unknown;
+    } catch (error) {
+        console.error("GitHub OAuth token exchange response was not valid JSON:", error);
+        return c.json({ error: "Failed to exchange OAuth code" }, 502);
+    }
     if (
         !rawTokenData ||
         typeof rawTokenData !== "object" ||
         typeof (rawTokenData as { access_token?: unknown }).access_token !==
-        "string"
+            "string"
     ) {
         return c.json({ error: "Failed to get access token" }, 400);
     }
     const accessToken = (rawTokenData as { access_token: string }).access_token;
 
     // Get GitHub user info
-    const userRes = await fetch("https://api.github.com/user", {
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "User-Agent": "OpenShelf",
-        },
-    });
+    let userRes: Response;
+    try {
+        userRes = await fetch("https://api.github.com/user", {
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "User-Agent": "OpenShelf",
+            },
+        });
+    } catch (error) {
+        console.error("GitHub user lookup request failed:", error);
+        return c.json({ error: "Failed to fetch GitHub user" }, 502);
+    }
 
     if (!userRes.ok) {
         const userErr = await userRes.text();
@@ -101,7 +118,13 @@ auth.get("/github/callback", async (c) => {
         );
     }
 
-    const rawGhUser = (await userRes.json()) as unknown;
+    let rawGhUser: unknown;
+    try {
+        rawGhUser = (await userRes.json()) as unknown;
+    } catch (error) {
+        console.error("GitHub user response was not valid JSON:", error);
+        return c.json({ error: "Failed to fetch GitHub user" }, 502);
+    }
     if (!rawGhUser || typeof rawGhUser !== "object") {
         return c.json({ error: "Invalid GitHub user payload" }, 502);
     }
@@ -126,54 +149,67 @@ auth.get("/github/callback", async (c) => {
         typeof ghUser.avatar_url === "string" ? ghUser.avatar_url : null;
     const ghEmail = typeof ghUser.email === "string" ? ghUser.email : null;
 
-    const db = drizzle(c.env.DB);
-    await enableForeignKeys(db);
-
     // Upsert user atomically by githubId.
     const githubId = String(ghUser.id);
     const insertedUserId = crypto.randomUUID();
-    await db
-        .insert(users)
-        .values({
-            id: insertedUserId,
-            githubId,
-            name: ghName,
-            avatarUrl: ghAvatar,
-            email: ghEmail,
-        })
-        .onConflictDoUpdate({
-            target: users.githubId,
-            set: {
+    const db = drizzle(c.env.DB);
+    let userId: string;
+    try {
+        await enableForeignKeys(db);
+        await db
+            .insert(users)
+            .values({
+                id: insertedUserId,
+                githubId,
                 name: ghName,
                 avatarUrl: ghAvatar,
                 email: ghEmail,
-            },
-        });
+            })
+            .onConflictDoUpdate({
+                target: users.githubId,
+                set: {
+                    name: ghName,
+                    avatarUrl: ghAvatar,
+                    email: ghEmail,
+                },
+            });
 
-    const upsertedUser = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.githubId, githubId))
-        .get();
-    if (!upsertedUser) {
-        return c.json({ error: "Failed to upsert user" }, 500);
+        const upsertedUser = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(eq(users.githubId, githubId))
+            .get();
+        if (!upsertedUser) {
+            console.error(`GitHub OAuth user lookup returned no row for githubId=${githubId}`);
+            return c.json({ error: "Failed to persist GitHub user" }, 500);
+        }
+        userId = upsertedUser.id;
+    } catch (error) {
+        console.error(`GitHub OAuth user persistence failed for githubId=${githubId}:`, error);
+        return c.json({ error: "Failed to persist GitHub user" }, 500);
     }
-    const userId = upsertedUser.id;
 
     // Generate JWT (7-day expiry)
     const now = Math.floor(Date.now() / 1000);
-    const jwt = await sign(
-        {
-            sub: userId,
-            githubId,
-            name: ghName,
-            iat: now,
-            exp: now + JWT_EXPIRY_SECONDS,
-        },
-        c.env.JWT_SECRET,
-        "HS256",
-    );
+    let jwt: string;
+    try {
+        jwt = await sign(
+            {
+                sub: userId,
+                githubId,
+                name: ghName,
+                iat: now,
+                exp: now + JWT_EXPIRY_SECONDS,
+            },
+            c.env.JWT_SECRET,
+            "HS256",
+        );
+    } catch (error) {
+        console.error(`GitHub OAuth JWT signing failed for githubId=${githubId}:`, error);
+        return c.json({ error: "Failed to create session token" }, 500);
+    }
 
+    deleteCookie(c, "oauth_state", { path: "/" });
     return c.redirect(`${c.env.FRONTEND_URL}/auth/callback#token=${jwt}`);
 });
 
