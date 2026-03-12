@@ -17,8 +17,15 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
 
 
 
+// Maximum file size to perform deep content validation (50 MB).
+// Files larger than this are likely not standard presentation files and
+// scanning them entirely would be a DoS vector.
+const MAX_DEEP_VALIDATION_BYTES = 50 * 1024 * 1024;
+
 // Helper function to search for a byte sequence within a file in chunks
 async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promise<boolean> {
+    if (file.size > MAX_DEEP_VALIDATION_BYTES) return false;
+
     const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
     const searchLen = searchBytes.length;
 
@@ -30,14 +37,11 @@ async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promis
 
         let i = chunk.indexOf(searchBytes[0]);
         while (i !== -1 && i <= chunk.length - searchLen) {
-            let match = true;
-            for (let j = 1; j < searchLen; j++) {
-                if (chunk[i + j] !== searchBytes[j]) {
-                    match = false;
-                    break;
-                }
+            let j = 1;
+            while (j < searchLen && chunk[i + j] === searchBytes[j]) {
+                j++;
             }
-            if (match) {
+            if (j === searchLen) {
                 return true;
             }
             i = chunk.indexOf(searchBytes[0], i + 1);
