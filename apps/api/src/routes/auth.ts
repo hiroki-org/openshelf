@@ -309,7 +309,7 @@ auth.post("/test-org", async (c) => {
             userId: body.userId,
             role: "member",
         })
-        .onConflictDoNothing();
+        .onConflictDoNothing({ target: [orgMembers.orgId, orgMembers.userId] });
 
     return c.json({ ok: true });
 });
