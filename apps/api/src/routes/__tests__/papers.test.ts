@@ -78,7 +78,7 @@ describe("papers routes", () => {
 
         expect(res.status).toBe(400);
         const body = (await res.json()) as any;
-        expect(body.error).toContain("does not match expected format");
+        expect(body.error).toContain("invalid or is of an unsupported type");
     });
 
     it("GET /api/papers returns current user's papers", async () => {
