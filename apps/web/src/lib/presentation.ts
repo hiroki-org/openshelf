@@ -60,15 +60,15 @@ export function getInviteStatusBadge(status: string): BadgePresentation {
 export function getRoleBadge(role: string): BadgePresentation {
   switch (role) {
     case "owner":
-      return createBadge("owner", "info");
+      return createBadge("オーナー", "info");
     case "admin":
-      return createBadge("admin", "warning");
+      return createBadge("管理者", "warning");
     case "member":
-      return createBadge("member", "neutral");
+      return createBadge("メンバー", "neutral");
     case "uploader":
-      return createBadge("uploader", "info");
+      return createBadge("アップロード者", "info");
     case "author":
-      return createBadge("author", "success");
+      return createBadge("著者", "success");
     default:
       return createBadge(role, "neutral");
   }

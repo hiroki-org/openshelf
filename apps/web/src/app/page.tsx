@@ -30,11 +30,13 @@ export default function Home() {
       .catch(() => setPapers([]));
   }, [user]);
 
+  const toCreatedAtMs = (value: string) =>
+    Date.parse(value.includes("T") ? value : `${value.replace(" ", "T")}Z`);
+
   const recentPapers = useMemo(
     () =>
       [...papers].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        (a, b) => toCreatedAtMs(b.createdAt) - toCreatedAtMs(a.createdAt),
       ),
     [papers],
   );
@@ -75,12 +77,13 @@ export default function Home() {
                 >
                   GitHubでログイン
                 </button>
-                <Link
-                  href="/upload"
+                <button
+                  type="button"
+                  onClick={login}
                   className="inline-flex items-center justify-center rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                 >
-                  アップロード画面を見る
-                </Link>
+                  ログインしてアップロード
+                </button>
               </div>
             </div>
 

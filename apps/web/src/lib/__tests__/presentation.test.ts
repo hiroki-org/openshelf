@@ -85,7 +85,7 @@ describe("presentation badge helpers", () => {
   describe("getRoleBadge", () => {
     it("returns an owner badge", () => {
       expect(getRoleBadge("owner")).toEqual({
-        label: "owner",
+        label: "オーナー",
         tone: "info",
         className:
           "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-900",
@@ -94,7 +94,7 @@ describe("presentation badge helpers", () => {
 
     it("returns an admin badge", () => {
       expect(getRoleBadge("admin")).toEqual({
-        label: "admin",
+        label: "管理者",
         tone: "warning",
         className:
           "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-900",
@@ -103,7 +103,7 @@ describe("presentation badge helpers", () => {
 
     it("returns a member badge", () => {
       expect(getRoleBadge("member")).toEqual({
-        label: "member",
+        label: "メンバー",
         tone: "neutral",
         className:
           "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700",
@@ -112,7 +112,7 @@ describe("presentation badge helpers", () => {
 
     it("returns an uploader badge", () => {
       expect(getRoleBadge("uploader")).toEqual({
-        label: "uploader",
+        label: "アップロード者",
         tone: "info",
         className:
           "bg-sky-50 text-sky-700 ring-1 ring-inset ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-900",
@@ -121,7 +121,7 @@ describe("presentation badge helpers", () => {
 
     it("returns an author badge", () => {
       expect(getRoleBadge("author")).toEqual({
-        label: "author",
+        label: "著者",
         tone: "success",
         className:
           "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900",
