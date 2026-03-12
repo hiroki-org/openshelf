@@ -22,6 +22,12 @@ type UsersIndexInfoRow = {
     name: string;
 };
 
+type D1QueryRunner = {
+    prepare(query: string): {
+        all<T = Record<string, unknown>>(): Promise<{ results: T[] }>;
+    };
+};
+
 const USER_PERSISTENCE_SESSION = "first-primary" as const;
 
 const UPSERT_GITHUB_USER_SQL = `
@@ -33,6 +39,16 @@ const UPSERT_GITHUB_USER_SQL = `
         email = excluded.email
 `;
 
+const UPSERT_GITHUB_USER_WITH_UPDATED_AT_SQL = `
+    INSERT INTO users (id, github_id, name, avatar_url, email)
+    VALUES (?1, ?2, ?3, ?4, ?5)
+    ON CONFLICT(github_id) DO UPDATE SET
+        name = excluded.name,
+        avatar_url = excluded.avatar_url,
+        email = excluded.email,
+        updated_at = datetime('now')
+`;
+
 const SELECT_GITHUB_USER_ID_SQL = `
     SELECT id
     FROM users
@@ -42,12 +58,23 @@ const SELECT_GITHUB_USER_ID_SQL = `
 const getErrorMessage = (error: unknown) =>
     error instanceof Error ? error.message : String(error);
 
+const readUsersTableColumns = async (db: D1QueryRunner) => {
+    const columnResult = await db.prepare("PRAGMA table_info(users)").all<UsersTableInfoRow>();
+    return columnResult.results.map((row) => row.name);
+};
+
+const detectUsersUpdatedAtColumn = async (db: D1Database) => {
+    try {
+        const columns = await readUsersTableColumns(db);
+        return columns.includes("updated_at");
+    } catch {
+        return false;
+    }
+};
+
 const readUsersSchemaDiagnostics = async (db: D1Database) => {
     try {
-        const columnResult = await db
-            .prepare("PRAGMA table_info(users)")
-            .all<UsersTableInfoRow>();
-        const columns = columnResult.results.map((row) => row.name);
+        const columns = await readUsersTableColumns(db);
 
         const indexListResult = await db
             .prepare("PRAGMA index_list(users)")
@@ -111,11 +138,15 @@ export async function persistGitHubUser(
     db: D1Database,
     input: PersistGitHubUserInput,
 ): Promise<{ userId: string }> {
+    const hasUpdatedAtColumn = await detectUsersUpdatedAtColumn(db);
     const session = db.withSession(USER_PERSISTENCE_SESSION);
+    const upsertSql = hasUpdatedAtColumn
+        ? UPSERT_GITHUB_USER_WITH_UPDATED_AT_SQL
+        : UPSERT_GITHUB_USER_SQL;
 
     try {
         await session
-            .prepare(UPSERT_GITHUB_USER_SQL)
+            .prepare(upsertSql)
             .bind(
                 input.candidateUserId,
                 input.githubId,

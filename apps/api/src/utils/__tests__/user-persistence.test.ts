@@ -36,6 +36,53 @@ describe("persistGitHubUser", () => {
         expect(withSession).toHaveBeenCalledWith("first-primary");
     });
 
+    it("updates updated_at on conflict when the column exists", async () => {
+        let upsertQuery = "";
+        const { db } = createMockD1({
+            sessionHandler: (query) => {
+                if (query.includes("INSERT INTO users")) {
+                    upsertQuery = query;
+                    return {
+                        run: async () => ({ results: [] }),
+                    };
+                }
+                if (query.includes("SELECT id")) {
+                    return {
+                        first: async () => ({ id: "persisted-user-1" }),
+                    };
+                }
+            },
+            dbHandler: (query) => {
+                if (query === "PRAGMA table_info(users)") {
+                    return {
+                        all: async () => ({
+                            results: [
+                                { name: "id" },
+                                { name: "github_id" },
+                                { name: "name" },
+                                { name: "avatar_url" },
+                                { name: "email" },
+                                { name: "created_at" },
+                                { name: "updated_at" },
+                            ],
+                        }),
+                    };
+                }
+            },
+        });
+
+        await persistGitHubUser(db, {
+            candidateUserId: "candidate-user-1",
+            githubId: "123",
+            name: "Octo Cat",
+            avatarUrl: null,
+            email: null,
+            source: "oauth-callback",
+        });
+
+        expect(upsertQuery).toContain("updated_at = datetime('now')");
+    });
+
     it("logs schema diagnostics when the users github_id conflict target is missing", async () => {
         const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
         const { db } = createMockD1({
