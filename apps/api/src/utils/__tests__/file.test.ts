@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { validateMagicNumbers } from "../file";
 
 describe("validateMagicNumbers", () => {
@@ -17,7 +17,7 @@ describe("validateMagicNumbers", () => {
             // PDF magic: %PDF- (0x25 0x50 0x44 0x46 0x2D)
             const magic = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d]);
             const file = createFileWithMagic(magic);
-            const result = await validateMagicNumbers(file, "application/pdf");
+            const result = await validateMagicNumbers(file, ["application/pdf"]);
             expect(result).toBe(true);
         });
 
@@ -25,14 +25,14 @@ describe("validateMagicNumbers", () => {
             // PNG magic
             const magic = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
             const file = createFileWithMagic(magic);
-            const result = await validateMagicNumbers(file, "application/pdf");
+            const result = await validateMagicNumbers(file, ["application/pdf"]);
             expect(result).toBe(false);
         });
 
         it("should reject file with no recognized magic number", async () => {
             const magic = new Uint8Array([0x00, 0x00, 0x00, 0x00, 0x00]);
             const file = createFileWithMagic(magic);
-            const result = await validateMagicNumbers(file, "application/pdf");
+            const result = await validateMagicNumbers(file, ["application/pdf"]);
             expect(result).toBe(false);
         });
     });
@@ -42,7 +42,7 @@ describe("validateMagicNumbers", () => {
             // PNG magic: 89 50 4E 47 0D 0A 1A 0A
             const magic = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
             const file = createFileWithMagic(magic);
-            const result = await validateMagicNumbers(file, "image/png");
+            const result = await validateMagicNumbers(file, ["image/png"]);
             expect(result).toBe(true);
         });
 
@@ -50,7 +50,7 @@ describe("validateMagicNumbers", () => {
             // JPEG magic
             const magic = new Uint8Array([0xff, 0xd8, 0xff]);
             const file = createFileWithMagic(magic);
-            const result = await validateMagicNumbers(file, "image/png");
+            const result = await validateMagicNumbers(file, ["image/png"]);
             expect(result).toBe(false);
         });
     });
@@ -60,7 +60,7 @@ describe("validateMagicNumbers", () => {
             // JPEG magic: FF D8 FF
             const magic = new Uint8Array([0xff, 0xd8, 0xff]);
             const file = createFileWithMagic(magic);
-            const result = await validateMagicNumbers(file, "image/jpeg");
+            const result = await validateMagicNumbers(file, ["image/jpeg"]);
             expect(result).toBe(true);
         });
     });
@@ -88,10 +88,7 @@ describe("validateMagicNumbers", () => {
             });
 
             const file = new File([buffer], "test.pptx", { type: "application/zip" });
-            const result = await validateMagicNumbers(
-                file,
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            );
+            const result = await validateMagicNumbers(file, ["application/vnd.openxmlformats-officedocument.presentationml.presentation"]);
             expect(result).toBe(true);
         });
 
@@ -99,10 +96,7 @@ describe("validateMagicNumbers", () => {
             // ZIP magic but no presentation.xml
             const zipMagic = new Uint8Array([0x50, 0x4b, 0x03, 0x04]);
             const file = createFileWithMagic(zipMagic, 1000);
-            const result = await validateMagicNumbers(
-                file,
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            );
+            const result = await validateMagicNumbers(file, ["application/vnd.openxmlformats-officedocument.presentationml.presentation"]);
             expect(result).toBe(false);
         });
 
@@ -121,10 +115,9 @@ describe("validateMagicNumbers", () => {
             const actualFile = new File([buffer], "large.pptx", { type: "application/zip" });
             Object.defineProperty(actualFile, "size", { value: largeSize });
 
-            const result = await validateMagicNumbers(
-                actualFile,
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            );
+            const result = await validateMagicNumbers(actualFile, [
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            ]);
             expect(result).toBe(false);
         });
     });
@@ -156,10 +149,7 @@ describe("validateMagicNumbers", () => {
             });
 
             const file = new File([buffer], "test.ppt", { type: "application/x-ole-storage" });
-            const result = await validateMagicNumbers(
-                file,
-                "application/vnd.ms-powerpoint"
-            );
+            const result = await validateMagicNumbers(file, ["application/vnd.ms-powerpoint"]);
             expect(result).toBe(true);
         });
 
@@ -167,10 +157,7 @@ describe("validateMagicNumbers", () => {
             // OLE2 magic but no PowerPoint Document string
             const oleMagic = new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
             const file = createFileWithMagic(oleMagic, 1000);
-            const result = await validateMagicNumbers(
-                file,
-                "application/vnd.ms-powerpoint"
-            );
+            const result = await validateMagicNumbers(file, ["application/vnd.ms-powerpoint"]);
             expect(result).toBe(false);
         });
 
@@ -185,10 +172,9 @@ describe("validateMagicNumbers", () => {
             const actualFile = new File([buffer], "large.ppt", { type: "application/x-ole-storage" });
             Object.defineProperty(actualFile, "size", { value: 51 * 1024 * 1024 });
 
-            const result = await validateMagicNumbers(
-                actualFile,
-                "application/vnd.ms-powerpoint"
-            );
+            const result = await validateMagicNumbers(actualFile, [
+                "application/vnd.ms-powerpoint",
+            ]);
             expect(result).toBe(false);
         });
     });
@@ -197,7 +183,7 @@ describe("validateMagicNumbers", () => {
         it("should reject unknown MIME types even with valid magic numbers", async () => {
             const pdfMagic = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
             const file = createFileWithMagic(pdfMagic);
-            const result = await validateMagicNumbers(file, "application/unknown");
+            const result = await validateMagicNumbers(file, ["application/unknown"]);
             expect(result).toBe(false);
         });
     });
@@ -211,14 +197,14 @@ describe("validateMagicNumbers", () => {
             view[1] = 0x50;
             const file = new File([buffer], "tiny.pdf", { type: "application/pdf" });
             // Should not crash
-            const result = await validateMagicNumbers(file, "application/pdf");
+            const result = await validateMagicNumbers(file, ["application/pdf"]);
             expect(typeof result).toBe("boolean");
         });
 
         it("should handle empty files", async () => {
             const buffer = new ArrayBuffer(0);
             const file = new File([buffer], "empty.pdf", { type: "application/pdf" });
-            const result = await validateMagicNumbers(file, "application/pdf");
+            const result = await validateMagicNumbers(file, ["application/pdf"]);
             expect(result).toBe(false);
         });
     });
@@ -252,10 +238,7 @@ describe("validateMagicNumbers", () => {
             });
 
             const file = new File([buffer], "test.pptx", { type: "application/zip" });
-            const result = await validateMagicNumbers(
-                file,
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            );
+            const result = await validateMagicNumbers(file, ["application/vnd.openxmlformats-officedocument.presentationml.presentation"]);
             expect(result).toBe(true);
         });
     });
