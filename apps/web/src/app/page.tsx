@@ -24,6 +24,9 @@ type Paper = {
   createdAt: string;
 };
 
+const toCreatedAtMs = (value: string) =>
+  Date.parse(value.includes("T") ? value : `${value.replace(" ", "T")}Z`);
+
 export default function Home() {
   const { user, loading, login } = useAuth();
   const [papers, setPapers] = useState<Paper[]>([]);
@@ -35,7 +38,7 @@ export default function Home() {
       return;
     }
     setPapersLoading(true);
-    apiFetch("/api/papers", { credentials: "include" })
+    apiFetch("/api/papers")
       .then(async (r) => {
         if (!r.ok) return { papers: [] as Paper[] };
         return r.json();
@@ -44,9 +47,6 @@ export default function Home() {
       .catch(() => setPapers([]))
       .finally(() => setPapersLoading(false));
   }, [user]);
-
-  const toCreatedAtMs = (value: string) =>
-    Date.parse(value.includes("T") ? value : `${value.replace(" ", "T")}Z`);
 
   const recentPapers = useMemo(
     () =>
@@ -222,49 +222,47 @@ export default function Home() {
           </div>
 
           <ul className="space-y-3">
-            {recentPapers.map((p) => (
-              <li key={p.id}>
-                <Link
-                  href={`/papers/${p.id}`}
-                  className="group block rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-900"
-                >
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {(() => {
-                          const badge = getVisibilityBadge(p.visibility);
-                          return (
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
-                            >
-                              {badge.label}
+            {recentPapers.map((p) => {
+              const badge = getVisibilityBadge(p.visibility);
+              return (
+                <li key={p.id}>
+                  <Link
+                    href={`/papers/${p.id}`}
+                    className="group block rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-950 dark:hover:bg-gray-900"
+                  >
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
+                          >
+                            {badge.label}
+                          </span>
+                          {p.year && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {p.year}年
                             </span>
-                          );
-                        })()}
-                        {p.year && (
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {p.year}年
-                          </span>
-                        )}
-                        {p.category && (
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {CATEGORY_LABELS[p.category] ?? p.category}
-                          </span>
-                        )}
+                          )}
+                          {p.category && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              {CATEGORY_LABELS[p.category] ?? p.category}
+                            </span>
+                          )}
+                        </div>
+
+                        <h3 className="mt-3 text-base font-semibold text-gray-950 transition-colors group-hover:text-gray-700 dark:text-gray-50 dark:group-hover:text-gray-200">
+                          {p.title}
+                        </h3>
                       </div>
 
-                      <h3 className="mt-3 text-base font-semibold text-gray-950 transition-colors group-hover:text-gray-700 dark:text-gray-50 dark:group-hover:text-gray-200">
-                        {p.title}
-                      </h3>
+                      <div className="text-sm text-gray-400 transition-transform group-hover:translate-x-0.5">
+                        →
+                      </div>
                     </div>
-
-                    <div className="text-sm text-gray-400 transition-transform group-hover:translate-x-0.5">
-                      →
-                    </div>
-                  </div>
-                </Link>
-              </li>
-            ))}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
