@@ -1,26 +1,42 @@
 import { Hono } from "hono";
-import { setCookie, deleteCookie, getCookie } from "hono/cookie";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { sign } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
-import { users, orgs, orgMembers, enableForeignKeys } from "../db/schema";
+import { users, orgs, orgMembers, enableForeignKeys, touchUpdatedAt } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
+const OAUTH_STATE_TTL_MS = 5 * 60 * 1000;
+const OAUTH_STATE_TTL_SECONDS = OAUTH_STATE_TTL_MS / 1000;
+const OAUTH_FLOW_NONCE_COOKIE = "oauth_flow_nonce";
 
 // GET /api/auth/github — redirect to GitHub OAuth
 auth.get("/github", async (c) => {
     const state = crypto.randomUUID();
-    const isSecure = new URL(c.req.url).protocol === "https:";
-    setCookie(c, "oauth_state", state, {
+    const flowNonce = crypto.randomUUID();
+
+    // Opportunistically clean up expired states to prevent unbounded growth.
+    await c.env.DB.prepare(
+        "DELETE FROM oauth_states WHERE created_at <= datetime('now', '-5 minutes')",
+    ).run();
+
+    await c.env.DB.prepare(
+        "INSERT INTO oauth_states (state, browser_nonce) VALUES (?, ?)",
+    )
+        .bind(state, flowNonce)
+        .run();
+
+    setCookie(c, OAUTH_FLOW_NONCE_COOKIE, flowNonce, {
         httpOnly: true,
-        secure: isSecure,
-        sameSite: isSecure ? "None" : "Lax",
+        secure: new URL(c.req.url).protocol === "https:",
+        sameSite: "Lax",
+        maxAge: OAUTH_STATE_TTL_SECONDS,
         path: "/",
-        maxAge: 600,
     });
+
     const params = new URLSearchParams({
         client_id: c.env.GITHUB_CLIENT_ID,
         redirect_uri: `${new URL(c.req.url).origin}/api/auth/github/callback`,
@@ -35,13 +51,38 @@ auth.get("/github", async (c) => {
 // GET /api/auth/github/callback — exchange code, upsert user, issue JWT
 auth.get("/github/callback", async (c) => {
     const code = c.req.query("code");
-    const state = c.req.query("state");
-    const storedState = getCookie(c, "oauth_state");
+    const stateParam = c.req.query("state");
+    const flowNonce = getCookie(c, OAUTH_FLOW_NONCE_COOKIE);
 
-    if (!code || !state || state !== storedState) {
-        return c.json({ error: "Invalid OAuth state" }, 400);
+    deleteCookie(c, OAUTH_FLOW_NONCE_COOKIE, { path: "/" });
+
+    if (!stateParam) {
+        return c.json({ error: "Missing state parameter" }, 400);
     }
-    deleteCookie(c, "oauth_state", { path: "/" });
+
+    if (!flowNonce) {
+        return c.json({ error: "Missing OAuth flow cookie" }, 400);
+    }
+
+    const row = await c.env.DB.prepare(
+        "DELETE FROM oauth_states WHERE state = ? AND browser_nonce = ? RETURNING created_at",
+    )
+        .bind(stateParam, flowNonce)
+        .first<{ created_at: string }>();
+
+    if (!row) {
+        return c.json({ error: "Invalid or expired state" }, 400);
+    }
+
+    const createdAt = new Date(`${row.created_at}Z`);
+    const nowDate = new Date();
+    if (nowDate.getTime() - createdAt.getTime() > OAUTH_STATE_TTL_MS) {
+        return c.json({ error: "State expired" }, 400);
+    }
+
+    if (!code) {
+        return c.json({ error: "Missing code parameter" }, 400);
+    }
 
     // Exchange code for access token
     const tokenRes = await fetch(
@@ -140,6 +181,7 @@ auth.get("/github/callback", async (c) => {
             name: ghName,
             avatarUrl: ghAvatar,
             email: ghEmail,
+            ...touchUpdatedAt(),
         })
         .onConflictDoUpdate({
             target: users.githubId,
@@ -147,6 +189,7 @@ auth.get("/github/callback", async (c) => {
                 name: ghName,
                 avatarUrl: ghAvatar,
                 email: ghEmail,
+                ...touchUpdatedAt(),
             },
         });
 
@@ -174,7 +217,15 @@ auth.get("/github/callback", async (c) => {
         "HS256",
     );
 
-    return c.redirect(`${c.env.FRONTEND_URL}/auth/callback#token=${jwt}`);
+    const frontendUrl = c.env.FRONTEND_URL;
+    if (!frontendUrl) {
+        console.error("FATAL: FRONTEND_URL environment variable is not set.");
+        return c.json({ error: "Server configuration error" }, 500);
+    }
+
+    const callbackUrl = new URL("/auth/callback", frontendUrl);
+    callbackUrl.hash = new URLSearchParams({ token: jwt }).toString();
+    return c.redirect(callbackUrl.toString());
 });
 
 // GET /api/auth/me — current user info
@@ -235,11 +286,13 @@ auth.post("/test-token", async (c) => {
             name: body.name,
             avatarUrl: null,
             email: null,
+            ...touchUpdatedAt(),
         })
         .onConflictDoUpdate({
             target: users.githubId,
             set: {
                 name: body.name,
+                ...touchUpdatedAt(),
             },
         });
 
@@ -299,6 +352,7 @@ auth.post("/test-org", async (c) => {
             id: body.orgId,
             slug: `test-org-${crypto.randomUUID().slice(0, 8)}`,
             name: "Test Org",
+            ...touchUpdatedAt(),
         })
         .onConflictDoNothing({ target: orgs.id });
 

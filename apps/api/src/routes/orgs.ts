@@ -9,6 +9,7 @@ import {
     paperAuthors,
     users,
     enableForeignKeys,
+    touchUpdatedAt,
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -115,6 +116,7 @@ orgsRoute.post("/", authMiddleware, async (c) => {
             slug,
             name,
             description,
+            ...touchUpdatedAt(),
         });
 
         // Creator becomes admin
