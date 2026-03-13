@@ -15,8 +15,6 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
     ["504B0304", "application/zip"],
 ];
 
-
-
 // Helper function to search for a byte sequence within a file in chunks
 async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promise<boolean> {
     const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks

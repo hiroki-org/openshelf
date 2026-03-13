@@ -5,6 +5,11 @@ import { apiFetch } from "@/lib/api";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import {
+  getVisibilityBadge,
+  getInviteStatusBadge,
+  getRoleBadge,
+} from "@/lib/presentation";
 
 const PdfViewer = dynamic(
   () => import("@/components/pdf-viewer").then((mod) => mod.PdfViewer),
@@ -367,35 +372,9 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     }
   };
 
-  const getVisibilityBadge = (visibility: string) => {
-    switch (visibility) {
-      case "public":
-        return {
-          label: "公開",
-          className:
-            "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
-        };
-      case "org_only":
-        return {
-          label: "組織限定",
-          className:
-            "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
-        };
-      case "private":
-        return {
-          label: "非公開",
-          className:
-            "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
-        };
-      default:
-        return {
-          label: visibility,
-          className: "bg-gray-100 text-gray-700 dark:bg-gray-800",
-        };
-    }
-  };
+  // Visibility badge is now handled via lib/presentation
 
-  const visibilityBadge = getVisibilityBadge(paper.visibility);
+  // Visibility badge is now handled via lib/presentation
   const showExternalLink =
     paper.externalUrl && isValidExternalUrl(paper.externalUrl);
 
@@ -403,13 +382,27 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     <div className="max-w-3xl">
       <h1 className="text-2xl font-bold mb-2">{paper.title}</h1>
 
-      <div className="flex flex-wrap gap-2 text-sm text-gray-500 mb-4">
-        <span className={`rounded px-2 py-0.5 ${visibilityBadge.className}`}>
-          {visibilityBadge.label}
-        </span>
-        {paper.year && <span>{paper.year}年</span>}
-        {paper.venue && <span>/ {paper.venue}</span>}
-        {paper.category && <span>/ {paper.category}</span>}
+      <div className="flex flex-wrap gap-2 text-sm text-gray-500 mb-6">
+        {(() => {
+          const badge = getVisibilityBadge(paper.visibility);
+          return (
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
+            >
+              {badge.label}
+            </span>
+          );
+        })()}
+        {paper.year && (
+          <span className="flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+            {paper.year}年
+          </span>
+        )}
+        {paper.venue && (
+          <span className="flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+            {paper.venue}
+          </span>
+        )}
       </div>
 
       {paper.abstract && (
@@ -520,20 +513,34 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         <h2 className="text-sm font-medium text-gray-500 mb-2">著者</h2>
         <ul className="space-y-2">
           {authors.map((a) => (
-            <li key={a.userId} className="flex items-center gap-2 text-sm">
-              {a.avatarUrl && (
-                <Image
-                  src={a.avatarUrl}
-                  alt={a.name}
-                  width={24}
-                  height={24}
-                  className="rounded-full"
-                />
-              )}
-              <span>{a.displayName ?? a.name}</span>
-              <span className="text-xs text-gray-400 rounded bg-gray-100 px-1.5 py-0.5 dark:bg-gray-800">
-                {a.role}
-              </span>
+            <li
+              key={a.userId}
+              className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/50 p-2.5 dark:border-gray-800 dark:bg-gray-900/50"
+            >
+              <div className="flex items-center gap-3">
+                {a.avatarUrl && (
+                  <Image
+                    src={a.avatarUrl}
+                    alt={a.name}
+                    width={28}
+                    height={28}
+                    className="rounded-full ring-1 ring-gray-200 dark:ring-gray-700"
+                  />
+                )}
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                  {a.displayName ?? a.name}
+                </span>
+              </div>
+              {(() => {
+                const badge = getRoleBadge(a.role);
+                return (
+                  <span
+                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${badge.className}`}
+                  >
+                    {badge.label}
+                  </span>
+                );
+              })()}
             </li>
           ))}
         </ul>
@@ -615,18 +622,21 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
                 key={inv.id}
                 className="flex items-center justify-between text-sm border rounded-md p-2 dark:border-gray-700"
               >
-                <span>{inv.inviteeName}</span>
-                <span
-                  className={`text-xs rounded px-1.5 py-0.5 ${
-                    inv.status === "pending"
-                      ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
-                      : inv.status === "accepted"
-                        ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                        : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                  }`}
-                >
-                  {inv.status}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {inv.inviteeName}
+                  </span>
+                </div>
+                {(() => {
+                  const badge = getInviteStatusBadge(inv.status);
+                  return (
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
+                    >
+                      {badge.label}
+                    </span>
+                  );
+                })()}
               </li>
             ))}
           </ul>

@@ -14,7 +14,7 @@ async function uploadPaper(page: Page, options: { title: string; visibility: 'pu
         response.url().includes('/api/papers') && response.request().method() === 'POST'
     );
 
-    await page.getByRole('button', { name: 'アップロード', exact: true }).click();
+    await page.getByRole('button', { name: '論文をアップロードする' }).click();
 
     const response = await uploadResponsePromise;
     expect(response.ok()).toBeTruthy();
