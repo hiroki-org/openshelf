@@ -17,7 +17,7 @@ import {
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
-import { validateMagicNumbers, detectMimeType, MIME_COMPATIBILITY } from "../utils/file";
+import { validateMagicNumbers } from "../utils/file";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -236,43 +236,19 @@ papersRoute.post("/", authMiddleware, async (c) => {
                 { error: `File ${file.name} exceeds 50 MB limit` },
                 400,
             );
-        // Validate that file content is of an allowed type
-        const detectedMimeType = await detectMimeType(file);
-        if (!detectedMimeType) {
-            console.error(`Unknown file format for file ${file.name}`);
+        if (!ALLOWED_MIME_TYPES.includes(file.type))
             return c.json(
-                { error: `File content of '${file.name}' is invalid or is of an unsupported type.` },
+                {
+                    error: `File ${file.name} has unsupported type: ${file.type || "unknown"}`,
+                },
                 400,
             );
-        }
 
-        // Check if the detected MIME type is allowed
-        const isDetectedTypeAllowed = ALLOWED_MIME_TYPES.some(
-            (allowed) => (MIME_COMPATIBILITY[allowed] ?? []).includes(detectedMimeType)
-        );
-        if (!isDetectedTypeAllowed) {
-            console.error(`Detected file format not allowed for ${file.name}: ${detectedMimeType}`);
+        const isValidContent = await validateMagicNumbers(file, file.type);
+        if (!isValidContent) {
+            console.error(`Magic number validation failed for file ${file.name} (declared: ${file.type})`);
             return c.json(
-                { error: `File content of '${file.name}' is invalid or is of an unsupported type.` },
-                400,
-            );
-        }
-
-        // Verify declared MIME type matches detected MIME type to prevent spoofing
-        const declaredMimeType = file.type || "";
-        const declaredTypeIsAllowed = ALLOWED_MIME_TYPES.includes(declaredMimeType);
-        if (!declaredTypeIsAllowed) {
-            return c.json(
-                { error: `File ${file.name} has unsupported type: ${declaredMimeType || "unknown"}` },
-                400,
-            );
-        }
-
-        const mimeTypeMatches = (MIME_COMPATIBILITY[declaredMimeType] ?? []).includes(detectedMimeType);
-        if (!mimeTypeMatches) {
-            console.error(`MIME type mismatch for file ${file.name}: declared=${declaredMimeType}, detected=${detectedMimeType}`);
-            return c.json(
-                { error: `File '${file.name}' content does not match declared type.` },
+                { error: `File ${file.name} does not match expected format for ${file.type}` },
                 400,
             );
         }

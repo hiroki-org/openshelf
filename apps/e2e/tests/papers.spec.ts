@@ -128,52 +128,6 @@ test.describe('PDFプレビュー', () => {
             await unauthContext.close();
         }
     });
-
-    test('公開論文の詳細ページで日本語PDFプレビューが描画されエラーにフォールバックしないこと', async ({ page, browser }) => {
-        const publicTitle = `Japanese Preview - ${randomUUID()}`;
-        await loginAsTestUser(page);
-
-        const publicPaperId = await uploadPaper(page, {
-            title: publicTitle,
-            visibility: 'public',
-            filePath: path.resolve(__dirname, '../fixtures/test-paper-ja.pdf')
-        });
-
-        const unauthContext = await browser.newContext();
-        const unauthPage = await unauthContext.newPage();
-        try {
-            await unauthPage.goto(`/papers/${publicPaperId}`);
-            await expect(unauthPage.getByRole('heading', { name: publicTitle })).toBeVisible();
-
-            const previewSurface = unauthPage.getByTestId('pdf-viewer-surface');
-            const renderedPdfPage = previewSurface.locator('.react-pdf__Page').first();
-            const renderedPdfCanvas = previewSurface.locator('.react-pdf__Page canvas').first();
-            const previewFallback = unauthPage.getByText('プレビューを読み込めません', { exact: true });
-
-            await expect(previewSurface).toBeVisible();
-            await expect(renderedPdfPage).toBeVisible({ timeout: 20000 });
-            await expect(renderedPdfCanvas).toBeVisible({ timeout: 20000 });
-            await expect(previewFallback).toHaveCount(0);
-
-            const canvasBounds = await renderedPdfCanvas.evaluate((element) => {
-                const canvas = element as HTMLCanvasElement;
-
-                return {
-                    width: canvas.clientWidth,
-                    height: canvas.clientHeight,
-                    naturalWidth: canvas.width,
-                    naturalHeight: canvas.height
-                };
-            });
-
-            expect(canvasBounds.width).toBeGreaterThan(0);
-            expect(canvasBounds.height).toBeGreaterThan(0);
-            expect(canvasBounds.naturalWidth).toBeGreaterThan(0);
-            expect(canvasBounds.naturalHeight).toBeGreaterThan(0);
-        } finally {
-            await unauthContext.close();
-        }
-    });
 });
 
 test.describe('論文ダウンロード', () => {

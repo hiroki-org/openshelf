@@ -6,24 +6,12 @@ import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 
 const usersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
-const userProfileSelection = {
-    id: users.id,
-    githubId: users.githubId,
-    name: users.name,
-    displayName: users.displayName,
-    avatarUrl: users.avatarUrl,
-    email: users.email,
-};
 
 // GET /api/users/me — current profile
 usersRoute.get("/me", authMiddleware, async (c) => {
     const db = drizzle(c.env.DB);
     const userId = c.get("user").sub;
-    const user = await db
-        .select(userProfileSelection)
-        .from(users)
-        .where(eq(users.id, userId))
-        .get();
+    const user = await db.select().from(users).where(eq(users.id, userId)).get();
     if (!user) return c.json({ error: "User not found" }, 404);
     return c.json({ user });
 });
@@ -68,12 +56,7 @@ const updateMeHandler = async (c: any) => {
         .set({ displayName: trimmed })
         .where(eq(users.id, userId));
 
-    const user = await db
-        .select(userProfileSelection)
-        .from(users)
-        .where(eq(users.id, userId))
-        .get();
-    if (!user) return c.json({ error: "User not found" }, 404);
+    const user = await db.select().from(users).where(eq(users.id, userId)).get();
     return c.json({ user });
 };
 
@@ -81,13 +64,56 @@ const updateMeHandler = async (c: any) => {
 usersRoute.patch("/me", authMiddleware, updateMeHandler);
 usersRoute.put("/me", authMiddleware, updateMeHandler);
 
+
+// Simple in-memory cache for user search
+type CachedSearchResult = {
+    data: any[];
+    timestamp: number;
+};
+const searchCache = new Map<string, CachedSearchResult>();
+const CACHE_TTL_MS = 60 * 1000; // 1 minute
+const MAX_CACHE_SIZE = 1000;
+
+function getCachedResults(key: string): any[] | null {
+    const cached = searchCache.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        return cached.data;
+    }
+    return null;
+}
+
+function setCachedResults(key: string, data: any[]) {
+    // cleanup old cache randomly to prevent memory leak
+    if (searchCache.size >= MAX_CACHE_SIZE) {
+        const now = Date.now();
+        for (const [k, v] of searchCache.entries()) {
+            if (now - v.timestamp > CACHE_TTL_MS) {
+                searchCache.delete(k);
+            }
+        }
+
+        // if still too large, clear to prevent memory leak
+        if (searchCache.size >= MAX_CACHE_SIZE) {
+            searchCache.clear();
+        }
+    }
+    searchCache.set(key, { data, timestamp: Date.now() });
+}
+
 // GET /api/users/search?q=xxx — search users for coauthor invite
 usersRoute.get("/search", authMiddleware, async (c) => {
     const q = c.req.query("q");
     if (!q || q.length < 2) return c.json({ users: [] });
 
-    const db = drizzle(c.env.DB);
     const currentUserId = c.get("user").sub;
+    const cacheKey = `${q}-${currentUserId}`;
+
+    const cachedUsers = getCachedResults(cacheKey);
+    if (cachedUsers) {
+        return c.json({ users: cachedUsers });
+    }
+
+    const db = drizzle(c.env.DB);
 
     const results = await db
         .select({
@@ -109,6 +135,8 @@ usersRoute.get("/search", authMiddleware, async (c) => {
         )
         .limit(10)
         .all();
+
+    setCachedResults(cacheKey, results);
 
     return c.json({ users: results });
 });
