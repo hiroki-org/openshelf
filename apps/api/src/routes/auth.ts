@@ -60,7 +60,7 @@ auth.get("/github/callback", async (c) => {
         .run();
 
     if (!code) {
-        return c.json({ error: "Invalid OAuth state" }, 400);
+        return c.json({ error: "Missing code parameter" }, 400);
     }
 
     // Exchange code for access token
