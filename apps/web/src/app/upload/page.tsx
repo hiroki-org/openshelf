@@ -68,6 +68,9 @@ export default function UploadPage() {
       fileType: "paper",
     }));
     setFiles((prev) => [...prev, ...newEntries]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const removeFile = (idx: number) => {
@@ -132,12 +135,33 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold mb-2">論文アップロード</h1>
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-8 rounded-3xl border border-gray-200 bg-white px-6 py-6 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:px-8 sm:py-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              Upload
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 dark:text-gray-50">
+              論文アップロード
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
+              タイトルや公開範囲、関連ファイルをまとめて登録します。必要な情報から順に入力できるよう、
+              セクションごとに整理しています。
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
+            <p className="font-medium text-gray-900 dark:text-gray-100">
+              添付ファイル
+            </p>
+            <p className="mt-1">{files.length} 件選択中</p>
+          </div>
+        </div>
 
-      <div className="mb-6 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
-        著者最終稿（Author Accepted
-        Manuscript）をアップロードしてください。出版社版のアップロードは著作権上の問題がある場合があります。
+        <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/80 p-4 text-sm leading-6 text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/40 dark:text-amber-200">
+          著者最終稿（Author Accepted Manuscript）をアップロードしてください。
+          出版社版のアップロードは著作権上の問題がある場合があります。
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -295,10 +319,13 @@ export default function UploadPage() {
         </div>
 
         {/* File uploads */}
-        <div>
-          <label className="block text-sm font-medium mb-1">
-            ファイル <span className="text-red-500">*</span>
-          </label>
+        <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-6 dark:border-gray-800 dark:bg-gray-900/50">
+          <p
+            id="upload-files-label"
+            className="mb-4 block text-sm font-semibold text-gray-900 dark:text-gray-100"
+          >
+            添付ファイル <span className="text-red-500">*</span>
+          </p>
           <input
             ref={fileInputRef}
             aria-label="アップロードファイル"
@@ -311,60 +338,91 @@ export default function UploadPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="rounded-md border border-dashed border-gray-400 px-4 py-8 w-full text-sm text-gray-500 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-900"
+            aria-describedby="upload-files-label"
+            className="group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-white px-5 py-10 transition-all hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
           >
-            クリックしてファイルを選択（PDF, PPT, 画像 / 最大50MB）
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors group-hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:group-hover:bg-gray-700">
+              <span className="text-2xl">+</span>
+            </div>
+            <span className="mt-4 block text-sm font-medium text-gray-900 dark:text-gray-100">
+              ファイルを複数選択
+            </span>
+            <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
+              PDF, PPT, 画像 / 1ファイル最大50MB
+            </span>
           </button>
 
           {files.length > 0 && (
-            <ul className="mt-2 space-y-2">
+            <ul className="mt-6 space-y-3">
               {files.map((entry, i) => (
                 <li
                   key={i}
-                  className="flex items-center gap-2 text-sm border rounded-md p-2 dark:border-gray-700"
+                  className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:flex-row sm:items-center"
                 >
-                  <span className="flex-1 truncate">{entry.file.name}</span>
-                  <select
-                    aria-label="ファイル種別"
-                    value={entry.fileType}
-                    onChange={(e) => {
-                      const updated = [...files];
-                      updated[i] = {
-                        ...entry,
-                        fileType: e.target.value as FileEntry["fileType"],
-                      };
-                      setFiles(updated);
-                    }}
-                    className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
-                  >
-                    {VALID_FILE_TYPES.map((ft) => (
-                      <option key={ft} value={ft}>
-                        {ft}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => removeFile(i)}
-                    className="text-red-500 hover:text-red-700 text-xs"
-                  >
-                    削除
-                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {entry.file.name}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {(entry.file.size / (1024 * 1024)).toFixed(1)} MB
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      aria-label="ファイル種別"
+                      value={entry.fileType}
+                      onChange={(e) => {
+                        const updated = [...files];
+                        updated[i] = {
+                          ...entry,
+                          fileType: e.target.value as FileEntry["fileType"],
+                        };
+                        setFiles(updated);
+                      }}
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 focus:border-gray-900 focus:ring-0 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-gray-100"
+                    >
+                      {VALID_FILE_TYPES.map((ft) => (
+                        <option key={ft} value={ft}>
+                          {ft}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                    >
+                      <span>✕</span>
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+            {error}
+          </div>
+        )}
 
-        <button
-          type="submit"
-          disabled={uploading}
-          className="w-full rounded-md bg-gray-900 px-4 py-2.5 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
-        >
-          {uploading ? "アップロード中..." : "アップロード"}
-        </button>
+        <div className="flex justify-end pt-4">
+          <button
+            type="submit"
+            disabled={uploading}
+            className="inline-flex min-w-48 items-center justify-center rounded-xl bg-gray-950 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-950 focus:ring-offset-2 disabled:opacity-50 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200 dark:focus:ring-white dark:focus:ring-offset-gray-950"
+          >
+            {uploading ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                アップロード中...
+              </span>
+            ) : (
+              "論文をアップロードする"
+            )}
+          </button>
+        </div>
       </form>
     </div>
   );

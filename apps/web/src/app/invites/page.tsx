@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { getInviteStatusBadge } from "@/lib/presentation";
 
 type ReceivedInvite = {
   id: string;
@@ -79,59 +80,99 @@ export default function InvitesPage() {
   if (loading || !user) return null;
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold mb-6">共著者招待</h1>
+    <div className="mx-auto max-w-3xl">
+      <div className="mb-8 rounded-3xl border border-gray-200 bg-white px-6 py-6 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:px-8 sm:py-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              Invites
+            </p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 dark:text-gray-50">
+              共著者招待
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
+              論文への招待を確認し、必要に応じて承認または拒否できます。
+              研究成果物への参加依頼を落ち着いて整理できる画面です。
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300">
+            <p className="font-medium text-gray-900 dark:text-gray-100">
+              受信件数
+            </p>
+            <p className="mt-1">{invites.length} 件</p>
+          </div>
+        </div>
+      </div>
 
       {fetching ? (
-        <p className="text-gray-500">読み込み中...</p>
+        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-12 text-center shadow-sm dark:border-gray-800 dark:bg-gray-950">
+          <p className="text-sm text-gray-500 dark:text-gray-400">読み込み中...</p>
+        </div>
       ) : invites.length === 0 ? (
-        <p className="text-gray-500 py-8 text-center">招待はありません</p>
+        <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center dark:border-gray-700 dark:bg-gray-900/60">
+          <div className="mx-auto max-w-md">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              招待はありません
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">
+              新しい共著者招待が届くと、この画面に一覧で表示されます。
+            </p>
+          </div>
+        </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-4">
           {invites.map((inv) => (
             <li
               key={inv.id}
-              className="rounded-lg border border-gray-200 p-4 dark:border-gray-800"
+              className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
             >
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(() => {
+                      const badge = getInviteStatusBadge(inv.status);
+                      return (
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
+                        >
+                          {badge.label}
+                        </span>
+                      );
+                    })()}
+                  </div>
+
                   <Link
                     href={`/papers/${inv.paperId}`}
-                    className="font-medium hover:underline"
+                    className="mt-3 block text-base font-semibold text-gray-950 transition-colors hover:text-gray-700 hover:underline dark:text-gray-50 dark:hover:text-gray-200"
                   >
                     {inv.paperTitle}
                   </Link>
-                  <p className="text-sm text-gray-500">
+                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                     {inv.inviterName} からの招待
                   </p>
                 </div>
+
                 {inv.status === "pending" ? (
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <button
                       type="button"
                       onClick={() => respond(inv.id, "accept")}
-                      className="rounded-md bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-500"
+                      className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
                     >
                       承認
                     </button>
                     <button
                       type="button"
                       onClick={() => respond(inv.id, "decline")}
-                      className="rounded-md border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100 dark:border-gray-700 dark:hover:bg-gray-800"
+                      className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                     >
                       拒否
                     </button>
                   </div>
                 ) : (
-                  <span
-                    className={`text-xs rounded px-2 py-1 ${
-                      inv.status === "accepted"
-                        ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                        : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                    }`}
-                  >
-                    {inv.status === "accepted" ? "承認済み" : "拒否済み"}
-                  </span>
+                  <div className="shrink-0 text-xs text-gray-400">
+                    対応済み
+                  </div>
                 )}
               </div>
             </li>
