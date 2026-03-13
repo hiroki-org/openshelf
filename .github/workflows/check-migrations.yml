@@ -1,7 +1,9 @@
 name: Check Migration Immutability
 on:
   pull_request:
-    paths: ["apps/api/migrations/**"]
+    paths:
+      - "apps/api/drizzle/**"
+      - "apps/api/migrations/**"
 
 jobs:
   check:
@@ -12,7 +14,7 @@ jobs:
           fetch-depth: 0
       - name: Check migration immutability
         run: |
-          CHANGED=$(git diff origin/main --diff-filter=M --name-only -- 'apps/api/migrations/*.sql')
+          CHANGED=$(git diff --name-status origin/main...HEAD -- 'apps/api/drizzle/*.sql' 'apps/api/migrations/*.sql' | awk '$1 != "A" {print $NF}')
           if [ -n "$CHANGED" ]; then
             echo "::error::適用済みマイグレーションファイルが変更されています:"
             echo "$CHANGED"
@@ -22,4 +24,3 @@ jobs:
             exit 1
           fi
           echo "✅ 適用済みマイグレーションに変更なし"
-

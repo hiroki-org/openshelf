@@ -4,7 +4,7 @@
 
 - 適用済みマイグレーションファイルは**イミュータブル**（変更禁止）
 - スキーマ変更は必ず新しい番号のファイルで追加する（例: `0004_add_column.sql`）
-- `main` マージ時に GitHub Actions が自動で `wrangler d1 migrations apply DB --remote` を実行する
+- `main` マージ時に GitHub Actions が自動で `wrangler d1 migrations apply DB --remote` を実行する（`DB` は `wrangler.toml` の D1 binding 名）
 - PR で既存マイグレーションファイルを変更すると CI が fail する
 
 ## GitHub Actions 用 Secrets
