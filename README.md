@@ -111,6 +111,7 @@ apps/
 
 1. Vercel に `apps/web` を Root Directory としてインポート。
 2. **Environment Variables** に以下を設定:
+   - `NEXT_PUBLIC_API_URL`: デプロイ済みの Cloudflare Worker URL（ブラウザ側 OAuth 開始・API 呼び出しで使用）
    - `API_URL`: デプロイ済みの Cloudflare Worker URL
    - `FRONTEND_URL`: 自身の URL (例: `https://openshelf.vercel.app`)
 
