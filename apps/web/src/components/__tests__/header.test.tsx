@@ -14,6 +14,7 @@ vi.mock("../auth-provider", () => ({
 
 const mockLogin = vi.fn();
 const mockLogout = vi.fn();
+const mockRefresh = vi.fn();
 
 describe("Header", () => {
   afterEach(() => {
@@ -28,6 +29,7 @@ describe("Header", () => {
       loading: false,
       login: mockLogin,
       logout: mockLogout,
+      refresh: mockRefresh,
     });
 
     render(<Header />);
@@ -41,6 +43,7 @@ describe("Header", () => {
       loading: false,
       login: mockLogin,
       logout: mockLogout,
+      refresh: mockRefresh,
     });
 
     render(<Header />);
@@ -56,13 +59,16 @@ describe("Header", () => {
     vi.mocked(useAuth).mockReturnValue({
       user: {
         id: "1",
+        githubId: 12345,
         name: "testuser",
         displayName: "Test User",
         avatarUrl: "https://example.com/avatar.png",
+        email: "test@example.com",
       },
       loading: false,
       login: mockLogin,
       logout: mockLogout,
+      refresh: mockRefresh,
     });
 
     render(<Header />);
@@ -91,13 +97,16 @@ describe("Header", () => {
     vi.mocked(useAuth).mockReturnValue({
       user: {
         id: "1",
+        githubId: 12345,
         name: "testuser",
         displayName: "Test User",
         avatarUrl: "https://example.com/avatar.png",
+        email: "test@example.com",
       },
       loading: false,
       login: mockLogin,
       logout: mockLogout,
+      refresh: mockRefresh,
     });
 
     render(<Header />);
@@ -116,6 +125,7 @@ describe("Header", () => {
       loading: true,
       login: mockLogin,
       logout: mockLogout,
+      refresh: mockRefresh,
     });
 
     render(<Header />);
