@@ -194,7 +194,11 @@ auth.get("/github/callback", async (c) => {
         "HS256",
     );
 
-    const frontendUrl = c.env.FRONTEND_URL || "https://open-shelf-delta.vercel.app";
+    const frontendUrl = c.env.FRONTEND_URL;
+    if (!frontendUrl) {
+        console.error("FATAL: FRONTEND_URL environment variable is not set.");
+        return c.json({ error: "Server configuration error" }, 500);
+    }
     return c.redirect(`${frontendUrl}/?token=${jwt}`);
 });
 
