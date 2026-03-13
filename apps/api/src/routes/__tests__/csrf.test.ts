@@ -9,19 +9,6 @@ describe("CSRF configuration", () => {
             TEST_AUTH_SECRET: "my-secret-key"
         });
 
-        await app.request(
-            "http://localhost/api/users",
-            {
-                method: "POST", // Mutative method to trigger CSRF check
-                headers: {
-                    "x-test-auth-secret": "my-secret-key"
-                }
-            },
-            env as any
-        );
-
-        // It should pass CSRF and fail on Auth or return something else, not 403 Forbidden from CSRF
-        // The users route might not have POST, so let's just use POST /api/auth/logout which is valid and mutative
         const logoutRes = await app.request(
             "http://localhost/api/auth/logout",
             {
