@@ -104,7 +104,17 @@ describe("papers routes", () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi
             .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "private" } }))
+            .mockImplementationOnce(() =>
+                makeQuery({
+                    getResult: {
+                        id: "paper-1",
+                        title: "P1",
+                        visibility: "private",
+                        language: "ja",
+                        doi: "10.1234/test",
+                    },
+                }),
+            )
             .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
             .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "file-1", filename: "paper.pdf" }] }))
             .mockImplementationOnce(() => makeQuery({ allResult: [{ userId: "user-1", role: "uploader", name: "Uploader", displayName: null, avatarUrl: null }] }));
@@ -120,6 +130,8 @@ describe("papers routes", () => {
         expect(res.status).toBe(200);
         const body = (await res.json()) as any;
         expect(body.paper.id).toBe("paper-1");
+        expect(body.paper.language).toBe("ja");
+        expect(body.paper.doi).toBe("10.1234/test");
         expect(mockDb.batch).toHaveBeenCalledTimes(1);
     });
 

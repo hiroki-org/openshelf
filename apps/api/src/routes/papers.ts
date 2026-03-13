@@ -32,7 +32,18 @@ const ALLOWED_MIME_TYPES = [
     "image/jpeg",
 ];
 const VALID_FILE_TYPES = ["paper", "slides", "poster", "supplementary"];
-const VALID_VISIBILITY = ["public", "org_only", "private"];
+const VALID_VISIBILITY = ["public", "org_only", "private"] as const;
+type VisibilityType = (typeof VALID_VISIBILITY)[number];
+
+const MAX_TITLE_LENGTH = 300;
+const MAX_ABSTRACT_LENGTH = 10000;
+const MAX_LANGUAGE_LENGTH = 64;
+const MAX_EXTERNAL_URL_LENGTH = 2048;
+const MAX_DOI_LENGTH = 255;
+const MAX_VENUE_LENGTH = 300;
+const MAX_ORG_ID_LENGTH = 64;
+const MAX_TAG_LENGTH = 64;
+const MAX_TAG_COUNT = 50;
 
 function sanitizeFilename(filename: string): string {
     const basename = filename.split(/[\\/]/).pop() ?? "";
@@ -52,6 +63,245 @@ function isValidUrlScheme(urlStr: string): boolean {
     } catch {
         return false;
     }
+}
+
+function hasOwn(source: Record<string, unknown>, key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(source, key);
+}
+
+function parseNullableString(
+    value: unknown,
+    field: string,
+    maxLength: number,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+    if (value === null || value === undefined) {
+        return { ok: true, value: null };
+    }
+    if (typeof value !== "string") {
+        return { ok: false, error: `${field} must be a string or null` };
+    }
+    const normalized = value.trim();
+    if (normalized.length === 0) {
+        return { ok: true, value: null };
+    }
+    if (normalized.length > maxLength) {
+        return {
+            ok: false,
+            error: `${field} must be at most ${maxLength} chars`,
+        };
+    }
+    return { ok: true, value: normalized };
+}
+
+function parseTags(
+    value: unknown,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+    if (value === null || value === undefined) {
+        return { ok: true, value: null };
+    }
+    if (!Array.isArray(value)) {
+        return { ok: false, error: "tags must be an array or null" };
+    }
+    if (value.some((tag) => typeof tag !== "string")) {
+        return { ok: false, error: "tags must be an array of strings" };
+    }
+
+    const normalized = value
+        .map((tag) => tag.trim())
+        .filter((tag) => tag.length > 0);
+    if (normalized.length > MAX_TAG_COUNT) {
+        return { ok: false, error: `tags must be at most ${MAX_TAG_COUNT} items` };
+    }
+    if (normalized.some((tag) => tag.length > MAX_TAG_LENGTH)) {
+        return { ok: false, error: `each tag must be at most ${MAX_TAG_LENGTH} chars` };
+    }
+
+    return {
+        ok: true,
+        value: normalized.length > 0 ? JSON.stringify(normalized) : null,
+    };
+}
+
+type ParsedPaperMetadata = {
+    title?: string;
+    abstract?: string | null;
+    visibility?: VisibilityType;
+    language?: string | null;
+    externalUrl?: string | null;
+    doi?: string | null;
+    venue?: string | null;
+    venueType?: VenueType | null;
+    year?: number | null;
+    category?: CategoryType | null;
+    tags?: string | null;
+    orgId?: string | null;
+};
+
+function validatePaperMetadata(
+    input: Record<string, unknown>,
+    mode: "create" | "patch",
+): { ok: true; data: ParsedPaperMetadata } | { ok: false; error: string } {
+    const isCreate = mode === "create";
+    const data: ParsedPaperMetadata = {};
+
+    if (isCreate || hasOwn(input, "title")) {
+        if (typeof input.title !== "string") {
+            return {
+                ok: false,
+                error: isCreate
+                    ? "title is required (1-300 chars)"
+                    : "title must be a string",
+            };
+        }
+        const title = input.title.trim();
+        if (!title || title.length > MAX_TITLE_LENGTH) {
+            return { ok: false, error: "title is required (1-300 chars)" };
+        }
+        data.title = title;
+    }
+
+    if (isCreate || hasOwn(input, "abstract")) {
+        const abstract = parseNullableString(
+            isCreate && !hasOwn(input, "abstract") ? null : input.abstract,
+            "abstract",
+            MAX_ABSTRACT_LENGTH,
+        );
+        if (!abstract.ok) return abstract;
+        data.abstract = abstract.value;
+    }
+
+    if (isCreate || hasOwn(input, "visibility")) {
+        const rawVisibility = isCreate && !hasOwn(input, "visibility")
+            ? "private"
+            : input.visibility;
+        if (
+            typeof rawVisibility !== "string" ||
+            !(VALID_VISIBILITY as readonly string[]).includes(rawVisibility)
+        ) {
+            return { ok: false, error: "Invalid visibility" };
+        }
+        data.visibility = rawVisibility as VisibilityType;
+    }
+
+    if (isCreate || hasOwn(input, "language")) {
+        const language = parseNullableString(
+            isCreate && !hasOwn(input, "language") ? null : input.language,
+            "language",
+            MAX_LANGUAGE_LENGTH,
+        );
+        if (!language.ok) return language;
+        data.language = language.value;
+    }
+
+    if (isCreate || hasOwn(input, "externalUrl")) {
+        const externalUrl = parseNullableString(
+            isCreate && !hasOwn(input, "externalUrl") ? null : input.externalUrl,
+            "externalUrl",
+            MAX_EXTERNAL_URL_LENGTH,
+        );
+        if (!externalUrl.ok) return externalUrl;
+        if (externalUrl.value && !isValidUrlScheme(externalUrl.value)) {
+            return {
+                ok: false,
+                error: "Invalid externalUrl scheme (only http/https allowed)",
+            };
+        }
+        data.externalUrl = externalUrl.value;
+    }
+
+    if (isCreate || hasOwn(input, "doi")) {
+        const doi = parseNullableString(
+            isCreate && !hasOwn(input, "doi") ? null : input.doi,
+            "doi",
+            MAX_DOI_LENGTH,
+        );
+        if (!doi.ok) return doi;
+        data.doi = doi.value;
+    }
+
+    if (isCreate || hasOwn(input, "venue")) {
+        const venue = parseNullableString(
+            isCreate && !hasOwn(input, "venue") ? null : input.venue,
+            "venue",
+            MAX_VENUE_LENGTH,
+        );
+        if (!venue.ok) return venue;
+        data.venue = venue.value;
+    }
+
+    if (isCreate || hasOwn(input, "venueType")) {
+        const rawVenueType = isCreate && !hasOwn(input, "venueType")
+            ? null
+            : input.venueType;
+        if (rawVenueType !== null && rawVenueType !== undefined) {
+            if (
+                typeof rawVenueType !== "string" ||
+                !(VALID_VENUE_TYPES as readonly string[]).includes(rawVenueType)
+            ) {
+                return { ok: false, error: "Invalid venueType" };
+            }
+            data.venueType = rawVenueType as VenueType;
+        } else {
+            data.venueType = null;
+        }
+    }
+
+    if (isCreate || hasOwn(input, "year")) {
+        const rawYear = isCreate && !hasOwn(input, "year") ? null : input.year;
+        if (rawYear === null || rawYear === undefined) {
+            data.year = null;
+        } else if (
+            typeof rawYear !== "number" ||
+            !Number.isInteger(rawYear) ||
+            rawYear < 0 ||
+            rawYear > 9999
+        ) {
+            return { ok: false, error: "year must be an integer between 0 and 9999 or null" };
+        } else {
+            data.year = rawYear;
+        }
+    }
+
+    if (isCreate || hasOwn(input, "category")) {
+        const rawCategory = isCreate && !hasOwn(input, "category")
+            ? null
+            : input.category;
+        if (rawCategory !== null && rawCategory !== undefined) {
+            if (
+                typeof rawCategory !== "string" ||
+                !(VALID_CATEGORIES as readonly string[]).includes(rawCategory)
+            ) {
+                return { ok: false, error: "Invalid category" };
+            }
+            data.category = rawCategory as CategoryType;
+        } else {
+            data.category = null;
+        }
+    }
+
+    if (isCreate || hasOwn(input, "tags")) {
+        const tags = parseTags(
+            isCreate && !hasOwn(input, "tags") ? null : input.tags,
+        );
+        if (!tags.ok) return tags;
+        data.tags = tags.value;
+    }
+
+    if (isCreate || hasOwn(input, "orgId")) {
+        const orgId = parseNullableString(
+            isCreate && !hasOwn(input, "orgId") ? null : input.orgId,
+            "orgId",
+            MAX_ORG_ID_LENGTH,
+        );
+        if (!orgId.ok) return orgId;
+        data.orgId = orgId.value;
+    }
+
+    if (isCreate && data.visibility === "org_only" && !data.orgId) {
+        return { ok: false, error: "orgId is required for org_only visibility" };
+    }
+
+    return { ok: true, data };
 }
 
 async function authorizePaperAccess(
@@ -154,36 +404,16 @@ papersRoute.post("/", authMiddleware, async (c) => {
         return c.json({ error: "Invalid metadata JSON" }, 400);
     }
 
-    const title = meta.title as string | undefined;
-    if (
-        !title ||
-        typeof title !== "string" ||
-        title.trim().length === 0 ||
-        title.trim().length > 300
-    )
-        return c.json({ error: "title is required (1-300 chars)" }, 400);
-
-    const vis = (meta.visibility as string) || "private";
-    if (!VALID_VISIBILITY.includes(vis))
+    const validatedMeta = validatePaperMetadata(meta, "create");
+    if (!validatedMeta.ok) {
+        return c.json({ error: validatedMeta.error }, 400);
+    }
+    const normalized = validatedMeta.data;
+    const vis = normalized.visibility;
+    if (!vis) {
         return c.json({ error: "Invalid visibility" }, 400);
-
-    const venueType = (meta.venueType as string | null | undefined) ?? null;
-    if (venueType !== null && !(VALID_VENUE_TYPES as readonly string[]).includes(venueType))
-        return c.json({ error: "Invalid venueType" }, 400);
-
-    const category = (meta.category as string | null | undefined) ?? null;
-    if (category !== null && !(VALID_CATEGORIES as readonly string[]).includes(category))
-        return c.json({ error: "Invalid category" }, 400);
-
-    const externalUrl = (meta.externalUrl as string) || null;
-    if (externalUrl && !isValidUrlScheme(externalUrl)) {
-        return c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400);
     }
-
-    const orgId = meta.orgId as string | undefined;
-    if (vis === "org_only" && !orgId) {
-        return c.json({ error: "orgId is required for org_only visibility" }, 400);
-    }
+    const orgId = normalized.orgId ?? null;
 
     const paperId = crypto.randomUUID();
     const userId = c.get("user").sub;
@@ -275,17 +505,17 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
     const paperValues: typeof papers.$inferInsert = {
         id: paperId,
-        title: title.trim(),
-        abstract: (meta.abstract as string) || null,
-        visibility: vis as "public" | "org_only" | "private",
-        language: (meta.language as string) || null,
-        externalUrl,
-        doi: (meta.doi as string) || null,
-        venue: (meta.venue as string) || null,
-        venueType: venueType as VenueType | null,
-        year: meta.year ? Number(meta.year) : null,
-        category: category as CategoryType | null,
-        tags: meta.tags ? JSON.stringify(meta.tags) : null,
+        title: normalized.title as string,
+        abstract: normalized.abstract ?? null,
+        visibility: vis,
+        language: normalized.language ?? null,
+        externalUrl: normalized.externalUrl ?? null,
+        doi: normalized.doi ?? null,
+        venue: normalized.venue ?? null,
+        venueType: normalized.venueType ?? null,
+        year: normalized.year ?? null,
+        category: normalized.category ?? null,
+        tags: normalized.tags ?? null,
     };
 
     const uploadedKeys: string[] = [];
@@ -417,7 +647,9 @@ papersRoute.get("/:id", async (c) => {
             title: paper.title,
             abstract: paper.abstract,
             visibility: paper.visibility,
+            language: paper.language,
             externalUrl: paper.externalUrl,
+            doi: paper.doi,
             venue: paper.venue,
             venueType: paper.venueType,
             year: paper.year,
@@ -767,9 +999,24 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
     } catch {
         return c.json({ error: "Invalid JSON body" }, 400);
     }
+    const validatedBody = validatePaperMetadata(body, "patch");
+    if (!validatedBody.ok) {
+        return c.json({ error: validatedBody.error }, 400);
+    }
+    const normalized = validatedBody.data;
 
     const db = drizzle(c.env.DB);
     await enableForeignKeys(db);
+
+    const currentPaper = await db
+        .select({
+            id: papers.id,
+            visibility: papers.visibility,
+        })
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!currentPaper) return c.json({ error: "Not found" }, 404);
 
     const isAuthor = await db
         .select()
@@ -783,43 +1030,88 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         .get();
     if (!isAuthor) return c.json({ error: "Forbidden" }, 403);
 
-    const updates: Record<string, any> = { ...touchUpdatedAt() };
+    type PaperUpdateSet = Omit<Partial<typeof papers.$inferInsert>, "updatedAt"> &
+        ReturnType<typeof touchUpdatedAt>;
+    const updates: PaperUpdateSet = { ...touchUpdatedAt() };
 
-    if ("title" in body && typeof body.title === "string") {
-        if (!body.title.trim()) return c.json({ error: "title is required" }, 400);
-        updates.title = body.title.trim();
+    if ("title" in normalized) {
+        updates.title = normalized.title as string;
     }
-    if ("abstract" in body && (typeof body.abstract === "string" || body.abstract === null)) {
-        updates.abstract = body.abstract;
+    if ("abstract" in normalized) {
+        updates.abstract = normalized.abstract ?? null;
     }
-    if ("visibility" in body && typeof body.visibility === "string") {
-        if (!["public", "org_only", "private"].includes(body.visibility)) return c.json({ error: "Invalid visibility" }, 400);
-        updates.visibility = body.visibility;
+    if ("visibility" in normalized) {
+        updates.visibility = normalized.visibility;
     }
-    if ("language" in body && (typeof body.language === "string" || body.language === null)) updates.language = body.language;
-    if ("externalUrl" in body && (typeof body.externalUrl === "string" || body.externalUrl === null)) updates.externalUrl = body.externalUrl;
-    if ("doi" in body && (typeof body.doi === "string" || body.doi === null)) updates.doi = body.doi;
-    if ("venue" in body && (typeof body.venue === "string" || body.venue === null)) updates.venue = body.venue;
-    if ("venueType" in body && (typeof body.venueType === "string" || body.venueType === null)) {
-        if (body.venueType && !(VALID_VENUE_TYPES as readonly string[]).includes(body.venueType)) return c.json({ error: "Invalid venueType" }, 400);
-        updates.venueType = body.venueType || null;
+    if ("language" in normalized) {
+        updates.language = normalized.language ?? null;
     }
-    if ("year" in body && (typeof body.year === "number" || body.year === null)) updates.year = body.year;
-    if ("category" in body && (typeof body.category === "string" || body.category === null)) {
-        if (body.category && !(VALID_CATEGORIES as readonly string[]).includes(body.category)) return c.json({ error: "Invalid category" }, 400);
-        updates.category = body.category || null;
+    if ("externalUrl" in normalized) {
+        updates.externalUrl = normalized.externalUrl ?? null;
     }
-    if ("tags" in body) {
-        if (Array.isArray(body.tags)) {
-            updates.tags = JSON.stringify(body.tags);
-        } else if (body.tags === null) {
-            updates.tags = null;
-        } else {
-            return c.json({ error: "tags must be an array or null" }, 400);
+    if ("doi" in normalized) {
+        updates.doi = normalized.doi ?? null;
+    }
+    if ("venue" in normalized) {
+        updates.venue = normalized.venue ?? null;
+    }
+    if ("venueType" in normalized) {
+        updates.venueType = normalized.venueType ?? null;
+    }
+    if ("year" in normalized) {
+        updates.year = normalized.year ?? null;
+    }
+    if ("category" in normalized) {
+        updates.category = normalized.category ?? null;
+    }
+    if ("tags" in normalized) {
+        updates.tags = normalized.tags ?? null;
+    }
+
+    const paperOrgRows = await db
+        .select({ orgId: paperOrgs.orgId })
+        .from(paperOrgs)
+        .where(eq(paperOrgs.paperId, paperId))
+        .all();
+    const currentOrgId = paperOrgRows[0]?.orgId ?? null;
+    const nextVisibility = (
+        updates.visibility ?? currentPaper.visibility
+    ) as VisibilityType;
+    const hasOrgIdUpdate = "orgId" in normalized;
+    let nextOrgId: string | null = currentOrgId;
+
+    if (nextVisibility === "org_only") {
+        if (hasOrgIdUpdate) {
+            nextOrgId = normalized.orgId ?? null;
         }
+        if (!nextOrgId) {
+            return c.json({ error: "orgId is required for org_only visibility" }, 400);
+        }
+
+        const membership = await db
+            .select({ orgId: orgMembers.orgId })
+            .from(orgMembers)
+            .where(
+                and(
+                    eq(orgMembers.orgId, nextOrgId),
+                    eq(orgMembers.userId, userId),
+                ),
+            )
+            .get();
+        if (!membership) {
+            return c.json({ error: "Invalid orgId or not a member" }, 403);
+        }
+    } else {
+        nextOrgId = null;
     }
 
     await db.update(papers).set(updates).where(eq(papers.id, paperId));
+
+    await db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId));
+    if (nextVisibility === "org_only" && nextOrgId) {
+        await db.insert(paperOrgs).values({ paperId, orgId: nextOrgId });
+    }
+
     return c.json({ ok: true });
 });
 

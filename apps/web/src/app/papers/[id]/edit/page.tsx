@@ -29,6 +29,11 @@ const VENUE_TYPE_OPTIONS = [
   { value: "other", label: "その他" },
 ] as const;
 
+type VisibilityValue = (typeof VISIBILITY_OPTIONS)[number]["value"];
+
+const isVisibilityValue = (value: string): value is VisibilityValue =>
+  VISIBILITY_OPTIONS.some((opt) => opt.value === value);
+
 export default function PaperEditPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -42,7 +47,7 @@ export default function PaperEditPage() {
   // Form states
   const [title, setTitle] = useState("");
   const [abstract, setAbstract] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "org_only" | "private">("private");
+  const [visibility, setVisibility] = useState<VisibilityValue | null>(null);
   const [language, setLanguage] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
   const [doi, setDoi] = useState("");
@@ -51,6 +56,8 @@ export default function PaperEditPage() {
   const [year, setYear] = useState("");
   const [category, setCategory] = useState("");
   const [tagsStr, setTagsStr] = useState("");
+  const [languageLoaded, setLanguageLoaded] = useState(false);
+  const [doiLoaded, setDoiLoaded] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -73,7 +80,7 @@ export default function PaperEditPage() {
         }
 
         const data = await res.json();
-        const paper = data.paper;
+        const paper = data.paper as Record<string, unknown>;
 
         // Ensure user is an author
         const isAuthor = data.authors.some((a: any) => a.userId === user.id);
@@ -82,22 +89,38 @@ export default function PaperEditPage() {
           return;
         }
 
-        setTitle(paper.title || "");
-        setAbstract(paper.abstract || "");
-        setVisibility(paper.visibility);
-        setLanguage(paper.language || "");
-        setExternalUrl(paper.externalUrl || "");
-        setDoi(paper.doi || "");
-        setVenue(paper.venue || "");
-        setVenueType(paper.venueType || "");
-        setYear(paper.year ? String(paper.year) : "");
-        setCategory(paper.category || "");
+        setTitle(typeof paper.title === "string" ? paper.title : "");
+        setAbstract(typeof paper.abstract === "string" ? paper.abstract : "");
+        if (typeof paper.visibility === "string" && isVisibilityValue(paper.visibility)) {
+          setVisibility(paper.visibility);
+        } else {
+          setVisibility("private");
+        }
+        if ("language" in paper) {
+          setLanguageLoaded(true);
+          setLanguage(typeof paper.language === "string" ? paper.language : "");
+        } else {
+          setLanguageLoaded(false);
+          setLanguage("");
+        }
+        setExternalUrl(typeof paper.externalUrl === "string" ? paper.externalUrl : "");
+        if ("doi" in paper) {
+          setDoiLoaded(true);
+          setDoi(typeof paper.doi === "string" ? paper.doi : "");
+        } else {
+          setDoiLoaded(false);
+          setDoi("");
+        }
+        setVenue(typeof paper.venue === "string" ? paper.venue : "");
+        setVenueType(typeof paper.venueType === "string" ? paper.venueType : "");
+        setYear(typeof paper.year === "number" && Number.isInteger(paper.year) ? String(paper.year) : "");
+        setCategory(typeof paper.category === "string" ? paper.category : "");
 
         let initialTags = "";
-        if (paper.tags) {
+        if (typeof paper.tags === "string" && paper.tags.length > 0) {
             try {
-                const parsed = JSON.parse(paper.tags);
-                if (Array.isArray(parsed)) {
+              const parsed = JSON.parse(paper.tags);
+              if (Array.isArray(parsed)) {
                     initialTags = parsed.join(", ");
                 }
             } catch {
@@ -123,6 +146,10 @@ export default function PaperEditPage() {
       setError("タイトルを入力してください。");
       return;
     }
+    if (!visibility) {
+      setError("公開範囲を選択してください。");
+      return;
+    }
 
     setSubmitting(true);
 
@@ -137,19 +164,23 @@ export default function PaperEditPage() {
         .map((t) => t.trim())
         .filter(Boolean);
 
-      const payload = {
+      const payload: Record<string, unknown> = {
         title: title.trim(),
         abstract: abstract.trim() || null,
         visibility,
-        language: language.trim() || null,
         externalUrl: externalUrl.trim() || null,
-        doi: doi.trim() || null,
         venue: venue.trim() || null,
         venueType: venueType || null,
         year: parsedYear,
         category: category || null,
         tags: tagsArray.length > 0 ? tagsArray : null,
       };
+      if (languageLoaded) {
+        payload.language = language.trim() || null;
+      }
+      if (doiLoaded) {
+        payload.doi = doi.trim() || null;
+      }
 
       const res = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}`, {
         method: "PATCH",
@@ -199,12 +230,14 @@ export default function PaperEditPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="mb-1 block text-sm font-medium">
+          <label htmlFor="title" className="mb-1 block text-sm font-medium">
             タイトル <span className="text-red-500">*</span>
           </label>
           <input
+            id="title"
             type="text"
             required
+            maxLength={300}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
@@ -213,23 +246,34 @@ export default function PaperEditPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">公開範囲</label>
-          <div className="flex gap-4">
-            {VISIBILITY_OPTIONS.map((opt) => (
-              <label key={opt.value} className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  name="visibility"
-                  value={opt.value}
-                  checked={visibility === opt.value}
-                  onChange={(e) =>
-                    setVisibility(e.target.value as any)
-                  }
-                />
-                <span className="text-sm">{opt.label}</span>
-              </label>
-            ))}
-          </div>
+          <fieldset>
+            <legend className="mb-1 block text-sm font-medium">公開範囲</legend>
+            <div className="flex gap-4">
+              {VISIBILITY_OPTIONS.map((opt) => {
+                const id = `visibility-${opt.value}`;
+                return (
+                  <div key={opt.value} className="flex items-center gap-2">
+                    <input
+                      id={id}
+                      type="radio"
+                      name="visibility"
+                      value={opt.value}
+                      checked={visibility === opt.value}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        if (isVisibilityValue(next)) {
+                          setVisibility(next);
+                        }
+                      }}
+                    />
+                    <label htmlFor={id} className="text-sm">
+                      {opt.label}
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+          </fieldset>
           <p className="mt-1 text-xs text-gray-500">
             {visibility === "private" && "あなたと共著者のみが閲覧可能です。"}
             {visibility === "org_only" && "所属組織のメンバーのみが閲覧可能です。"}
@@ -238,8 +282,9 @@ export default function PaperEditPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">概要</label>
+          <label htmlFor="abstract" className="mb-1 block text-sm font-medium">概要</label>
           <textarea
+            id="abstract"
             value={abstract}
             onChange={(e) => setAbstract(e.target.value)}
             rows={4}
@@ -250,8 +295,9 @@ export default function PaperEditPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium">カテゴリ</label>
+            <label htmlFor="category" className="mb-1 block text-sm font-medium">カテゴリ</label>
             <select
+              id="category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
@@ -265,8 +311,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">発表年</label>
+            <label htmlFor="year" className="mb-1 block text-sm font-medium">発表年</label>
             <input
+              id="year"
               type="number"
               value={year}
               onChange={(e) => setYear(e.target.value)}
@@ -276,8 +323,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">発表場所（学会名など）</label>
+            <label htmlFor="venue" className="mb-1 block text-sm font-medium">発表場所（学会名など）</label>
             <input
+              id="venue"
               type="text"
               value={venue}
               onChange={(e) => setVenue(e.target.value)}
@@ -287,8 +335,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">発表種別</label>
+            <label htmlFor="venue-type" className="mb-1 block text-sm font-medium">発表種別</label>
             <select
+              id="venue-type"
               value={venueType}
               onChange={(e) => setVenueType(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
@@ -302,8 +351,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">言語</label>
+            <label htmlFor="language" className="mb-1 block text-sm font-medium">言語</label>
             <input
+              id="language"
               type="text"
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
@@ -313,8 +363,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">DOI</label>
+            <label htmlFor="doi" className="mb-1 block text-sm font-medium">DOI</label>
             <input
+              id="doi"
               type="text"
               value={doi}
               onChange={(e) => setDoi(e.target.value)}
@@ -325,8 +376,9 @@ export default function PaperEditPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">外部リンク</label>
+          <label htmlFor="external-url" className="mb-1 block text-sm font-medium">外部リンク</label>
           <input
+            id="external-url"
             type="url"
             value={externalUrl}
             onChange={(e) => setExternalUrl(e.target.value)}
@@ -336,10 +388,11 @@ export default function PaperEditPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">
+          <label htmlFor="tags" className="mb-1 block text-sm font-medium">
             タグ <span className="text-gray-500 font-normal text-xs">（カンマ区切り）</span>
           </label>
           <input
+            id="tags"
             type="text"
             value={tagsStr}
             onChange={(e) => setTagsStr(e.target.value)}
