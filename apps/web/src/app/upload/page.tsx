@@ -4,6 +4,7 @@ import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 const VALID_FILE_TYPES = [
   "paper",
@@ -136,6 +137,15 @@ export default function UploadPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
+      <div className="mb-6">
+        <Link
+          href="/"
+          className="text-sm text-blue-600 hover:underline dark:text-blue-400"
+        >
+          ← ダッシュボードに戻る
+        </Link>
+      </div>
+
       <div className="mb-8 rounded-3xl border border-gray-200 bg-white px-6 py-6 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:px-8 sm:py-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>

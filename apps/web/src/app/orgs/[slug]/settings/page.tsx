@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 type Org = {
   id: string;
@@ -374,14 +375,15 @@ export default function OrgSettingsPage() {
 
   return (
     <div className="max-w-3xl">
-      <div className="flex items-center gap-2 mb-6">
-        <button
-          type="button"
-          onClick={() => router.push(`/orgs/${slug}`)}
-          className="text-gray-400 hover:text-gray-600"
+      <div className="mb-6">
+        <Link
+          href={`/orgs/${slug}`}
+          className="text-sm text-blue-600 hover:underline dark:text-blue-400"
         >
-          ←
-        </button>
+          ← 組織ページに戻る
+        </Link>
+      </div>
+      <div className="flex items-center gap-2 mb-6">
         <h1 className="text-2xl font-bold">{org.name} — 設定</h1>
       </div>
 

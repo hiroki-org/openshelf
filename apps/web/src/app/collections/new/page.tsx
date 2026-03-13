@@ -4,6 +4,7 @@ import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 function slugify(text: string): string {
   return text
@@ -110,6 +111,15 @@ export default function NewCollectionPage() {
 
   return (
     <div className="max-w-2xl">
+      <div className="mb-6">
+        <Link
+          href="/"
+          className="text-sm text-blue-600 hover:underline dark:text-blue-400"
+        >
+          ← ダッシュボードに戻る
+        </Link>
+      </div>
+
       <h1 className="text-2xl font-bold mb-6">コレクションを作成</h1>
 
       <form
