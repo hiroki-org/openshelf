@@ -4,6 +4,7 @@ import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
+import Link from "next/link";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 
@@ -137,6 +138,15 @@ export default function NewOrgPage() {
 
   return (
     <div className="max-w-lg">
+      <div className="mb-6">
+        <Link
+          href="/"
+          className="text-sm text-blue-600 hover:underline dark:text-blue-400"
+        >
+          ← ダッシュボードに戻る
+        </Link>
+      </div>
+
       <h1 className="text-2xl font-bold mb-6">組織を作成</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">

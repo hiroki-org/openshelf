@@ -4,6 +4,7 @@ import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 export default function SettingsPage() {
   const { user, loading, refresh } = useAuth();
@@ -75,6 +76,15 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
+      <div className="mb-6">
+        <Link
+          href="/"
+          className="text-sm text-blue-600 hover:underline dark:text-blue-400"
+        >
+          ← ダッシュボードに戻る
+        </Link>
+      </div>
+
       <div className="mb-8 rounded-3xl border border-gray-200 bg-white px-6 py-6 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:px-8 sm:py-8">
         <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
           Profile settings
