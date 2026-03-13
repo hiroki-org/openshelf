@@ -69,91 +69,70 @@ describe("Header", () => {
     expect(mockLogin).toHaveBeenCalledTimes(1);
   });
 
-  it("renders authenticated state correctly", () => {
-    vi.mocked(useAuth).mockReturnValue({
-      user: {
-        id: "u1",
-        githubId: 123,
-        name: "testuser",
-        displayName: "Test User",
-        avatarUrl: "https://example.com/avatar.png",
-        email: "test@example.com"
-      },
-      loading: false,
-      login: mockLogin,
-      logout: mockLogout,
-      refresh: mockRefresh,
+  describe("when authenticated", () => {
+    const authenticatedUser = {
+      id: "u1",
+      githubId: 123,
+      name: "testuser",
+      displayName: "Test User",
+      avatarUrl: "https://example.com/avatar.png",
+      email: "test@example.com",
+    };
+
+    beforeEach(() => {
+      vi.mocked(useAuth).mockReturnValue({
+        user: authenticatedUser,
+        loading: false,
+        login: mockLogin,
+        logout: mockLogout,
+        refresh: mockRefresh,
+      });
     });
-    vi.mocked(usePathname).mockReturnValue("/");
 
-    render(<Header />);
+    it("renders authenticated state correctly", () => {
+      vi.mocked(usePathname).mockReturnValue("/");
 
-    // Should display nav links
-    expect(screen.getByText("アップロード")).toBeInTheDocument();
-    expect(screen.getByText("コレクション")).toBeInTheDocument();
-    expect(screen.getByText("招待")).toBeInTheDocument();
-    expect(screen.getByText("設定")).toBeInTheDocument();
+      render(<Header />);
 
-    // Should display user name
-    expect(screen.getByText("Test User")).toBeInTheDocument();
+      // Should display nav links
+      expect(screen.getByText("アップロード")).toBeInTheDocument();
+      expect(screen.getByText("コレクション")).toBeInTheDocument();
+      expect(screen.getByText("招待")).toBeInTheDocument();
+      expect(screen.getByText("設定")).toBeInTheDocument();
 
-    // Should display logout button
-    const logoutButton = screen.getByText("ログアウト");
-    expect(logoutButton).toBeInTheDocument();
+      // Should display user name
+      expect(screen.getByText("Test User")).toBeInTheDocument();
 
-    // Clicking logout calls the mock function
-    fireEvent.click(logoutButton);
-    expect(mockLogout).toHaveBeenCalledTimes(1);
-  });
+      // Should display logout button
+      const logoutButton = screen.getByText("ログアウト");
+      expect(logoutButton).toBeInTheDocument();
 
-  it("highlights the active navigation link correctly", () => {
-    vi.mocked(useAuth).mockReturnValue({
-      user: {
-        id: "u1",
-        githubId: 123,
-        name: "testuser",
-        displayName: "Test User",
-        avatarUrl: "https://example.com/avatar.png",
-        email: "test@example.com"
-      },
-      loading: false,
-      login: mockLogin,
-      logout: mockLogout,
-      refresh: mockRefresh,
+      // Clicking logout calls the mock function
+      fireEvent.click(logoutButton);
+      expect(mockLogout).toHaveBeenCalledTimes(1);
     });
-    // Set pathname to a sub-route of collection
-    vi.mocked(usePathname).mockReturnValue("/collections/new");
 
-    render(<Header />);
+    it("highlights the active navigation link correctly", () => {
+      // Set pathname to a sub-route of collection
+      vi.mocked(usePathname).mockReturnValue("/collections/new");
 
-    const collectionLink = screen.getByText("コレクション");
-    expect(collectionLink).toHaveAttribute("aria-current", "page");
+      render(<Header />);
 
-    const uploadLink = screen.getByText("アップロード");
-    expect(uploadLink).not.toHaveAttribute("aria-current");
-  });
+      const collectionLink = screen.getByText("コレクション");
+      expect(collectionLink).toHaveAttribute("aria-current", "page");
 
-  it("highlights correctly when route starts with the nav link href", () => {
-    vi.mocked(useAuth).mockReturnValue({
-      user: {
-        id: "u1",
-        githubId: 123,
-        name: "testuser",
-        displayName: "Test User",
-        avatarUrl: "https://example.com/avatar.png",
-        email: "test@example.com"
-      },
-      loading: false,
-      login: mockLogin,
-      logout: mockLogout,
-      refresh: mockRefresh,
+      const uploadLink = screen.getByText("アップロード");
+      expect(uploadLink).not.toHaveAttribute("aria-current");
     });
-    // The active path check is: pathname === item.href || pathname.startsWith(`${item.href}/`);
-    vi.mocked(usePathname).mockReturnValue("/settings/profile");
 
-    render(<Header />);
+    it("highlights correctly when route starts with the nav link href", () => {
+      // The active path check is: pathname === item.href || pathname.startsWith(`${item.href}/`);
+      vi.mocked(usePathname).mockReturnValue("/settings/profile");
 
-    const settingsLink = screen.getByText("設定");
-    expect(settingsLink).toHaveAttribute("aria-current", "page");
+      render(<Header />);
+
+      const settingsLink = screen.getByText("設定");
+      expect(settingsLink).toHaveAttribute("aria-current", "page");
+    });
   });
 });
