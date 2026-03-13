@@ -9,6 +9,55 @@ import {
 
 let mockDb: any;
 
+function createOAuthStateDb(initialStates: Record<string, string> = {}) {
+    const states = new Map<string, string>(Object.entries(initialStates));
+
+    const db = {
+        prepare: vi.fn((sql: string) => ({
+            bind: (...args: unknown[]) => {
+                if (sql.startsWith("INSERT INTO oauth_states")) {
+                    return {
+                        run: async () => {
+                            const state = String(args[0] ?? "");
+                            const createdAt = new Date().toISOString().replace("T", " ").slice(0, 19);
+                            states.set(state, createdAt);
+                            return {};
+                        }
+                    };
+                }
+
+                if (sql.startsWith("SELECT state, created_at FROM oauth_states")) {
+                    return {
+                        first: async <T>() => {
+                            const state = String(args[0] ?? "");
+                            const createdAt = states.get(state);
+                            if (!createdAt) return null;
+                            return { state, created_at: createdAt } as T;
+                        }
+                    };
+                }
+
+                if (sql.startsWith("DELETE FROM oauth_states")) {
+                    return {
+                        run: async () => {
+                            const state = String(args[0] ?? "");
+                            states.delete(state);
+                            return {};
+                        }
+                    };
+                }
+
+                return {
+                    run: async () => ({}),
+                    first: async () => null,
+                };
+            }
+        }))
+    };
+
+    return { db, states };
+}
+
 vi.mock("drizzle-orm/d1", () => ({
     drizzle: vi.fn(() => mockDb)
 }));
@@ -26,9 +75,10 @@ describe("auth routes", () => {
         };
     });
 
-    it("GET /api/auth/github redirects with client_id and oauth_state cookie", async () => {
+    it("GET /api/auth/github persists state in D1 and redirects with client_id", async () => {
         const app = await createTestApp();
-        const env = createTestEnv();
+        const oauthStateDb = createOAuthStateDb();
+        const env = createTestEnv({ DB: oauthStateDb.db as any });
 
         const res = await app.request("http://localhost/api/auth/github", {}, env as any);
 
@@ -37,11 +87,84 @@ describe("auth routes", () => {
         expect(location).toContain("https://github.com/login/oauth/authorize?");
         expect(location).toContain("client_id=test-client-id");
 
-        const setCookie = res.headers.get("set-cookie") ?? "";
-        expect(setCookie).toContain("oauth_state=");
+        const state = new URL(location).searchParams.get("state");
+        expect(state).toBeTruthy();
+        expect(state ? oauthStateDb.states.has(state) : false).toBe(true);
     });
 
-    it("GET /api/auth/github/callback returns frontend redirect with JWT", async () => {
+    it("GET /api/auth/github/callback returns 400 when state does not exist in D1", async () => {
+        const app = await createTestApp();
+        const oauthStateDb = createOAuthStateDb();
+        const env = createTestEnv({ DB: oauthStateDb.db as any });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=missing-state",
+            {},
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "Invalid or expired state" });
+    });
+
+    it("GET /api/auth/github/callback returns 400 when state is expired", async () => {
+        const expiredAt = new Date(Date.now() - 6 * 60 * 1000)
+            .toISOString()
+            .replace("T", " ")
+            .slice(0, 19);
+        const oauthStateDb = createOAuthStateDb({ "expired-state": expiredAt });
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: oauthStateDb.db as any });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=expired-state",
+            {},
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "State expired" });
+        expect(oauthStateDb.states.has("expired-state")).toBe(false);
+    });
+
+    it("GET /api/auth/github/callback returns frontend redirect with JWT for valid state", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-1" } }));
+
+        const nowState = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const oauthStateDb = createOAuthStateDb({ "good-state": nowState });
+
+        vi.stubGlobal(
+            "fetch",
+            vi
+                .fn()
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ access_token: "gh-token" })
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ id: 123, login: "octocat", name: "Octo Cat", avatar_url: "http://avatar", email: "octo@example.com" })
+                })
+        );
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: oauthStateDb.db as any });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=good-state",
+            {},
+            env as any
+        );
+
+        expect(res.status).toBe(302);
+        const location = res.headers.get("location") ?? "";
+        expect(location).toContain("http://localhost:3000/?token=");
+        expect(oauthStateDb.states.has("good-state")).toBe(false);
+    });
+
+    it("GET /api/auth/github/callback rejects replayed state on second use", async () => {
         mockDb.select = vi
             .fn()
             .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-1" } }));
@@ -60,39 +183,26 @@ describe("auth routes", () => {
                 })
         );
 
+        const nowState = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const oauthStateDb = createOAuthStateDb({ "replay-state": nowState });
         const app = await createTestApp();
-        const env = createTestEnv();
+        const env = createTestEnv({ DB: oauthStateDb.db as any });
 
-        const res = await app.request(
-            "http://localhost/api/auth/github/callback?code=code123&state=good-state",
-            {
-                headers: {
-                    Cookie: "oauth_state=good-state"
-                }
-            },
+        const firstRes = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=replay-state",
+            {},
+            env as any
+        );
+        expect(firstRes.status).toBe(302);
+
+        const secondRes = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=replay-state",
+            {},
             env as any
         );
 
-        expect(res.status).toBe(302);
-        const location = res.headers.get("location") ?? "";
-        expect(location).toContain("http://localhost:3000/auth/callback#token=");
-    });
-
-    it("GET /api/auth/github/callback returns 400 for invalid state", async () => {
-        const app = await createTestApp();
-        const env = createTestEnv();
-
-        const res = await app.request(
-            "http://localhost/api/auth/github/callback?code=code123&state=bad-state",
-            {
-                headers: {
-                    Cookie: "oauth_state=good-state"
-                }
-            },
-            env as any
-        );
-
-        expect(res.status).toBe(400);
+        expect(secondRes.status).toBe(400);
+        await expect(secondRes.json()).resolves.toEqual({ error: "Invalid or expired state" });
     });
 
     it("GET /api/auth/me returns 200 for valid Bearer token", async () => {

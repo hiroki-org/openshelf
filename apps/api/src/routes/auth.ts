@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { setCookie, deleteCookie, getCookie } from "hono/cookie";
 import { sign } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
@@ -13,14 +12,9 @@ const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
 // GET /api/auth/github — redirect to GitHub OAuth
 auth.get("/github", async (c) => {
     const state = crypto.randomUUID();
-    const isSecure = new URL(c.req.url).protocol === "https:";
-    setCookie(c, "oauth_state", state, {
-        httpOnly: true,
-        secure: isSecure,
-        sameSite: isSecure ? "None" : "Lax",
-        path: "/",
-        maxAge: 600,
-    });
+    await c.env.DB.prepare("INSERT INTO oauth_states (state) VALUES (?)")
+        .bind(state)
+        .run();
     const params = new URLSearchParams({
         client_id: c.env.GITHUB_CLIENT_ID,
         redirect_uri: `${new URL(c.req.url).origin}/api/auth/github/callback`,
@@ -35,13 +29,39 @@ auth.get("/github", async (c) => {
 // GET /api/auth/github/callback — exchange code, upsert user, issue JWT
 auth.get("/github/callback", async (c) => {
     const code = c.req.query("code");
-    const state = c.req.query("state");
-    const storedState = getCookie(c, "oauth_state");
+    const stateParam = c.req.query("state");
 
-    if (!code || !state || state !== storedState) {
+    if (!stateParam) {
+        return c.json({ error: "Missing state parameter" }, 400);
+    }
+
+    const row = await c.env.DB.prepare(
+        "SELECT state, created_at FROM oauth_states WHERE state = ?",
+    )
+        .bind(stateParam)
+        .first<{ state: string; created_at: string }>();
+
+    if (!row) {
+        return c.json({ error: "Invalid or expired state" }, 400);
+    }
+
+    const createdAt = new Date(`${row.created_at}Z`);
+    const nowDate = new Date();
+    if (nowDate.getTime() - createdAt.getTime() > 5 * 60 * 1000) {
+        await c.env.DB.prepare("DELETE FROM oauth_states WHERE state = ?")
+            .bind(stateParam)
+            .run();
+        return c.json({ error: "State expired" }, 400);
+    }
+
+    // Delete state after successful validation to prevent replay attacks.
+    await c.env.DB.prepare("DELETE FROM oauth_states WHERE state = ?")
+        .bind(stateParam)
+        .run();
+
+    if (!code) {
         return c.json({ error: "Invalid OAuth state" }, 400);
     }
-    deleteCookie(c, "oauth_state", { path: "/" });
 
     // Exchange code for access token
     const tokenRes = await fetch(
@@ -174,7 +194,8 @@ auth.get("/github/callback", async (c) => {
         "HS256",
     );
 
-    return c.redirect(`${c.env.FRONTEND_URL}/auth/callback#token=${jwt}`);
+    const frontendUrl = c.env.FRONTEND_URL || "https://open-shelf-delta.vercel.app";
+    return c.redirect(`${frontendUrl}/?token=${jwt}`);
 });
 
 // GET /api/auth/me — current user info
