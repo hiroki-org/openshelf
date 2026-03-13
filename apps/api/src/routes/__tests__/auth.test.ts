@@ -9,41 +9,63 @@ import {
 
 let mockDb: any;
 
-function createOAuthStateDb(initialStates: Record<string, string> = {}) {
-    const states = new Map<string, string>(Object.entries(initialStates));
+type OAuthStateEntry = {
+    createdAt: string;
+    browserNonce: string;
+};
+
+function createOAuthStateDb(initialStates: Record<string, OAuthStateEntry> = {}) {
+    const states = new Map<string, OAuthStateEntry>(Object.entries(initialStates));
 
     const db = {
         prepare: vi.fn((sql: string) => ({
+            run: async () => {
+                if (
+                    sql.startsWith(
+                        "DELETE FROM oauth_states WHERE created_at <= datetime('now', '-5 minutes')",
+                    )
+                ) {
+                    const now = Date.now();
+                    for (const [state, row] of states.entries()) {
+                        const createdAt = new Date(`${row.createdAt}Z`);
+                        if (now - createdAt.getTime() > 5 * 60 * 1000) {
+                            states.delete(state);
+                        }
+                    }
+                }
+                return {};
+            },
             bind: (...args: unknown[]) => {
-                if (sql.startsWith("INSERT INTO oauth_states")) {
+                if (
+                    sql.startsWith(
+                        "INSERT INTO oauth_states (state, browser_nonce) VALUES (?, ?)",
+                    )
+                ) {
                     return {
                         run: async () => {
                             const state = String(args[0] ?? "");
+                            const browserNonce = String(args[1] ?? "");
                             const createdAt = new Date().toISOString().replace("T", " ").slice(0, 19);
-                            states.set(state, createdAt);
+                            states.set(state, { createdAt, browserNonce });
                             return {};
-                        }
+                        },
                     };
                 }
 
-                if (sql.startsWith("SELECT state, created_at FROM oauth_states")) {
+                if (
+                    sql.startsWith(
+                        "DELETE FROM oauth_states WHERE state = ? AND browser_nonce = ? RETURNING created_at",
+                    )
+                ) {
                     return {
                         first: async <T>() => {
                             const state = String(args[0] ?? "");
-                            const createdAt = states.get(state);
-                            if (!createdAt) return null;
-                            return { state, created_at: createdAt } as T;
-                        }
-                    };
-                }
-
-                if (sql.startsWith("DELETE FROM oauth_states")) {
-                    return {
-                        run: async () => {
-                            const state = String(args[0] ?? "");
+                            const browserNonce = String(args[1] ?? "");
+                            const stateRow = states.get(state);
+                            if (!stateRow || stateRow.browserNonce !== browserNonce) return null;
                             states.delete(state);
-                            return {};
-                        }
+                            return { created_at: stateRow.createdAt } as T;
+                        },
                     };
                 }
 
@@ -90,6 +112,10 @@ describe("auth routes", () => {
         const state = new URL(location).searchParams.get("state");
         expect(state).toBeTruthy();
         expect(state ? oauthStateDb.states.has(state) : false).toBe(true);
+        const setCookie = res.headers.get("set-cookie") ?? "";
+        expect(setCookie).toContain("oauth_flow_nonce=");
+        expect(setCookie).toContain("HttpOnly");
+        expect(state ? oauthStateDb.states.get(state)?.browserNonce : null).toBeTruthy();
     });
 
     it("GET /api/auth/github/callback returns 400 when state does not exist in D1", async () => {
@@ -99,7 +125,11 @@ describe("auth routes", () => {
 
         const res = await app.request(
             "http://localhost/api/auth/github/callback?code=code123&state=missing-state",
-            {},
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=nonce-1",
+                },
+            },
             env as any
         );
 
@@ -107,18 +137,49 @@ describe("auth routes", () => {
         await expect(res.json()).resolves.toEqual({ error: "Invalid or expired state" });
     });
 
+    it("GET /api/auth/github/callback returns 400 when OAuth flow cookie is missing", async () => {
+        const nowState = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const oauthStateDb = createOAuthStateDb({
+            "cookie-state": {
+                createdAt: nowState,
+                browserNonce: "cookie-nonce",
+            },
+        });
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: oauthStateDb.db as any });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=cookie-state",
+            {},
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "Missing OAuth flow cookie" });
+        expect(oauthStateDb.states.has("cookie-state")).toBe(true);
+    });
+
     it("GET /api/auth/github/callback returns 400 when state is expired", async () => {
         const expiredAt = new Date(Date.now() - 6 * 60 * 1000)
             .toISOString()
             .replace("T", " ")
             .slice(0, 19);
-        const oauthStateDb = createOAuthStateDb({ "expired-state": expiredAt });
+        const oauthStateDb = createOAuthStateDb({
+            "expired-state": {
+                createdAt: expiredAt,
+                browserNonce: "expired-nonce",
+            },
+        });
         const app = await createTestApp();
         const env = createTestEnv({ DB: oauthStateDb.db as any });
 
         const res = await app.request(
             "http://localhost/api/auth/github/callback?code=code123&state=expired-state",
-            {},
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=expired-nonce",
+                },
+            },
             env as any
         );
 
@@ -133,7 +194,12 @@ describe("auth routes", () => {
             .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-1" } }));
 
         const nowState = new Date().toISOString().replace("T", " ").slice(0, 19);
-        const oauthStateDb = createOAuthStateDb({ "good-state": nowState });
+        const oauthStateDb = createOAuthStateDb({
+            "good-state": {
+                createdAt: nowState,
+                browserNonce: "good-nonce",
+            },
+        });
 
         vi.stubGlobal(
             "fetch",
@@ -154,13 +220,17 @@ describe("auth routes", () => {
 
         const res = await app.request(
             "http://localhost/api/auth/github/callback?code=code123&state=good-state",
-            {},
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=good-nonce",
+                },
+            },
             env as any
         );
 
         expect(res.status).toBe(302);
         const location = res.headers.get("location") ?? "";
-        expect(location).toContain("http://localhost:3000/?token=");
+        expect(location).toContain("http://localhost:3000/auth/callback#token=");
         expect(oauthStateDb.states.has("good-state")).toBe(false);
     });
 
@@ -184,20 +254,33 @@ describe("auth routes", () => {
         );
 
         const nowState = new Date().toISOString().replace("T", " ").slice(0, 19);
-        const oauthStateDb = createOAuthStateDb({ "replay-state": nowState });
+        const oauthStateDb = createOAuthStateDb({
+            "replay-state": {
+                createdAt: nowState,
+                browserNonce: "replay-nonce",
+            },
+        });
         const app = await createTestApp();
         const env = createTestEnv({ DB: oauthStateDb.db as any });
 
         const firstRes = await app.request(
             "http://localhost/api/auth/github/callback?code=code123&state=replay-state",
-            {},
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=replay-nonce",
+                },
+            },
             env as any
         );
         expect(firstRes.status).toBe(302);
 
         const secondRes = await app.request(
             "http://localhost/api/auth/github/callback?code=code123&state=replay-state",
-            {},
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=replay-nonce",
+                },
+            },
             env as any
         );
 

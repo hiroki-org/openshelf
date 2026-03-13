@@ -10,6 +10,7 @@ import {
     orgMembers,
     paperOrgs,
     enableForeignKeys,
+    touchUpdatedAt,
     VALID_VENUE_TYPES,
     VALID_CATEGORIES,
     type VenueType,
@@ -335,6 +336,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
                 filename: entry.safeFilename,
                 sizeBytes: entry.file.size,
                 mimeType: entry.file.type || null,
+                ...touchUpdatedAt(),
             })),
         );
     } catch (error) {
@@ -651,6 +653,7 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
             inviterId: userId,
             inviteeId: resolvedInviteeId,
             inviteeEmail: resolvedInviteeEmail,
+            ...touchUpdatedAt(),
         });
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "";
