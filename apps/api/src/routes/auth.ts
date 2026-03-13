@@ -6,9 +6,42 @@ import { eq } from "drizzle-orm";
 import { users, orgs, orgMembers, enableForeignKeys } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { persistGitHubUser } from "../utils/user-persistence";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
+const USER_ID_MAX_LENGTH = 128;
+const GITHUB_ID_MAX_LENGTH = 64;
+const USER_NAME_MAX_LENGTH = 100;
+const AVATAR_URL_MAX_LENGTH = 2048;
+const EMAIL_MAX_LENGTH = 320;
+const authUserSelection = {
+    id: users.id,
+    githubId: users.githubId,
+    name: users.name,
+    displayName: users.displayName,
+    avatarUrl: users.avatarUrl,
+    email: users.email,
+};
+
+const hasPersistableUserLengths = ({
+    candidateUserId,
+    githubId,
+    name,
+    avatarUrl,
+    email,
+}: {
+    candidateUserId: string;
+    githubId: string;
+    name: string;
+    avatarUrl: string | null;
+    email: string | null;
+}) =>
+    candidateUserId.length <= USER_ID_MAX_LENGTH &&
+    githubId.length <= GITHUB_ID_MAX_LENGTH &&
+    name.length <= USER_NAME_MAX_LENGTH &&
+    (avatarUrl === null || avatarUrl.length <= AVATAR_URL_MAX_LENGTH) &&
+    (email === null || email.length <= EMAIL_MAX_LENGTH);
 
 // GET /api/auth/github — redirect to GitHub OAuth
 auth.get("/github", async (c) => {
@@ -41,24 +74,29 @@ auth.get("/github/callback", async (c) => {
     if (!code || !state || state !== storedState) {
         return c.json({ error: "Invalid OAuth state" }, 400);
     }
-    deleteCookie(c, "oauth_state", { path: "/" });
 
     // Exchange code for access token
-    const tokenRes = await fetch(
-        "https://github.com/login/oauth/access_token",
-        {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
+    let tokenRes: Response;
+    try {
+        tokenRes = await fetch(
+            "https://github.com/login/oauth/access_token",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                },
+                body: JSON.stringify({
+                    client_id: c.env.GITHUB_CLIENT_ID,
+                    client_secret: c.env.GITHUB_CLIENT_SECRET,
+                    code,
+                }),
             },
-            body: JSON.stringify({
-                client_id: c.env.GITHUB_CLIENT_ID,
-                client_secret: c.env.GITHUB_CLIENT_SECRET,
-                code,
-            }),
-        },
-    );
+        );
+    } catch (error) {
+        console.error("GitHub OAuth token exchange request failed:", error);
+        return c.json({ error: "Failed to exchange OAuth code" }, 502);
+    }
 
     if (!tokenRes.ok) {
         const tokenErr = await tokenRes.text();
@@ -71,24 +109,36 @@ auth.get("/github/callback", async (c) => {
         );
     }
 
-    const rawTokenData = (await tokenRes.json()) as unknown;
+    let rawTokenData: unknown;
+    try {
+        rawTokenData = (await tokenRes.json()) as unknown;
+    } catch (error) {
+        console.error("GitHub OAuth token exchange response was not valid JSON:", error);
+        return c.json({ error: "Failed to exchange OAuth code" }, 502);
+    }
     if (
         !rawTokenData ||
         typeof rawTokenData !== "object" ||
         typeof (rawTokenData as { access_token?: unknown }).access_token !==
-        "string"
+            "string"
     ) {
         return c.json({ error: "Failed to get access token" }, 400);
     }
     const accessToken = (rawTokenData as { access_token: string }).access_token;
 
     // Get GitHub user info
-    const userRes = await fetch("https://api.github.com/user", {
-        headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "User-Agent": "OpenShelf",
-        },
-    });
+    let userRes: Response;
+    try {
+        userRes = await fetch("https://api.github.com/user", {
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                "User-Agent": "OpenShelf",
+            },
+        });
+    } catch (error) {
+        console.error("GitHub user lookup request failed:", error);
+        return c.json({ error: "Failed to fetch GitHub user" }, 502);
+    }
 
     if (!userRes.ok) {
         const userErr = await userRes.text();
@@ -101,7 +151,13 @@ auth.get("/github/callback", async (c) => {
         );
     }
 
-    const rawGhUser = (await userRes.json()) as unknown;
+    let rawGhUser: unknown;
+    try {
+        rawGhUser = (await userRes.json()) as unknown;
+    } catch (error) {
+        console.error("GitHub user response was not valid JSON:", error);
+        return c.json({ error: "Failed to fetch GitHub user" }, 502);
+    }
     if (!rawGhUser || typeof rawGhUser !== "object") {
         return c.json({ error: "Invalid GitHub user payload" }, 502);
     }
@@ -126,54 +182,57 @@ auth.get("/github/callback", async (c) => {
         typeof ghUser.avatar_url === "string" ? ghUser.avatar_url : null;
     const ghEmail = typeof ghUser.email === "string" ? ghUser.email : null;
 
-    const db = drizzle(c.env.DB);
-    await enableForeignKeys(db);
-
-    // Upsert user atomically by githubId.
+    // Persist user and re-read it through a primary-anchored D1 session.
     const githubId = String(ghUser.id);
-    const insertedUserId = crypto.randomUUID();
-    await db
-        .insert(users)
-        .values({
-            id: insertedUserId,
+    const candidateUserId = crypto.randomUUID();
+    if (
+        !hasPersistableUserLengths({
+            candidateUserId,
             githubId,
             name: ghName,
             avatarUrl: ghAvatar,
             email: ghEmail,
         })
-        .onConflictDoUpdate({
-            target: users.githubId,
-            set: {
+    ) {
+        return c.json({ error: "Invalid GitHub user payload" }, 502);
+    }
+    let userId: string;
+    try {
+        userId = (
+            await persistGitHubUser(c.env.DB, {
+                candidateUserId,
+                githubId,
                 name: ghName,
                 avatarUrl: ghAvatar,
                 email: ghEmail,
-            },
-        });
-
-    const upsertedUser = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.githubId, githubId))
-        .get();
-    if (!upsertedUser) {
-        return c.json({ error: "Failed to upsert user" }, 500);
+                source: "oauth-callback",
+            })
+        ).userId;
+    } catch {
+        return c.json({ error: "Failed to persist GitHub user" }, 500);
     }
-    const userId = upsertedUser.id;
 
     // Generate JWT (7-day expiry)
     const now = Math.floor(Date.now() / 1000);
-    const jwt = await sign(
-        {
-            sub: userId,
-            githubId,
-            name: ghName,
-            iat: now,
-            exp: now + JWT_EXPIRY_SECONDS,
-        },
-        c.env.JWT_SECRET,
-        "HS256",
-    );
+    let jwt: string;
+    try {
+        jwt = await sign(
+            {
+                sub: userId,
+                githubId,
+                name: ghName,
+                iat: now,
+                exp: now + JWT_EXPIRY_SECONDS,
+            },
+            c.env.JWT_SECRET,
+            "HS256",
+        );
+    } catch (error) {
+        console.error(`GitHub OAuth JWT signing failed for githubId=${githubId}:`, error);
+        return c.json({ error: "Failed to create session token" }, 500);
+    }
 
+    deleteCookie(c, "oauth_state", { path: "/" });
     return c.redirect(`${c.env.FRONTEND_URL}/auth/callback#token=${jwt}`);
 });
 
@@ -182,7 +241,7 @@ auth.get("/me", authMiddleware, async (c) => {
     const payload = c.get("user");
     const db = drizzle(c.env.DB);
     const user = await db
-        .select()
+        .select(authUserSelection)
         .from(users)
         .where(eq(users.id, payload.sub))
         .get();
@@ -222,42 +281,38 @@ auth.post("/test-token", async (c) => {
     } catch {
         return c.json({ error: "Invalid JSON" }, 400);
     }
-
-    const db = drizzle(c.env.DB);
-    await enableForeignKeys(db);
-
-    // Upsert user
-    await db
-        .insert(users)
-        .values({
-            id: body.sub,
+    if (
+        !hasPersistableUserLengths({
+            candidateUserId: body.sub,
             githubId: body.githubId,
             name: body.name,
             avatarUrl: null,
             email: null,
         })
-        .onConflictDoUpdate({
-            target: users.githubId,
-            set: {
+    ) {
+        return c.json({ error: "Invalid request body" }, 400);
+    }
+
+    let persistedUserId: string;
+    try {
+        persistedUserId = (
+            await persistGitHubUser(c.env.DB, {
+                candidateUserId: body.sub,
+                githubId: body.githubId,
                 name: body.name,
-            },
-        });
-
-    // Fetch the actual persisted user ID (in case of conflict on githubId)
-    const persistedUser = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.githubId, body.githubId))
-        .get();
-
-    if (!persistedUser) {
+                avatarUrl: null,
+                email: null,
+                source: "test-token",
+            })
+        ).userId;
+    } catch {
         return c.json({ error: "Failed to persist user" }, 500);
     }
 
     const now = Math.floor(Date.now() / 1000);
     const jwt = await sign(
         {
-            sub: persistedUser.id,
+            sub: persistedUserId,
             githubId: body.githubId,
             name: body.name,
             iat: now,
@@ -309,7 +364,7 @@ auth.post("/test-org", async (c) => {
             userId: body.userId,
             role: "member",
         })
-        .onConflictDoNothing();
+        .onConflictDoNothing({ target: [orgMembers.orgId, orgMembers.userId] });
 
     return c.json({ ok: true });
 });

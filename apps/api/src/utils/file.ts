@@ -2,11 +2,12 @@ const MIME_PDF = "application/pdf";
 const MIME_PNG = "image/png";
 const MIME_JPEG = "image/jpeg";
 const MIME_PPT = "application/vnd.ms-powerpoint";
-const MIME_PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+const MIME_PPTX =
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation";
 const MIME_OLE2 = "application/x-ole-storage";
 const MIME_ZIP = "application/zip";
 
-const MIME_COMPATIBILITY: Record<string, readonly string[]> = {
+export const MIME_COMPATIBILITY: Record<string, readonly string[]> = {
     [MIME_PDF]: [MIME_PDF],
     [MIME_PNG]: [MIME_PNG],
     [MIME_JPEG]: [MIME_JPEG],
@@ -22,8 +23,6 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
     ["D0CF11E0A1B11AE1", MIME_OLE2],
     ["504B0304", MIME_ZIP],
 ];
-
-
 
 // Maximum file size to perform deep content validation.
 const MAX_DEEP_VALIDATION_BYTES = 50 * 1024 * 1024;
@@ -49,8 +48,22 @@ function getScanRanges(fileSize: number): Array<[number, number]> {
     ];
 }
 
+// Returns the detected MIME type, or null if file header is unrecognized
+export async function detectMimeType(file: File): Promise<string | null> {
+    const buffer = await file.slice(0, 8).arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    const hex = Array.from(bytes)
+        .map((b) => b.toString(16).padStart(2, "0").toUpperCase())
+        .join("");
+
+    return MAGIC_NUMBER_MAP.find(([magic]) => hex.startsWith(magic))?.[1] ?? null;
+}
+
 // Helper function to search for a byte sequence within a file in chunks
-async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promise<boolean> {
+async function searchSequenceInFile(
+    file: File,
+    searchBytes: Uint8Array,
+): Promise<boolean> {
     if (file.size > MAX_DEEP_VALIDATION_BYTES) return false;
 
     const searchLen = searchBytes.length;
@@ -80,26 +93,16 @@ async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promis
     return false;
 }
 
-export async function validateMagicNumbers(file: File, declaredMime: string): Promise<boolean> {
-    const buffer = await file.slice(0, 8).arrayBuffer();
-    const bytes = new Uint8Array(buffer);
-    const hex = Array.from(bytes)
-        .map((b) => b.toString(16).padStart(2, "0").toUpperCase())
-        .join("");
-
-    const detectedType = MAGIC_NUMBER_MAP.find(([magic]) => hex.startsWith(magic))?.[1] ?? null;
-
-    if (!detectedType) return false;
-    
-    const isValidBasic = (MIME_COMPATIBILITY[declaredMime] ?? []).includes(detectedType);
-    if (!isValidBasic) return false;
-
-    // Deeper inspection of PPT/PPTX files
+async function passesDeepValidation(
+    file: File,
+    declaredMime: string,
+): Promise<boolean> {
     if (declaredMime === MIME_PPTX) {
-        const searchString = "ppt/presentation.xml";
-        const searchBytes = new TextEncoder().encode(searchString);
+        const searchBytes = new TextEncoder().encode("ppt/presentation.xml");
         return searchSequenceInFile(file, searchBytes);
-    } else if (declaredMime === MIME_PPT) {
+    }
+
+    if (declaredMime === MIME_PPT) {
         const searchString = "PowerPoint Document";
         // UTF-16LE encoding for OLE2 string
         const searchBytes = new Uint8Array(searchString.length * 2);
@@ -111,4 +114,21 @@ export async function validateMagicNumbers(file: File, declaredMime: string): Pr
     }
 
     return true;
+}
+
+// Validates that detected MIME is one of the allowed types
+export async function validateMagicNumbers(
+    file: File,
+    allowedMimeTypes: string[],
+): Promise<boolean> {
+    const detectedType = await detectMimeType(file);
+    if (!detectedType) return false;
+
+    for (const allowed of allowedMimeTypes) {
+        if ((MIME_COMPATIBILITY[allowed] ?? []).includes(detectedType)) {
+            return passesDeepValidation(file, allowed);
+        }
+    }
+
+    return false;
 }

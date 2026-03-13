@@ -14,7 +14,7 @@ vi.mock("@/lib/api", () => ({
 }));
 
 function Consumer() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, logout, login } = useAuth();
 
   return (
     <div>
@@ -23,18 +23,31 @@ function Consumer() {
       <button onClick={() => void logout()} type="button">
         logout
       </button>
+      <button onClick={() => login()} type="button">
+        login
+      </button>
     </div>
   );
 }
 
 describe("AuthProvider", () => {
-  afterEach(() => {
-    cleanup();
-  });
+  const originalLocation = window.location;
 
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+
+    // We must cast the custom object to any to bypass the readonly Location type.
+    // In JSDOM, deleting window.location is permitted if done carefully.
+    // @ts-ignore
+    delete window.location;
+    window.location = { ...originalLocation, href: "" } as any;
+  });
+
+  afterEach(() => {
+    cleanup();
+    window.location = originalLocation as any;
+    vi.unstubAllEnvs();
   });
 
   it("sets user when token exists and /api/auth/me succeeds", async () => {
@@ -113,5 +126,84 @@ describe("AuthProvider", () => {
       expect(localStorage.getItem("auth_token")).toBeNull();
       expect(screen.getByTestId("user").textContent).toBe("null");
     });
+  });
+
+  it("sets user to null when apiFetch returns non-ok response", async () => {
+    localStorage.setItem("auth_token", "token-1");
+    vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status: 401 }));
+
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading").textContent).toBe("false");
+      expect(screen.getByTestId("user").textContent).toBe("null");
+    });
+  });
+
+  it("sets user to null when apiFetch throws an error", async () => {
+    localStorage.setItem("auth_token", "token-1");
+    vi.mocked(apiFetch).mockRejectedValue(new Error("Network error"));
+
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading").textContent).toBe("false");
+      expect(screen.getByTestId("user").textContent).toBe("null");
+    });
+  });
+
+  it("redirects to github auth on login", async () => {
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    );
+
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://localhost:8787");
+
+    fireEvent.click(screen.getByRole("button", { name: "login" }));
+
+    expect(window.location.href).toBe("http://localhost:8787/api/auth/github");
+  });
+
+  it("redirects to github auth on login without NEXT_PUBLIC_API_URL", async () => {
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    );
+
+    // Explicitly delete it so it falls back to the default ""
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
+
+    fireEvent.click(screen.getByRole("button", { name: "login" }));
+
+    expect(window.location.href).toBe("/api/auth/github");
+  });
+
+  it("useAuth throws an error when used outside AuthProvider", () => {
+    function OutsideConsumer() {
+      useAuth();
+      return null;
+    }
+
+    // Suppress React error boundaries logging to console.error
+    const originalError = console.error;
+    console.error = vi.fn();
+    try {
+      expect(() => render(<OutsideConsumer />)).toThrow(
+        "useAuth must be used within AuthProvider"
+      );
+    } finally {
+      console.error = originalError;
+    }
   });
 });
