@@ -288,7 +288,11 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     }
 
     // Check user exists
-    const targetUser = await db.select().from(users).where(eq(users.id, targetUserId.trim())).get();
+    const targetUser = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, targetUserId.trim()))
+        .get();
     if (!targetUser) return c.json({ error: "User not found" }, 404);
 
     // Check not already a member

@@ -39,7 +39,7 @@ describe("papers routes", () => {
             "http://localhost/api/papers",
             {
                 method: "POST",
-                headers: { 
+                headers: {
                     Authorization: `Bearer ${token}`,
                     Origin: "http://localhost:3000"
                 },
@@ -51,7 +51,7 @@ describe("papers routes", () => {
 
         expect(res.status).toBe(201);
     });
-    
+
     it("POST /api/papers rejects upload when content does not match declared MIME", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
@@ -59,15 +59,15 @@ describe("papers routes", () => {
 
         const form = new FormData();
         form.set("metadata", JSON.stringify({ title: "Mismatched Paper", visibility: "private" }));
-        // PDF declared but content starts with ZIP header
-        form.set("files_0", new File(["PK\x03\x04zipcontent"], "paper.pdf", { type: "application/pdf" }));
+        // PDF declared but content starts with unallowed header
+        form.set("files_0", new File(["MZ\x90\x00\x03exe"], "paper.pdf", { type: "application/pdf" }));
         form.set("file_types_0", "paper");
 
         const res = await app.request(
             "http://localhost/api/papers",
             {
                 method: "POST",
-                headers: { 
+                headers: {
                     Authorization: `Bearer ${token}`,
                     Origin: "http://localhost:3000"
                 },
@@ -78,7 +78,37 @@ describe("papers routes", () => {
 
         expect(res.status).toBe(400);
         const body = (await res.json()) as any;
-        expect(body.error).toContain("does not match expected format");
+        expect(body.error).toContain("invalid or is of an unsupported type");
+    });
+
+    it("POST /api/papers rejects upload when declared MIME type does not match file content (spoofing)", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const form = new FormData();
+        form.set("metadata", JSON.stringify({ title: "Spoofed Paper", visibility: "private" }));
+        // PNG content (magic: 89 50 4E 47 0D 0A 1A 0A) but declared as PDF
+        const pngMagic = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+        form.set("files_0", new File([pngMagic], "paper.pdf", { type: "application/pdf" }));
+        form.set("file_types_0", "paper");
+
+        const res = await app.request(
+            "http://localhost/api/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000"
+                },
+                body: form
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toContain("does not match declared type");
     });
 
     it("GET /api/papers returns current user's papers", async () => {
@@ -184,7 +214,7 @@ describe("papers routes", () => {
             "http://localhost/api/papers/paper-1",
             {
                 method: "DELETE",
-                headers: { 
+                headers: {
                     Authorization: `Bearer ${token}`,
                     Origin: "http://localhost:3000"
                 }
