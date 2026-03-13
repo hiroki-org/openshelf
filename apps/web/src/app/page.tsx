@@ -73,7 +73,7 @@ export default function Home() {
         <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white/90 px-6 py-16 shadow-sm dark:border-gray-800 dark:bg-gray-950/80 sm:px-10 sm:py-24 text-center">
           <div className="mx-auto max-w-3xl">
             <div className="mb-6 inline-flex items-center rounded-full border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-900 shadow-sm dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100">
-              <span className="flex h-2 w-2 rounded-full bg-blue-500 mr-2"></span>
+<span className="flex h-2 w-2 rounded-full bg-blue-500 mr-2" aria-hidden="true"></span>
               Research output hosting
             </div>
             <h1 className="text-4xl font-extrabold tracking-tight text-gray-950 dark:text-gray-50 sm:text-6xl">
