@@ -1,0 +1,26 @@
+name: Check Migration Immutability
+on:
+  pull_request:
+    paths:
+      - "apps/api/drizzle/**"
+      - "apps/api/migrations/**"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check migration immutability
+        run: |
+          CHANGED=$(git diff --name-status origin/main...HEAD -- 'apps/api/drizzle/*.sql' 'apps/api/migrations/*.sql' | awk '$1 != "A" {print $NF}')
+          if [ -n "$CHANGED" ]; then
+            echo "::error::適用済みマイグレーションファイルが変更されています:"
+            echo "$CHANGED"
+            echo ""
+            echo "適用済みマイグレーションはイミュータブルです．"
+            echo "スキーマ変更は新しい番号のマイグレーションファイル（例: 0004_xxx.sql）を作成してください．"
+            exit 1
+          fi
+          echo "✅ 適用済みマイグレーションに変更なし"
