@@ -6,12 +6,24 @@ import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 
 const usersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
+const userProfileSelection = {
+    id: users.id,
+    githubId: users.githubId,
+    name: users.name,
+    displayName: users.displayName,
+    avatarUrl: users.avatarUrl,
+    email: users.email,
+};
 
 // GET /api/users/me — current profile
 usersRoute.get("/me", authMiddleware, async (c) => {
     const db = drizzle(c.env.DB);
     const userId = c.get("user").sub;
-    const user = await db.select().from(users).where(eq(users.id, userId)).get();
+    const user = await db
+        .select(userProfileSelection)
+        .from(users)
+        .where(eq(users.id, userId))
+        .get();
     if (!user) return c.json({ error: "User not found" }, 404);
     return c.json({ user });
 });
@@ -56,7 +68,12 @@ const updateMeHandler = async (c: any) => {
         .set({ displayName: trimmed })
         .where(eq(users.id, userId));
 
-    const user = await db.select().from(users).where(eq(users.id, userId)).get();
+    const user = await db
+        .select(userProfileSelection)
+        .from(users)
+        .where(eq(users.id, userId))
+        .get();
+    if (!user) return c.json({ error: "User not found" }, 404);
     return c.json({ user });
 };
 

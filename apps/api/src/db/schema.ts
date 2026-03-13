@@ -25,7 +25,7 @@ export const users = sqliteTable(
     "users",
     {
         id: id(),
-        githubId: text("github_id").notNull(),
+        githubId: text("github_id").notNull().unique(),
         name: text("name").notNull(),
         displayName: text("display_name"),
         avatarUrl: text("avatar_url"),
@@ -33,7 +33,6 @@ export const users = sqliteTable(
         createdAt: createdAt(),
         updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
     },
-    (t) => [uniqueIndex("users_github_id_idx").on(t.githubId)],
 );
 
 export const VALID_VENUE_TYPES = ["conference", "journal", "workshop", "other"] as const;

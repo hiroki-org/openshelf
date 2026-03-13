@@ -4,6 +4,7 @@ import {
     createTestApp,
     createTestEnv,
     createTestJWT,
+    createMockD1,
     makeQuery,
 } from "../../test/helpers";
 
@@ -42,9 +43,20 @@ describe("auth routes", () => {
     });
 
     it("GET /api/auth/github/callback returns frontend redirect with JWT", async () => {
-        mockDb.select = vi
-            .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-1" } }));
+        const { db, withSession } = createMockD1({
+            sessionHandler: (query) => {
+                if (query.includes("INSERT INTO users")) {
+                    return {
+                        run: async () => ({ results: [] }),
+                    };
+                }
+                if (query.includes("SELECT id")) {
+                    return {
+                        first: async () => ({ id: "user-1" }),
+                    };
+                }
+            },
+        });
 
         vi.stubGlobal(
             "fetch",
@@ -61,7 +73,7 @@ describe("auth routes", () => {
         );
 
         const app = await createTestApp();
-        const env = createTestEnv();
+        const env = createTestEnv({ DB: db });
 
         const res = await app.request(
             "http://localhost/api/auth/github/callback?code=code123&state=good-state",
@@ -76,6 +88,13 @@ describe("auth routes", () => {
         expect(res.status).toBe(302);
         const location = res.headers.get("location") ?? "";
         expect(location).toContain("http://localhost:3000/auth/callback#token=");
+        expect(res.headers.get("set-cookie") ?? "").toContain("oauth_state=");
+        expect(withSession).toHaveBeenCalledWith("first-primary");
+        const token = location.split("#token=")[1];
+        const payload = JSON.parse(
+            Buffer.from(token.split(".")[1], "base64url").toString("utf8"),
+        ) as { sub: string };
+        expect(payload.sub).toBe("user-1");
     });
 
     it("GET /api/auth/github/callback returns 400 for invalid state", async () => {
@@ -93,6 +112,112 @@ describe("auth routes", () => {
         );
 
         expect(res.status).toBe(400);
+    });
+
+    it("GET /api/auth/github/callback returns controlled 500 when user persistence fails", async () => {
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const { db } = createMockD1({
+            sessionHandler: (query) => {
+                if (query.includes("INSERT INTO users")) {
+                    return {
+                        run: async () => {
+                            throw new Error("D1 unavailable");
+                        },
+                    };
+                }
+            },
+            dbHandler: (query) => {
+                if (query === "PRAGMA table_info(users)") {
+                    return {
+                        all: async () => ({
+                            results: [
+                                { name: "id" },
+                                { name: "github_id" },
+                                { name: "name" },
+                                { name: "avatar_url" },
+                                { name: "email" },
+                                { name: "created_at" },
+                                { name: "updated_at" },
+                            ],
+                        }),
+                    };
+                }
+                if (query === "PRAGMA index_list(users)") {
+                    return {
+                        all: async () => ({
+                            results: [{ name: "users_github_id_unique", unique: 1 }],
+                        }),
+                    };
+                }
+                if (query.includes('PRAGMA index_info("users_github_id_unique")')) {
+                    return {
+                        all: async () => ({
+                            results: [{ name: "github_id" }],
+                        }),
+                    };
+                }
+            },
+        });
+
+        vi.stubGlobal(
+            "fetch",
+            vi
+                .fn()
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ access_token: "gh-token" })
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ id: 123, login: "octocat", name: "Octo Cat" })
+                })
+        );
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: db });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=good-state",
+            {
+                headers: {
+                    Cookie: "oauth_state=good-state"
+                }
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(500);
+        expect(await res.json()).toEqual({ error: "Failed to persist GitHub user" });
+        expect(res.headers.get("set-cookie")).toBeNull();
+        expect(consoleErrorSpy).toHaveBeenCalled();
+    });
+
+    it("POST /api/auth/test-token returns 400 when values exceed length limits", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            ENABLE_TEST_AUTH: "true",
+            TEST_AUTH_SECRET: "test-auth-secret",
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/test-token",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-test-auth-secret": "test-auth-secret",
+                },
+                body: JSON.stringify({
+                    sub: "user-1",
+                    githubId: "1".repeat(65),
+                    name: "Tester",
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ error: "Invalid request body" });
     });
 
     it("GET /api/auth/me returns 200 for valid Bearer token", async () => {
