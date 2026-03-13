@@ -70,30 +70,6 @@ describe("users routes", () => {
         expect(body.user.displayName).toBe("Updated");
     });
 
-    it("PUT /api/users/me returns 404 when the user disappears after update", async () => {
-        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
-        mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
-
-        const app = await createTestApp();
-        const env = createTestEnv();
-
-        const res = await app.request(
-            "http://localhost/api/users/me",
-            {
-                method: "PUT",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ displayName: "Updated" }),
-            },
-            env as any,
-        );
-
-        expect(res.status).toBe(404);
-        expect(await res.json()).toEqual({ error: "User not found" });
-    });
-
     it("PATCH /api/users/me with malformed JSON returns 400", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
 

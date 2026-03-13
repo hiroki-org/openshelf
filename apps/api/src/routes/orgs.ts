@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, sql, inArray} from "drizzle-orm";
+import { eq, and, sql, inArray, or } from "drizzle-orm";
 import {
     orgs,
     orgMembers,
@@ -288,11 +288,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     }
 
     // Check user exists
-    const targetUser = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.id, targetUserId.trim()))
-        .get();
+    const targetUser = await db.select().from(users).where(eq(users.id, targetUserId.trim())).get();
     if (!targetUser) return c.json({ error: "User not found" }, 404);
 
     // Check not already a member

@@ -1,7 +1,5 @@
 import { sign } from "hono/jwt";
-import type { D1Database } from "@cloudflare/workers-types";
 import type app from "../index";
-import { vi } from "vitest";
 
 const DEFAULT_SECRET = "test-jwt-secret";
 
@@ -17,8 +15,6 @@ export type TestEnv = {
     JWT_SECRET: string;
     FRONTEND_URL: string;
     ALLOWED_ORIGINS?: string;
-    ENABLE_TEST_AUTH?: string;
-    TEST_AUTH_SECRET?: string;
 };
 
 export async function createTestApp(): Promise<typeof app> {
@@ -70,72 +66,6 @@ export function makeQuery(
         },
         get: async () => getResult,
         all: async () => allResult,
-    };
-}
-
-type MockD1StatementHandler = {
-    run?: () => Promise<unknown>;
-    first?: () => Promise<unknown>;
-    all?: () => Promise<{ results: unknown[] }>;
-};
-
-type MockD1QueryHandler = (query: string) => MockD1StatementHandler | undefined;
-
-const createPreparedStatement = (handler?: MockD1StatementHandler) => {
-    const run = vi.fn(async () => {
-        if (handler?.run) return handler.run();
-        return { results: [] };
-    });
-    const first = vi.fn(async () => {
-        if (handler?.first) return handler.first();
-        return null;
-    });
-    const all = vi.fn(async () => {
-        if (handler?.all) return handler.all();
-        return { results: [] };
-    });
-
-    return {
-        bind: vi.fn(() => ({ run, first, all })),
-        run,
-        first,
-        all,
-    };
-};
-
-export function createMockD1(
-    {
-        sessionHandler,
-        dbHandler,
-    }: {
-        sessionHandler?: MockD1QueryHandler;
-        dbHandler?: MockD1QueryHandler;
-    } = {},
-) {
-    const sessionPrepare = vi.fn((query: string) =>
-        createPreparedStatement(sessionHandler?.(query)),
-    );
-    const dbPrepare = vi.fn((query: string) =>
-        createPreparedStatement(dbHandler?.(query)),
-    );
-    const session = {
-        prepare: sessionPrepare,
-        batch: vi.fn(async () => []),
-    };
-    const withSession = vi.fn(() => session);
-    const db = {
-        prepare: dbPrepare,
-        batch: vi.fn(async () => []),
-        exec: vi.fn(async () => ({ count: 0, duration: 0 })),
-        withSession,
-        dump: vi.fn(async () => new ArrayBuffer(0)),
-    } as unknown as D1Database;
-
-    return {
-        db,
-        sessionPrepare,
-        dbPrepare,
-        withSession,
     };
 }
 
