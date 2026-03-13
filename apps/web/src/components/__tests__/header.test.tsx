@@ -16,6 +16,7 @@ vi.mock("next/navigation", () => ({
 describe("Header", () => {
   const mockLogin = vi.fn();
   const mockLogout = vi.fn();
+  const mockRefresh = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -31,6 +32,7 @@ describe("Header", () => {
       loading: true,
       login: mockLogin,
       logout: mockLogout,
+      refresh: mockRefresh,
     });
     vi.mocked(usePathname).mockReturnValue("/");
 
@@ -48,6 +50,7 @@ describe("Header", () => {
       loading: false,
       login: mockLogin,
       logout: mockLogout,
+      refresh: mockRefresh,
     });
     vi.mocked(usePathname).mockReturnValue("/");
 
@@ -79,6 +82,7 @@ describe("Header", () => {
       loading: false,
       login: mockLogin,
       logout: mockLogout,
+      refresh: mockRefresh,
     });
     vi.mocked(usePathname).mockReturnValue("/");
 
@@ -115,6 +119,7 @@ describe("Header", () => {
       loading: false,
       login: mockLogin,
       logout: mockLogout,
+      refresh: mockRefresh,
     });
     // Set pathname to a sub-route of collection
     vi.mocked(usePathname).mockReturnValue("/collections/new");
@@ -141,6 +146,7 @@ describe("Header", () => {
       loading: false,
       login: mockLogin,
       logout: mockLogout,
+      refresh: mockRefresh,
     });
     // The active path check is: pathname === item.href || pathname.startsWith(`${item.href}/`);
     vi.mocked(usePathname).mockReturnValue("/settings/profile");
