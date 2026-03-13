@@ -15,6 +15,37 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
     ["504B0304", "application/zip"],
 ];
 
+// Helper function to search for a byte sequence within a file in chunks
+async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promise<boolean> {
+    const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
+    const searchLen = searchBytes.length;
+    if (searchLen === 0) return false;
+
+    for (let offset = 0; offset < file.size; offset += CHUNK_SIZE) {
+        // Read chunk with overlap to catch sequences crossing chunk boundaries
+        const end = Math.min(offset + CHUNK_SIZE + searchLen - 1, file.size);
+        const chunkBuffer = await file.slice(offset, end).arrayBuffer();
+        const chunk = new Uint8Array(chunkBuffer);
+
+        let i = chunk.indexOf(searchBytes[0]);
+        while (i !== -1 && i <= chunk.length - searchLen) {
+            let match = true;
+            for (let j = 1; j < searchLen; j++) {
+                if (chunk[i + j] !== searchBytes[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                return true;
+            }
+            i = chunk.indexOf(searchBytes[0], i + 1);
+        }
+    }
+
+    return false;
+}
+
 export async function validateMagicNumbers(file: File, declaredMime: string): Promise<boolean> {
     const buffer = await file.slice(0, 8).arrayBuffer();
     const bytes = new Uint8Array(buffer);
@@ -25,6 +56,25 @@ export async function validateMagicNumbers(file: File, declaredMime: string): Pr
     const detectedType = MAGIC_NUMBER_MAP.find(([magic]) => hex.startsWith(magic))?.[1] ?? null;
 
     if (!detectedType) return false;
-    
-    return (MIME_COMPATIBILITY[declaredMime] ?? []).includes(detectedType);
+
+    const isValidBasic = (MIME_COMPATIBILITY[declaredMime] ?? []).includes(detectedType);
+    if (!isValidBasic) return false;
+
+    // Deeper inspection of PPT/PPTX files
+    if (declaredMime === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+        const searchString = "ppt/presentation.xml";
+        const searchBytes = new TextEncoder().encode(searchString);
+        return searchSequenceInFile(file, searchBytes);
+    } else if (declaredMime === "application/vnd.ms-powerpoint") {
+        const searchString = "PowerPoint Document";
+        // UTF-16LE encoding for OLE2 string
+        const searchBytes = new Uint8Array(searchString.length * 2);
+        for (let i = 0; i < searchString.length; i++) {
+            searchBytes[i * 2] = searchString.charCodeAt(i);
+            searchBytes[i * 2 + 1] = 0;
+        }
+        return searchSequenceInFile(file, searchBytes);
+    }
+
+    return true;
 }
