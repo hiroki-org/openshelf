@@ -550,12 +550,9 @@ collectionsRoute.get("/collections/:id/papers", async (c) => {
         const authoredSet = new Set(authoredRows.map(r => r.paperId));
 
         // Batch 2: which org_only papers can the user see via org membership?
-        const orgOnlyIds: string[] = [];
-        for (const r of restrictedRows) {
-            if (r.visibility === "org_only" && !authoredSet.has(r.id)) {
-                orgOnlyIds.push(r.id);
-            }
-        }
+        const orgOnlyIds = restrictedRows
+            .filter(r => r.visibility === "org_only" && !authoredSet.has(r.id))
+            .map(r => r.id);
         const orgAccessSet = new Set<string>();
         if (orgOnlyIds.length > 0) {
             const orgAccessRows = await db

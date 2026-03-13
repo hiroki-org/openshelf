@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, sql, inArray} from "drizzle-orm";
+import { eq, and, sql, inArray, or } from "drizzle-orm";
 import {
     orgs,
     orgMembers,
@@ -288,11 +288,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     }
 
     // Check user exists
-    const targetUser = await db
-        .select({ id: users.id })
-        .from(users)
-        .where(eq(users.id, targetUserId.trim()))
-        .get();
+    const targetUser = await db.select().from(users).where(eq(users.id, targetUserId.trim())).get();
     if (!targetUser) return c.json({ error: "User not found" }, 404);
 
     // Check not already a member
@@ -472,24 +468,19 @@ orgsRoute.get("/:slug/papers", async (c) => {
     // Check authorship for non-public papers the user might be an author of
     let authoredPaperIds = new Set<string>();
     if (currentUserId) {
-        const nonPublicPaperIds = allPapers.reduce<string[]>((acc, p) => {
-            if (p.visibility !== "public") {
-                acc.push(p.id);
-            }
-            return acc;
-        }, []);
-        if (nonPublicPaperIds.length > 0) {
+        const nonPublicPapers = allPapers.filter((p) => p.visibility !== "public");
+        if (nonPublicPapers.length > 0) {
             const authorships = await db
                 .select({ paperId: paperAuthors.paperId })
                 .from(paperAuthors)
                 .where(
                     and(
-                        inArray(paperAuthors.paperId, nonPublicPaperIds),
+                        inArray(paperAuthors.paperId, nonPublicPapers.map((p) => p.id)),
                         eq(paperAuthors.userId, currentUserId),
                     ),
                 )
                 .all();
-            authoredPaperIds = authorships.reduce((acc, a) => acc.add(a.paperId), new Set<string>());
+            authoredPaperIds = new Set(authorships.map((a) => a.paperId));
         }
     }
 

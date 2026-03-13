@@ -6,24 +6,12 @@ import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 
 const usersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
-const userProfileSelection = {
-    id: users.id,
-    githubId: users.githubId,
-    name: users.name,
-    displayName: users.displayName,
-    avatarUrl: users.avatarUrl,
-    email: users.email,
-};
 
 // GET /api/users/me — current profile
 usersRoute.get("/me", authMiddleware, async (c) => {
     const db = drizzle(c.env.DB);
     const userId = c.get("user").sub;
-    const user = await db
-        .select(userProfileSelection)
-        .from(users)
-        .where(eq(users.id, userId))
-        .get();
+    const user = await db.select().from(users).where(eq(users.id, userId)).get();
     if (!user) return c.json({ error: "User not found" }, 404);
     return c.json({ user });
 });
@@ -68,12 +56,7 @@ const updateMeHandler = async (c: any) => {
         .set({ displayName: trimmed })
         .where(eq(users.id, userId));
 
-    const user = await db
-        .select(userProfileSelection)
-        .from(users)
-        .where(eq(users.id, userId))
-        .get();
-    if (!user) return c.json({ error: "User not found" }, 404);
+    const user = await db.select().from(users).where(eq(users.id, userId)).get();
     return c.json({ user });
 };
 
@@ -90,27 +73,28 @@ type CachedSearchResult = {
 const searchCache = new Map<string, CachedSearchResult>();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
 const MAX_CACHE_SIZE = 1000;
-// Queries longer than this are unlikely to benefit from caching and would
-// allow unbounded Map key sizes that waste isolate memory.
-const MAX_CACHEABLE_QUERY_LENGTH = 128;
 
 function getCachedResults(key: string): any[] | null {
     const cached = searchCache.get(key);
-    if (cached) {
-        if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
-            return cached.data;
-        }
-        searchCache.delete(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        return cached.data;
     }
     return null;
 }
 
 function setCachedResults(key: string, data: any[]) {
-    // FIFO eviction: remove the oldest entry when cache is full
+    // cleanup old cache randomly to prevent memory leak
     if (searchCache.size >= MAX_CACHE_SIZE) {
-        const oldestKey = searchCache.keys().next().value;
-        if (oldestKey) {
-            searchCache.delete(oldestKey);
+        const now = Date.now();
+        for (const [k, v] of searchCache.entries()) {
+            if (now - v.timestamp > CACHE_TTL_MS) {
+                searchCache.delete(k);
+            }
+        }
+
+        // if still too large, clear to prevent memory leak
+        if (searchCache.size >= MAX_CACHE_SIZE) {
+            searchCache.clear();
         }
     }
     searchCache.set(key, { data, timestamp: Date.now() });
@@ -122,11 +106,9 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     if (!q || q.length < 2) return c.json({ users: [] });
 
     const currentUserId = c.get("user").sub;
-    const cacheKey = q.length <= MAX_CACHEABLE_QUERY_LENGTH
-        ? `${currentUserId}\0${q}`
-        : null;
+    const cacheKey = `${q}-${currentUserId}`;
 
-    const cachedUsers = cacheKey ? getCachedResults(cacheKey) : null;
+    const cachedUsers = getCachedResults(cacheKey);
     if (cachedUsers) {
         return c.json({ users: cachedUsers });
     }
@@ -154,9 +136,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
         .limit(10)
         .all();
 
-    if (cacheKey) {
-        setCachedResults(cacheKey, results);
-    }
+    setCachedResults(cacheKey, results);
 
     return c.json({ users: results });
 });

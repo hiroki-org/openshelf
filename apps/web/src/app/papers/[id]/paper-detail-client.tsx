@@ -257,21 +257,9 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
     return () => {
       cancelled = true;
-      if (createdUrls.length === 0) return;
-
-      let i = 0;
-      const REVOKE_BATCH_SIZE = 10;
-      function revokeBatch() {
-        const end = Math.min(i + REVOKE_BATCH_SIZE, createdUrls.length);
-        while (i < end) {
-          URL.revokeObjectURL(createdUrls[i]);
-          i++;
-        }
-        if (i < createdUrls.length) {
-          setTimeout(revokeBatch, 0);
-        }
+      for (const url of createdUrls) {
+        URL.revokeObjectURL(url);
       }
-      setTimeout(revokeBatch, 0);
     };
   }, [paperId, files]);
 

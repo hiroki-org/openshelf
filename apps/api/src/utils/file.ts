@@ -1,4 +1,4 @@
-export const MIME_COMPATIBILITY: Record<string, readonly string[]> = {
+const MIME_COMPATIBILITY: Record<string, readonly string[]> = {
     "application/pdf": ["application/pdf"],
     "image/png": ["image/png"],
     "image/jpeg": ["image/jpeg"],
@@ -15,22 +15,16 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
     ["504B0304", "application/zip"],
 ];
 
-// Returns the detected MIME type, or null if file header is unrecognized
-export async function detectMimeType(file: File): Promise<string | null> {
+export async function validateMagicNumbers(file: File, declaredMime: string): Promise<boolean> {
     const buffer = await file.slice(0, 8).arrayBuffer();
     const bytes = new Uint8Array(buffer);
     const hex = Array.from(bytes)
         .map((b) => b.toString(16).padStart(2, "0").toUpperCase())
         .join("");
 
-    return MAGIC_NUMBER_MAP.find(([magic]) => hex.startsWith(magic))?.[1] ?? null;
-}
+    const detectedType = MAGIC_NUMBER_MAP.find(([magic]) => hex.startsWith(magic))?.[1] ?? null;
 
-// Validates that detected MIME is one of the allowed types
-export async function validateMagicNumbers(file: File, allowedMimeTypes: string[]): Promise<boolean> {
-    const detectedType = await detectMimeType(file);
-    
     if (!detectedType) return false;
     
-    return allowedMimeTypes.some(allowed => (MIME_COMPATIBILITY[allowed] ?? []).includes(detectedType));
+    return (MIME_COMPATIBILITY[declaredMime] ?? []).includes(detectedType);
 }
