@@ -19,6 +19,7 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
 async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promise<boolean> {
     const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
     const searchLen = searchBytes.length;
+    if (searchLen === 0) return false;
 
     for (let offset = 0; offset < file.size; offset += CHUNK_SIZE) {
         // Read chunk with overlap to catch sequences crossing chunk boundaries
