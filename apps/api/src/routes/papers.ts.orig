@@ -688,12 +688,11 @@ papersRoute.get("/:id/invites", authMiddleware, async (c) => {
         .all();
 
     const inviteeIds = [
-        ...inviteRows.reduce((acc, inv) => {
-            if (typeof inv.inviteeId === "string") {
-                acc.add(inv.inviteeId);
-            }
-            return acc;
-        }, new Set<string>()),
+        ...new Set(
+            inviteRows
+                .map((inv) => inv.inviteeId)
+                .filter((v): v is string => typeof v === "string"),
+        ),
     ];
 
     const inviteeRows = inviteeIds.length
