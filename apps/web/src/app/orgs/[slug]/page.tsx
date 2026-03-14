@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import OrgPageClient from "./org-page-client";
+import { safePath } from "@/lib/sanitization";
 
 type Params = { slug: string };
 
@@ -22,12 +23,9 @@ const SITE_BASE =
 
 async function fetchOrgMetadata(slug: string): Promise<OrgResponse | null> {
   try {
-    const res = await fetch(
-      `${API_BASE}/api/orgs/${encodeURIComponent(slug)}`,
-      {
-        cache: "no-store",
-      },
-    );
+    const res = await fetch(`${API_BASE}/api/orgs/${safePath(slug)}`, {
+      cache: "no-store",
+    });
     if (!res.ok) return null;
     return (await res.json()) as OrgResponse;
   } catch {
@@ -49,6 +47,17 @@ export async function generateMetadata(props: {
   params: Params | Promise<Params>;
 }): Promise<Metadata> {
   const { slug } = await Promise.resolve(props.params);
+  // Ensure slug is sanitized before any further processing
+  let safeSlug = "";
+  try {
+    safeSlug = safePath(slug);
+    // safePath returns encoded, but for the rest we want normalized.
+    // Actually safePath(slug) is already safe to pass to fetchOrgMetadata.
+  } catch {
+    // Return early or generic if invalid slug
+    return { title: "OpenShelf" };
+  }
+
   const data = await fetchOrgMetadata(slug);
 
   if (!data) {
@@ -99,5 +108,10 @@ export default async function OrgPage(props: {
   params: Params | Promise<Params>;
 }) {
   const { slug } = await Promise.resolve(props.params);
+  try {
+    safePath(slug);
+  } catch {
+    return <div className="text-center py-20">無効な識別子です</div>;
+  }
   return <OrgPageClient slug={slug} />;
 }

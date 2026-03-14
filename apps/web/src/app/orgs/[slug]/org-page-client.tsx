@@ -5,6 +5,8 @@ import { useAuth } from "@/components/auth-provider";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { safePath } from "@/lib/sanitization";
+import { getVisibilityBadge } from "@/lib/presentation";
 
 type Org = {
   id: string;
@@ -65,14 +67,12 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
 
   const fetchOrg = useCallback(async () => {
     try {
-      const [orgRes, papersRes, membersRes, collectionsRes] = await Promise.all(
-        [
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}`),
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`),
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`),
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/collections`),
-        ],
-      );
+      const [orgRes, papersRes, membersRes, collectionsRes] = await Promise.all([
+        apiFetch(`/api/orgs/${safePath(slug)}`),
+        apiFetch(`/api/orgs/${safePath(slug)}/papers`),
+        apiFetch(`/api/orgs/${safePath(slug)}/members`),
+        apiFetch(`/api/orgs/${safePath(slug)}/collections`),
+      ]);
 
       if (!orgRes.ok) {
         setError(
@@ -114,34 +114,6 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
   if (error)
     return <div className="text-center py-20 text-red-600">{error}</div>;
   if (!org) return null;
-
-  const getVisibilityBadge = (visibility: string) => {
-    switch (visibility) {
-      case "public":
-        return {
-          label: "公開",
-          className:
-            "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
-        };
-      case "org_only":
-        return {
-          label: "組織限定",
-          className:
-            "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
-        };
-      case "private":
-        return {
-          label: "非公開",
-          className:
-            "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
-        };
-      default:
-        return {
-          label: visibility,
-          className: "bg-gray-100 text-gray-700 dark:bg-gray-800",
-        };
-    }
-  };
 
   return (
     <div className="max-w-4xl">

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PaperDetailClient from "./paper-detail-client";
+import { safePath } from "@/lib/sanitization";
 
 type Params = { id: string };
 
@@ -29,12 +30,9 @@ async function fetchPaperMetadata(
   id: string,
 ): Promise<PaperMetadataResponse | null> {
   try {
-    const res = await fetch(
-      `${API_BASE}/api/papers/${encodeURIComponent(id)}`,
-      {
-        cache: "no-store",
-      },
-    );
+    const res = await fetch(`${API_BASE}/api/papers/${safePath(id)}`, {
+      cache: "no-store",
+    });
     if (!res.ok) return null;
     return (await res.json()) as PaperMetadataResponse;
   } catch {
@@ -65,6 +63,15 @@ export async function generateMetadata(props: {
   params: Params | Promise<Params>;
 }): Promise<Metadata> {
   const { id } = await Promise.resolve(props.params);
+
+  // Sanitization check
+  let sanitizedId = "";
+  try {
+    sanitizedId = safePath(id);
+  } catch {
+    return { title: "論文詳細 | OpenShelf" };
+  }
+
   const data = await fetchPaperMetadata(id);
 
   if (!data || data.paper.visibility !== "public") {
@@ -123,5 +130,10 @@ export default async function PaperPage(props: {
   params: Params | Promise<Params>;
 }) {
   const { id } = await Promise.resolve(props.params);
+  try {
+    safePath(id);
+  } catch {
+    return <div className="text-center py-20">無効な識別子です</div>;
+  }
   return <PaperDetailClient paperId={id} />;
 }

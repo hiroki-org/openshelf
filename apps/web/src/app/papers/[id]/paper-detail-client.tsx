@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import { safePath } from "@/lib/sanitization";
 import {
   getVisibilityBadge,
   getInviteStatusBadge,
@@ -139,7 +140,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const fetchStats = useCallback(async () => {
     if (!paperId || !isAuthor) return;
     try {
-      const res = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}/stats`);
+      const res = await apiFetch(`/api/papers/${safePath(paperId)}/stats`);
       if (res.ok) {
         const data = (await res.json()) as PaperStats;
         setStats(data);
@@ -164,7 +165,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   const fetchPaper = useCallback(async () => {
     try {
-      const res = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}`);
+      const res = await apiFetch(`/api/papers/${safePath(paperId)}`);
       if (!res.ok) {
         if (res.status === 401) {
           setError("ログインが必要です");
@@ -192,7 +193,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     if (!isUploader) return;
     try {
       const res = await apiFetch(
-        `/api/papers/${encodeURIComponent(paperId)}/invites`,
+        `/api/papers/${safePath(paperId)}/invites`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -219,7 +220,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
     const recordView = async () => {
       try {
-        const res = await apiFetch(`/api/papers/${encodeURIComponent(paper.id)}/view`, {
+        const res = await apiFetch(`/api/papers/${safePath(paper.id)}/view`, {
           method: "POST",
         });
 
@@ -253,37 +254,14 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     setStatsLoading(true);
     setStatsError("");
 
-    const fetchStats = async () => {
-      try {
-        const res = await apiFetch(`/api/papers/${encodeURIComponent(paper.id)}/stats`);
-        if (!res.ok) {
-          throw new Error("統計情報の取得に失敗しました");
-        }
-
-        const data = (await res.json()) as PaperStats;
-        if (!cancelled) {
-          setStats(data);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setStats(null);
-          setStatsError(
-            err instanceof Error ? err.message : "統計情報の取得に失敗しました",
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setStatsLoading(false);
-        }
-      }
-    };
-
-    void fetchStats();
+    fetchStats();
+    // Also set loading false in fetchStats normally, but here we use useEffect style
+    setStatsLoading(false); 
 
     return () => {
       cancelled = true;
     };
-  }, [paper?.id, isAuthor]);
+  }, [paper?.id, isAuthor, fetchStats]);
 
   const pdfFile = useMemo(
     () => files.find((f) => f.mimeType === "application/pdf") ?? null,
@@ -317,7 +295,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
       try {
         const res = await apiFetch(
-          `/api/papers/${paperId}/files/${currentPdfFile.id}/preview`,
+          `/api/papers/${safePath(paperId)}/files/${safePath(currentPdfFile.id)}/preview`,
         );
         if (!res.ok) {
           throw new Error("preview failed");
@@ -352,7 +330,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         URL.revokeObjectURL(createdObjectUrl);
       }
     };
-  }, [paperId, files]);
+  }, [paperId, pdfFile]);
 
   useEffect(() => {
     if (imageFiles.length === 0) {
@@ -368,7 +346,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       const entries = await Promise.all(
         imageFiles.map(async (img) => {
           try {
-            const streamPath = `/api/papers/${paperId}/files/${img.id}/stream`;
+            const streamPath = `/api/papers/${safePath(paperId)}/files/${safePath(img.id)}/stream`;
             const res = await apiFetch(streamPath);
             if (!res.ok) {
               currentFailedIds.push(img.id);
@@ -378,7 +356,8 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
             const objectUrl = URL.createObjectURL(blob);
             createdUrls.push(objectUrl);
             return [img.id, objectUrl] as const;
-          } catch {
+          } catch (err) {
+            console.error(`Error loading image ${img.id}:`, err);
             currentFailedIds.push(img.id);
             return [img.id, ""] as const;
           }
@@ -394,7 +373,8 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       setFailedImageIds(currentFailedIds);
     };
 
-    loadImages().catch(() => {
+    loadImages().catch((err) => {
+      console.error("Critical error in loadImages:", err);
       if (!cancelled) {
         setImagePreviewUrls({});
         setFailedImageIds(imageFiles.map((f) => f.id));
@@ -407,7 +387,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         URL.revokeObjectURL(url);
       }
     };
-  }, [paperId, files]);
+  }, [paperId, imageFiles]);
 
   const handleSearch = async (q: string) => {
     setSearchQuery(q);
@@ -434,7 +414,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     setInviting(true);
     try {
       const res = await apiFetch(
-        `/api/papers/${encodeURIComponent(paperId)}/invites`,
+        `/api/papers/${safePath(paperId)}/invites`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -446,7 +426,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         setSearchQuery("");
         setSearchResults([]);
         await fetchInvites();
-        toast.success("共著者を招待しました");
+        toast.success("招待を送信しました");
       } else {
         const data = await res.json();
         toast.error(data.error ?? "招待に失敗しました");
@@ -514,9 +494,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     }
   };
 
-  // Visibility badge is now handled via lib/presentation
-
-  // Visibility badge is now handled via lib/presentation
   const showExternalLink =
     paper.externalUrl && isValidExternalUrl(paper.externalUrl);
 

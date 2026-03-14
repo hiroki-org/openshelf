@@ -13,14 +13,11 @@ interface Toast {
 let toastListeners: ((toasts: Toast[]) => void)[] = [];
 let toasts: Toast[] = [];
 
-function notify() {
-  toastListeners.forEach((listener) => listener(toasts));
-}
-
-function removeToast(id: string) {
-  toasts = toasts.filter((t) => t.id !== id);
-  notify();
-}
+export const toast = {
+  success: (message: string) => addToast(message, "success"),
+  error: (message: string) => addToast(message, "error"),
+  info: (message: string) => addToast(message, "info"),
+};
 
 function addToast(message: string, type: ToastType) {
   const id = Math.random().toString(36).substring(2, 9);
@@ -30,11 +27,14 @@ function addToast(message: string, type: ToastType) {
   setTimeout(() => removeToast(id), 5000);
 }
 
-export const toast = {
-  success: (message: string) => addToast(message, "success"),
-  error: (message: string) => addToast(message, "error"),
-  info: (message: string) => addToast(message, "info"),
-};
+function removeToast(id: string) {
+  toasts = toasts.filter((t) => t.id !== id);
+  notify();
+}
+
+function notify() {
+  toastListeners.forEach((listener) => listener(toasts));
+}
 
 export function ToastContainer() {
   const [currentToasts, setCurrentToasts] = useState<Toast[]>([]);
