@@ -20,6 +20,7 @@ describe("papers routes", () => {
             run: vi.fn(async () => undefined),
             select: vi.fn(() => makeQuery()),
             insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
+            update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) })),
             delete: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
             batch: vi.fn(async (queries) => Promise.all(queries.map((q: any) => q.all ? q.all() : q)))
         };
@@ -104,7 +105,7 @@ describe("papers routes", () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi
             .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "private", language: "ja", doi: "10.1234/example" } }))
             .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
             .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "file-1", filename: "paper.pdf" }] }))
             .mockImplementationOnce(() => makeQuery({ allResult: [{ userId: "user-1", role: "uploader", name: "Uploader", displayName: null, avatarUrl: null }] }));
@@ -120,7 +121,101 @@ describe("papers routes", () => {
         expect(res.status).toBe(200);
         const body = (await res.json()) as any;
         expect(body.paper.id).toBe("paper-1");
+        expect(body.paper.language).toBe("ja");
+        expect(body.paper.doi).toBe("10.1234/example");
         expect(mockDb.batch).toHaveBeenCalledTimes(1);
+    });
+
+    it("PATCH /api/papers/:id rejects changing a non-org_only paper to org_only", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ visibility: "org_only" }),
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toContain("org_only");
+        expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it("PATCH /api/papers/:id validates externalUrl like POST", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ externalUrl: "ftp://example.com/paper" }),
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toContain("externalUrl");
+        expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it("PATCH /api/papers/:id allows keeping org_only on an existing org_only paper", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const where = vi.fn(async () => undefined);
+        const set = vi.fn(() => ({ where }));
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "org_only" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn(() => ({ set }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ visibility: "org_only", title: "Updated title" }),
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(200);
+        expect(mockDb.update).toHaveBeenCalledTimes(1);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                visibility: "org_only",
+                title: "Updated title",
+            }),
+        );
+        expect(where).toHaveBeenCalledTimes(1);
     });
 
     it("GET /api/papers/:id returns 401 for private paper without Bearer token", async () => {

@@ -417,7 +417,9 @@ papersRoute.get("/:id", async (c) => {
             title: paper.title,
             abstract: paper.abstract,
             visibility: paper.visibility,
+            language: paper.language,
             externalUrl: paper.externalUrl,
+            doi: paper.doi,
             venue: paper.venue,
             venueType: paper.venueType,
             year: paper.year,
@@ -771,6 +773,13 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
     const db = drizzle(c.env.DB);
     await enableForeignKeys(db);
 
+    const paper = await db
+        .select({ id: papers.id, visibility: papers.visibility })
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!paper) return c.json({ error: "Not found" }, 404);
+
     const isAuthor = await db
         .select()
         .from(paperAuthors)
@@ -785,27 +794,79 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
 
     const updates: Record<string, any> = { ...touchUpdatedAt() };
 
-    if ("title" in body && typeof body.title === "string") {
-        if (!body.title.trim()) return c.json({ error: "title is required" }, 400);
-        updates.title = body.title.trim();
+    if ("title" in body) {
+        if (typeof body.title !== "string") {
+            return c.json({ error: "title must be a string" }, 400);
+        }
+        const trimmedTitle = body.title.trim();
+        if (trimmedTitle.length === 0 || trimmedTitle.length > 300) {
+            return c.json({ error: "title is required (1-300 chars)" }, 400);
+        }
+        updates.title = trimmedTitle;
     }
-    if ("abstract" in body && (typeof body.abstract === "string" || body.abstract === null)) {
-        updates.abstract = body.abstract;
+    if ("abstract" in body) {
+        if (!(typeof body.abstract === "string" || body.abstract === null)) {
+            return c.json({ error: "abstract must be a string or null" }, 400);
+        }
+        updates.abstract = typeof body.abstract === "string" ? body.abstract.trim() || null : null;
     }
-    if ("visibility" in body && typeof body.visibility === "string") {
-        if (!["public", "org_only", "private"].includes(body.visibility)) return c.json({ error: "Invalid visibility" }, 400);
+    if ("visibility" in body) {
+        if (typeof body.visibility !== "string" || !VALID_VISIBILITY.includes(body.visibility)) {
+            return c.json({ error: "Invalid visibility" }, 400);
+        }
+        if (body.visibility === "org_only" && paper.visibility !== "org_only") {
+            return c.json(
+                { error: "Changing visibility to org_only is not supported in edit flow" },
+                400,
+            );
+        }
         updates.visibility = body.visibility;
     }
-    if ("language" in body && (typeof body.language === "string" || body.language === null)) updates.language = body.language;
-    if ("externalUrl" in body && (typeof body.externalUrl === "string" || body.externalUrl === null)) updates.externalUrl = body.externalUrl;
-    if ("doi" in body && (typeof body.doi === "string" || body.doi === null)) updates.doi = body.doi;
-    if ("venue" in body && (typeof body.venue === "string" || body.venue === null)) updates.venue = body.venue;
-    if ("venueType" in body && (typeof body.venueType === "string" || body.venueType === null)) {
+    if ("language" in body) {
+        if (!(typeof body.language === "string" || body.language === null)) {
+            return c.json({ error: "language must be a string or null" }, 400);
+        }
+        updates.language = typeof body.language === "string" ? body.language.trim() || null : null;
+    }
+    if ("externalUrl" in body) {
+        if (!(typeof body.externalUrl === "string" || body.externalUrl === null)) {
+            return c.json({ error: "externalUrl must be a string or null" }, 400);
+        }
+        const externalUrl = typeof body.externalUrl === "string" ? body.externalUrl.trim() : null;
+        if (externalUrl && !isValidUrlScheme(externalUrl)) {
+            return c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400);
+        }
+        updates.externalUrl = externalUrl || null;
+    }
+    if ("doi" in body) {
+        if (!(typeof body.doi === "string" || body.doi === null)) {
+            return c.json({ error: "doi must be a string or null" }, 400);
+        }
+        updates.doi = typeof body.doi === "string" ? body.doi.trim() || null : null;
+    }
+    if ("venue" in body) {
+        if (!(typeof body.venue === "string" || body.venue === null)) {
+            return c.json({ error: "venue must be a string or null" }, 400);
+        }
+        updates.venue = typeof body.venue === "string" ? body.venue.trim() || null : null;
+    }
+    if ("venueType" in body) {
+        if (!(typeof body.venueType === "string" || body.venueType === null)) {
+            return c.json({ error: "venueType must be a string or null" }, 400);
+        }
         if (body.venueType && !(VALID_VENUE_TYPES as readonly string[]).includes(body.venueType)) return c.json({ error: "Invalid venueType" }, 400);
         updates.venueType = body.venueType || null;
     }
-    if ("year" in body && (typeof body.year === "number" || body.year === null)) updates.year = body.year;
-    if ("category" in body && (typeof body.category === "string" || body.category === null)) {
+    if ("year" in body) {
+        if (!(typeof body.year === "number" || body.year === null) || Number.isNaN(body.year)) {
+            return c.json({ error: "year must be a number or null" }, 400);
+        }
+        updates.year = body.year;
+    }
+    if ("category" in body) {
+        if (!(typeof body.category === "string" || body.category === null)) {
+            return c.json({ error: "category must be a string or null" }, 400);
+        }
         if (body.category && !(VALID_CATEGORIES as readonly string[]).includes(body.category)) return c.json({ error: "Invalid category" }, 400);
         updates.category = body.category || null;
     }

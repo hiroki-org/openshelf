@@ -11,6 +11,7 @@ const VISIBILITY_OPTIONS = [
   { value: "org_only", label: "組織内" },
   { value: "public", label: "公開" },
 ] as const;
+type VisibilityValue = (typeof VISIBILITY_OPTIONS)[number]["value"];
 
 const CATEGORY_OPTIONS = [
   { value: "", label: "（なし）" },
@@ -42,7 +43,8 @@ export default function PaperEditPage() {
   // Form states
   const [title, setTitle] = useState("");
   const [abstract, setAbstract] = useState("");
-  const [visibility, setVisibility] = useState<"public" | "org_only" | "private">("private");
+  const [visibility, setVisibility] = useState<VisibilityValue>("private");
+  const [initialVisibility, setInitialVisibility] = useState<VisibilityValue | null>(null);
   const [language, setLanguage] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
   const [doi, setDoi] = useState("");
@@ -85,6 +87,7 @@ export default function PaperEditPage() {
         setTitle(paper.title || "");
         setAbstract(paper.abstract || "");
         setVisibility(paper.visibility);
+        setInitialVisibility(paper.visibility);
         setLanguage(paper.language || "");
         setExternalUrl(paper.externalUrl || "");
         setDoi(paper.doi || "");
@@ -179,6 +182,11 @@ export default function PaperEditPage() {
     );
   }
 
+  const visibilityOptions =
+    initialVisibility === "org_only"
+      ? VISIBILITY_OPTIONS
+      : VISIBILITY_OPTIONS.filter((option) => option.value !== "org_only");
+
   return (
     <div className="max-w-2xl mx-auto py-8">
       <div className="flex items-center justify-between mb-8">
@@ -215,7 +223,7 @@ export default function PaperEditPage() {
         <div>
           <label className="mb-1 block text-sm font-medium">公開範囲</label>
           <div className="flex gap-4">
-            {VISIBILITY_OPTIONS.map((opt) => (
+            {visibilityOptions.map((opt) => (
               <label key={opt.value} className="flex items-center gap-2">
                 <input
                   type="radio"
@@ -223,13 +231,23 @@ export default function PaperEditPage() {
                   value={opt.value}
                   checked={visibility === opt.value}
                   onChange={(e) =>
-                    setVisibility(e.target.value as any)
+                    setVisibility(e.target.value as VisibilityValue)
                   }
                 />
                 <span className="text-sm">{opt.label}</span>
               </label>
             ))}
           </div>
+          {initialVisibility !== "org_only" && (
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+              組織公開への変更は対象組織を選べないため、この編集画面では未対応です。
+            </p>
+          )}
+          {initialVisibility === "org_only" && (
+            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+              現在の組織公開設定は維持できますが、公開先組織自体の編集は未対応です。
+            </p>
+          )}
           <p className="mt-1 text-xs text-gray-500">
             {visibility === "private" && "あなたと共著者のみが閲覧可能です。"}
             {visibility === "org_only" && "所属組織のメンバーのみが閲覧可能です。"}

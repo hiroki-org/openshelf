@@ -23,6 +23,7 @@ wrangler.toml.bak
 # IDE and Editor files
 .vscode/
 .idea/
+*.orig
 *.swp
 *.swo
 *~
