@@ -33,6 +33,13 @@ const ALLOWED_MIME_TYPES = [
 ];
 const VALID_FILE_TYPES = ["paper", "slides", "poster", "supplementary"];
 const VALID_VISIBILITY = ["public", "org_only", "private"];
+const MAX_TITLE_LENGTH = 300;
+const MAX_ABSTRACT_LENGTH = 5000;
+const MAX_LANGUAGE_LENGTH = 32;
+const MAX_EXTERNAL_URL_LENGTH = 2048;
+const MAX_DOI_LENGTH = 255;
+const MAX_VENUE_LENGTH = 255;
+const MAX_TAG_LENGTH = 64;
 
 function sanitizeFilename(filename: string): string {
     const basename = filename.split(/[\\/]/).pop() ?? "";
@@ -159,9 +166,9 @@ papersRoute.post("/", authMiddleware, async (c) => {
         !title ||
         typeof title !== "string" ||
         title.trim().length === 0 ||
-        title.trim().length > 300
+        title.trim().length > MAX_TITLE_LENGTH
     )
-        return c.json({ error: "title is required (1-300 chars)" }, 400);
+        return c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400);
 
     const vis = (meta.visibility as string) || "private";
     if (!VALID_VISIBILITY.includes(vis))
@@ -799,8 +806,8 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             return c.json({ error: "title must be a string" }, 400);
         }
         const trimmedTitle = body.title.trim();
-        if (trimmedTitle.length === 0 || trimmedTitle.length > 300) {
-            return c.json({ error: "title is required (1-300 chars)" }, 400);
+        if (trimmedTitle.length === 0 || trimmedTitle.length > MAX_TITLE_LENGTH) {
+            return c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400);
         }
         updates.title = trimmedTitle;
     }
@@ -808,7 +815,11 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         if (!(typeof body.abstract === "string" || body.abstract === null)) {
             return c.json({ error: "abstract must be a string or null" }, 400);
         }
-        updates.abstract = typeof body.abstract === "string" ? body.abstract.trim() || null : null;
+        const abstract = typeof body.abstract === "string" ? body.abstract.trim() : null;
+        if (abstract && abstract.length > MAX_ABSTRACT_LENGTH) {
+            return c.json({ error: `abstract must be ${MAX_ABSTRACT_LENGTH} chars or less` }, 400);
+        }
+        updates.abstract = abstract || null;
     }
     if ("visibility" in body) {
         if (typeof body.visibility !== "string" || !VALID_VISIBILITY.includes(body.visibility)) {
@@ -826,13 +837,20 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         if (!(typeof body.language === "string" || body.language === null)) {
             return c.json({ error: "language must be a string or null" }, 400);
         }
-        updates.language = typeof body.language === "string" ? body.language.trim() || null : null;
+        const language = typeof body.language === "string" ? body.language.trim() : null;
+        if (language && language.length > MAX_LANGUAGE_LENGTH) {
+            return c.json({ error: `language must be ${MAX_LANGUAGE_LENGTH} chars or less` }, 400);
+        }
+        updates.language = language || null;
     }
     if ("externalUrl" in body) {
         if (!(typeof body.externalUrl === "string" || body.externalUrl === null)) {
             return c.json({ error: "externalUrl must be a string or null" }, 400);
         }
         const externalUrl = typeof body.externalUrl === "string" ? body.externalUrl.trim() : null;
+        if (externalUrl && externalUrl.length > MAX_EXTERNAL_URL_LENGTH) {
+            return c.json({ error: `externalUrl must be ${MAX_EXTERNAL_URL_LENGTH} chars or less` }, 400);
+        }
         if (externalUrl && !isValidUrlScheme(externalUrl)) {
             return c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400);
         }
@@ -842,13 +860,21 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         if (!(typeof body.doi === "string" || body.doi === null)) {
             return c.json({ error: "doi must be a string or null" }, 400);
         }
-        updates.doi = typeof body.doi === "string" ? body.doi.trim() || null : null;
+        const doi = typeof body.doi === "string" ? body.doi.trim() : null;
+        if (doi && doi.length > MAX_DOI_LENGTH) {
+            return c.json({ error: `doi must be ${MAX_DOI_LENGTH} chars or less` }, 400);
+        }
+        updates.doi = doi || null;
     }
     if ("venue" in body) {
         if (!(typeof body.venue === "string" || body.venue === null)) {
             return c.json({ error: "venue must be a string or null" }, 400);
         }
-        updates.venue = typeof body.venue === "string" ? body.venue.trim() || null : null;
+        const venue = typeof body.venue === "string" ? body.venue.trim() : null;
+        if (venue && venue.length > MAX_VENUE_LENGTH) {
+            return c.json({ error: `venue must be ${MAX_VENUE_LENGTH} chars or less` }, 400);
+        }
+        updates.venue = venue || null;
     }
     if ("venueType" in body) {
         if (!(typeof body.venueType === "string" || body.venueType === null)) {
@@ -872,7 +898,19 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
     }
     if ("tags" in body) {
         if (Array.isArray(body.tags)) {
-            updates.tags = JSON.stringify(body.tags);
+            const normalizedTags: string[] = [];
+            for (const tag of body.tags) {
+                if (typeof tag !== "string") {
+                    return c.json({ error: "each tag must be a string" }, 400);
+                }
+                const normalizedTag = tag.trim();
+                if (normalizedTag.length === 0) continue;
+                if (normalizedTag.length > MAX_TAG_LENGTH) {
+                    return c.json({ error: `each tag must be ${MAX_TAG_LENGTH} chars or less` }, 400);
+                }
+                normalizedTags.push(normalizedTag);
+            }
+            updates.tags = normalizedTags.length > 0 ? JSON.stringify(normalizedTags) : null;
         } else if (body.tags === null) {
             updates.tags = null;
         } else {

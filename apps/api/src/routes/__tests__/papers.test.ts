@@ -182,6 +182,34 @@ describe("papers routes", () => {
         expect(mockDb.update).not.toHaveBeenCalled();
     });
 
+    it("PATCH /api/papers/:id rejects overlong abstract", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ abstract: "a".repeat(5001) }),
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toContain("abstract");
+        expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
     it("PATCH /api/papers/:id allows keeping org_only on an existing org_only paper", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const where = vi.fn(async () => undefined);

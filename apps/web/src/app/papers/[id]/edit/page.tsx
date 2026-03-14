@@ -30,6 +30,23 @@ const VENUE_TYPE_OPTIONS = [
   { value: "other", label: "その他" },
 ] as const;
 
+type PaperEditResponse = {
+  paper: {
+    title: string | null;
+    abstract: string | null;
+    visibility: VisibilityValue;
+    language: string | null;
+    externalUrl: string | null;
+    doi: string | null;
+    venue: string | null;
+    venueType: string | null;
+    year: number | null;
+    category: string | null;
+    tags: string | null;
+  };
+  authors: Array<{ userId: string }>;
+};
+
 export default function PaperEditPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -74,11 +91,11 @@ export default function PaperEditPage() {
           throw new Error("論文の取得に失敗しました");
         }
 
-        const data = await res.json();
+        const data = (await res.json()) as PaperEditResponse;
         const paper = data.paper;
 
         // Ensure user is an author
-        const isAuthor = data.authors.some((a: any) => a.userId === user.id);
+        const isAuthor = data.authors.some((author) => author.userId === user.id);
         if (!isAuthor) {
           router.replace(`/papers/${paperId}`);
           return;
@@ -108,8 +125,8 @@ export default function PaperEditPage() {
             }
         }
         setTagsStr(initialTags);
-      } catch (err: any) {
-        setError(err.message || "予期せぬエラーが発生しました");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "予期せぬエラーが発生しました");
       } finally {
         setLoading(false);
       }
@@ -167,8 +184,8 @@ export default function PaperEditPage() {
 
       router.push(`/papers/${paperId}`);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || "エラーが発生しました");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "エラーが発生しました");
     } finally {
       setSubmitting(false);
     }
@@ -207,10 +224,11 @@ export default function PaperEditPage() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label className="mb-1 block text-sm font-medium">
+          <label htmlFor="title" className="mb-1 block text-sm font-medium">
             タイトル <span className="text-red-500">*</span>
           </label>
           <input
+            id="title"
             type="text"
             required
             value={title}
@@ -220,12 +238,13 @@ export default function PaperEditPage() {
           />
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium">公開範囲</label>
+        <fieldset>
+          <legend className="mb-1 block text-sm font-medium">公開範囲</legend>
           <div className="flex gap-4">
             {visibilityOptions.map((opt) => (
-              <label key={opt.value} className="flex items-center gap-2">
+              <div key={opt.value} className="flex items-center gap-2">
                 <input
+                  id={`visibility-${opt.value}`}
                   type="radio"
                   name="visibility"
                   value={opt.value}
@@ -234,8 +253,10 @@ export default function PaperEditPage() {
                     setVisibility(e.target.value as VisibilityValue)
                   }
                 />
-                <span className="text-sm">{opt.label}</span>
-              </label>
+                <label htmlFor={`visibility-${opt.value}`} className="text-sm">
+                  {opt.label}
+                </label>
+              </div>
             ))}
           </div>
           {initialVisibility !== "org_only" && (
@@ -253,11 +274,12 @@ export default function PaperEditPage() {
             {visibility === "org_only" && "所属組織のメンバーのみが閲覧可能です。"}
             {visibility === "public" && "誰でも閲覧可能です。"}
           </p>
-        </div>
+        </fieldset>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">概要</label>
+          <label htmlFor="abstract" className="mb-1 block text-sm font-medium">概要</label>
           <textarea
+            id="abstract"
             value={abstract}
             onChange={(e) => setAbstract(e.target.value)}
             rows={4}
@@ -268,8 +290,9 @@ export default function PaperEditPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium">カテゴリ</label>
+            <label htmlFor="category" className="mb-1 block text-sm font-medium">カテゴリ</label>
             <select
+              id="category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
@@ -283,8 +306,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">発表年</label>
+            <label htmlFor="year" className="mb-1 block text-sm font-medium">発表年</label>
             <input
+              id="year"
               type="number"
               value={year}
               onChange={(e) => setYear(e.target.value)}
@@ -294,8 +318,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">発表場所（学会名など）</label>
+            <label htmlFor="venue" className="mb-1 block text-sm font-medium">発表場所（学会名など）</label>
             <input
+              id="venue"
               type="text"
               value={venue}
               onChange={(e) => setVenue(e.target.value)}
@@ -305,8 +330,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">発表種別</label>
+            <label htmlFor="venue-type" className="mb-1 block text-sm font-medium">発表種別</label>
             <select
+              id="venue-type"
               value={venueType}
               onChange={(e) => setVenueType(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
@@ -320,8 +346,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">言語</label>
+            <label htmlFor="language" className="mb-1 block text-sm font-medium">言語</label>
             <input
+              id="language"
               type="text"
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
@@ -331,8 +358,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium">DOI</label>
+            <label htmlFor="doi" className="mb-1 block text-sm font-medium">DOI</label>
             <input
+              id="doi"
               type="text"
               value={doi}
               onChange={(e) => setDoi(e.target.value)}
@@ -343,8 +371,9 @@ export default function PaperEditPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">外部リンク</label>
+          <label htmlFor="external-url" className="mb-1 block text-sm font-medium">外部リンク</label>
           <input
+            id="external-url"
             type="url"
             value={externalUrl}
             onChange={(e) => setExternalUrl(e.target.value)}
@@ -354,10 +383,11 @@ export default function PaperEditPage() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">
+          <label htmlFor="tags" className="mb-1 block text-sm font-medium">
             タグ <span className="text-gray-500 font-normal text-xs">（カンマ区切り）</span>
           </label>
           <input
+            id="tags"
             type="text"
             value={tagsStr}
             onChange={(e) => setTagsStr(e.target.value)}
