@@ -3,6 +3,7 @@
 import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { useEffect, useState, useCallback, useMemo } from "react";
+import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import {
@@ -109,6 +110,8 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const isUploader = authors.some(
     (a) => a.userId === user?.id && a.role === "uploader",
   );
+
+  const isAuthor = authors.some((a) => a.userId === user?.id);
 
   const fetchPaper = useCallback(async () => {
     try {
@@ -380,7 +383,17 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold mb-2">{paper.title}</h1>
+      <div className="flex justify-between items-start mb-2">
+        <h1 className="text-2xl font-bold">{paper.title}</h1>
+        {isAuthor && (
+          <Link
+            href={`/papers/${paper.id}/edit`}
+            className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-100 dark:ring-gray-700 dark:hover:bg-gray-700 shrink-0"
+          >
+            編集
+          </Link>
+        )}
+      </div>
 
       <div className="flex flex-wrap gap-2 text-sm text-gray-500 mb-6">
         {(() => {
