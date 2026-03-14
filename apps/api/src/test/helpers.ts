@@ -63,7 +63,16 @@ export function makeQuery(
         innerJoin() {
             return this;
         },
+        leftJoin() {
+            return this;
+        },
         limit() {
+            return this;
+        },
+        groupBy() {
+            return this;
+        },
+        orderBy() {
             return this;
         },
         get: async () => getResult,

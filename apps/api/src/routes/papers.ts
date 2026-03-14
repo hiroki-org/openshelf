@@ -1,10 +1,11 @@
 import { Hono, type Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, gte, inArray, sql } from "drizzle-orm";
 import {
     papers,
     paperFiles,
     paperAuthors,
+    paperViews,
     users,
     coauthorInvites,
     orgMembers,
@@ -40,6 +41,80 @@ const MAX_EXTERNAL_URL_LENGTH = 2048;
 const MAX_DOI_LENGTH = 255;
 const MAX_VENUE_LENGTH = 255;
 const MAX_TAG_LENGTH = 64;
+const VIEW_DEDUPE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const VIEW_STATS_RANGE_DAYS = 30;
+
+function formatDateKey(date: Date): string {
+    return date.toISOString().slice(0, 10);
+}
+
+function formatDbDateTime(date: Date): string {
+    return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+function getDateRange(days: number, now = new Date()): string[] {
+    const start = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+    ));
+    start.setUTCDate(start.getUTCDate() - (days - 1));
+
+    return Array.from({ length: days }, (_, index) => {
+        const day = new Date(start);
+        day.setUTCDate(start.getUTCDate() + index);
+        return formatDateKey(day);
+    });
+}
+
+function getViewBucket(now = new Date()): number {
+    return Math.floor(now.getTime() / VIEW_DEDUPE_WINDOW_MS);
+}
+
+function getStatsRangeStart(days: number, now = new Date()): string {
+    const start = new Date(Date.UTC(
+        now.getUTCFullYear(),
+        now.getUTCMonth(),
+        now.getUTCDate(),
+    ));
+    start.setUTCDate(start.getUTCDate() - (days - 1));
+    return formatDbDateTime(start);
+}
+
+async function hashString(value: string): Promise<string> {
+    const data = new TextEncoder().encode(value);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(digest))
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
+}
+
+async function buildViewerFingerprint(
+    c: Context<{ Bindings: Env; Variables: Variables }>,
+    paperId: string,
+): Promise<string> {
+    const forwardedFor = c.req.header("CF-Connecting-IP")
+        ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim()
+        ?? "unknown-ip";
+    const userAgent = c.req.header("User-Agent") ?? "unknown-ua";
+    const acceptLanguage = c.req.header("Accept-Language") ?? "unknown-lang";
+
+    return hashString(
+        `${c.env.JWT_SECRET}:${paperId}:${forwardedFor}:${userAgent}:${acceptLanguage}`,
+    );
+}
+
+async function getPaperViewCount(
+    db: ReturnType<typeof drizzle>,
+    paperId: string,
+): Promise<number> {
+    const row = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(paperViews)
+        .where(eq(paperViews.paperId, paperId))
+        .get();
+    return row?.count ?? 0;
+}
 
 function sanitizeFilename(filename: string): string {
     const basename = filename.split(/[\\/]/).pop() ?? "";
@@ -122,6 +197,25 @@ async function authorizePaperAccess(
     return { ok: true, user };
 }
 
+async function isPaperAuthor(
+    db: ReturnType<typeof drizzle>,
+    paperId: string,
+    userId: string,
+): Promise<boolean> {
+    const author = await db
+        .select({ userId: paperAuthors.userId })
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paperId),
+                eq(paperAuthors.userId, userId),
+            ),
+        )
+        .get();
+
+    return !!author;
+}
+
 async function generateSignedPreviewUrl(
     bucket: Env["BUCKET"],
     objectKey: string,
@@ -185,6 +279,13 @@ papersRoute.post("/", authMiddleware, async (c) => {
     const externalUrl = (meta.externalUrl as string) || null;
     if (externalUrl && !isValidUrlScheme(externalUrl)) {
         return c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400);
+    }
+
+    if (
+        meta.showViewCount !== undefined
+        && typeof meta.showViewCount !== "boolean"
+    ) {
+        return c.json({ error: "showViewCount must be a boolean" }, 400);
     }
 
     const orgId = meta.orgId as string | undefined;
@@ -285,6 +386,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
         title: title.trim(),
         abstract: (meta.abstract as string) || null,
         visibility: vis as "public" | "org_only" | "private",
+        showViewCount: Boolean(meta.showViewCount),
         language: (meta.language as string) || null,
         externalUrl,
         doi: (meta.doi as string) || null,
@@ -417,6 +519,9 @@ papersRoute.get("/:id", async (c) => {
         ...file,
         downloadUrl: `/api/papers/${paperId}/files/${file.id}/download`,
     }));
+    const publicViewCount = paper.showViewCount
+        ? await getPaperViewCount(db, paperId)
+        : null;
 
     return c.json({
         paper: {
@@ -424,6 +529,8 @@ papersRoute.get("/:id", async (c) => {
             title: paper.title,
             abstract: paper.abstract,
             visibility: paper.visibility,
+            showViewCount: paper.showViewCount,
+            publicViewCount,
             language: paper.language,
             externalUrl: paper.externalUrl,
             doi: paper.doi,
@@ -437,6 +544,137 @@ papersRoute.get("/:id", async (c) => {
         },
         files,
         authors,
+    });
+});
+
+// POST /api/papers/:id/view — record a deduplicated paper view
+papersRoute.post("/:id/view", async (c) => {
+    const paperId = c.req.param("id");
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    const paper = await db
+        .select({ id: papers.id, visibility: papers.visibility })
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!paper) return c.json({ error: "Not found" }, 404);
+
+    const access = await authorizePaperAccess(c, db, paper);
+    if (!access.ok) {
+        return c.json({ error: access.error }, access.status as any);
+    }
+
+    const viewerFingerprint = await buildViewerFingerprint(c, paperId);
+    const viewBucket = getViewBucket();
+    const existing = await db
+        .select({ id: paperViews.id })
+        .from(paperViews)
+        .where(
+            and(
+                eq(paperViews.paperId, paperId),
+                eq(paperViews.viewerFingerprint, viewerFingerprint),
+                eq(paperViews.viewBucket, viewBucket),
+            ),
+        )
+        .get();
+
+    if (existing) {
+        return c.json({ counted: false });
+    }
+
+    try {
+        await db.insert(paperViews).values({
+            id: crypto.randomUUID(),
+            paperId,
+            viewerFingerprint,
+            viewBucket,
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes("UNIQUE") || message.includes("unique")) {
+            return c.json({ counted: false });
+        }
+        throw error;
+    }
+
+    return c.json({ counted: true }, 201);
+});
+
+// GET /api/papers/:id/stats — author-only paper statistics
+papersRoute.get("/:id/stats", authMiddleware, async (c) => {
+    const paperId = c.req.param("id");
+    const userId = c.get("user").sub;
+    const db = drizzle(c.env.DB);
+
+    const paper = await db
+        .select({ id: papers.id })
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!paper) return c.json({ error: "Not found" }, 404);
+
+    const author = await isPaperAuthor(db, paperId, userId);
+    if (!author) return c.json({ error: "Forbidden" }, 403);
+
+    const since30Days = getStatsRangeStart(VIEW_STATS_RANGE_DAYS);
+    const since7Days = getStatsRangeStart(7);
+
+    const [totalViewsRow, last30DaysRow, last7DaysRow, dailyRows] = await Promise.all([
+        db
+            .select({ count: sql<number>`count(*)` })
+            .from(paperViews)
+            .where(eq(paperViews.paperId, paperId))
+            .get(),
+        db
+            .select({ count: sql<number>`count(*)` })
+            .from(paperViews)
+            .where(
+                and(
+                    eq(paperViews.paperId, paperId),
+                    gte(paperViews.viewedAt, since30Days),
+                ),
+            )
+            .get(),
+        db
+            .select({ count: sql<number>`count(*)` })
+            .from(paperViews)
+            .where(
+                and(
+                    eq(paperViews.paperId, paperId),
+                    gte(paperViews.viewedAt, since7Days),
+                ),
+            )
+            .get(),
+        db
+            .select({
+                date: sql<string>`date(${paperViews.viewedAt})`,
+                count: sql<number>`count(*)`,
+            })
+            .from(paperViews)
+            .where(
+                and(
+                    eq(paperViews.paperId, paperId),
+                    gte(paperViews.viewedAt, since30Days),
+                ),
+            )
+            .groupBy(sql`date(${paperViews.viewedAt})`)
+            .all(),
+    ]);
+
+    const dailyViewCountMap = new Map(
+        dailyRows.map((row) => [row.date, row.count]),
+    );
+    const dailyViews = getDateRange(VIEW_STATS_RANGE_DAYS).map((date) => ({
+        date,
+        count: dailyViewCountMap.get(date) ?? 0,
+    }));
+
+    return c.json({
+        totalViews: totalViewsRow?.count ?? 0,
+        last7DaysViews: last7DaysRow?.count ?? 0,
+        last30DaysViews: last30DaysRow?.count ?? 0,
+        dailyViews,
     });
 });
 
@@ -840,6 +1078,13 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             );
         }
         updates.visibility = body.visibility;
+        hasRealUpdates = true;
+    }
+    if ("showViewCount" in body) {
+        if (typeof body.showViewCount !== "boolean") {
+            return c.json({ error: "showViewCount must be a boolean" }, 400);
+        }
+        updates.showViewCount = body.showViewCount;
         hasRealUpdates = true;
     }
     if ("language" in body) {

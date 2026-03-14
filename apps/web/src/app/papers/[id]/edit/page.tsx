@@ -35,6 +35,7 @@ type PaperEditResponse = {
     title: string | null;
     abstract: string | null;
     visibility: VisibilityValue;
+    showViewCount: boolean;
     language: string | null;
     externalUrl: string | null;
     doi: string | null;
@@ -62,6 +63,7 @@ export default function PaperEditPage() {
   const [abstract, setAbstract] = useState("");
   const [visibility, setVisibility] = useState<VisibilityValue>("private");
   const [initialVisibility, setInitialVisibility] = useState<VisibilityValue | null>(null);
+  const [showViewCount, setShowViewCount] = useState(false);
   const [language, setLanguage] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
   const [doi, setDoi] = useState("");
@@ -105,6 +107,7 @@ export default function PaperEditPage() {
         setAbstract(paper.abstract || "");
         setVisibility(paper.visibility);
         setInitialVisibility(paper.visibility);
+        setShowViewCount(paper.showViewCount);
         setLanguage(paper.language || "");
         setExternalUrl(paper.externalUrl || "");
         setDoi(paper.doi || "");
@@ -161,6 +164,7 @@ export default function PaperEditPage() {
         title: title.trim(),
         abstract: abstract.trim() || null,
         visibility,
+        showViewCount,
         language: language.trim() || null,
         externalUrl: externalUrl.trim() || null,
         doi: doi.trim() || null,
@@ -275,6 +279,29 @@ export default function PaperEditPage() {
             {visibility === "public" && "誰でも閲覧可能です。"}
           </p>
         </fieldset>
+
+        <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/40">
+          <label
+            htmlFor="show-view-count"
+            className="flex items-start gap-3"
+          >
+            <input
+              id="show-view-count"
+              type="checkbox"
+              checked={showViewCount}
+              onChange={(e) => setShowViewCount(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900"
+            />
+            <span>
+              <span className="block text-sm font-medium">
+                公開ページに閲覧数を表示する
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-gray-500">
+                著者向けの詳細統計は常に閲覧できます。この設定は、一般閲覧者向けに総閲覧数を表示するかどうかだけを切り替えます。
+              </span>
+            </span>
+          </label>
+        </div>
 
         <div>
           <label htmlFor="abstract" className="mb-1 block text-sm font-medium">概要</label>

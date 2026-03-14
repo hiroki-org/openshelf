@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
@@ -22,6 +22,8 @@ type Paper = {
   title: string;
   abstract: string | null;
   visibility: string;
+  showViewCount: boolean;
+  publicViewCount: number | null;
   externalUrl: string | null;
   venue: string | null;
   venueType: string | null;
@@ -70,6 +72,16 @@ type PreviewResponse = {
   filename: string;
 };
 
+type PaperStats = {
+  totalViews: number;
+  last7DaysViews: number;
+  last30DaysViews: number;
+  dailyViews: Array<{
+    date: string;
+    count: number;
+  }>;
+};
+
 const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url);
 
 const isValidExternalUrl = (urlStr: string) => {
@@ -85,13 +97,22 @@ type PaperDetailClientProps = {
   paperId: string;
 };
 
+function formatStatsDateLabel(date: string) {
+  const [, month, day] = date.split("-");
+  return `${Number(month)}/${Number(day)}`;
+}
+
 export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const { user } = useAuth();
+  const trackedViewPaperIdRef = useRef<string | null>(null);
 
   const [paper, setPaper] = useState<Paper | null>(null);
   const [files, setFiles] = useState<PaperFile[]>([]);
   const [authors, setAuthors] = useState<Author[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
+  const [stats, setStats] = useState<PaperStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
@@ -112,6 +133,32 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   );
 
   const isAuthor = authors.some((a) => a.userId === user?.id);
+
+  const applyCountedView = useCallback(() => {
+    const today = new Date().toISOString().slice(0, 10);
+
+    setPaper((current) => {
+      if (!current || !current.showViewCount) return current;
+      return {
+        ...current,
+        publicViewCount: (current.publicViewCount ?? 0) + 1,
+      };
+    });
+
+    setStats((current) => {
+      if (!current) return current;
+      return {
+        totalViews: current.totalViews + 1,
+        last7DaysViews: current.last7DaysViews + 1,
+        last30DaysViews: current.last30DaysViews + 1,
+        dailyViews: current.dailyViews.map((entry) =>
+          entry.date === today
+            ? { ...entry, count: entry.count + 1 }
+            : entry,
+        ),
+      };
+    });
+  }, []);
 
   const fetchPaper = useCallback(async () => {
     try {
@@ -162,6 +209,80 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     if (isUploader) fetchInvites();
   }, [isUploader, fetchInvites]);
 
+  useEffect(() => {
+    if (!paper?.id || trackedViewPaperIdRef.current === paper.id) return;
+
+    trackedViewPaperIdRef.current = paper.id;
+    let cancelled = false;
+
+    const recordView = async () => {
+      try {
+        const res = await apiFetch(`/api/papers/${encodeURIComponent(paper.id)}/view`, {
+          method: "POST",
+        });
+
+        if (!res.ok || cancelled) return;
+
+        const data = (await res.json()) as { counted?: boolean };
+        if (data.counted) {
+          applyCountedView();
+        }
+      } catch {
+        // Viewing the paper should still succeed even if analytics fails.
+      }
+    };
+
+    void recordView();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [paper?.id, applyCountedView]);
+
+  useEffect(() => {
+    if (!paper?.id || !isAuthor) {
+      setStats(null);
+      setStatsError("");
+      setStatsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setStatsLoading(true);
+    setStatsError("");
+
+    const fetchStats = async () => {
+      try {
+        const res = await apiFetch(`/api/papers/${encodeURIComponent(paper.id)}/stats`);
+        if (!res.ok) {
+          throw new Error("統計情報の取得に失敗しました");
+        }
+
+        const data = (await res.json()) as PaperStats;
+        if (!cancelled) {
+          setStats(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setStats(null);
+          setStatsError(
+            err instanceof Error ? err.message : "統計情報の取得に失敗しました",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setStatsLoading(false);
+        }
+      }
+    };
+
+    void fetchStats();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [paper?.id, isAuthor]);
+
   const pdfFile = useMemo(
     () => files.find((f) => f.mimeType === "application/pdf") ?? null,
     [files],
@@ -170,6 +291,10 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     () => files.filter((f) => f.mimeType?.startsWith("image/")),
     [files],
   );
+  const maxDailyViewCount = useMemo(() => {
+    if (!stats || stats.dailyViews.length === 0) return 0;
+    return Math.max(...stats.dailyViews.map((entry) => entry.count));
+  }, [stats]);
 
   useEffect(() => {
     const currentPdfFile =
@@ -418,11 +543,132 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         )}
       </div>
 
+      {paper.showViewCount && (
+        <div className="mb-6 inline-flex items-end gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-blue-700 dark:text-blue-300">
+              Views
+            </p>
+            <p className="mt-1 text-sm text-blue-800/80 dark:text-blue-200/80">
+              公開表示中の総閲覧数
+            </p>
+          </div>
+          <p className="text-3xl font-semibold tabular-nums">
+            {paper.publicViewCount ?? 0}
+          </p>
+        </div>
+      )}
+
       {paper.abstract && (
         <div className="mb-6">
           <h2 className="text-sm font-medium text-gray-500 mb-1">概要</h2>
           <p className="text-sm whitespace-pre-wrap">{paper.abstract}</p>
         </div>
+      )}
+
+      {isAuthor && (
+        <section className="mb-8 rounded-3xl border border-gray-200 bg-gray-50/70 p-5 dark:border-gray-800 dark:bg-gray-900/40">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+                Author Stats
+              </p>
+              <h2 className="mt-2 text-lg font-semibold text-gray-950 dark:text-gray-50">
+                閲覧統計
+              </h2>
+            </div>
+            <p className="text-xs text-gray-500">
+              投稿者と共著者のみ閲覧できます
+            </p>
+          </div>
+
+          {statsLoading && (
+            <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-gray-500 shadow-sm dark:bg-gray-950 dark:text-gray-400">
+              統計情報を読み込み中...
+            </div>
+          )}
+
+          {!statsLoading && statsError && (
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+              {statsError}
+            </div>
+          )}
+
+          {!statsLoading && stats && (
+            <>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+                    Total
+                  </p>
+                  <p className="mt-3 text-3xl font-semibold tabular-nums text-gray-950 dark:text-gray-50">
+                    {stats.totalViews}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+                    Last 7 Days
+                  </p>
+                  <p className="mt-3 text-3xl font-semibold tabular-nums text-gray-950 dark:text-gray-50">
+                    {stats.last7DaysViews}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+                    Last 30 Days
+                  </p>
+                  <p className="mt-3 text-3xl font-semibold tabular-nums text-gray-950 dark:text-gray-50">
+                    {stats.last30DaysViews}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    日別推移
+                  </h3>
+                  <p className="text-xs text-gray-500">直近30日</p>
+                </div>
+
+                <div className="mt-4 overflow-x-auto">
+                  <div className="flex min-w-[720px] items-end gap-2">
+                    {stats.dailyViews.map((entry) => {
+                      const barHeight =
+                        maxDailyViewCount === 0
+                          ? 4
+                          : Math.max(
+                              4,
+                              Math.round((entry.count / maxDailyViewCount) * 120),
+                            );
+
+                      return (
+                        <div
+                          key={entry.date}
+                          className="flex min-w-0 flex-1 flex-col items-center gap-2"
+                        >
+                          <div className="flex h-32 w-full items-end">
+                            <div
+                              className="w-full rounded-t-xl bg-gray-900/85 dark:bg-gray-100/85"
+                              style={{ height: `${barHeight}px` }}
+                              title={`${entry.date}: ${entry.count}`}
+                            />
+                          </div>
+                          <span className="text-[10px] font-medium text-gray-500">
+                            {entry.count}
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            {formatStatsDateLabel(entry.date)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </section>
       )}
 
       {showExternalLink && (
