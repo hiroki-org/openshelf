@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import OrgCollectionPageClient from "./org-collection-page-client";
+import { safePath } from "@/lib/sanitization";
 
 type Params = { slug: string; collectionSlug: string };
 
@@ -32,10 +33,10 @@ const SITE_BASE =
 async function fetchCollectionMetadata(slug: string, collectionSlug: string) {
   try {
     const [orgRes, collectionsRes] = await Promise.all([
-      fetch(`${API_BASE}/api/orgs/${encodeURIComponent(slug)}`, {
+      fetch(`${API_BASE}/api/orgs/${safePath(slug)}`, {
         cache: "no-store",
       }),
-      fetch(`${API_BASE}/api/orgs/${encodeURIComponent(slug)}/collections`, {
+      fetch(`${API_BASE}/api/orgs/${safePath(slug)}/collections`, {
         cache: "no-store",
       }),
     ]);
@@ -121,6 +122,12 @@ export default async function OrgCollectionPage(props: {
   params: Params | Promise<Params>;
 }) {
   const { slug, collectionSlug } = await Promise.resolve(props.params);
+  try {
+    safePath(slug);
+    safePath(collectionSlug);
+  } catch {
+    return <div className="text-center py-20">無効な識別子です</div>;
+  }
   return (
     <OrgCollectionPageClient slug={slug} collectionSlug={collectionSlug} />
   );

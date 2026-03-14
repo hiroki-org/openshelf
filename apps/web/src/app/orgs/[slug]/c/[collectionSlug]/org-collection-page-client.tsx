@@ -4,6 +4,7 @@ import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { safePath } from "@/lib/sanitization";
 
 type Collection = {
   id: string;
@@ -50,7 +51,7 @@ export default function OrgCollectionPageClient({
   const reload = useCallback(async () => {
     try {
       const listRes = await apiFetch(
-        `/api/orgs/${encodeURIComponent(slug)}/collections`,
+        `/api/orgs/${safePath(slug)}/collections`,
       );
       const listData = listRes.ok ? await listRes.json() : { collections: [] };
       const found =
@@ -64,8 +65,8 @@ export default function OrgCollectionPageClient({
       setCollection(found);
 
       const [papersRes, membersRes] = await Promise.all([
-        apiFetch(`/api/collections/${encodeURIComponent(found.id)}/papers`),
-        apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`),
+        apiFetch(`/api/collections/${safePath(found.id)}/papers`),
+        apiFetch(`/api/orgs/${safePath(slug)}/members`),
       ]);
 
       if (papersRes.ok) {
@@ -87,10 +88,7 @@ export default function OrgCollectionPageClient({
   }, [collectionSlug, slug]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void reload();
-    }, 0);
-    return () => clearTimeout(timer);
+    void reload();
   }, [reload]);
 
   const move = async (index: number, direction: -1 | 1) => {
@@ -107,7 +105,7 @@ export default function OrgCollectionPageClient({
 
     try {
       const res = await apiFetch(
-        `/api/collections/${encodeURIComponent(collection.id)}/papers`,
+        `/api/collections/${safePath(collection.id)}/papers`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },

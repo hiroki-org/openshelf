@@ -52,6 +52,9 @@ export const papers = sqliteTable(
         visibility: text("visibility", { enum: ["public", "org_only", "private"] })
             .notNull()
             .default("private"),
+        showViewCount: integer("show_view_count", { mode: "boolean" })
+            .notNull()
+            .default(false),
         language: text("language"),
         externalUrl: text("external_url"),
         doi: text("doi"),
@@ -73,6 +76,30 @@ export const papers = sqliteTable(
     (t) => [
         index("papers_visibility_idx").on(t.visibility),
         index("papers_year_idx").on(t.year),
+    ],
+);
+
+// ─── paper_views ────────────────────────────────────────────────
+export const paperViews = sqliteTable(
+    "paper_views",
+    {
+        id: id(),
+        paperId: text("paper_id")
+            .notNull()
+            .references(() => papers.id, { onDelete: "cascade" }),
+        viewedAt: text("viewed_at")
+            .notNull()
+            .default(sql`(datetime('now'))`),
+        viewerFingerprint: text("viewer_fingerprint").notNull(),
+        viewBucket: integer("view_bucket").notNull(),
+    },
+    (t) => [
+        index("paper_views_paper_id_viewed_at_idx").on(t.paperId, t.viewedAt),
+        uniqueIndex("paper_views_dedupe_idx").on(
+            t.paperId,
+            t.viewerFingerprint,
+            t.viewBucket,
+        ),
     ],
 );
 

@@ -1,11 +1,13 @@
 "use client";
 
 import { useAuth } from "@/components/auth-provider";
+import { toast } from "@/components/toast";
 import { apiFetch } from "@/lib/api";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import { safePath } from "@/lib/sanitization";
 import {
   getVisibilityBadge,
   getInviteStatusBadge,
@@ -22,6 +24,8 @@ type Paper = {
   title: string;
   abstract: string | null;
   visibility: string;
+  showViewCount: boolean;
+  publicViewCount: number | null;
   externalUrl: string | null;
   venue: string | null;
   venueType: string | null;
@@ -70,6 +74,16 @@ type PreviewResponse = {
   filename: string;
 };
 
+type PaperStats = {
+  totalViews: number;
+  last7DaysViews: number;
+  last30DaysViews: number;
+  dailyViews: Array<{
+    date: string;
+    count: number;
+  }>;
+};
+
 const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url);
 
 const isValidExternalUrl = (urlStr: string) => {
@@ -85,13 +99,23 @@ type PaperDetailClientProps = {
   paperId: string;
 };
 
+function formatStatsDateLabel(date: string) {
+  const [, month, day] = date.split("-");
+  return `${Number(month)}/${Number(day)}`;
+}
+
 export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const { user } = useAuth();
+  const trackedViewPaperIdRef = useRef<string | null>(null);
 
   const [paper, setPaper] = useState<Paper | null>(null);
   const [files, setFiles] = useState<PaperFile[]>([]);
   const [authors, setAuthors] = useState<Author[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
+  const [stats, setStats] = useState<PaperStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState("");
+  const [failedImageIds, setFailedImageIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
@@ -113,9 +137,35 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   const isAuthor = authors.some((a) => a.userId === user?.id);
 
+  const fetchStats = useCallback(async () => {
+    if (!paperId || !isAuthor) return;
+    try {
+      const res = await apiFetch(`/api/papers/${safePath(paperId)}/stats`);
+      if (res.ok) {
+        const data = (await res.json()) as PaperStats;
+        setStats(data);
+      }
+    } catch {
+      // Ignore
+    }
+  }, [paperId, isAuthor]);
+
+  const applyCountedView = useCallback(() => {
+    setPaper((current) => {
+      if (!current || !current.showViewCount) return current;
+      return {
+        ...current,
+        publicViewCount: (current.publicViewCount ?? 0) + 1,
+      };
+    });
+
+    // Refresh full stats after a recorded view to ensure consistency
+    void fetchStats();
+  }, [fetchStats]);
+
   const fetchPaper = useCallback(async () => {
     try {
-      const res = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}`);
+      const res = await apiFetch(`/api/papers/${safePath(paperId)}`);
       if (!res.ok) {
         if (res.status === 401) {
           setError("ログインが必要です");
@@ -143,7 +193,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     if (!isUploader) return;
     try {
       const res = await apiFetch(
-        `/api/papers/${encodeURIComponent(paperId)}/invites`,
+        `/api/papers/${safePath(paperId)}/invites`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -162,6 +212,57 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     if (isUploader) fetchInvites();
   }, [isUploader, fetchInvites]);
 
+  useEffect(() => {
+    if (!paper?.id || trackedViewPaperIdRef.current === paper.id) return;
+
+    trackedViewPaperIdRef.current = paper.id;
+    let cancelled = false;
+
+    const recordView = async () => {
+      try {
+        const res = await apiFetch(`/api/papers/${safePath(paper.id)}/view`, {
+          method: "POST",
+        });
+
+        if (!res.ok || cancelled) return;
+
+        const data = (await res.json()) as { counted?: boolean };
+        if (data.counted) {
+          applyCountedView();
+        }
+      } catch {
+        // Viewing the paper should still succeed even if analytics fails.
+      }
+    };
+
+    void recordView();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [paper?.id, applyCountedView]);
+
+  useEffect(() => {
+    if (!paper?.id || !isAuthor) {
+      setStats(null);
+      setStatsError("");
+      setStatsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setStatsLoading(true);
+    setStatsError("");
+
+    fetchStats();
+    // Also set loading false in fetchStats normally, but here we use useEffect style
+    setStatsLoading(false); 
+
+    return () => {
+      cancelled = true;
+    };
+  }, [paper?.id, isAuthor, fetchStats]);
+
   const pdfFile = useMemo(
     () => files.find((f) => f.mimeType === "application/pdf") ?? null,
     [files],
@@ -170,6 +271,10 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     () => files.filter((f) => f.mimeType?.startsWith("image/")),
     [files],
   );
+  const maxDailyViewCount = useMemo(() => {
+    if (!stats || stats.dailyViews.length === 0) return 0;
+    return Math.max(...stats.dailyViews.map((entry) => entry.count));
+  }, [stats]);
 
   useEffect(() => {
     const currentPdfFile =
@@ -190,7 +295,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
       try {
         const res = await apiFetch(
-          `/api/papers/${paperId}/files/${currentPdfFile.id}/preview`,
+          `/api/papers/${safePath(paperId)}/files/${safePath(currentPdfFile.id)}/preview`,
         );
         if (!res.ok) {
           throw new Error("preview failed");
@@ -225,7 +330,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         URL.revokeObjectURL(createdObjectUrl);
       }
     };
-  }, [paperId, files]);
+  }, [paperId, pdfFile]);
 
   useEffect(() => {
     if (imageFiles.length === 0) {
@@ -237,15 +342,25 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     const createdUrls: string[] = [];
 
     const loadImages = async () => {
+      const currentFailedIds: string[] = [];
       const entries = await Promise.all(
         imageFiles.map(async (img) => {
-          const streamPath = `/api/papers/${paperId}/files/${img.id}/stream`;
-          const res = await apiFetch(streamPath);
-          if (!res.ok) return [img.id, ""] as const;
-          const blob = await res.blob();
-          const objectUrl = URL.createObjectURL(blob);
-          createdUrls.push(objectUrl);
-          return [img.id, objectUrl] as const;
+          try {
+            const streamPath = `/api/papers/${safePath(paperId)}/files/${safePath(img.id)}/stream`;
+            const res = await apiFetch(streamPath);
+            if (!res.ok) {
+              currentFailedIds.push(img.id);
+              return [img.id, ""] as const;
+            }
+            const blob = await res.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            createdUrls.push(objectUrl);
+            return [img.id, objectUrl] as const;
+          } catch (err) {
+            console.error(`Error loading image ${img.id}:`, err);
+            currentFailedIds.push(img.id);
+            return [img.id, ""] as const;
+          }
         }),
       );
 
@@ -255,11 +370,14 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       }
 
       setImagePreviewUrls(Object.fromEntries(entries.filter(([, url]) => url)));
+      setFailedImageIds(currentFailedIds);
     };
 
-    loadImages().catch(() => {
+    loadImages().catch((err) => {
+      console.error("Critical error in loadImages:", err);
       if (!cancelled) {
         setImagePreviewUrls({});
+        setFailedImageIds(imageFiles.map((f) => f.id));
       }
     });
 
@@ -269,7 +387,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         URL.revokeObjectURL(url);
       }
     };
-  }, [paperId, files]);
+  }, [paperId, imageFiles]);
 
   const handleSearch = async (q: string) => {
     setSearchQuery(q);
@@ -296,7 +414,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     setInviting(true);
     try {
       const res = await apiFetch(
-        `/api/papers/${encodeURIComponent(paperId)}/invites`,
+        `/api/papers/${safePath(paperId)}/invites`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -308,12 +426,13 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         setSearchQuery("");
         setSearchResults([]);
         await fetchInvites();
+        toast.success("招待を送信しました");
       } else {
         const data = await res.json();
-        alert(data.error ?? "招待に失敗しました");
+        toast.error(data.error ?? "招待に失敗しました");
       }
     } catch {
-      alert("ネットワークエラーが発生しました");
+      toast.error("ネットワークエラーが発生しました");
     } finally {
       setInviting(false);
     }
@@ -324,11 +443,11 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       const res = await apiFetch(f.downloadUrl);
       if (!res.ok) {
         if (res.status === 401) {
-          alert("ログインが必要です");
+          toast.error("ログインが必要です");
         } else if (res.status === 403) {
-          alert("このファイルをダウンロードする権限がありません");
+          toast.error("このファイルをダウンロードする権限がありません");
         } else {
-          alert("ダウンロードに失敗しました");
+          toast.error("ダウンロードに失敗しました");
         }
         return;
       }
@@ -345,7 +464,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         window.URL.revokeObjectURL(url);
       }
     } catch {
-      alert("ダウンロード中にエラーが発生しました");
+      toast.error("ダウンロード中にエラーが発生しました");
     }
   };
 
@@ -375,9 +494,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     }
   };
 
-  // Visibility badge is now handled via lib/presentation
-
-  // Visibility badge is now handled via lib/presentation
   const showExternalLink =
     paper.externalUrl && isValidExternalUrl(paper.externalUrl);
 
@@ -418,11 +534,132 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         )}
       </div>
 
+      {paper.showViewCount && (
+        <div className="mb-6 inline-flex items-end gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-blue-700 dark:text-blue-300">
+              Views
+            </p>
+            <p className="mt-1 text-sm text-blue-800/80 dark:text-blue-200/80">
+              公開表示中の総閲覧数
+            </p>
+          </div>
+          <p className="text-3xl font-semibold tabular-nums">
+            {paper.publicViewCount ?? 0}
+          </p>
+        </div>
+      )}
+
       {paper.abstract && (
         <div className="mb-6">
           <h2 className="text-sm font-medium text-gray-500 mb-1">概要</h2>
           <p className="text-sm whitespace-pre-wrap">{paper.abstract}</p>
         </div>
+      )}
+
+      {isAuthor && (
+        <section className="mb-8 rounded-3xl border border-gray-200 bg-gray-50/70 p-5 dark:border-gray-800 dark:bg-gray-900/40">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+                Author Stats
+              </p>
+              <h2 className="mt-2 text-lg font-semibold text-gray-950 dark:text-gray-50">
+                閲覧統計
+              </h2>
+            </div>
+            <p className="text-xs text-gray-500">
+              投稿者と共著者のみ閲覧できます
+            </p>
+          </div>
+
+          {statsLoading && (
+            <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-gray-500 shadow-sm dark:bg-gray-950 dark:text-gray-400">
+              統計情報を読み込み中...
+            </div>
+          )}
+
+          {!statsLoading && statsError && (
+            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+              {statsError}
+            </div>
+          )}
+
+          {!statsLoading && stats && (
+            <>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+                    Total
+                  </p>
+                  <p className="mt-3 text-3xl font-semibold tabular-nums text-gray-950 dark:text-gray-50">
+                    {stats.totalViews}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+                    Last 7 Days
+                  </p>
+                  <p className="mt-3 text-3xl font-semibold tabular-nums text-gray-950 dark:text-gray-50">
+                    {stats.last7DaysViews}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
+                    Last 30 Days
+                  </p>
+                  <p className="mt-3 text-3xl font-semibold tabular-nums text-gray-950 dark:text-gray-50">
+                    {stats.last30DaysViews}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    日別推移
+                  </h3>
+                  <p className="text-xs text-gray-500">直近30日</p>
+                </div>
+
+                <div className="mt-4 overflow-x-auto">
+                  <div className="flex min-w-[720px] items-end gap-2">
+                    {stats.dailyViews.map((entry) => {
+                      const barHeight =
+                        maxDailyViewCount === 0
+                          ? 4
+                          : Math.max(
+                              4,
+                              Math.round((entry.count / maxDailyViewCount) * 120),
+                            );
+
+                      return (
+                        <div
+                          key={entry.date}
+                          className="flex min-w-0 flex-1 flex-col items-center gap-2"
+                        >
+                          <div className="flex h-32 w-full items-end">
+                            <div
+                              className="w-full rounded-t-xl bg-gray-900/85 dark:bg-gray-100/85"
+                              style={{ height: `${barHeight}px` }}
+                              title={`${entry.date}: ${entry.count}`}
+                            />
+                          </div>
+                          <span className="text-[10px] font-medium text-gray-500">
+                            {entry.count}
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            {formatStatsDateLabel(entry.date)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </section>
       )}
 
       {showExternalLink && (
@@ -484,6 +721,10 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
                     className="h-auto w-full rounded"
                     loading="lazy"
                   />
+                ) : failedImageIds.includes(img.id) ? (
+                  <div className="flex h-[180px] items-center justify-center rounded bg-red-50 text-xs text-red-600 dark:bg-red-950/20 dark:text-red-400">
+                    画像の読み込みに失敗しました
+                  </div>
                 ) : (
                   <div className="h-[180px] animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
                 )}

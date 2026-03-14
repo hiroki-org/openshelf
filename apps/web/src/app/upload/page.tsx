@@ -47,6 +47,7 @@ export default function UploadPage() {
   const [abstract, setAbstract] = useState("");
   const [visibility, setVisibility] =
     useState<(typeof VISIBILITY_OPTIONS)[number]["value"]>("private");
+  const [showViewCount, setShowViewCount] = useState(false);
   const [venue, setVenue] = useState("");
   const [venueType, setVenueType] = useState("");
   const [year, setYear] = useState("");
@@ -99,6 +100,7 @@ export default function UploadPage() {
           title: title.trim(),
           abstract: abstract.trim() || null,
           visibility,
+          showViewCount,
           venue: venue.trim() || null,
           venueType: venueType || null,
           year: year ? Number(year) : null,
@@ -250,6 +252,29 @@ export default function UploadPage() {
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             />
           </div>
+        </div>
+
+        <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/40">
+          <label
+            htmlFor="paper-show-view-count"
+            className="flex items-start gap-3"
+          >
+            <input
+              id="paper-show-view-count"
+              type="checkbox"
+              checked={showViewCount}
+              onChange={(e) => setShowViewCount(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-gray-950 focus:ring-gray-500 dark:border-gray-700 dark:bg-gray-900 dark:text-white"
+            />
+            <span className="space-y-1">
+              <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                公開ページに閲覧数を表示する
+              </span>
+              <span className="block text-xs leading-5 text-gray-600 dark:text-gray-400">
+                著者向けの閲覧統計は常に内部で記録されます。ここをオンにした場合のみ、詳細ページに総閲覧数を公開表示します。
+              </span>
+            </span>
+          </label>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
