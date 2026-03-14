@@ -354,7 +354,13 @@ auth.post("/test-org", async (c) => {
             name: "Test Org",
             ...touchUpdatedAt(),
         })
-        .onConflictDoNothing({ target: orgs.id });
+        .onConflictDoUpdate({
+            target: orgs.id,
+            set: {
+                name: "Test Org",
+                ...touchUpdatedAt()
+            }
+        });
 
     await db
         .insert(orgMembers)

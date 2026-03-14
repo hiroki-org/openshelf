@@ -27,6 +27,8 @@ type Paper = {
   year: number | null;
   category: string | null;
   tags: string | null;
+  showViewCount: boolean;
+  viewCount?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -105,9 +107,14 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [inviting, setInviting] = useState(false);
+  const [stats, setStats] = useState<{ totalViews: number; dailyViews: { date: string; count: number }[] } | null>(null);
+  const [updatingSettings, setUpdatingSettings] = useState(false);
 
   const isUploader = authors.some(
     (a) => a.userId === user?.id && a.role === "uploader",
+  );
+  const isAuthor = authors.some(
+    (a) => a.userId === user?.id
   );
 
   const fetchPaper = useCallback(async () => {
@@ -151,9 +158,30 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     }
   }, [paperId, isUploader]);
 
+  const fetchStats = useCallback(async () => {
+    if (!isAuthor) return;
+    try {
+      const res = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}/stats`);
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch {
+      // Ignore
+    }
+  }, [paperId, isAuthor]);
+
   useEffect(() => {
     fetchPaper();
   }, [fetchPaper]);
+
+  useEffect(() => {
+    apiFetch(`/api/papers/${encodeURIComponent(paperId)}/view`, { method: "POST" }).catch(() => {});
+  }, [paperId]);
+
+  useEffect(() => {
+    if (isAuthor) fetchStats();
+  }, [isAuthor, fetchStats]);
 
   useEffect(() => {
     if (isUploader) fetchInvites();
@@ -289,6 +317,22 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     }
   };
 
+  const handleToggleShowViewCount = async (newVal: boolean) => {
+    setUpdatingSettings(true);
+    try {
+      const res = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ showViewCount: newVal }),
+      });
+      if (res.ok) {
+        await fetchPaper();
+      }
+    } finally {
+      setUpdatingSettings(false);
+    }
+  };
+
   const handleInvite = async (inviteeId: string) => {
     setInviting(true);
     try {
@@ -378,8 +422,12 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const showExternalLink =
     paper.externalUrl && isValidExternalUrl(paper.externalUrl);
 
+  // max value for daily views
+  const maxDailyViews = stats?.dailyViews.reduce((max, d) => Math.max(max, d.count), 0) ?? 0;
+
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-3xl flex flex-col gap-8 lg:flex-row lg:max-w-none">
+      <div className="flex-1 max-w-3xl">
       <h1 className="text-2xl font-bold mb-2">{paper.title}</h1>
 
       <div className="flex flex-wrap gap-2 text-sm text-gray-500 mb-6">
@@ -401,6 +449,15 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         {paper.venue && (
           <span className="flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
             {paper.venue}
+          </span>
+        )}
+        {paper.viewCount !== undefined && (
+          <span className="flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+              <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+              <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clipRule="evenodd" />
+            </svg>
+            {paper.viewCount} views
           </span>
         )}
       </div>
@@ -640,6 +697,66 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      </div>
+
+      {isAuthor && stats && (
+        <div className="w-full lg:w-72 shrink-0">
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950 sticky top-8">
+            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              インサイト
+            </h3>
+
+            <div className="mb-6">
+              <p className="text-sm text-gray-500 dark:text-gray-400">合計閲覧数</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-50 mt-1">
+                {stats.totalViews}
+              </p>
+            </div>
+
+            {stats.dailyViews.length > 0 && (
+              <div className="mb-6">
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">直近の推移</p>
+                <div className="flex items-end gap-1 h-16 w-full opacity-80">
+                  {stats.dailyViews.slice(-14).map((d) => {
+                    const heightPercent = maxDailyViews > 0 ? (d.count / maxDailyViews) * 100 : 0;
+                    return (
+                      <div
+                        key={d.date}
+                        title={`${d.date}: ${d.count} views`}
+                        className="flex-1 bg-blue-500/80 rounded-t-sm transition-all hover:bg-blue-400 min-w-1"
+                        style={{ height: `${Math.max(heightPercent, 5)}%` }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+              <label className="flex items-center justify-between cursor-pointer group">
+                <div className="flex-1 pr-4">
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100 group-hover:text-blue-600 transition-colors">
+                    閲覧数を公開する
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    一般公開のページに閲覧数を表示します。
+                  </p>
+                </div>
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={paper.showViewCount}
+                    onChange={(e) => handleToggleShowViewCount(e.target.checked)}
+                    disabled={updatingSettings}
+                  />
+                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600 peer-disabled:opacity-50"></div>
+                </div>
+              </label>
+            </div>
+          </div>
         </div>
       )}
     </div>

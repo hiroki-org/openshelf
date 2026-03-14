@@ -22,6 +22,13 @@
       "when": 1772699800000,
       "tag": "0002_backfill_updated_at_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1773475359406,
+      "tag": "0003_amazing_talos",
+      "breakpoints": true
     }
   ]
 }

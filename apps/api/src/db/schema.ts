@@ -64,6 +64,9 @@ export const papers = sqliteTable(
             enum: VALID_CATEGORIES,
         }),
         tags: text("tags"),
+        showViewCount: integer("show_view_count", { mode: "boolean" })
+            .notNull()
+            .default(false),
         createdAt: createdAt(),
         /** INSERT 時のみ自動設定．UPDATE 時は touchUpdatedAt() を使うこと */
         updatedAt: text("updated_at")
@@ -208,6 +211,26 @@ export const collectionPapers = sqliteTable(
     (t) => [
         primaryKey({ columns: [t.collectionId, t.paperId] }),
         index("collection_papers_paper_id_idx").on(t.paperId),
+    ],
+);
+
+// ─── paper_views ────────────────────────────────────────────────
+export const paperViews = sqliteTable(
+    "paper_views",
+    {
+        id: id(),
+        paperId: text("paper_id")
+            .notNull()
+            .references(() => papers.id, { onDelete: "cascade" }),
+        viewerFingerprint: text("viewer_fingerprint").notNull(),
+        viewedAt: text("viewed_at")
+            .notNull()
+            .default(sql`(datetime('now'))`),
+    },
+    (t) => [
+        index("paper_views_paper_id_idx").on(t.paperId),
+        // 同一IP(Fingerprint)からの重複カウントを防ぐためのインデックス
+        index("paper_views_fingerprint_idx").on(t.viewerFingerprint),
     ],
 );
 

@@ -193,7 +193,11 @@ test.describe('論文ダウンロード', () => {
 
         const apiURL = process.env.E2E_API_URL || 'http://localhost:8787';
         const setupRes = await page.request.post(`${apiURL}/api/auth/test-org`, {
-            headers: { 'x-test-auth-secret': authSecret },
+            headers: {
+                'x-test-auth-secret': authSecret,
+                'origin': process.env.E2E_BASE_URL || 'http://localhost:3000',
+                'referer': process.env.E2E_BASE_URL || 'http://localhost:3000',
+            },
             data: { userId: memberUserId, orgId }
         });
         expect(setupRes.ok()).toBeTruthy();

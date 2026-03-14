@@ -1,8 +1,9 @@
 import { Hono, type Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, gte, sql } from "drizzle-orm";
 import {
     papers,
+    paperViews,
     paperFiles,
     paperAuthors,
     users,
@@ -385,7 +386,7 @@ papersRoute.get("/:id", async (c) => {
         return c.json({ error: access.error }, access.status as any);
     }
 
-    const [rawFiles, authors] = (await db.batch([
+    const [rawFiles, authors, totalRes] = (await db.batch([
         db
             .select()
             .from(paperFiles)
@@ -401,15 +402,24 @@ papersRoute.get("/:id", async (c) => {
             .from(paperAuthors)
             .innerJoin(users, eq(paperAuthors.userId, users.id))
             .where(eq(paperAuthors.paperId, paperId)),
+        db
+            .select({ count: sql<number>`count(*)` })
+            .from(paperViews)
+            .where(eq(paperViews.paperId, paperId)),
     ])) as [
             (typeof paperFiles.$inferSelect)[],
-            { userId: string; role: string; name: string | null; displayName: string | null; avatarUrl: string | null }[]
+            { userId: string; role: string; name: string | null; displayName: string | null; avatarUrl: string | null }[],
+            { count: number }[]
         ];
 
     const files = rawFiles.map((file) => ({
         ...file,
         downloadUrl: `/api/papers/${paperId}/files/${file.id}/download`,
     }));
+
+    const reqUserId = access.user?.sub;
+    const isAuthor = reqUserId ? authors.some(a => a.userId === reqUserId) : false;
+    const viewCount = (paper.showViewCount || isAuthor) ? (totalRes[0]?.count ?? 0) : undefined;
 
     return c.json({
         paper: {
@@ -423,12 +433,66 @@ papersRoute.get("/:id", async (c) => {
             year: paper.year,
             category: paper.category,
             tags: paper.tags,
+            showViewCount: paper.showViewCount,
+            viewCount,
             createdAt: paper.createdAt,
             updatedAt: paper.updatedAt,
         },
         files,
         authors,
     });
+});
+
+// PATCH /api/papers/:id — update paper metadata
+papersRoute.patch("/:id", authMiddleware, async (c) => {
+    const paperId = c.req.param("id");
+    const userId = c.get("user").sub;
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    const isAuthor = await db
+        .select({ role: paperAuthors.role })
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paperId),
+                eq(paperAuthors.userId, userId),
+            ),
+        )
+        .get();
+
+    if (!isAuthor) {
+        return c.json({ error: "Forbidden" }, 403);
+    }
+
+    let body: { showViewCount?: unknown };
+    try {
+        body = await c.req.json();
+    } catch {
+        return c.json({ error: "Invalid JSON" }, 400);
+    }
+
+    const updates: Partial<typeof papers.$inferInsert> = {};
+    let hasUpdates = false;
+
+    if (typeof body.showViewCount === "boolean") {
+        updates.showViewCount = body.showViewCount;
+        hasUpdates = true;
+    }
+
+    if (!hasUpdates) {
+        return c.json({ success: true, message: "No changes" });
+    }
+
+    await db
+        .update(papers)
+        .set({
+            ...updates,
+            ...touchUpdatedAt(),
+        })
+        .where(eq(papers.id, paperId));
+
+    return c.json({ success: true });
 });
 
 // GET /api/papers/:id/files/:fileId/download — download file
@@ -558,6 +622,119 @@ papersRoute.get("/:id/files/:fileId/stream", async (c) => {
     }
 
     return new Response(object.body as ReadableStream, { headers });
+});
+
+// POST /api/papers/:id/view — record a paper view
+papersRoute.post("/:id/view", async (c) => {
+    const paperId = c.req.param("id");
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    const paper = await db
+        .select({ id: papers.id })
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+
+    if (!paper) return c.json({ error: "Not found" }, 404);
+
+    const ip =
+        c.req.header("cf-connecting-ip") ||
+        c.req.header("x-forwarded-for") ||
+        "0.0.0.0";
+    const userAgent = c.req.header("user-agent") || "unknown";
+
+    // Create a fingerprint
+    const fingerprintRaw = `${ip}-${userAgent}`;
+    const hashBuffer = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(fingerprintRaw),
+    );
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const fingerprint = hashArray
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+
+    // Check if viewed in the last 24 hours
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
+    const recentView = await db
+        .select({ id: paperViews.id })
+        .from(paperViews)
+        .where(
+            and(
+                eq(paperViews.paperId, paperId),
+                eq(paperViews.viewerFingerprint, fingerprint),
+                gte(paperViews.viewedAt, oneDayAgo),
+            ),
+        )
+        .get();
+
+    if (!recentView) {
+        await db.insert(paperViews).values({
+            paperId,
+            viewerFingerprint: fingerprint,
+        });
+    }
+
+    return c.json({ success: true });
+});
+
+// GET /api/papers/:id/stats — get view statistics (authors only)
+papersRoute.get("/:id/stats", authMiddleware, async (c) => {
+    const paperId = c.req.param("id");
+    const userId = c.get("user").sub;
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    const isAuthor = await db
+        .select({ role: paperAuthors.role })
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paperId),
+                eq(paperAuthors.userId, userId),
+            ),
+        )
+        .get();
+
+    if (!isAuthor) {
+        return c.json({ error: "Forbidden" }, 403);
+    }
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const [totalRes, recentRes] = await db.batch([
+        db
+            .select({ count: sql<number>`count(*)` })
+            .from(paperViews)
+            .where(eq(paperViews.paperId, paperId)),
+        db
+            .select({
+                date: sql<string>`date(${paperViews.viewedAt})`,
+                count: sql<number>`count(*)`,
+            })
+            .from(paperViews)
+            .where(
+                and(
+                    eq(paperViews.paperId, paperId),
+                    gte(paperViews.viewedAt, thirtyDaysAgo),
+                ),
+            )
+            .groupBy(sql`date(${paperViews.viewedAt})`)
+            .orderBy(sql`date(${paperViews.viewedAt})`),
+    ]);
+
+    const totalViews = totalRes[0]?.count ?? 0;
+    const dailyViews = recentRes.map(row => ({
+        date: row.date,
+        count: row.count,
+    }));
+
+    return c.json({
+        totalViews,
+        dailyViews,
+    });
 });
 
 // POST /api/papers/:id/invites — send coauthor invite
