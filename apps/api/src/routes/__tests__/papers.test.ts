@@ -246,6 +246,58 @@ describe("papers routes", () => {
         expect(where).toHaveBeenCalledTimes(1);
     });
 
+    it("PATCH /api/papers/:id rejects a primitive JSON body", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: "null",
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toContain("Invalid JSON body");
+        expect(mockDb.select).not.toHaveBeenCalled();
+    });
+
+    it("PATCH /api/papers/:id rejects requests without valid updatable fields", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ unknownField: "ignored" }),
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toContain("No valid fields");
+        expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
     it("GET /api/papers/:id returns 401 for private paper without Bearer token", async () => {
         mockDb.select = vi
             .fn()

@@ -770,12 +770,16 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
 papersRoute.patch("/:id", authMiddleware, async (c) => {
     const paperId = c.req.param("id");
     const userId = c.get("user").sub;
-    let body: Record<string, unknown>;
+    let parsedBody: unknown;
     try {
-        body = await c.req.json();
+        parsedBody = await c.req.json();
     } catch {
         return c.json({ error: "Invalid JSON body" }, 400);
     }
+    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+        return c.json({ error: "Invalid JSON body" }, 400);
+    }
+    const body = parsedBody as Record<string, unknown>;
 
     const db = drizzle(c.env.DB);
     await enableForeignKeys(db);
@@ -800,6 +804,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
     if (!isAuthor) return c.json({ error: "Forbidden" }, 403);
 
     const updates: Record<string, any> = { ...touchUpdatedAt() };
+    let hasRealUpdates = false;
 
     if ("title" in body) {
         if (typeof body.title !== "string") {
@@ -810,6 +815,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             return c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400);
         }
         updates.title = trimmedTitle;
+        hasRealUpdates = true;
     }
     if ("abstract" in body) {
         if (!(typeof body.abstract === "string" || body.abstract === null)) {
@@ -820,6 +826,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             return c.json({ error: `abstract must be ${MAX_ABSTRACT_LENGTH} chars or less` }, 400);
         }
         updates.abstract = abstract || null;
+        hasRealUpdates = true;
     }
     if ("visibility" in body) {
         if (typeof body.visibility !== "string" || !VALID_VISIBILITY.includes(body.visibility)) {
@@ -832,6 +839,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             );
         }
         updates.visibility = body.visibility;
+        hasRealUpdates = true;
     }
     if ("language" in body) {
         if (!(typeof body.language === "string" || body.language === null)) {
@@ -842,6 +850,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             return c.json({ error: `language must be ${MAX_LANGUAGE_LENGTH} chars or less` }, 400);
         }
         updates.language = language || null;
+        hasRealUpdates = true;
     }
     if ("externalUrl" in body) {
         if (!(typeof body.externalUrl === "string" || body.externalUrl === null)) {
@@ -855,6 +864,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             return c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400);
         }
         updates.externalUrl = externalUrl || null;
+        hasRealUpdates = true;
     }
     if ("doi" in body) {
         if (!(typeof body.doi === "string" || body.doi === null)) {
@@ -865,6 +875,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             return c.json({ error: `doi must be ${MAX_DOI_LENGTH} chars or less` }, 400);
         }
         updates.doi = doi || null;
+        hasRealUpdates = true;
     }
     if ("venue" in body) {
         if (!(typeof body.venue === "string" || body.venue === null)) {
@@ -875,6 +886,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             return c.json({ error: `venue must be ${MAX_VENUE_LENGTH} chars or less` }, 400);
         }
         updates.venue = venue || null;
+        hasRealUpdates = true;
     }
     if ("venueType" in body) {
         if (!(typeof body.venueType === "string" || body.venueType === null)) {
@@ -882,12 +894,14 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         }
         if (body.venueType && !(VALID_VENUE_TYPES as readonly string[]).includes(body.venueType)) return c.json({ error: "Invalid venueType" }, 400);
         updates.venueType = body.venueType || null;
+        hasRealUpdates = true;
     }
     if ("year" in body) {
         if (!(typeof body.year === "number" || body.year === null) || Number.isNaN(body.year)) {
             return c.json({ error: "year must be a number or null" }, 400);
         }
         updates.year = body.year;
+        hasRealUpdates = true;
     }
     if ("category" in body) {
         if (!(typeof body.category === "string" || body.category === null)) {
@@ -895,6 +909,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         }
         if (body.category && !(VALID_CATEGORIES as readonly string[]).includes(body.category)) return c.json({ error: "Invalid category" }, 400);
         updates.category = body.category || null;
+        hasRealUpdates = true;
     }
     if ("tags" in body) {
         if (Array.isArray(body.tags)) {
@@ -916,6 +931,10 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         } else {
             return c.json({ error: "tags must be an array or null" }, 400);
         }
+        hasRealUpdates = true;
+    }
+    if (!hasRealUpdates) {
+        return c.json({ error: "No valid fields to update" }, 400);
     }
 
     await db.update(papers).set(updates).where(eq(papers.id, paperId));
