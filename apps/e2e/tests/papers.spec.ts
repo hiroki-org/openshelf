@@ -38,6 +38,43 @@ async function getFirstFileId(page: Page, paperId: string): Promise<string> {
     return detail.files[0].id as string;
 }
 
+async function expectPdfPreviewRendered(page: Page, expectedTexts: string[]): Promise<void> {
+    const previewSurface = page.getByTestId('pdf-viewer-surface');
+    const renderedPdfPage = previewSurface.locator('.react-pdf__Page').first();
+    const renderedPdfCanvas = previewSurface.locator('.react-pdf__Page canvas').first();
+    const textLayer = previewSurface.locator('.react-pdf__Page__textContent').first();
+    const previewFallback = page.getByText('プレビューを読み込めません', { exact: true });
+
+    await expect(previewSurface).toBeVisible();
+    await expect(renderedPdfPage).toBeVisible({ timeout: 20000 });
+    await expect(renderedPdfCanvas).toBeVisible({ timeout: 20000 });
+    await expect(textLayer).toHaveCount(1, { timeout: 20000 });
+    await expect(previewFallback).toHaveCount(0);
+
+    const canvasBounds = await renderedPdfCanvas.evaluate((element) => {
+        const canvas = element as HTMLCanvasElement;
+
+        return {
+            width: canvas.clientWidth,
+            height: canvas.clientHeight,
+            naturalWidth: canvas.width,
+            naturalHeight: canvas.height
+        };
+    });
+
+    expect(canvasBounds.width).toBeGreaterThan(0);
+    expect(canvasBounds.height).toBeGreaterThan(0);
+    expect(canvasBounds.naturalWidth).toBeGreaterThan(0);
+    expect(canvasBounds.naturalHeight).toBeGreaterThan(0);
+
+    const rawText = await textLayer.textContent();
+    const normalizedText = (rawText ?? '').replace(/\s+/g, '').normalize('NFKC');
+
+    for (const expectedText of expectedTexts) {
+        expect(normalizedText).toContain(expectedText.replace(/\s+/g, '').normalize('NFKC'));
+    }
+}
+
 test.describe('論文アップロード', () => {
     test('認証済みユーザーが /upload ページからPDFをアップロードできること、アップロード後、トップページ（マイ論文一覧）に論文タイトルが表示されること', async ({ page }) => {
         const uniqueTitle = `テスト論文 - ${randomUUID()}`;
@@ -124,6 +161,54 @@ test.describe('PDFプレビュー', () => {
             const renderedPdfPage = unauthPage.locator('.react-pdf__Page');
             const previewFallback = unauthPage.getByText('プレビューを読み込めません');
             await expect(renderedPdfPage.or(previewFallback)).toBeVisible({ timeout: 20000 });
+        } finally {
+            await unauthContext.close();
+        }
+    });
+
+    test('公開論文の詳細ページで英語PDFプレビューが描画されること', async ({ page, browser }) => {
+        const publicTitle = `English Preview - ${randomUUID()}`;
+        await loginAsTestUser(page);
+
+        const publicPaperId = await uploadPaper(page, {
+            title: publicTitle,
+            visibility: 'public',
+            filePath: path.resolve(__dirname, '../fixtures/test-paper-en.pdf')
+        });
+
+        const unauthContext = await browser.newContext();
+        const unauthPage = await unauthContext.newPage();
+        try {
+            await unauthPage.goto(`/papers/${publicPaperId}`);
+            await expect(unauthPage.getByRole('heading', { name: publicTitle })).toBeVisible();
+            await expectPdfPreviewRendered(unauthPage, [
+                'OpenShelfEnglishrenderingcheck',
+                'EnglishtextforPDFpreviewtest.'
+            ]);
+        } finally {
+            await unauthContext.close();
+        }
+    });
+
+    test('公開論文の詳細ページで日本語と英語を含むPDFプレビューが描画されること', async ({ page, browser }) => {
+        const publicTitle = `Japanese Preview - ${randomUUID()}`;
+        await loginAsTestUser(page);
+
+        const publicPaperId = await uploadPaper(page, {
+            title: publicTitle,
+            visibility: 'public',
+            filePath: path.resolve(__dirname, '../fixtures/test-paper-ja.pdf')
+        });
+
+        const unauthContext = await browser.newContext();
+        const unauthPage = await unauthContext.newPage();
+        try {
+            await unauthPage.goto(`/papers/${publicPaperId}`);
+            await expect(unauthPage.getByRole('heading', { name: publicTitle })).toBeVisible();
+            await expectPdfPreviewRendered(unauthPage, [
+                'OpenShelf',
+                '日本語PDFプレビュー確認'
+            ]);
         } finally {
             await unauthContext.close();
         }
