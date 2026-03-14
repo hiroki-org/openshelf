@@ -10,7 +10,6 @@ import {
     orgMembers,
     paperOrgs,
     enableForeignKeys,
-    touchUpdatedAt,
     VALID_VENUE_TYPES,
     VALID_CATEGORIES,
     type VenueType,
@@ -33,13 +32,6 @@ const ALLOWED_MIME_TYPES = [
 ];
 const VALID_FILE_TYPES = ["paper", "slides", "poster", "supplementary"];
 const VALID_VISIBILITY = ["public", "org_only", "private"];
-const MAX_TITLE_LENGTH = 300;
-const MAX_ABSTRACT_LENGTH = 5000;
-const MAX_LANGUAGE_LENGTH = 32;
-const MAX_EXTERNAL_URL_LENGTH = 2048;
-const MAX_DOI_LENGTH = 255;
-const MAX_VENUE_LENGTH = 255;
-const MAX_TAG_LENGTH = 64;
 
 function sanitizeFilename(filename: string): string {
     const basename = filename.split(/[\\/]/).pop() ?? "";
@@ -166,9 +158,9 @@ papersRoute.post("/", authMiddleware, async (c) => {
         !title ||
         typeof title !== "string" ||
         title.trim().length === 0 ||
-        title.trim().length > MAX_TITLE_LENGTH
+        title.trim().length > 300
     )
-        return c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400);
+        return c.json({ error: "title is required (1-300 chars)" }, 400);
 
     const vis = (meta.visibility as string) || "private";
     if (!VALID_VISIBILITY.includes(vis))
@@ -343,7 +335,6 @@ papersRoute.post("/", authMiddleware, async (c) => {
                 filename: entry.safeFilename,
                 sizeBytes: entry.file.size,
                 mimeType: entry.file.type || null,
-                ...touchUpdatedAt(),
             })),
         );
     } catch (error) {
@@ -424,9 +415,7 @@ papersRoute.get("/:id", async (c) => {
             title: paper.title,
             abstract: paper.abstract,
             visibility: paper.visibility,
-            language: paper.language,
             externalUrl: paper.externalUrl,
-            doi: paper.doi,
             venue: paper.venue,
             venueType: paper.venueType,
             year: paper.year,
@@ -662,7 +651,6 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
             inviterId: userId,
             inviteeId: resolvedInviteeId,
             inviteeEmail: resolvedInviteeEmail,
-            ...touchUpdatedAt(),
         });
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "";
@@ -700,12 +688,11 @@ papersRoute.get("/:id/invites", authMiddleware, async (c) => {
         .all();
 
     const inviteeIds = [
-        ...inviteRows.reduce((acc, inv) => {
-            if (typeof inv.inviteeId === "string") {
-                acc.add(inv.inviteeId);
-            }
-            return acc;
-        }, new Set<string>()),
+        ...new Set(
+            inviteRows
+                .map((inv) => inv.inviteeId)
+                .filter((v): v is string => typeof v === "string"),
+        ),
     ];
 
     const inviteeRows = inviteeIds.length
@@ -764,181 +751,6 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
     await Promise.all(files.map((f) => c.env.BUCKET.delete(f.r2Key)));
     await db.delete(papers).where(eq(papers.id, paperId));
 
-    return c.json({ ok: true });
-});
-
-// PATCH /api/papers/:id — edit paper metadata
-papersRoute.patch("/:id", authMiddleware, async (c) => {
-    const paperId = c.req.param("id");
-    const userId = c.get("user").sub;
-    let parsedBody: unknown;
-    try {
-        parsedBody = await c.req.json();
-    } catch {
-        return c.json({ error: "Invalid JSON body" }, 400);
-    }
-    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
-        return c.json({ error: "Invalid JSON body" }, 400);
-    }
-    const body = parsedBody as Record<string, unknown>;
-
-    const db = drizzle(c.env.DB);
-    await enableForeignKeys(db);
-
-    const paper = await db
-        .select({ id: papers.id, visibility: papers.visibility })
-        .from(papers)
-        .where(eq(papers.id, paperId))
-        .get();
-    if (!paper) return c.json({ error: "Not found" }, 404);
-
-    const isAuthor = await db
-        .select()
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paperId),
-                eq(paperAuthors.userId, userId)
-            )
-        )
-        .get();
-    if (!isAuthor) return c.json({ error: "Forbidden" }, 403);
-
-    const updates: Record<string, any> = { ...touchUpdatedAt() };
-    let hasRealUpdates = false;
-
-    if ("title" in body) {
-        if (typeof body.title !== "string") {
-            return c.json({ error: "title must be a string" }, 400);
-        }
-        const trimmedTitle = body.title.trim();
-        if (trimmedTitle.length === 0 || trimmedTitle.length > MAX_TITLE_LENGTH) {
-            return c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400);
-        }
-        updates.title = trimmedTitle;
-        hasRealUpdates = true;
-    }
-    if ("abstract" in body) {
-        if (!(typeof body.abstract === "string" || body.abstract === null)) {
-            return c.json({ error: "abstract must be a string or null" }, 400);
-        }
-        const abstract = typeof body.abstract === "string" ? body.abstract.trim() : null;
-        if (abstract && abstract.length > MAX_ABSTRACT_LENGTH) {
-            return c.json({ error: `abstract must be ${MAX_ABSTRACT_LENGTH} chars or less` }, 400);
-        }
-        updates.abstract = abstract || null;
-        hasRealUpdates = true;
-    }
-    if ("visibility" in body) {
-        if (typeof body.visibility !== "string" || !VALID_VISIBILITY.includes(body.visibility)) {
-            return c.json({ error: "Invalid visibility" }, 400);
-        }
-        if (body.visibility === "org_only" && paper.visibility !== "org_only") {
-            return c.json(
-                { error: "Changing visibility to org_only is not supported in edit flow" },
-                400,
-            );
-        }
-        updates.visibility = body.visibility;
-        hasRealUpdates = true;
-    }
-    if ("language" in body) {
-        if (!(typeof body.language === "string" || body.language === null)) {
-            return c.json({ error: "language must be a string or null" }, 400);
-        }
-        const language = typeof body.language === "string" ? body.language.trim() : null;
-        if (language && language.length > MAX_LANGUAGE_LENGTH) {
-            return c.json({ error: `language must be ${MAX_LANGUAGE_LENGTH} chars or less` }, 400);
-        }
-        updates.language = language || null;
-        hasRealUpdates = true;
-    }
-    if ("externalUrl" in body) {
-        if (!(typeof body.externalUrl === "string" || body.externalUrl === null)) {
-            return c.json({ error: "externalUrl must be a string or null" }, 400);
-        }
-        const externalUrl = typeof body.externalUrl === "string" ? body.externalUrl.trim() : null;
-        if (externalUrl && externalUrl.length > MAX_EXTERNAL_URL_LENGTH) {
-            return c.json({ error: `externalUrl must be ${MAX_EXTERNAL_URL_LENGTH} chars or less` }, 400);
-        }
-        if (externalUrl && !isValidUrlScheme(externalUrl)) {
-            return c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400);
-        }
-        updates.externalUrl = externalUrl || null;
-        hasRealUpdates = true;
-    }
-    if ("doi" in body) {
-        if (!(typeof body.doi === "string" || body.doi === null)) {
-            return c.json({ error: "doi must be a string or null" }, 400);
-        }
-        const doi = typeof body.doi === "string" ? body.doi.trim() : null;
-        if (doi && doi.length > MAX_DOI_LENGTH) {
-            return c.json({ error: `doi must be ${MAX_DOI_LENGTH} chars or less` }, 400);
-        }
-        updates.doi = doi || null;
-        hasRealUpdates = true;
-    }
-    if ("venue" in body) {
-        if (!(typeof body.venue === "string" || body.venue === null)) {
-            return c.json({ error: "venue must be a string or null" }, 400);
-        }
-        const venue = typeof body.venue === "string" ? body.venue.trim() : null;
-        if (venue && venue.length > MAX_VENUE_LENGTH) {
-            return c.json({ error: `venue must be ${MAX_VENUE_LENGTH} chars or less` }, 400);
-        }
-        updates.venue = venue || null;
-        hasRealUpdates = true;
-    }
-    if ("venueType" in body) {
-        if (!(typeof body.venueType === "string" || body.venueType === null)) {
-            return c.json({ error: "venueType must be a string or null" }, 400);
-        }
-        if (body.venueType && !(VALID_VENUE_TYPES as readonly string[]).includes(body.venueType)) return c.json({ error: "Invalid venueType" }, 400);
-        updates.venueType = body.venueType || null;
-        hasRealUpdates = true;
-    }
-    if ("year" in body) {
-        if (!(typeof body.year === "number" || body.year === null) || Number.isNaN(body.year)) {
-            return c.json({ error: "year must be a number or null" }, 400);
-        }
-        updates.year = body.year;
-        hasRealUpdates = true;
-    }
-    if ("category" in body) {
-        if (!(typeof body.category === "string" || body.category === null)) {
-            return c.json({ error: "category must be a string or null" }, 400);
-        }
-        if (body.category && !(VALID_CATEGORIES as readonly string[]).includes(body.category)) return c.json({ error: "Invalid category" }, 400);
-        updates.category = body.category || null;
-        hasRealUpdates = true;
-    }
-    if ("tags" in body) {
-        if (Array.isArray(body.tags)) {
-            const normalizedTags: string[] = [];
-            for (const tag of body.tags) {
-                if (typeof tag !== "string") {
-                    return c.json({ error: "each tag must be a string" }, 400);
-                }
-                const normalizedTag = tag.trim();
-                if (normalizedTag.length === 0) continue;
-                if (normalizedTag.length > MAX_TAG_LENGTH) {
-                    return c.json({ error: `each tag must be ${MAX_TAG_LENGTH} chars or less` }, 400);
-                }
-                normalizedTags.push(normalizedTag);
-            }
-            updates.tags = normalizedTags.length > 0 ? JSON.stringify(normalizedTags) : null;
-        } else if (body.tags === null) {
-            updates.tags = null;
-        } else {
-            return c.json({ error: "tags must be an array or null" }, 400);
-        }
-        hasRealUpdates = true;
-    }
-    if (!hasRealUpdates) {
-        return c.json({ error: "No valid fields to update" }, 400);
-    }
-
-    await db.update(papers).set(updates).where(eq(papers.id, paperId));
     return c.json({ ok: true });
 });
 
