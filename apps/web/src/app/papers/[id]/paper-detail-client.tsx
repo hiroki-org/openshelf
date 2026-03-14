@@ -6,6 +6,8 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import { safePath } from "@/lib/sanitization";
+import { toast } from "@/components/toast";
 import {
   getVisibilityBadge,
   getInviteStatusBadge,
@@ -115,7 +117,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   const fetchPaper = useCallback(async () => {
     try {
-      const res = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}`);
+      const res = await apiFetch(`/api/papers/${safePath(paperId)}`);
       if (!res.ok) {
         if (res.status === 401) {
           setError("ログインが必要です");
@@ -143,7 +145,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     if (!isUploader) return;
     try {
       const res = await apiFetch(
-        `/api/papers/${encodeURIComponent(paperId)}/invites`,
+        `/api/papers/${safePath(paperId)}/invites`,
       );
       if (res.ok) {
         const data = await res.json();
@@ -225,7 +227,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         URL.revokeObjectURL(createdObjectUrl);
       }
     };
-  }, [paperId, files]);
+  }, [paperId, pdfFile]);
 
   useEffect(() => {
     if (imageFiles.length === 0) {
@@ -239,13 +241,21 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     const loadImages = async () => {
       const entries = await Promise.all(
         imageFiles.map(async (img) => {
-          const streamPath = `/api/papers/${paperId}/files/${img.id}/stream`;
-          const res = await apiFetch(streamPath);
-          if (!res.ok) return [img.id, ""] as const;
-          const blob = await res.blob();
-          const objectUrl = URL.createObjectURL(blob);
-          createdUrls.push(objectUrl);
-          return [img.id, objectUrl] as const;
+          try {
+            const streamPath = `/api/papers/${safePath(paperId)}/files/${img.id}/stream`;
+            const res = await apiFetch(streamPath);
+            if (!res.ok) {
+              console.error(`Failed to load image ${img.id}`);
+              return [img.id, ""] as const;
+            }
+            const blob = await res.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            createdUrls.push(objectUrl);
+            return [img.id, objectUrl] as const;
+          } catch (err) {
+            console.error(`Error loading image ${img.id}:`, err);
+            return [img.id, ""] as const;
+          }
         }),
       );
 
@@ -257,7 +267,8 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       setImagePreviewUrls(Object.fromEntries(entries.filter(([, url]) => url)));
     };
 
-    loadImages().catch(() => {
+    loadImages().catch((err) => {
+      console.error("Critical error in loadImages:", err);
       if (!cancelled) {
         setImagePreviewUrls({});
       }
@@ -269,7 +280,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         URL.revokeObjectURL(url);
       }
     };
-  }, [paperId, files]);
+  }, [paperId, imageFiles]);
 
   const handleSearch = async (q: string) => {
     setSearchQuery(q);
@@ -296,7 +307,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     setInviting(true);
     try {
       const res = await apiFetch(
-        `/api/papers/${encodeURIComponent(paperId)}/invites`,
+        `/api/papers/${safePath(paperId)}/invites`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -308,12 +319,13 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         setSearchQuery("");
         setSearchResults([]);
         await fetchInvites();
+        toast.success("招待を送信しました");
       } else {
         const data = await res.json();
-        alert(data.error ?? "招待に失敗しました");
+        toast.error(data.error ?? "招待に失敗しました");
       }
     } catch {
-      alert("ネットワークエラーが発生しました");
+      toast.error("ネットワークエラーが発生しました");
     } finally {
       setInviting(false);
     }
@@ -324,11 +336,11 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       const res = await apiFetch(f.downloadUrl);
       if (!res.ok) {
         if (res.status === 401) {
-          alert("ログインが必要です");
+          toast.error("ログインが必要です");
         } else if (res.status === 403) {
-          alert("このファイルをダウンロードする権限がありません");
+          toast.error("このファイルをダウンロードする権限がありません");
         } else {
-          alert("ダウンロードに失敗しました");
+          toast.error("ダウンロードに失敗しました");
         }
         return;
       }
@@ -345,7 +357,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         window.URL.revokeObjectURL(url);
       }
     } catch {
-      alert("ダウンロード中にエラーが発生しました");
+      toast.error("ダウンロード中にエラーが発生しました");
     }
   };
 
