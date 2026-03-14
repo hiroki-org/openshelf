@@ -221,6 +221,9 @@ describe("papers routes", () => {
 
     it("GET /api/papers/:id/stats returns author-only statistics", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Author" });
+        const today = new Date().toISOString().split("T")[0];
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+
         mockDb.select = vi
             .fn()
             .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1" } }))
@@ -231,8 +234,8 @@ describe("papers routes", () => {
             .mockImplementationOnce(() =>
                 makeQuery({
                     allResult: [
-                        { date: "2026-03-13", count: 3 },
-                        { date: "2026-03-14", count: 2 },
+                        { date: yesterday, count: 3 },
+                        { date: today, count: 2 },
                     ],
                 }),
             );
@@ -253,7 +256,72 @@ describe("papers routes", () => {
         expect(body.last30DaysViews).toBe(18);
         expect(body.last7DaysViews).toBe(6);
         expect(body.dailyViews).toHaveLength(30);
-        expect(body.dailyViews.at(-1)).toEqual({ date: "2026-03-14", count: 2 });
+        expect(body.dailyViews.at(-1)).toEqual({ date: today, count: 2 });
+    });
+
+    it("GET /api/papers/:id omits publicViewCount when showViewCount is false", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "public", showViewCount: false } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [] }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            { headers: { Authorization: `Bearer ${token}` } },
+            env as any
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as any;
+        expect(body.paper.showViewCount).toBe(false);
+        expect(body.paper.publicViewCount).toBeNull();
+    });
+
+    it("POST /api/papers/:id/view returns 401 for private paper without token", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/view",
+            {
+                method: "POST",
+                headers: { Origin: "http://localhost:3000" },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(401);
+    });
+
+    it("POST /api/papers/:id/view returns 403 for private paper from non-author", async () => {
+        const token = await createTestJWT({ sub: "user-2", githubId: "456", name: "Other" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: null }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/view",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(403);
     });
 
     it("GET /api/papers/:id/stats returns 403 for non-authors", async () => {

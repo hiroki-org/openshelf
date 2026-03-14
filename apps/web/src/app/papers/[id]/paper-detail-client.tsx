@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/auth-provider";
+import { toast } from "@/components/toast";
 import { apiFetch } from "@/lib/api";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
@@ -113,6 +114,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const [stats, setStats] = useState<PaperStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsError, setStatsError] = useState("");
+  const [failedImageIds, setFailedImageIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
@@ -134,9 +136,20 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   const isAuthor = authors.some((a) => a.userId === user?.id);
 
-  const applyCountedView = useCallback(() => {
-    const today = new Date().toISOString().slice(0, 10);
+  const fetchStats = useCallback(async () => {
+    if (!paperId || !isAuthor) return;
+    try {
+      const res = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}/stats`);
+      if (res.ok) {
+        const data = (await res.json()) as PaperStats;
+        setStats(data);
+      }
+    } catch {
+      // Ignore
+    }
+  }, [paperId, isAuthor]);
 
+  const applyCountedView = useCallback(() => {
     setPaper((current) => {
       if (!current || !current.showViewCount) return current;
       return {
@@ -145,20 +158,9 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       };
     });
 
-    setStats((current) => {
-      if (!current) return current;
-      return {
-        totalViews: current.totalViews + 1,
-        last7DaysViews: current.last7DaysViews + 1,
-        last30DaysViews: current.last30DaysViews + 1,
-        dailyViews: current.dailyViews.map((entry) =>
-          entry.date === today
-            ? { ...entry, count: entry.count + 1 }
-            : entry,
-        ),
-      };
-    });
-  }, []);
+    // Refresh full stats after a recorded view to ensure consistency
+    void fetchStats();
+  }, [fetchStats]);
 
   const fetchPaper = useCallback(async () => {
     try {
@@ -362,15 +364,24 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     const createdUrls: string[] = [];
 
     const loadImages = async () => {
+      const currentFailedIds: string[] = [];
       const entries = await Promise.all(
         imageFiles.map(async (img) => {
-          const streamPath = `/api/papers/${paperId}/files/${img.id}/stream`;
-          const res = await apiFetch(streamPath);
-          if (!res.ok) return [img.id, ""] as const;
-          const blob = await res.blob();
-          const objectUrl = URL.createObjectURL(blob);
-          createdUrls.push(objectUrl);
-          return [img.id, objectUrl] as const;
+          try {
+            const streamPath = `/api/papers/${paperId}/files/${img.id}/stream`;
+            const res = await apiFetch(streamPath);
+            if (!res.ok) {
+              currentFailedIds.push(img.id);
+              return [img.id, ""] as const;
+            }
+            const blob = await res.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            createdUrls.push(objectUrl);
+            return [img.id, objectUrl] as const;
+          } catch {
+            currentFailedIds.push(img.id);
+            return [img.id, ""] as const;
+          }
         }),
       );
 
@@ -380,11 +391,13 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       }
 
       setImagePreviewUrls(Object.fromEntries(entries.filter(([, url]) => url)));
+      setFailedImageIds(currentFailedIds);
     };
 
     loadImages().catch(() => {
       if (!cancelled) {
         setImagePreviewUrls({});
+        setFailedImageIds(imageFiles.map((f) => f.id));
       }
     });
 
@@ -433,12 +446,13 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         setSearchQuery("");
         setSearchResults([]);
         await fetchInvites();
+        toast.success("共著者を招待しました");
       } else {
         const data = await res.json();
-        alert(data.error ?? "招待に失敗しました");
+        toast.error(data.error ?? "招待に失敗しました");
       }
     } catch {
-      alert("ネットワークエラーが発生しました");
+      toast.error("ネットワークエラーが発生しました");
     } finally {
       setInviting(false);
     }
@@ -449,11 +463,11 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       const res = await apiFetch(f.downloadUrl);
       if (!res.ok) {
         if (res.status === 401) {
-          alert("ログインが必要です");
+          toast.error("ログインが必要です");
         } else if (res.status === 403) {
-          alert("このファイルをダウンロードする権限がありません");
+          toast.error("このファイルをダウンロードする権限がありません");
         } else {
-          alert("ダウンロードに失敗しました");
+          toast.error("ダウンロードに失敗しました");
         }
         return;
       }
@@ -470,7 +484,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         window.URL.revokeObjectURL(url);
       }
     } catch {
-      alert("ダウンロード中にエラーが発生しました");
+      toast.error("ダウンロード中にエラーが発生しました");
     }
   };
 
@@ -730,6 +744,10 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
                     className="h-auto w-full rounded"
                     loading="lazy"
                   />
+                ) : failedImageIds.includes(img.id) ? (
+                  <div className="flex h-[180px] items-center justify-center rounded bg-red-50 text-xs text-red-600 dark:bg-red-950/20 dark:text-red-400">
+                    画像の読み込みに失敗しました
+                  </div>
                 ) : (
                   <div className="h-[180px] animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
                 )}

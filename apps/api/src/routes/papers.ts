@@ -93,14 +93,20 @@ async function buildViewerFingerprint(
     c: Context<{ Bindings: Env; Variables: Variables }>,
     paperId: string,
 ): Promise<string> {
+    const user = c.get("user");
+    if (user?.sub) {
+        // Authenticated users are tracked by their ID
+        return hashString(`${c.env.JWT_SECRET}:auth:${paperId}:${user.sub}`);
+    }
+
+    // Anonymous users are tracked by IP and User-Agent
     const forwardedFor = c.req.header("CF-Connecting-IP")
         ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim()
         ?? "unknown-ip";
     const userAgent = c.req.header("User-Agent") ?? "unknown-ua";
-    const acceptLanguage = c.req.header("Accept-Language") ?? "unknown-lang";
 
     return hashString(
-        `${c.env.JWT_SECRET}:${paperId}:${forwardedFor}:${userAgent}:${acceptLanguage}`,
+        `${c.env.JWT_SECRET}:anon:${paperId}:${forwardedFor}:${userAgent}`,
     );
 }
 
