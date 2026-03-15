@@ -80,6 +80,24 @@ describe("presentation badge helpers", () => {
           "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700",
       });
     });
+
+    it("returns a neutral badge for uppercase pending", () => {
+      expect(getInviteStatusBadge("PENDING")).toEqual({
+        label: "PENDING",
+        tone: "neutral",
+        className:
+          "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700",
+      });
+    });
+
+    it("returns a neutral badge for an empty string", () => {
+      expect(getInviteStatusBadge("")).toEqual({
+        label: "",
+        tone: "neutral",
+        className:
+          "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700",
+      });
+    });
   });
 
   describe("getRoleBadge", () => {
