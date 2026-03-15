@@ -1,10 +1,10 @@
 # OpenShelf
 
 <p align="center">
-  <img src="https://img.shields.io/github/actions/workflow/status/Hiroki-org/OpenShelf/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white" alt="CI" />
+  <a href="https://github.com/Hiroki-org/OpenShelf/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/Hiroki-org/OpenShelf/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white" alt="CI" /></a>
   <a href="https://codecov.io/gh/Hiroki-org/OpenShelf"><img src="https://codecov.io/gh/Hiroki-org/OpenShelf/branch/main/graph/badge.svg" alt="codecov" /></a>
-  <img src="https://img.shields.io/github/license/Hiroki-org/OpenShelf" alt="License" />
-  <img src="https://img.shields.io/github/last-commit/Hiroki-org/OpenShelf/main" alt="Last Commit" />
+  <a href="https://github.com/Hiroki-org/OpenShelf/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Hiroki-org/OpenShelf" alt="License" /></a>
+  <a href="https://github.com/Hiroki-org/OpenShelf/commits/main"><img src="https://img.shields.io/github/last-commit/Hiroki-org/OpenShelf/main" alt="Last Commit" /></a>
   <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome" />
 </p>
 
