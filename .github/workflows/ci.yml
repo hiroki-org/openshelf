@@ -59,13 +59,20 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Test
-        run: npm run test:coverage -w apps/api
+        run: npm run test -w apps/api -- --coverage
+      - name: Upload API coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: api
+          files: ./apps/api/coverage/lcov.info
+          fail_ci_if_error: false
       - name: Upload Coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-api
-          path: coverage/api/
+          path: apps/api/coverage/
 
   test-web:
     name: Test Web
@@ -79,13 +86,20 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Test
-        run: npm run test:coverage -w apps/web
+        run: npm run test -w apps/web -- --coverage
+      - name: Upload Web coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: web
+          files: ./apps/web/coverage/lcov.info
+          fail_ci_if_error: false
       - name: Upload Coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-web
-          path: coverage/web/
+          path: apps/web/coverage/
 
   build-web-check:
     name: Build Web (Preview Check)

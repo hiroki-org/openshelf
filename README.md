@@ -1,5 +1,7 @@
 # OpenShelf
 
+[![codecov](https://codecov.io/gh/Hiroki-org/OpenShelf/graph/badge.svg)](https://codecov.io/gh/Hiroki-org/OpenShelf)
+
 OpenShelf は、研究成果物（論文、プレゼン資料、データセット等）を安全にアップロードし、共有するためのファイルホスティングプラットフォームです。
 
 利用者は GitHub アカウントを用いて安全にログインし、成果物を素早く公開・共有できます。Cloudflare Workers (Hono) と Next.js を組み合わせたモダンな構成で、スケーラビリティとセキュリティを両立しています。

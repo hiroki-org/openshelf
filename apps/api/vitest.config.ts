@@ -5,8 +5,9 @@ export default defineConfig({
         environment: "node",
         include: ["src/**/__tests__/**/*.test.ts"],
         coverage: {
-            reporter: ["text", "html"],
-            reportsDirectory: "../../coverage/api"
+            provider: "v8",
+            reporter: ["text", "lcov"],
+            reportsDirectory: "./coverage"
         }
     }
 });
