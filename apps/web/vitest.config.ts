@@ -12,8 +12,9 @@ export default defineConfig({
         setupFiles: ["./vitest.setup.ts"],
         include: ["src/**/__tests__/**/*.test.{ts,tsx}"],
         coverage: {
-            reporter: ["text", "html"],
-            reportsDirectory: "../../coverage/web"
+            provider: "v8",
+            reporter: ["text", "lcov"],
+            reportsDirectory: "./coverage"
         }
     }
 });
