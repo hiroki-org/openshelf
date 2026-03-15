@@ -132,6 +132,7 @@ jobs:
           fail_ci_if_error: false
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
+          root_dir: apps/api
       - name: Upload Web coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
@@ -142,6 +143,7 @@ jobs:
           fail_ci_if_error: false
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
+          root_dir: apps/web
 
   build-web-check:
     name: Build Web (Preview Check)
