@@ -23,8 +23,6 @@ flags:
   api:
     paths:
       - apps/api/src/
-    carryforward: true
   web:
     paths:
       - apps/web/src/
-    carryforward: true
