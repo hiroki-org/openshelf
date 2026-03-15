@@ -475,11 +475,14 @@ orgsRoute.get("/:slug/papers", async (c) => {
             const authorships = await db
                 .select({ paperId: paperAuthors.paperId })
                 .from(paperAuthors)
+                .innerJoin(papers, eq(paperAuthors.paperId, papers.id))
+                .innerJoin(paperOrgs, eq(paperAuthors.paperId, paperOrgs.paperId))
                 .where(
                     and(
-                        inArray(paperAuthors.paperId, nonPublicPapers.map((p) => p.id)),
+                        eq(paperOrgs.orgId, org.id),
                         eq(paperAuthors.userId, currentUserId),
-                    ),
+                        sql`${papers.visibility} != 'public'`
+                    )
                 )
                 .all();
             authoredPaperIds = new Set(authorships.map((a) => a.paperId));
