@@ -15,18 +15,27 @@ app.use(
     "/api/*",
     cors({
         origin: (origin, c) => {
+            let frontendOrigin = "";
+            try {
+                frontendOrigin = new URL(c.env.FRONTEND_URL).origin;
+            } catch {
+                // Invalid or missing FRONTEND_URL
+            }
+
             const allowedOrigins = c.env.ALLOWED_ORIGINS
                 ? c.env.ALLOWED_ORIGINS
                     .split(",")
                     .map((value: string) => value.trim())
                     .filter(Boolean)
-                : undefined;
+                : [];
 
-            if (allowedOrigins && allowedOrigins.length > 0) {
-                return origin && allowedOrigins.includes(origin) ? origin : "";
+            if (!origin) return null;
+
+            if ((frontendOrigin && origin === frontendOrigin) || allowedOrigins.includes(origin)) {
+                return origin;
             }
 
-            return c.env.FRONTEND_URL;
+            return null;
         },
         credentials: true,
         allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
