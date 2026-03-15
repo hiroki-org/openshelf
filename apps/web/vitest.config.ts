@@ -11,6 +11,11 @@ export default defineConfig({
         environment: "jsdom",
         setupFiles: ["./vitest.setup.ts"],
         include: ["src/**/__tests__/**/*.test.{ts,tsx}"],
+        reporters: ["default", "junit"],
+        outputFile: {
+            lcov: "./coverage/lcov.info",
+            junit: "./test-report.junit.xml",
+        },
         coverage: {
             provider: "v8",
             reporter: ["text", "lcov"],
