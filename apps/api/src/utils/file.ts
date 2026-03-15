@@ -16,7 +16,7 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
 ];
 
 // Helper function to search for a byte sequence within a file in chunks
-async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promise<boolean> {
+export async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promise<boolean> {
     const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
     const searchLen = searchBytes.length;
     if (searchLen === 0) return false;
