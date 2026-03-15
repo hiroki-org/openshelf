@@ -1,6 +1,29 @@
 # OpenShelf
 
-[![codecov](https://codecov.io/gh/Hiroki-org/OpenShelf/graph/badge.svg)](https://codecov.io/gh/Hiroki-org/OpenShelf)
+<p align="center">
+  <img src="https://img.shields.io/github/actions/workflow/status/Hiroki-org/OpenShelf/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white" alt="CI" />
+  <a href="https://codecov.io/gh/Hiroki-org/OpenShelf"><img src="https://codecov.io/gh/Hiroki-org/OpenShelf/branch/main/graph/badge.svg" alt="codecov" /></a>
+  <img src="https://img.shields.io/github/license/Hiroki-org/OpenShelf" alt="License" />
+  <img src="https://img.shields.io/github/last-commit/Hiroki-org/OpenShelf/main" alt="Last Commit" />
+  <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square" alt="PRs Welcome" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Hono-4-E36002?logo=hono&logoColor=white" alt="Hono" />
+  <img src="https://img.shields.io/badge/Cloudflare_Workers-F38020?logo=cloudflare&logoColor=white" alt="Cloudflare Workers" />
+  <img src="https://img.shields.io/badge/Drizzle_ORM-C5F74F?logo=drizzle&logoColor=black" alt="Drizzle ORM" />
+  <img src="https://img.shields.io/badge/Vitest-6E9F18?logo=vitest&logoColor=white" alt="Vitest" />
+  <img src="https://img.shields.io/badge/Playwright-2EAD33?logo=playwright&logoColor=white" alt="Playwright" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/node-%3E%3D20-339933?logo=node.js&logoColor=white" alt="Node.js" />
+  <img src="https://img.shields.io/badge/eslint-v9-4B32C3?logo=eslint&logoColor=white" alt="ESLint" />
+  <img src="https://img.shields.io/badge/npm_workspaces-monorepo-CB3837?logo=npm&logoColor=white" alt="npm workspaces" />
+</p>
 
 OpenShelf は、研究成果物（論文、プレゼン資料、データセット等）を安全にアップロードし、共有するためのファイルホスティングプラットフォームです。
 
@@ -22,21 +45,20 @@ OpenShelf は npm workspaces を使ったモノレポ構成です。
 
 ```
 apps/
-├── web/   ← Next.js (React 19, Tailwind CSS v4)
-│           ├─ App Router / TypeScript
-│           └─ Docker self-host + Vercel 両対応
+├── web/   ← Web フロントエンド (Next.js)
+│           ├─ App Router 採用
+│           └─ Docker / Vercel 両対応
 │
-└── api/   ← Hono + Cloudflare Workers バックエンド
-            ├─ D1 (SQLite) + R2 ストレージ
-            ├─ JWT + GitHub OAuth
-            └─ マルチオリジン CORS 対応
+└── api/   ← API バックエンド (Hono / Workers)
+            ├─ D1 (DB) / R2 (Storage)
+            └─ GitHub OAuth 認証
 ```
 
 **技術スタック:**
 
 | Phase    | Tech                                                |
 | -------- | --------------------------------------------------- |
-| Frontend | Next.js 15+, React 19, TypeScript 5, Tailwind CSS 4 |
+| Frontend | Next.js 16+, React 19, TypeScript 5, Tailwind CSS 4 |
 | Backend  | Hono 4, Cloudflare Workers                          |
 | Database | SQLite (D1) / Drizzle ORM                           |
 | Storage  | Cloudflare R2                                       |
