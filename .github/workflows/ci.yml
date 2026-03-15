@@ -107,6 +107,9 @@ jobs:
     name: Upload Coverage
     needs: [build-web-check, e2e]
     runs-on: ubuntu-latest
+    env:
+      CODECOV_COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      CODECOV_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
       - name: Download API coverage artifact
@@ -123,16 +126,22 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          disable_search: true
           flags: api
           files: ./coverage-artifacts/api/lcov.info
           fail_ci_if_error: false
+          override_branch: ${{ env.CODECOV_BRANCH }}
+          override_commit: ${{ env.CODECOV_COMMIT_SHA }}
       - name: Upload Web coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          disable_search: true
           flags: web
           files: ./coverage-artifacts/web/lcov.info
           fail_ci_if_error: false
+          override_branch: ${{ env.CODECOV_BRANCH }}
+          override_commit: ${{ env.CODECOV_COMMIT_SHA }}
 
   build-web-check:
     name: Build Web (Preview Check)
