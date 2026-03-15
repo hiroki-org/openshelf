@@ -8,7 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import PaperDetailClient from "../papers/[id]/paper-detail-client";
+import PaperDetailClient from "../paper-detail-client";
 import { apiFetch } from "@/lib/api";
 
 const toastSuccess = vi.fn();
@@ -76,16 +76,17 @@ describe("PaperDetailClient", () => {
     objectUrlCount = 0;
     authState = { user: { id: "author-1" } };
     vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.stubGlobal(
-      "URL",
-      Object.assign(URL, {
+    const UrlMock = Object.assign(
+      class extends URL {},
+      {
         createObjectURL: vi.fn(() => {
           objectUrlCount += 1;
           return `blob:mock-${objectUrlCount}`;
         }),
         revokeObjectURL: vi.fn(),
-      }),
-    );
+      },
+    ) as typeof URL;
+    vi.stubGlobal("URL", UrlMock);
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   });
 

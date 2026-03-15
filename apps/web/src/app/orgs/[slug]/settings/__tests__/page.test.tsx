@@ -7,7 +7,7 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import OrgSettingsPage from "../orgs/[slug]/settings/page";
+import OrgSettingsPage from "../page";
 import { apiFetch } from "@/lib/api";
 
 const push = vi.fn();

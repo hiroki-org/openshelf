@@ -6,7 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import UploadPage from "../upload/page";
+import UploadPage from "../page";
 import { apiFetch } from "@/lib/api";
 
 const push = vi.fn();
@@ -111,8 +111,17 @@ describe("UploadPage", () => {
       );
     });
 
-    const body = vi.mocked(apiFetch).mock.calls[0][1]?.body as FormData;
-    const metadata = JSON.parse(String(body.get("metadata")));
+    const postCall = vi
+      .mocked(apiFetch)
+      .mock.calls.find(
+        ([url, init]) => url === "/api/papers" && init?.method === "POST",
+      );
+    expect(postCall).toBeDefined();
+
+    const body = postCall?.[1]?.body;
+    expect(body).toBeInstanceOf(FormData);
+    const formData = body as FormData;
+    const metadata = JSON.parse(String(formData.get("metadata")));
 
     expect(metadata).toEqual({
       title: "My paper",
@@ -125,7 +134,8 @@ describe("UploadPage", () => {
       category: null,
       tags: ["AI", "LLM"],
     });
-    expect(body.get("file_types_0")).toBe("paper");
+    expect(formData.get("file_types_0")).toBe("paper");
+    expect(formData.get("files_0")).toBeInstanceOf(File);
     expect(push).toHaveBeenCalledWith("/papers/paper-1");
   });
 });

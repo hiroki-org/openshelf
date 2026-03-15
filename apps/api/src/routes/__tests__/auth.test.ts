@@ -94,7 +94,6 @@ describe("auth routes", () => {
             insert: vi.fn(() => ({
                 values: vi.fn(() => ({
                     onConflictDoUpdate: vi.fn(async () => undefined),
-                    onConflictDoNothing: vi.fn(async () => undefined),
                 }))
             })),
         };
@@ -778,6 +777,13 @@ describe("auth routes", () => {
             error: "userId and orgId are required",
         });
 
+        const onConflictDoNothing = vi.fn(async () => undefined);
+        mockDb.insert = vi.fn(() => ({
+            values: vi.fn(() => ({
+                onConflictDoNothing,
+            })),
+        }));
+
         const ok = await app.request(
             "http://localhost/api/auth/test-org",
             {
@@ -792,5 +798,6 @@ describe("auth routes", () => {
         );
         expect(ok.status).toBe(200);
         await expect(ok.json()).resolves.toEqual({ ok: true });
+        expect(onConflictDoNothing).toHaveBeenCalled();
     });
 });

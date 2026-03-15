@@ -26,7 +26,7 @@ describe("OG route", () => {
   });
 
   it("returns an image response with cache headers", async () => {
-    const { GET } = await import("../api/og/route");
+    const { GET } = await import("../route");
     const response: any = await GET(
       new Request(
         "http://localhost/api/og?type=org&title=Research%20Lab&subtitle=Artifacts",

@@ -29,9 +29,13 @@ function queueSelectResponses(
     responses: Array<{ getResult?: unknown; allResult?: unknown[] }>,
 ) {
     let index = 0;
-    mockDb.select = vi.fn(() =>
-        makeQuery(responses[Math.min(index++, responses.length - 1)]),
-    );
+    mockDb.select = vi.fn(() => {
+        const response = responses[index++];
+        if (!response) {
+            throw new Error(`queueSelectResponses: unexpected mockDb.select() call #${index}`);
+        }
+        return makeQuery(response);
+    });
 }
 
 describe("collections routes", () => {

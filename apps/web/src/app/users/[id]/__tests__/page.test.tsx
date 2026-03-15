@@ -4,7 +4,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import UserPage from "../users/[id]/page";
+import UserPage from "../page";
 import { apiFetch } from "@/lib/api";
 
 let authState: any;

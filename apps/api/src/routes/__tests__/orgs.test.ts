@@ -31,9 +31,13 @@ function queueSelectResponses(
     responses: Array<{ getResult?: unknown; allResult?: unknown[] }>,
 ) {
     let index = 0;
-    mockDb.select = vi.fn(() =>
-        makeQuery(responses[Math.min(index++, responses.length - 1)]),
-    );
+    mockDb.select = vi.fn(() => {
+        const response = responses[index++];
+        if (!response) {
+            throw new Error(`queueSelectResponses: unexpected mockDb.select() call #${index}`);
+        }
+        return makeQuery(response);
+    });
 }
 
 describe("orgs routes", () => {
@@ -497,6 +501,38 @@ describe("orgs routes", () => {
                 paperId: "paper-1",
             });
         });
+
+        it("returns 409 when the paper is already associated", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Admin" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { id: "paper-1", title: "Paper" } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
+                { getResult: null },
+                { getResult: { paperId: "paper-1", orgId: "org-1" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ paperId: "paper-1" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(409);
+            expect(((await res.json()) as any).error).toBe(
+                "Paper is already associated with this org",
+            );
+        });
     });
 
     describe("GET /api/orgs/:slug/papers", () => {
@@ -648,37 +684,6 @@ describe("orgs routes", () => {
             );
         });
 
-        it("returns 409 when the paper is already associated", async () => {
-            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Admin" });
-            queueSelectResponses([
-                { getResult: { id: "org-1", slug: "my-lab" } },
-                { getResult: { id: "paper-1", title: "Paper" } },
-                { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
-                { getResult: null },
-                { getResult: { paperId: "paper-1", orgId: "org-1" } },
-            ]);
-
-            const app = await createTestApp();
-            const env = createTestEnv();
-
-            const res = await app.request(
-                "http://localhost/api/orgs/my-lab/papers",
-                {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ paperId: "paper-1" }),
-                },
-                env as any,
-            );
-
-            expect(res.status).toBe(409);
-            expect(((await res.json()) as any).error).toBe(
-                "Paper is already associated with this org",
-            );
-        });
     });
 
     // ─── Boundary: last admin protection ──────────────────────

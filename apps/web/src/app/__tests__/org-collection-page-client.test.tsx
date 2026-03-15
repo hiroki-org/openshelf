@@ -79,6 +79,8 @@ describe("OrgCollectionPageClient", () => {
         });
       }
       if (url === "/api/collections/col-1/papers" && init?.method === "PATCH") {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        expect(body.paper_ids).toEqual(["paper-2", "paper-1"]);
         return new Response("{}", { status: 200 });
       }
 

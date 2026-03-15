@@ -9,7 +9,12 @@ import InvitesPage from "../invites/page";
 import { apiFetch } from "@/lib/api";
 
 const push = vi.fn();
-let authState: any;
+type AuthState = {
+  user: { id: string } | null;
+  loading: boolean;
+};
+
+let authState: AuthState;
 
 vi.mock("@/components/auth-provider", () => ({
   useAuth: () => authState,
@@ -73,6 +78,12 @@ describe("InvitesPage", () => {
         url === "/api/invites/invite-1" &&
         init?.method === "PATCH"
       ) {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        if (body.action !== "accept") {
+          return new Response(JSON.stringify({ error: "Invalid action" }), {
+            status: 400,
+          });
+        }
         return new Response("{}", { status: 200 });
       }
 

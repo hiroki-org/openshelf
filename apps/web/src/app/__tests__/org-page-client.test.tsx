@@ -26,7 +26,7 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("next/image", () => ({
-  default: (props: any) => <img {...props} />,
+  default: ({ alt = "image", ...props }: any) => <img alt={alt} {...props} />,
 }));
 
 describe("OrgPageClient", () => {
