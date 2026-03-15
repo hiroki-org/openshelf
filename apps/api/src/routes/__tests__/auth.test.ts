@@ -92,8 +92,11 @@ describe("auth routes", () => {
             run: vi.fn(async () => undefined),
             select: vi.fn(() => makeQuery()),
             insert: vi.fn(() => ({
-                values: vi.fn(() => ({ onConflictDoUpdate: vi.fn(async () => undefined) }))
-            }))
+                values: vi.fn(() => ({
+                    onConflictDoUpdate: vi.fn(async () => undefined),
+                    onConflictDoNothing: vi.fn(async () => undefined),
+                }))
+            })),
         };
     });
 
@@ -135,6 +138,24 @@ describe("auth routes", () => {
 
         expect(res.status).toBe(400);
         await expect(res.json()).resolves.toEqual({ error: "Invalid or expired state" });
+    });
+
+    it("GET /api/auth/github/callback returns 400 when state parameter is missing", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: createOAuthStateDb().db as any });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123",
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=nonce-1",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "Missing state parameter" });
     });
 
     it("GET /api/auth/github/callback returns 400 when OAuth flow cookie is missing", async () => {
@@ -188,6 +209,31 @@ describe("auth routes", () => {
         expect(oauthStateDb.states.has("expired-state")).toBe(false);
     });
 
+    it("GET /api/auth/github/callback returns 400 when code is missing", async () => {
+        const nowState = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const oauthStateDb = createOAuthStateDb({
+            "good-state": {
+                createdAt: nowState,
+                browserNonce: "good-nonce",
+            },
+        });
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: oauthStateDb.db as any });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?state=good-state",
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=good-nonce",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "Missing code parameter" });
+    });
+
     it("GET /api/auth/github/callback returns frontend redirect with JWT for valid state", async () => {
         mockDb.select = vi
             .fn()
@@ -232,6 +278,203 @@ describe("auth routes", () => {
         const location = res.headers.get("location") ?? "";
         expect(location).toContain("http://localhost:3000/auth/callback#token=");
         expect(oauthStateDb.states.has("good-state")).toBe(false);
+    });
+
+    it("GET /api/auth/github/callback returns 502 when OAuth token exchange fails", async () => {
+        const nowState = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const oauthStateDb = createOAuthStateDb({
+            "good-state": {
+                createdAt: nowState,
+                browserNonce: "good-nonce",
+            },
+        });
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue({
+                ok: false,
+                text: async () => "bad token exchange",
+            }),
+        );
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: oauthStateDb.db as any });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=good-state",
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=good-nonce",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(502);
+        await expect(res.json()).resolves.toEqual({
+            error: "Failed to exchange OAuth code",
+            details: "bad token exchange",
+        });
+    });
+
+    it("GET /api/auth/github/callback returns 400 when GitHub does not return an access token", async () => {
+        const nowState = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const oauthStateDb = createOAuthStateDb({
+            "good-state": {
+                createdAt: nowState,
+                browserNonce: "good-nonce",
+            },
+        });
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue({
+                ok: true,
+                json: async () => ({ token_type: "bearer" }),
+            }),
+        );
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: oauthStateDb.db as any });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=good-state",
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=good-nonce",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "Failed to get access token" });
+    });
+
+    it("GET /api/auth/github/callback returns 502 when fetching the GitHub user fails", async () => {
+        const nowState = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const oauthStateDb = createOAuthStateDb({
+            "good-state": {
+                createdAt: nowState,
+                browserNonce: "good-nonce",
+            },
+        });
+        vi.stubGlobal(
+            "fetch",
+            vi
+                .fn()
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ access_token: "gh-token" }),
+                })
+                .mockResolvedValueOnce({
+                    ok: false,
+                    text: async () => "bad user payload",
+                }),
+        );
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: oauthStateDb.db as any });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=good-state",
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=good-nonce",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(502);
+        await expect(res.json()).resolves.toEqual({
+            error: "Failed to fetch GitHub user",
+            details: "bad user payload",
+        });
+    });
+
+    it("GET /api/auth/github/callback returns 502 for invalid GitHub user payloads", async () => {
+        const nowState = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const oauthStateDb = createOAuthStateDb({
+            "good-state": {
+                createdAt: nowState,
+                browserNonce: "good-nonce",
+            },
+        });
+        vi.stubGlobal(
+            "fetch",
+            vi
+                .fn()
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ access_token: "gh-token" }),
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ id: "abc", login: 123 }),
+                }),
+        );
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: oauthStateDb.db as any });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=good-state",
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=good-nonce",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(502);
+        await expect(res.json()).resolves.toEqual({ error: "Invalid GitHub user payload" });
+    });
+
+    it("GET /api/auth/github/callback returns 500 when FRONTEND_URL is missing", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-1" } }));
+
+        const nowState = new Date().toISOString().replace("T", " ").slice(0, 19);
+        const oauthStateDb = createOAuthStateDb({
+            "good-state": {
+                createdAt: nowState,
+                browserNonce: "good-nonce",
+            },
+        });
+
+        vi.stubGlobal(
+            "fetch",
+            vi
+                .fn()
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ access_token: "gh-token" }),
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ id: 123, login: "octocat", name: "Octo Cat" }),
+                }),
+        );
+
+        const app = await createTestApp();
+        const env = createTestEnv({
+            DB: oauthStateDb.db as any,
+            FRONTEND_URL: "",
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=good-state",
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=good-nonce",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(500);
+        await expect(res.json()).resolves.toEqual({ error: "Server configuration error" });
     });
 
     it("GET /api/auth/github/callback rejects replayed state on second use", async () => {
@@ -310,6 +553,27 @@ describe("auth routes", () => {
         expect(body.user.id).toBe("user-1");
     });
 
+    it("GET /api/auth/me returns 404 when the user does not exist", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+        mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/auth/me",
+            {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(404);
+        await expect(res.json()).resolves.toEqual({ error: "User not found" });
+    });
+
     it("GET /api/auth/me returns 401 when token is missing", async () => {
         const app = await createTestApp();
         const env = createTestEnv();
@@ -351,5 +615,182 @@ describe("auth routes", () => {
         );
 
         expect(res.status).toBe(401);
+    });
+
+    it("POST /api/auth/logout returns ok", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: {
+                    Origin: "http://localhost:3000",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        await expect(res.json()).resolves.toEqual({ ok: true });
+    });
+
+    it("POST /api/auth/test-token returns 404 when test auth is disabled", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/auth/test-token",
+            {
+                method: "POST",
+                headers: {
+                    Origin: "http://localhost:3000",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(404);
+        await expect(res.json()).resolves.toEqual({ error: "Not Found" });
+    });
+
+    it("POST /api/auth/test-token validates the shared secret and request body", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            ENABLE_TEST_AUTH: "true",
+            TEST_AUTH_SECRET: "shared-secret",
+        });
+
+        const unauthorized = await app.request(
+            "http://localhost/api/auth/test-token",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Origin: "http://localhost:3000",
+                },
+                body: JSON.stringify({ sub: "user-1", githubId: "123", name: "Tester" }),
+            },
+            env as any,
+        );
+        expect(unauthorized.status).toBe(401);
+
+        const invalidJson = await app.request(
+            "http://localhost/api/auth/test-token",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-test-auth-secret": "shared-secret",
+                    Origin: "http://localhost:3000",
+                },
+                body: "{",
+            },
+            env as any,
+        );
+        expect(invalidJson.status).toBe(400);
+        await expect(invalidJson.json()).resolves.toEqual({ error: "Invalid JSON" });
+
+        const invalidBody = await app.request(
+            "http://localhost/api/auth/test-token",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-test-auth-secret": "shared-secret",
+                    Origin: "http://localhost:3000",
+                },
+                body: JSON.stringify({ sub: "user-1" }),
+            },
+            env as any,
+        );
+        expect(invalidBody.status).toBe(400);
+        await expect(invalidBody.json()).resolves.toEqual({ error: "Invalid request body" });
+    });
+
+    it("POST /api/auth/test-token upserts the user and returns a signed JWT", async () => {
+        mockDb.select = vi.fn(() => makeQuery({ getResult: { id: "persisted-user" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv({
+            ENABLE_TEST_AUTH: "true",
+            TEST_AUTH_SECRET: "shared-secret",
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/test-token",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-test-auth-secret": "shared-secret",
+                },
+                body: JSON.stringify({
+                    sub: "user-1",
+                    githubId: "123",
+                    name: "Tester",
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as { token: string };
+        expect(body.token).toMatch(/\./);
+    });
+
+    it("POST /api/auth/test-org validates auth and creates membership records", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            ENABLE_TEST_AUTH: "true",
+            TEST_AUTH_SECRET: "shared-secret",
+        });
+
+        const invalidJson = await app.request(
+            "http://localhost/api/auth/test-org",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-test-auth-secret": "shared-secret",
+                },
+                body: "{",
+            },
+            env as any,
+        );
+        expect(invalidJson.status).toBe(400);
+
+        const invalidBody = await app.request(
+            "http://localhost/api/auth/test-org",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-test-auth-secret": "shared-secret",
+                },
+                body: JSON.stringify({ userId: "user-1" }),
+            },
+            env as any,
+        );
+        expect(invalidBody.status).toBe(400);
+        await expect(invalidBody.json()).resolves.toEqual({
+            error: "userId and orgId are required",
+        });
+
+        const ok = await app.request(
+            "http://localhost/api/auth/test-org",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-test-auth-secret": "shared-secret",
+                },
+                body: JSON.stringify({ userId: "user-1", orgId: "org-1" }),
+            },
+            env as any,
+        );
+        expect(ok.status).toBe(200);
+        await expect(ok.json()).resolves.toEqual({ ok: true });
     });
 });
