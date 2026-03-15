@@ -12,9 +12,7 @@ describe("schema helpers", () => {
             // but also checking the query chunks to be sure
             expect(JSON.stringify(actual)).toBe(JSON.stringify(expected));
 
-            // @ts-expect-error accessing internal queryChunks for verification
             const actualChunks = actual.updatedAt.queryChunks;
-            // @ts-expect-error accessing internal queryChunks for verification
             const expectedChunks = expected.updatedAt.queryChunks;
 
             expect(actualChunks).toEqual(expectedChunks);
