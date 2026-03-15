@@ -144,6 +144,11 @@ When you receive instructions, follow these guidelines based on the context:
 - **New Feature or Task**: Create a new branch from the default branch and open a Pull Request.
 - **Improving an Existing PR/Branch**: Checkout the existing feature branch and push your changes.
 
+### Agent Playbooks
+
+- [PR Review Closure Loop](.github/agents/pr-review-closure-loop.md)
+- [PR Consolidation Playbook](.github/agents/pr-consolidation-playbook.md)
+
 ### Pull Request Reviews
 When responding to PR reviews using the `gh` CLI:
 - Always reply to and resolve the GitHub conversation for each comment.
