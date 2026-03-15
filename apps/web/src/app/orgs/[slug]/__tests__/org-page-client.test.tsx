@@ -1,10 +1,9 @@
 import {
   render,
   screen,
-  waitFor,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import OrgPageClient from "../orgs/[slug]/org-page-client";
+import OrgPageClient from "../org-page-client";
 import { apiFetch } from "@/lib/api";
 
 let authState: any;
@@ -115,16 +114,13 @@ describe("OrgPageClient", () => {
 
     render(<OrgPageClient slug="lab" />);
 
-    await waitFor(() => {
-      expect(screen.getByText("Research Lab")).toBeInTheDocument();
-    });
-
-    expect(screen.getByRole("link", { name: "⚙ 設定" })).toHaveAttribute(
+    expect(await screen.findByText("Research Lab")).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: "⚙ 設定" })).toHaveAttribute(
       "href",
       "/orgs/lab/settings",
     );
-    expect(screen.getByText("Featured")).toBeInTheDocument();
-    expect(screen.getByText("Paper One")).toBeInTheDocument();
+    expect(await screen.findByText("Featured")).toBeInTheDocument();
+    expect(await screen.findByText("Paper One")).toBeInTheDocument();
   });
 
   it("shows a not found error", async () => {

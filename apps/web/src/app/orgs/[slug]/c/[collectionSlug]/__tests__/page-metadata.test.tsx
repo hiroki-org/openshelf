@@ -18,7 +18,7 @@ describe("orgs/[slug]/c/[collectionSlug]/page metadata", () => {
     vi.clearAllMocks();
   });
 
-  it("builds org collection metadata and handles invalid params", async () => {
+  it("builds org collection metadata", async () => {
     vi.spyOn(global, "fetch")
       .mockResolvedValueOnce(
         new Response(
@@ -46,12 +46,16 @@ describe("orgs/[slug]/c/[collectionSlug]/page metadata", () => {
     const metadata = await generateMetadata({
       params: { slug: "lab", collectionSlug: "featured" },
     });
+
+    expect(metadata.title).toBe("Featured | Research Lab | OpenShelf");
+  });
+
+  it("renders an invalid identifier message for invalid params", async () => {
     const view = await OrgCollectionPage({
       params: { slug: "../bad", collectionSlug: "featured" },
     });
     render(view);
 
-    expect(metadata.title).toBe("Featured | Research Lab | OpenShelf");
     expect(screen.getByText("無効な識別子です")).toBeInTheDocument();
   });
 });

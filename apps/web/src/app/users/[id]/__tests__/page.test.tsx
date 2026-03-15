@@ -92,7 +92,11 @@ describe("UserPage", () => {
         return new Response("{}", { status: 404 });
       }
 
-      return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+
+      throw new Error(`Unexpected request: ${String(url)}`);
     });
 
     render(<UserPage />);

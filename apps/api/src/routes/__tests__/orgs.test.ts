@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     createTestApp,
+    createMockDb as createSharedMockDb,
     createTestEnv,
     createTestJWT,
     makeQuery,
+    queueSelectResponses as queueSharedSelectResponses,
 } from "../../test/helpers";
 
 let mockDb: any;
@@ -13,31 +15,13 @@ vi.mock("drizzle-orm/d1", () => ({
 }));
 
 function createMockDb(overrides: Record<string, any> = {}) {
-    return {
-        run: vi.fn(async () => undefined),
-        select: vi.fn(() => makeQuery()),
-        insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
-        update: vi.fn(() => ({
-            set: vi.fn(() => ({ where: vi.fn(async () => ({ meta: { changes: 1 } })) })),
-        })),
-        delete: vi.fn(() => ({
-            where: vi.fn(async () => ({ meta: { changes: 1 } })),
-        })),
-        ...overrides,
-    };
+    return createSharedMockDb(overrides);
 }
 
 function queueSelectResponses(
     responses: Array<{ getResult?: unknown; allResult?: unknown[] }>,
 ) {
-    let index = 0;
-    mockDb.select = vi.fn(() => {
-        const response = responses[index++];
-        if (!response) {
-            throw new Error(`queueSelectResponses: unexpected mockDb.select() call #${index}`);
-        }
-        return makeQuery(response);
-    });
+    queueSharedSelectResponses(mockDb, responses);
 }
 
 describe("orgs routes", () => {
@@ -157,12 +141,10 @@ describe("orgs routes", () => {
     describe("GET /api/orgs/:slug", () => {
         it("returns org detail", async () => {
             const org = { id: "org-1", slug: "my-lab", name: "My Lab", description: null, createdAt: "2026-01-01" };
-            let selectCallCount = 0;
-            mockDb.select = vi.fn(() => {
-                selectCallCount++;
-                if (selectCallCount === 1) return makeQuery({ getResult: org });
-                return makeQuery({ getResult: { count: 3 } });
-            });
+            queueSelectResponses([
+                { getResult: org },
+                { getResult: { count: 3 } },
+            ]);
 
             const app = await createTestApp();
             const env = createTestEnv();

@@ -5,7 +5,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import InvitesPage from "../invites/page";
+import InvitesPage from "../page";
 import { apiFetch } from "@/lib/api";
 
 const push = vi.fn();

@@ -2,13 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/og", () => ({
   ImageResponse: class MockImageResponse {
-    headers = new Headers();
+    headers: Headers;
     markup: unknown;
     init: unknown;
 
-    constructor(markup: unknown, init: unknown) {
+    constructor(
+      markup: unknown,
+      init?: { headers?: HeadersInit; width?: number; height?: number },
+    ) {
       this.markup = markup;
       this.init = init;
+      this.headers = new Headers(init?.headers);
     }
   },
 }));

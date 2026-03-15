@@ -5,7 +5,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import OrgCollectionPageClient from "../orgs/[slug]/c/[collectionSlug]/org-collection-page-client";
+import OrgCollectionPageClient from "../org-collection-page-client";
 import { apiFetch } from "@/lib/api";
 
 let authState: any;
@@ -63,12 +63,14 @@ describe("OrgCollectionPageClient", () => {
     };
 
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      const method = (init?.method ?? "GET").toUpperCase();
+
       if (url === "/api/orgs/lab/collections") {
         return new Response(JSON.stringify({ collections: state.collections }), {
           status: 200,
         });
       }
-      if (url === "/api/collections/col-1/papers" && !init?.method) {
+      if (url === "/api/collections/col-1/papers" && method === "GET") {
         return new Response(JSON.stringify({ papers: state.papers }), {
           status: 200,
         });
@@ -78,7 +80,7 @@ describe("OrgCollectionPageClient", () => {
           status: 200,
         });
       }
-      if (url === "/api/collections/col-1/papers" && init?.method === "PATCH") {
+      if (url === "/api/collections/col-1/papers" && method === "PATCH") {
         const body = JSON.parse(String(init?.body ?? "{}"));
         expect(body.paper_ids).toEqual(["paper-2", "paper-1"]);
         return new Response("{}", { status: 200 });

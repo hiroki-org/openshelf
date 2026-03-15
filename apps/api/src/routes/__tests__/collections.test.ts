@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     createTestApp,
+    createMockDb as createSharedMockDb,
     createTestEnv,
     createTestJWT,
     makeQuery,
+    queueSelectResponses as queueSharedSelectResponses,
 } from "../../test/helpers";
 
 let mockDb: any;
@@ -13,29 +15,13 @@ vi.mock("drizzle-orm/d1", () => ({
 }));
 
 function createMockDb() {
-    return {
-        run: vi.fn(async () => undefined),
-        select: vi.fn(() => makeQuery()),
-        insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
-        update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) })),
-        delete: vi.fn(() => ({ where: vi.fn(async () => ({ meta: { changes: 1 } })) })),
-        batch: vi.fn(async (queries) =>
-            Promise.all(queries.map((q: any) => (q.all ? q.all() : q))),
-        ),
-    };
+    return createSharedMockDb();
 }
 
 function queueSelectResponses(
     responses: Array<{ getResult?: unknown; allResult?: unknown[] }>,
 ) {
-    let index = 0;
-    mockDb.select = vi.fn(() => {
-        const response = responses[index++];
-        if (!response) {
-            throw new Error(`queueSelectResponses: unexpected mockDb.select() call #${index}`);
-        }
-        return makeQuery(response);
-    });
+    queueSharedSelectResponses(mockDb, responses);
 }
 
 describe("collections routes", () => {

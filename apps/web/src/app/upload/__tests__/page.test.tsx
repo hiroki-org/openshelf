@@ -136,6 +136,8 @@ describe("UploadPage", () => {
     });
     expect(formData.get("file_types_0")).toBe("paper");
     expect(formData.get("files_0")).toBeInstanceOf(File);
-    expect(push).toHaveBeenCalledWith("/papers/paper-1");
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/papers/paper-1");
+    });
   });
 });

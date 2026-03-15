@@ -1,4 +1,5 @@
 import { sign } from "hono/jwt";
+import { vi } from "vitest";
 import type app from "../index";
 
 const DEFAULT_SECRET = "test-jwt-secret";
@@ -78,6 +79,43 @@ export function makeQuery(
         get: async () => getResult,
         all: async () => allResult,
     };
+}
+
+export type MockDbResponse = {
+    getResult?: unknown;
+    allResult?: unknown[];
+};
+
+export function createMockDb(overrides: Record<string, any> = {}) {
+    return {
+        run: vi.fn(async () => undefined),
+        select: vi.fn(() => makeQuery()),
+        insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
+        update: vi.fn(() => ({
+            set: vi.fn(() => ({ where: vi.fn(async () => ({ meta: { changes: 1 } })) })),
+        })),
+        delete: vi.fn(() => ({
+            where: vi.fn(async () => ({ meta: { changes: 1 } })),
+        })),
+        batch: vi.fn(async (queries) =>
+            Promise.all(queries.map((query: any) => (query.all ? query.all() : query))),
+        ),
+        ...overrides,
+    };
+}
+
+export function queueSelectResponses(
+    mockDb: { select: unknown },
+    responses: MockDbResponse[],
+) {
+    let index = 0;
+    (mockDb as { select: ReturnType<typeof vi.fn> }).select = vi.fn(() => {
+        const response = responses[index++];
+        if (!response) {
+            throw new Error(`queueSelectResponses: unexpected mockDb.select() call #${index}`);
+        }
+        return makeQuery(response);
+    });
 }
 
 export function createMockR2() {
