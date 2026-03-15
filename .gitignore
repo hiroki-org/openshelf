@@ -45,6 +45,7 @@ yarn-error.log*
 .cache/
 *.pem
 coverage/
+test-report.junit.xml
 
 # Playwright
 test-results/

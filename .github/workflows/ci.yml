@@ -60,6 +60,14 @@ jobs:
       - run: npm ci
       - name: Test
         run: npm run test -w apps/api -- --coverage
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: |
+            apps/api/test-report.junit.xml
+          flags: test-results
       - name: Upload Coverage
         if: always()
         uses: actions/upload-artifact@v4
@@ -80,6 +88,14 @@ jobs:
       - run: npm ci
       - name: Test
         run: npm run test -w apps/web -- --coverage
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: |
+            apps/web/test-report.junit.xml
+          flags: test-results
       - name: Upload Coverage
         if: always()
         uses: actions/upload-artifact@v4
