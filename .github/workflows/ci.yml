@@ -60,13 +60,6 @@ jobs:
       - run: npm ci
       - name: Test
         run: npm run test -w apps/api -- --coverage
-      - name: Upload API coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          flags: api
-          files: ./apps/api/coverage/lcov.info
-          fail_ci_if_error: false
       - name: Upload Coverage
         if: always()
         uses: actions/upload-artifact@v4
@@ -87,19 +80,43 @@ jobs:
       - run: npm ci
       - name: Test
         run: npm run test -w apps/web -- --coverage
-      - name: Upload Web coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          flags: web
-          files: ./apps/web/coverage/lcov.info
-          fail_ci_if_error: false
       - name: Upload Coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-web
           path: apps/web/coverage/
+
+  upload-coverage:
+    name: Upload Coverage
+    needs: [build-web-check, e2e]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download API coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-api
+          path: ./coverage-artifacts/api
+      - name: Download Web coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-web
+          path: ./coverage-artifacts/web
+      - name: Upload API coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: api
+          files: ./coverage-artifacts/api/lcov.info
+          fail_ci_if_error: false
+      - name: Upload Web coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          flags: web
+          files: ./coverage-artifacts/web/lcov.info
+          fail_ci_if_error: false
 
   build-web-check:
     name: Build Web (Preview Check)
