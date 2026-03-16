@@ -15,6 +15,11 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
 ];
 
 /**
+ * Byte chunk size for large file searches.
+ */
+export const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
+
+/**
  * Helper function to search for a byte sequence within a file in chunks.
  * Uses a sliding window approach with chunk overlaps to ensure sequences
  * crossing chunk boundaries are correctly detected.
@@ -24,7 +29,6 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
  * @returns A promise that resolves to true if the sequence is found, false otherwise.
  */
 export async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promise<boolean> {
-    const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
     const searchLen = searchBytes.length;
     if (searchLen === 0) return false;
 
