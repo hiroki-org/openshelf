@@ -74,10 +74,6 @@ const searchCache = new Map<string, CachedSearchResult>();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
 const MAX_CACHE_SIZE = 1000;
 
-export function clearUserSearchCacheForTests(): void {
-    searchCache.clear();
-}
-
 function getCachedResults(key: string): any[] | null {
     const cached = searchCache.get(key);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {

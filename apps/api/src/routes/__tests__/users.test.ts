@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     createTestApp,
     createTestEnv,
@@ -7,14 +7,13 @@ import {
 } from "../../test/helpers";
 
 let mockDb: any;
-let clearSearchCacheForTests: (() => void) | undefined;
 
 vi.mock("drizzle-orm/d1", () => ({
     drizzle: vi.fn(() => mockDb)
 }));
 
 describe("users routes", () => {
-    beforeEach(async () => {
+    beforeEach(() => {
         vi.restoreAllMocks();
         vi.resetModules();
         mockDb = {
@@ -24,15 +23,6 @@ describe("users routes", () => {
                 set: vi.fn(() => ({ where: vi.fn(async () => undefined) }))
             }))
         };
-
-        const usersModule = await import("../users");
-        clearSearchCacheForTests = usersModule.clearUserSearchCacheForTests;
-        clearSearchCacheForTests();
-    });
-
-    afterEach(() => {
-        clearSearchCacheForTests?.();
-        vi.useRealTimers();
     });
 
     it("GET /api/users/me returns profile for authenticated user", async () => {
