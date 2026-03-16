@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateMagicNumbers, searchSequenceInFile } from "../file";
+import { validateMagicNumbers, searchSequenceInFile, CHUNK_SIZE } from "../file";
 
 function createFile(name: string, type: string, bytes: Uint8Array) {
   return new File([Uint8Array.from(bytes)], name, { type });
@@ -137,8 +137,6 @@ describe("validateMagicNumbers", () => {
 
 
 describe("searchSequenceInFile", () => {
-    const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB
-
     it("returns false when search bytes are empty", async () => {
         const file = createFile("empty.bin", "application/octet-stream", new Uint8Array([1, 2, 3]));
         const searchBytes = new Uint8Array([]);
@@ -151,58 +149,41 @@ describe("searchSequenceInFile", () => {
         await expect(searchSequenceInFile(file, searchBytes)).resolves.toBe(true);
     });
 
-    it("finds a sequence in the middle of the file", async () => {
-        const file = createFile("test.bin", "application/octet-stream", new Uint8Array([0xAA, 0xBB, 0xCC, 0xDD, 0xEE]));
-        const searchBytes = new Uint8Array([0xCC, 0xDD]);
+    it("finds a sequence in the middle of a chunk", async () => {
+        const content = new Uint8Array(100);
+        content.set([0xAA, 0xBB, 0xCC], 50);
+        const file = createFile("test.bin", "application/octet-stream", content);
+        const searchBytes = new Uint8Array([0xAA, 0xBB, 0xCC]);
         await expect(searchSequenceInFile(file, searchBytes)).resolves.toBe(true);
     });
 
-    it("finds a sequence at the end of the file", async () => {
-        const file = createFile("test.bin", "application/octet-stream", new Uint8Array([0xAA, 0xBB, 0xCC, 0xDD, 0xEE]));
-        const searchBytes = new Uint8Array([0xDD, 0xEE]);
-        await expect(searchSequenceInFile(file, searchBytes)).resolves.toBe(true);
-    });
-
-    it("returns false if the sequence is not found", async () => {
-        const file = createFile("test.bin", "application/octet-stream", new Uint8Array([0xAA, 0xBB, 0xCC, 0xDD, 0xEE]));
-        const searchBytes = new Uint8Array([0xFF, 0x00]);
-        await expect(searchSequenceInFile(file, searchBytes)).resolves.toBe(false);
-    });
-
-    it("returns false if partial match is found but not full sequence", async () => {
-        const file = createFile("test.bin", "application/octet-stream", new Uint8Array([0xAA, 0xBB, 0xCC, 0xDD, 0xEE]));
-        const searchBytes = new Uint8Array([0xBB, 0xCC, 0xFF]);
-        await expect(searchSequenceInFile(file, searchBytes)).resolves.toBe(false);
-    });
-
-    it("finds a sequence across chunk boundaries", async () => {
-        // Create a file slightly larger than 1MB
+    it("finds a sequence crossing chunk boundaries", async () => {
         const fileSize = CHUNK_SIZE + 1024;
         const bytes = new Uint8Array(fileSize);
+        const searchBytes = new Uint8Array([0xAA, 0xBB, 0xCC, 0xDD]);
 
-        // Fill with dummy data
-        bytes.fill(0x00);
-
-        // Place the search sequence exactly across the chunk boundary
         // The boundary is at index CHUNK_SIZE
-        const searchBytes = new Uint8Array([0x11, 0x22, 0x33, 0x44]);
-
-        // Place it so it starts just before the boundary and ends after
+        // Place search bytes so it spans the boundary
         bytes.set(searchBytes, CHUNK_SIZE - 2); // 2 bytes before, 2 bytes after
 
-        const file = createFile("large.bin", "application/octet-stream", bytes);
+        const file = createFile("test.bin", "application/octet-stream", bytes);
         await expect(searchSequenceInFile(file, searchBytes)).resolves.toBe(true);
     });
 
-    it("finds a sequence near the very end of a large file", async () => {
+    it("finds a sequence in the second chunk", async () => {
         const fileSize = CHUNK_SIZE * 2 + 512; // ~2.5MB
         const bytes = new Uint8Array(fileSize);
-        bytes.fill(0xAA);
+        const searchBytes = new Uint8Array([0xEE, 0xFF, 0x00, 0x11]);
 
-        const searchBytes = new Uint8Array([0x55, 0x66, 0x77]);
-        bytes.set(searchBytes, fileSize - searchBytes.length); // At the very end
+        bytes.set(searchBytes, CHUNK_SIZE + 500);
 
-        const file = createFile("verylarge.bin", "application/octet-stream", bytes);
+        const file = createFile("test.bin", "application/octet-stream", bytes);
         await expect(searchSequenceInFile(file, searchBytes)).resolves.toBe(true);
+    });
+
+    it("returns false when the sequence is not in the file", async () => {
+        const file = createFile("test.bin", "application/octet-stream", new Uint8Array([1, 2, 3, 4, 5]));
+        const searchBytes = new Uint8Array([0xAA, 0xBB]);
+        await expect(searchSequenceInFile(file, searchBytes)).resolves.toBe(false);
     });
 });

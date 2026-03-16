@@ -42,6 +42,14 @@ invitesRoute.get("/received", authMiddleware, async (c) => {
     return c.json({ invites: rows });
 });
 
+/**
+ * Handles responding to a co-author invitation.
+ * Validates the action, invite existence, and ownership.
+ * If accepted, updates status and inserts a co-author record.
+ *
+ * @param c - The Hono context.
+ * @returns A JSON response indicating success or failure.
+ */
 const respondInviteHandler = async (c: any) => {
     const inviteId = c.req.param("inviteId");
     let body: { action?: unknown };
