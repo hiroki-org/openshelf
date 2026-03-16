@@ -1,7 +1,6 @@
 import { Hono, type Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, gte, inArray, sql } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
 import {
     papers,
     paperFiles,
@@ -433,7 +432,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
             throw errors[0] ?? new Error("An unknown upload error occurred.");
         }
 
-        const insertOperations: BatchItem<"sqlite">[] = [
+        const insertOperations: any[] = [
             db.insert(papers).values(paperValues),
             db.insert(paperAuthors).values({ paperId, userId, role: "uploader" }),
         ];
@@ -457,7 +456,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
             ),
         );
 
-        await db.batch(insertOperations as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
+        await db.batch(insertOperations as [typeof insertOperations[0], ...typeof insertOperations]);
     } catch (error) {
         await Promise.all(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
         await db.delete(papers).where(eq(papers.id, paperId));

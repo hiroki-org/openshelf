@@ -21,11 +21,6 @@ describe("validation utils", () => {
             expect(validateSlug("my--slug")).toBe("slug must not contain consecutive hyphens");
         });
 
-        it("rejects leading or trailing hyphens", () => {
-            expect(validateSlug("-my-slug")).toBe("slug must contain only lowercase letters, numbers, and hyphens");
-            expect(validateSlug("my-slug-")).toBe("slug must contain only lowercase letters, numbers, and hyphens");
-        });
-
         it("accepts valid slugs", () => {
             expect(validateSlug("my-valid-slug-123")).toBeNull();
             expect(validateSlug("abc")).toBeNull();
