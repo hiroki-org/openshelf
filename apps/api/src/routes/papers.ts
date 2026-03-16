@@ -459,11 +459,13 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
         await db.batch(insertOperations);
     } catch (error) {
-        await Promise.all(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
-        await db.delete(paperFiles).where(eq(paperFiles.paperId, paperId));
-        await db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId));
-        await db.delete(paperAuthors).where(eq(paperAuthors.paperId, paperId));
-        await db.delete(papers).where(eq(papers.id, paperId));
+        await Promise.allSettled(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
+        await Promise.allSettled([
+            db.delete(paperFiles).where(eq(paperFiles.paperId, paperId)),
+            db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId)),
+            db.delete(paperAuthors).where(eq(paperAuthors.paperId, paperId)),
+            db.delete(papers).where(eq(papers.id, paperId)),
+        ]);
         throw error;
     }
 
