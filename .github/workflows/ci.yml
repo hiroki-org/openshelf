@@ -107,9 +107,6 @@ jobs:
     name: Upload Coverage
     needs: [build-web-check, e2e]
     runs-on: ubuntu-latest
-    env:
-      CODECOV_COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-      CODECOV_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
     steps:
       - uses: actions/checkout@v4
       - name: Download API coverage artifact
@@ -122,28 +119,30 @@ jobs:
         with:
           name: coverage-web
           path: ./coverage-artifacts/web
+      - name: Normalize API coverage paths
+        run: sed 's#^SF:#SF:apps/api/#' ./coverage-artifacts/api/lcov.info > ./coverage-artifacts/api/lcov.codecov.info
+      - name: Normalize Web coverage paths
+        run: sed 's#^SF:#SF:apps/web/#' ./coverage-artifacts/web/lcov.info > ./coverage-artifacts/web/lcov.codecov.info
       - name: Upload API coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          disable_search: false
+          disable_search: true
           flags: api
-          files: ./coverage-artifacts/api/lcov.info
+          files: ./coverage-artifacts/api/lcov.codecov.info
           fail_ci_if_error: false
-          override_branch: ${{ env.CODECOV_BRANCH }}
-          override_commit: ${{ env.CODECOV_COMMIT_SHA }}
-          root_dir: apps/api
+          override_branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
       - name: Upload Web coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          disable_search: false
+          disable_search: true
           flags: web
-          files: ./coverage-artifacts/web/lcov.info
+          files: ./coverage-artifacts/web/lcov.codecov.info
           fail_ci_if_error: false
-          override_branch: ${{ env.CODECOV_BRANCH }}
-          override_commit: ${{ env.CODECOV_COMMIT_SHA }}
-          root_dir: apps/web
+          override_branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
 
   build-web-check:
     name: Build Web (Preview Check)
