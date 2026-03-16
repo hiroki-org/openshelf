@@ -118,6 +118,77 @@ describe("invites routes", () => {
         expect(res.status).toBe(200);
     });
 
+    it("PUT /api/invites/:id returns 400 when inviteId is too long", async () => {
+        const token = await createTestJWT({ sub: "user-2", githubId: "456", name: "Invitee" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            `http://localhost/api/invites/${"x".repeat(65)}`,
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ action: "accept" })
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        expect(mockDb.select).not.toHaveBeenCalled();
+        const body = (await res.json()) as any;
+        expect(body.error).toBe("Invalid inviteId");
+    });
+
+    it("PATCH /api/invites/:id returns 400 when inviteId is too long", async () => {
+        const token = await createTestJWT({ sub: "user-2", githubId: "456", name: "Invitee" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            `http://localhost/api/invites/${"x".repeat(65)}`,
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ action: "accept" })
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        expect(mockDb.select).not.toHaveBeenCalled();
+    });
+
+    it("PUT /api/invites/:id accepts inviteId at max length", async () => {
+        const token = await createTestJWT({ sub: "user-2", githubId: "456", name: "Invitee" });
+        mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            `http://localhost/api/invites/${"x".repeat(64)}`,
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ action: "accept" })
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(404);
+        expect(mockDb.select).toHaveBeenCalled();
+        const body = (await res.json()) as any;
+        expect(body.error).toBe("Invite not found");
+    });
+
     it("POST /api/papers/:id/invites returns 400 when inviting self", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi.fn().mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
