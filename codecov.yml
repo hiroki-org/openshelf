@@ -2,12 +2,6 @@ codecov:
   require_ci_to_pass: false
   notify:
     wait_for_ci: false
-    # after_n_builds: 2
-    manual: false
-    comment:
-      layout: "reach,diff,flags,files"
-      behavior: default
-      require_changes: "false"
 
 coverage:
   status:
@@ -19,10 +13,15 @@ coverage:
       default:
         target: 70%
 
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default
+  require_changes: false
+
 flags:
   api:
     paths:
-      - apps/api/src/
+      - ^apps/api/src/.*
   web:
     paths:
-      - apps/web/src/
+      - ^apps/web/src/.*
