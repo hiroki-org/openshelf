@@ -1,0 +1,8 @@
+🎯 **What:** The vulnerability fixed
+テスト環境用の認証バイパス（`x-test-auth-secret` ヘッダーを利用した CSRF バイパス）が、本番環境でも有効になってしまう可能性があった問題を修正しました。
+
+⚠️ **Risk:** The potential impact if left unfixed
+もし `ENABLE_TEST_AUTH` 環境変数が誤って本番環境で `true` に設定され、かつ `TEST_AUTH_SECRET` が漏洩または推測された場合、攻撃者が CSRF 保護を回避して任意の変更操作（POST/PUT/DELETEなど）を実行できるようになるリスクがありました。
+
+🛡️ **Solution:** How the fix addresses the vulnerability
+テスト用の認証バイパスロジックを `if (process.env.NODE_ENV !== "production")` ブロックで囲みました。これにより、本番環境ではこのコードが実行されないことが保証され、ビルドツール（ESBuild/Wranglerなど）のデッドコード削除機能によって本番ビルドから完全に除去されるようになります。
