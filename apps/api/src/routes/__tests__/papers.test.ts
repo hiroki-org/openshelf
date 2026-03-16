@@ -777,6 +777,7 @@ describe("papers routes", () => {
             },
             env as any
         );
+        expect(res2.status).toBe(200);
         // "  " is ignored, array becomes empty. No valid fields to update?
         // Wait, if it becomes empty, updates.tags is not set, meaning no real updates?
         // Let's use valid tag plus empty string.
