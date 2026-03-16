@@ -10,13 +10,16 @@ export async function loginAsTestUser(page: Page, user?: { sub?: string; githubI
         name: user?.name || 'Test User',
     };
 
+    const baseURL = process.env.E2E_BASE_URL || "http://localhost:3000";
+    const origin = new URL(baseURL).origin;
+
     const res = await page.request.post(`${apiURL}/api/auth/test-token`, {
         data: payload,
         headers: {
-            'x-test-auth-secret': process.env.TEST_AUTH_SECRET || 'test-secret',
-            'origin': process.env.E2E_BASE_URL || 'http://localhost:3000',
-            'referer': process.env.E2E_BASE_URL || 'http://localhost:3000',
-        }
+            "x-test-auth-secret": process.env.TEST_AUTH_SECRET || "test-secret",
+            origin: origin,
+            referer: origin,
+        },
     });
 
     if (!res.ok()) {
