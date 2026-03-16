@@ -19,15 +19,18 @@
   "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.10.12",
+    "@cloudflare/vitest-pool-workers": "^0.13.1",
     "@cloudflare/workers-types": "^4.20260218.0",
-    "drizzle-kit": "^0.31.9",
+    "esbuild": "^0.27.4",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4",
-    "wrangler": "^4.70.0"
+    "undici": "^7.18.2",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.35.0"
   },
   "dependencies": {
+    "drizzle-kit": "^0.31.9",
     "drizzle-orm": "^0.45.1",
-    "hono": "^4.12.8"
+    "hono": "^4.12.8",
+    "miniflare": "^4.20250906.0"
   }
 }
