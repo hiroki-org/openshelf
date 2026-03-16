@@ -119,28 +119,30 @@ jobs:
         with:
           name: coverage-web
           path: ./coverage-artifacts/web
+      - name: Normalize API coverage paths
+        run: sed 's#^SF:#SF:apps/api/#' ./coverage-artifacts/api/lcov.info > ./coverage-artifacts/api/lcov.codecov.info
+      - name: Normalize Web coverage paths
+        run: sed 's#^SF:#SF:apps/web/#' ./coverage-artifacts/web/lcov.info > ./coverage-artifacts/web/lcov.codecov.info
       - name: Upload API coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           disable_search: true
           flags: api
-          files: ./coverage-artifacts/api/lcov.info
+          files: ./coverage-artifacts/api/lcov.codecov.info
           fail_ci_if_error: false
           override_branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          root_dir: apps/api
       - name: Upload Web coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           disable_search: true
           flags: web
-          files: ./coverage-artifacts/web/lcov.info
+          files: ./coverage-artifacts/web/lcov.codecov.info
           fail_ci_if_error: false
           override_branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
           override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
-          root_dir: apps/web
 
   build-web-check:
     name: Build Web (Preview Check)
