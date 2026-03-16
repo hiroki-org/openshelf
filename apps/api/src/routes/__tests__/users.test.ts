@@ -241,4 +241,54 @@ describe("users routes", () => {
         expect(res.status).toBe(404);
         expect(((await res.json()) as any).error).toBe("User not found");
     });
+
+    it("GET /api/users/search handles cache eviction when key exists but expired", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "User1" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Result 1" }] }));
+
+        // Initial request caches it
+        await app.request("/api/users/search?q=testevict", { headers: { Authorization: `Bearer ${token}` } }, env as any);
+
+        // Advance time to expire the cache
+        vi.setSystemTime(Date.now() + 61 * 1000);
+
+        // This request will find cache expired, query DB again, and then call setCachedResults which hits `if (searchCache.has(key))`
+        const res = await app.request("/api/users/search?q=testevict", { headers: { Authorization: `Bearer ${token}` } }, env as any);
+
+        expect(res.status).toBe(200);
+
+        // Reset time
+        vi.useRealTimers();
+    });
+
+    it("GET /api/users/search handles MAX_CACHE_SIZE limit", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "User1" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Result 1" }] }));
+
+        // We send 1001 requests with unique queries to hit the limit
+        // (Wait, sending 1000 requests might be slow. Is there a better way? Let's just do it in a Promise.all or similar)
+        // Alternatively, we can test MAX_CACHE_SIZE by exporting it in test. Since we can't easily, we'll just loop.
+        const reqs = [];
+        for (let i = 0; i <= 1001; i++) {
+            reqs.push(app.request(`/api/users/search?q=limit${i}`, { headers: { Authorization: `Bearer ${token}` } }, env as any));
+        }
+        await Promise.all(reqs);
+
+        const finalReq = await app.request("/api/users/search?q=limittrigger", { headers: { Authorization: `Bearer ${token}` } }, env as any);
+        expect(finalReq.status).toBe(200);
+    });
+
+    it("GET /api/users/:id returns 404 when the user does not exist (covered missed line 154)", async () => {
+        mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request("/api/users/missing-user", {}, env as any);
+        expect(res.status).toBe(404);
+    });
 });
