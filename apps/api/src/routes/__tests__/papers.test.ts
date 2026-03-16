@@ -765,7 +765,7 @@ describe("papers routes", () => {
         expect(res1.status).toBe(200);
 
         // Array with empty string
-        const res2 = await app.request(
+        await app.request(
             "http://localhost/api/papers/paper-1",
             {
                 method: "PATCH",
