@@ -113,6 +113,17 @@ describe("users routes", () => {
         const body = (await res.json()) as any;
         expect(body.users).toHaveLength(1);
         expect(body.users[0].name).toBe("Alice");
+
+        // Second request should hit cache (mockDb.select should not be called again)
+        const res2 = await app.request(
+            "http://localhost/api/users/search?q=ali",
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            },
+            env as any
+        );
+        expect(res2.status).toBe(200);
+        expect(mockDb.select).toHaveBeenCalledTimes(1);
     });
 
     it("PATCH /api/users/me rejects non-string display names", async () => {

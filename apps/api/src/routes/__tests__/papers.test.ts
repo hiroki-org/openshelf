@@ -53,6 +53,33 @@ describe("papers routes", () => {
         expect(res.status).toBe(201);
     });
 
+    it("POST /api/papers creates paper with org_only visibility", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const form = new FormData();
+        form.set("metadata", JSON.stringify({ title: "Org Paper", visibility: "org_only", orgId: "org-1" }));
+        form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
+        form.set("file_types_0", "paper");
+
+        const res = await app.request(
+            "http://localhost/api/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000"
+                },
+                body: form
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(201);
+        expect(mockDb.batch).toHaveBeenCalled();
+    });
+
     it("POST /api/papers rejects upload when content does not match declared MIME", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
