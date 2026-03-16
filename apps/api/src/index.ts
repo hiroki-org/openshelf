@@ -15,27 +15,18 @@ app.use(
     "/api/*",
     cors({
         origin: (origin, c) => {
-            let frontendOrigin = "";
-            try {
-                frontendOrigin = new URL(c.env.FRONTEND_URL).origin;
-            } catch {
-                // Invalid or missing FRONTEND_URL.
-            }
-
             const allowedOrigins = c.env.ALLOWED_ORIGINS
                 ? c.env.ALLOWED_ORIGINS
                     .split(",")
                     .map((value: string) => value.trim())
                     .filter(Boolean)
-                : [];
+                : undefined;
 
-            if (!origin) return null;
-
-            if ((frontendOrigin && origin === frontendOrigin) || allowedOrigins.includes(origin)) {
-                return origin;
+            if (allowedOrigins && allowedOrigins.length > 0) {
+                return origin && allowedOrigins.includes(origin) ? origin : "";
             }
 
-            return null;
+            return c.env.FRONTEND_URL;
         },
         credentials: true,
         allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -52,13 +43,11 @@ app.use("/api/*", async (c, next) => {
     const origin = c.req.header("Origin");
     const referer = c.req.header("Referer");
     const authHeader = c.req.header("Authorization");
-    const testAuthHeader = c.req.header("x-test-auth-secret");
-    const isTestEnv =
-        c.env.ENVIRONMENT &&
-        c.env.ENVIRONMENT !== "production" &&
-        c.env.ENABLE_TEST_AUTH === "true" &&
-        !!c.env.TEST_AUTH_SECRET &&
-        testAuthHeader === c.env.TEST_AUTH_SECRET;
+    let isTestEnv = false;
+    if (process.env.NODE_ENV !== "production") {
+        const testAuthHeader = c.req.header("x-test-auth-secret");
+        isTestEnv = c.env.ENABLE_TEST_AUTH === "true" && !!c.env.TEST_AUTH_SECRET && testAuthHeader === c.env.TEST_AUTH_SECRET;
+    }
 
     // Bypass CSRF for requests with Bearer tokens or valid test auth secret in test env
     if (authHeader?.startsWith("Bearer ") || isTestEnv) return await next();

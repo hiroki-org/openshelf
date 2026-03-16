@@ -274,19 +274,12 @@ test.describe('論文ダウンロード', () => {
         const userPayload = await loginAsTestUser(page);
         const memberUserId = userPayload.sub;
         const memberToken = await page.evaluate(() => localStorage.getItem('auth_token'));
-        const authSecret = process.env.TEST_AUTH_SECRET || "test-secret";
+        const authSecret = process.env.TEST_AUTH_SECRET as string;
 
-        const apiURL = process.env.E2E_API_URL || "http://localhost:8787";
-        const baseURL = process.env.E2E_BASE_URL || "http://localhost:3000";
-        const origin = new URL(baseURL).origin;
-
+        const apiURL = process.env.E2E_API_URL || 'http://localhost:8787';
         const setupRes = await page.request.post(`${apiURL}/api/auth/test-org`, {
-            headers: {
-                "x-test-auth-secret": authSecret,
-                origin: origin,
-                referer: origin,
-            },
-            data: { userId: memberUserId, orgId },
+            headers: { 'x-test-auth-secret': authSecret },
+            data: { userId: memberUserId, orgId }
         });
         expect(setupRes.ok()).toBeTruthy();
 

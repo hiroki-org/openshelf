@@ -2,6 +2,7 @@ codecov:
   require_ci_to_pass: false
   notify:
     wait_for_ci: false
+    after_n_builds: 2
 
 coverage:
   status:
@@ -21,7 +22,7 @@ comment:
 flags:
   api:
     paths:
-      - ^apps/api/src/.*
+      - apps/api/src/
   web:
     paths:
-      - ^apps/web/src/.*
+      - apps/web/src/
