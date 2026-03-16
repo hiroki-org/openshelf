@@ -54,6 +54,7 @@ describe("presentation badge helpers", () => {
       ["uploader", "アップロード者", "info"],
       ["author", "著者", "success"],
       ["reviewer", "reviewer", "neutral"],
+      ["", "", "neutral"],
     ] as const)("returns correct badge for %s", (role, label, tone) => {
       expect(getRoleBadge(role)).toEqual({
         label,
