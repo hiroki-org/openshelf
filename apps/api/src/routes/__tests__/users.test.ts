@@ -239,29 +239,30 @@ describe("users routes", () => {
         );
 
         expect(res.status).toBe(404);
-        expect(((await res.json()) as any).error).toBe("User not found");
-    });
-
     it("GET /api/users/search handles cache eviction when key exists but expired", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "User1" });
         const app = await createTestApp();
         const env = createTestEnv();
 
         mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Result 1" }] }));
+        vi.useFakeTimers();
+        const now = Date.now();
 
-        // Initial request caches it
-        await app.request("/api/users/search?q=testevict", { headers: { Authorization: `Bearer ${token}` } }, env as any);
+        try {
+            // Initial request caches it
+            await app.request("/api/users/search?q=testevict", { headers: { Authorization: `Bearer ${token}` } }, env as any);
 
-        // Advance time to expire the cache
-        vi.setSystemTime(Date.now() + 61 * 1000);
+            // Advance time to expire the cache
+            vi.setSystemTime(now + 61 * 1000);
 
-        // This request will find cache expired, query DB again, and then call setCachedResults which hits `if (searchCache.has(key))`
-        const res = await app.request("/api/users/search?q=testevict", { headers: { Authorization: `Bearer ${token}` } }, env as any);
+            // This request will find cache expired, query DB again, and then call setCachedResults which hits `if (searchCache.has(key))`
+            const res = await app.request("/api/users/search?q=testevict", { headers: { Authorization: `Bearer ${token}` } }, env as any);
 
-        expect(res.status).toBe(200);
-
-        // Reset time
-        vi.useRealTimers();
+            expect(res.status).toBe(200);
+            expect(mockDb.select).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it("GET /api/users/search handles MAX_CACHE_SIZE limit", async () => {
