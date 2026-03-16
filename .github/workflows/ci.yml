@@ -123,6 +123,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          disable_search: true
           flags: api
           files: ./coverage-artifacts/api/lcov.info
           fail_ci_if_error: false
@@ -131,6 +132,7 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          disable_search: true
           flags: web
           files: ./coverage-artifacts/web/lcov.info
           fail_ci_if_error: false
