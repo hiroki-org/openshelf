@@ -76,9 +76,13 @@ const MAX_CACHE_SIZE = 1000;
 
 function getCachedResults(key: string): any[] | null {
     const cached = searchCache.get(key);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    if (!cached) return null;
+
+    if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
         return cached.data;
     }
+
+    searchCache.delete(key);
     return null;
 }
 

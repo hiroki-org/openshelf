@@ -432,7 +432,8 @@ papersRoute.post("/", authMiddleware, async (c) => {
             throw errors[0] ?? new Error("An unknown upload error occurred.");
         }
 
-        const insertOperations: any[] = [
+        type BatchOp = Parameters<typeof db.batch>[0][number];
+        const insertOperations: BatchOp[] = [
             db.insert(papers).values(paperValues),
             db.insert(paperAuthors).values({ paperId, userId, role: "uploader" }),
         ];
@@ -456,9 +457,12 @@ papersRoute.post("/", authMiddleware, async (c) => {
             ),
         );
 
-        await db.batch(insertOperations as [typeof insertOperations[0], ...typeof insertOperations]);
+        await db.batch(insertOperations as [BatchOp, ...BatchOp[]]);
     } catch (error) {
         await Promise.all(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
+        await db.delete(paperFiles).where(eq(paperFiles.paperId, paperId));
+        await db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId));
+        await db.delete(paperAuthors).where(eq(paperAuthors.paperId, paperId));
         await db.delete(papers).where(eq(papers.id, paperId));
         throw error;
     }
