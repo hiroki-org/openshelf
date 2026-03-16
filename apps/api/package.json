@@ -21,16 +21,13 @@
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.13.1",
     "@cloudflare/workers-types": "^4.20260218.0",
-    "esbuild": "^0.27.4",
+    "drizzle-kit": "^0.31.9",
     "typescript": "^5.9.3",
-    "undici": "^7.18.2",
     "vitest": "^4.1.0",
-    "wrangler": "^4.35.0"
+    "wrangler": "^4.74.0"
   },
   "dependencies": {
-    "drizzle-kit": "^0.31.9",
     "drizzle-orm": "^0.45.1",
-    "hono": "^4.12.8",
-    "miniflare": "^4.20250906.0"
+    "hono": "^4.12.8"
   }
 }

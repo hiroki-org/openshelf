@@ -26,6 +26,8 @@
   "overrides": {
     "undici": "^7.24.4",
     "esbuild": "^0.25.0",
+    "flatted": "^3.4.0",
+    "devalue": "^5.6.4",
     "@esbuild-kit/core-utils": {
         "esbuild": "^0.25.0"
     },
