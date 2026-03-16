@@ -66,13 +66,13 @@ usersRoute.put("/me", authMiddleware, updateMeHandler);
 
 
 // Simple in-memory cache for user search
-type CachedSearchResult = {
+export type CachedSearchResult = {
     data: any[];
     timestamp: number;
 };
-const searchCache = new Map<string, CachedSearchResult>();
-const CACHE_TTL_MS = 60 * 1000; // 1 minute
-const MAX_CACHE_SIZE = 1000;
+export const searchCache = new Map<string, CachedSearchResult>();
+export const CACHE_TTL_MS = 60 * 1000; // 1 minute
+export const MAX_CACHE_SIZE = 1000;
 
 function getCachedResults(key: string): any[] | null {
     const cached = searchCache.get(key);
