@@ -22,5 +22,14 @@
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },
+  "overrides": {
+    "flatted": "^3.4.0",
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.27.3"
+    },
+    "miniflare": {
+      "undici": "^7.24.0"
+    }
+  },
   "license": "MIT"
 }
