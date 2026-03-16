@@ -433,7 +433,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
         }
 
         type BatchOp = Parameters<typeof db.batch>[0][number];
-        const insertOperations: BatchOp[] = [
+        const insertOperations: [BatchOp, BatchOp, ...BatchOp[]] = [
             db.insert(papers).values(paperValues),
             db.insert(paperAuthors).values({ paperId, userId, role: "uploader" }),
         ];
@@ -457,7 +457,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
             ),
         );
 
-        await db.batch(insertOperations as [BatchOp, ...BatchOp[]]);
+        await db.batch(insertOperations);
     } catch (error) {
         await Promise.all(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
         await db.delete(paperFiles).where(eq(paperFiles.paperId, paperId));
