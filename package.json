@@ -22,5 +22,8 @@
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },
+  "overrides": {
+    "flatted": "^3.4.1"
+  },
   "license": "MIT"
 }
