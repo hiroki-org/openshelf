@@ -35,6 +35,8 @@ describe("presentation badge helpers", () => {
       ["accepted", "承認済み", "success"],
       ["declined", "拒否済み", "danger"],
       ["expired", "expired", "neutral"],
+      ["PENDING", "PENDING", "neutral"],
+      ["", "", "neutral"],
     ] as const)("returns correct badge for %s", (status, label, tone) => {
       expect(getInviteStatusBadge(status)).toEqual({
         label,
