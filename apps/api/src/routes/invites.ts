@@ -53,7 +53,7 @@ invitesRoute.get("/received", authMiddleware, async (c) => {
  */
 const respondInviteHandler = async (c: any) => {
     const inviteId = c.req.param("inviteId");
-    if (inviteId.length < 1 || inviteId.length > INVITE_ID_MAX_LENGTH) {
+    if (inviteId.length > INVITE_ID_MAX_LENGTH) {
         return c.json({ error: "Invalid inviteId" }, 400);
     }
     let body: { action?: unknown };
