@@ -138,6 +138,8 @@ describe("invites routes", () => {
 
         expect(res.status).toBe(400);
         expect(mockDb.select).not.toHaveBeenCalled();
+        const body = (await res.json()) as any;
+        expect(body.error).toBe("Invalid inviteId");
     });
 
     it("PATCH /api/invites/:id returns 400 when inviteId is too long", async () => {
