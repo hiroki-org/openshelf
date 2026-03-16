@@ -127,6 +127,8 @@ jobs:
           flags: api
           files: ./coverage-artifacts/api/lcov.info
           fail_ci_if_error: false
+          override_branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           root_dir: apps/api
       - name: Upload Web coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -136,6 +138,8 @@ jobs:
           flags: web
           files: ./coverage-artifacts/web/lcov.info
           fail_ci_if_error: false
+          override_branch: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          override_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
           root_dir: apps/web
 
   build-web-check:
