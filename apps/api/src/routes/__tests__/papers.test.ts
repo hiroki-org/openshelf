@@ -58,6 +58,8 @@ describe("papers routes", () => {
         const app = await createTestApp();
         const env = createTestEnv();
 
+        mockDb.select = vi.fn(() => makeQuery({ getResult: { orgId: "org-1" } }));
+
         const form = new FormData();
         form.set("metadata", JSON.stringify({ title: "Org Paper", visibility: "org_only", orgId: "org-1" }));
         form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
