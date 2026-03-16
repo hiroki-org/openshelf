@@ -23,7 +23,14 @@
     "vitest": "^3.2.4"
   },
   "overrides": {
-    "flatted": "^3.4.1"
+    "undici": "7.24.4",
+    "flatted": "3.4.1",
+    "miniflare": {
+        "undici": "7.24.4"
+    },
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.0"
+    }
   },
   "license": "MIT"
 }
