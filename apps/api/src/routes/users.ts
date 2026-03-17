@@ -133,7 +133,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
         .limit(10)
         .all();
 
-    setCachedResults(cacheKey, results, c.env.MAX_CACHE_SIZE as any as number ?? 1000);
+    setCachedResults(cacheKey, results, ((c.env as any).MAX_CACHE_SIZE as number) ?? 1000);
 
     return c.json({ users: results });
 });
