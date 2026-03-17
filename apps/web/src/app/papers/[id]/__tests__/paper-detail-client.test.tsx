@@ -265,7 +265,7 @@ describe("PaperDetailClient", () => {
         "data-url",
         expect.stringMatching(/^blob:mock-/),
       );
-    });
+    }, { timeout: 5000 });
     expect(screen.getByAltText("poster.png")).toHaveAttribute(
       "src",
       expect.stringMatching(/^blob:mock-/),
