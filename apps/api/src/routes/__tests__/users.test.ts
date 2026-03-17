@@ -243,45 +243,50 @@ describe("users routes", () => {
     });
 
     it("GET /api/users/search handles cache eviction when key exists but expired", async () => {
-        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "User1" });
-        const app = await createTestApp();
-        const env = createTestEnv();
+        vi.useFakeTimers();
+        try {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "User1" });
+            const app = await createTestApp();
+            const env = createTestEnv();
 
-        mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Result 1" }] }));
+            mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Result 1" }] }));
 
-        // Initial request caches it
-        await app.request("/api/users/search?q=testevict", { headers: { Authorization: `Bearer ${token}` } }, env as any);
+            // Initial request caches it
+            await app.request("/api/users/search?q=testevict", { headers: { Authorization: `Bearer ${token}` } }, env as any);
 
-        // Advance time to expire the cache
-        vi.setSystemTime(Date.now() + 61 * 1000);
+            // Advance time to expire the cache
+            vi.setSystemTime(Date.now() + 61 * 1000);
 
-        // This request will find cache expired, query DB again, and then call setCachedResults which hits `if (searchCache.has(key))`
-        const res = await app.request("/api/users/search?q=testevict", { headers: { Authorization: `Bearer ${token}` } }, env as any);
+            // This request will find cache expired, query DB again, and then call setCachedResults which hits `if (searchCache.has(key))`
+            const res = await app.request("/api/users/search?q=testevict", { headers: { Authorization: `Bearer ${token}` } }, env as any);
 
-        expect(res.status).toBe(200);
-
-        // Reset time
-        vi.useRealTimers();
+            expect(res.status).toBe(200);
+            expect(mockDb.select).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it("GET /api/users/search handles MAX_CACHE_SIZE limit", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "User1" });
         const app = await createTestApp();
-        const env = createTestEnv();
+        const env = { ...createTestEnv(), MAX_CACHE_SIZE: 2 }; // set max size to 2
 
         mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Result 1" }] }));
 
-        // We send 1001 requests with unique queries to hit the limit
-        // (Wait, sending 1000 requests might be slow. Is there a better way? Let's just do it in a Promise.all or similar)
-        // Alternatively, we can test MAX_CACHE_SIZE by exporting it in test. Since we can't easily, we'll just loop.
-        const reqs = [];
-        for (let i = 0; i <= 1001; i++) {
-            reqs.push(app.request(`/api/users/search?q=limit${i}`, { headers: { Authorization: `Bearer ${token}` } }, env as any));
-        }
-        await Promise.all(reqs);
+        // 1st request
+        await app.request("/api/users/search?q=limit0", { headers: { Authorization: `Bearer ${token}` } }, env as any);
+        // 2nd request
+        await app.request("/api/users/search?q=limit1", { headers: { Authorization: `Bearer ${token}` } }, env as any);
+        // 3rd request, triggers eviction of 1st request
+        await app.request("/api/users/search?q=limit2", { headers: { Authorization: `Bearer ${token}` } }, env as any);
+        
+        expect(mockDb.select).toHaveBeenCalledTimes(3);
 
-        const finalReq = await app.request("/api/users/search?q=limittrigger", { headers: { Authorization: `Bearer ${token}` } }, env as any);
+        // re-request 1st query, it should hit DB again (evicted)
+        const finalReq = await app.request("/api/users/search?q=limit0", { headers: { Authorization: `Bearer ${token}` } }, env as any);
         expect(finalReq.status).toBe(200);
+        expect(mockDb.select).toHaveBeenCalledTimes(4); // 4th DB hit proves eviction
     });
 
     it("GET /api/users/:id returns 404 when the user does not exist (covered missed line 154)", async () => {
