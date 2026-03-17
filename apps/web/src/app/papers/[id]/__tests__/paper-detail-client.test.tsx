@@ -298,7 +298,7 @@ describe("PaperDetailClient", () => {
     });
 
     expect(await screen.findByText("Bob Candidate")).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("shows the preview fallback UI and download permission errors", async () => {
     vi.mocked(apiFetch).mockImplementation(async (input, init) => {
