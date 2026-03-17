@@ -282,13 +282,17 @@ describe("users routes", () => {
 
         const callCountAfterFill = mockDb.select.mock.calls.length;
 
-        // trigger eviction
-        await app.request("/api/users/search?q=limittrigger", { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
+        // cache hit should promote limit0 to MRU without new DB query
+        await app.request(`/api/users/search?q=limit0`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
+        const callCountAfterPromotion = mockDb.select.mock.calls.length;
+        expect(callCountAfterPromotion).toBe(callCountAfterFill);
 
-        // request oldest cached query again
+        // trigger eviction, then verify limit1 (now oldest) is evicted while limit0 stays cached
+        await app.request("/api/users/search?q=limittrigger", { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
+        await app.request(`/api/users/search?q=limit1`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
         await app.request(`/api/users/search?q=limit0`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
 
-        expect(mockDb.select.mock.calls.length).toBe(callCountAfterFill + 2);
+        expect(mockDb.select.mock.calls.length).toBe(callCountAfterPromotion + 2);
     });
 
     it("GET /api/users/:id returns 404 for missing user profile fetch", async () => {
