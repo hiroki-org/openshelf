@@ -250,14 +250,16 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       return;
     }
 
+    let cancelled = false;
     setStatsLoading(true);
     setStatsError("");
 
-    fetchStats();
-    // Also set loading false in fetchStats normally, but here we use useEffect style
-    setStatsLoading(false); 
+    fetchStats().finally(() => {
+      if (!cancelled) setStatsLoading(false);
+    });
 
     return () => {
+      cancelled = true;
     };
   }, [paper?.id, isAuthor, fetchStats]);
 

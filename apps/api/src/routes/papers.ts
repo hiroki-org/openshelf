@@ -447,20 +447,23 @@ papersRoute.post("/", authMiddleware, async (c) => {
             })),
         );
 
+        type BatchItem = Parameters<typeof db.batch>[0][number];
+        const operations: BatchItem[] = [insertPaper, insertAuthor];
         if (vis === "org_only" && orgId) {
-            const insertOrg = db.insert(paperOrgs).values({ paperId, orgId });
-            await db.batch([insertPaper, insertAuthor, insertOrg, insertFiles]);
-        } else {
-            await db.batch([insertPaper, insertAuthor, insertFiles]);
+            operations.push(db.insert(paperOrgs).values({ paperId, orgId }));
         }
+        operations.push(insertFiles);
+
+        await db.batch(operations as [BatchItem, ...BatchItem[]]);
     } catch (error) {
         await Promise.allSettled(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
+        // Delete child tables first to avoid FK violations
         await Promise.allSettled([
             db.delete(paperFiles).where(eq(paperFiles.paperId, paperId)),
             db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId)),
             db.delete(paperAuthors).where(eq(paperAuthors.paperId, paperId)),
-            db.delete(papers).where(eq(papers.id, paperId)),
         ]);
+        await db.delete(papers).where(eq(papers.id, paperId));
         throw error;
     }
 

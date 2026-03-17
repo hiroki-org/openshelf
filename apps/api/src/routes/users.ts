@@ -76,10 +76,17 @@ const MAX_CACHE_SIZE = 1000;
 
 function getCachedResults(key: string): any[] | null {
     const cached = searchCache.get(key);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-        return cached.data;
+    if (cached) {
+        if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
+            // Re-insert to move to the end (MRU)
+            searchCache.delete(key);
+            searchCache.set(key, cached);
+            return cached.data;
+        } else {
+            // Expired
+            searchCache.delete(key);
+        }
     }
-    searchCache.delete(key);
     return null;
 }
 

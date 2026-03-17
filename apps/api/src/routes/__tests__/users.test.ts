@@ -274,9 +274,7 @@ describe("users routes", () => {
 
         mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Result 1" }] }));
 
-        // We send 1002 requests with unique queries to hit the limit
-        // (Wait, sending 1000 requests might be slow. Is there a better way? Let's just do it in a Promise.all or similar)
-        // Alternatively, we can test MAX_CACHE_SIZE by exporting it in test. Since we can't easily, we'll just loop.
+        // We send 1002 requests with unique queries to hit the cache size limit and trigger eviction
         const reqs = [];
         for (let i = 0; i < 1002; i++) {
             reqs.push(app.request(`/api/users/search?q=limit${i}`, { headers: { Authorization: `Bearer ${token}` } }, env as any));
@@ -287,7 +285,7 @@ describe("users routes", () => {
         expect(finalReq.status).toBe(200);
     });
 
-    it("GET /api/users/:id returns 404 when the user does not exist (covered missed line 154)", async () => {
+    it("GET /api/users/:id returns 404 for missing user profile fetch", async () => {
         mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
         const app = await createTestApp();
         const env = createTestEnv();

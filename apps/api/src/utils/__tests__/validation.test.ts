@@ -8,8 +8,8 @@ describe("validation utils", () => {
         });
 
         it("validates length", () => {
-            expect(validateSlug("ab")).toBe("slug must be 3-40 characters");
-            expect(validateSlug("a".repeat(41))).toBe("slug must be 3-40 characters");
+            expect(validateSlug("ab")).toBe("slug must be 3–40 characters");
+            expect(validateSlug("a".repeat(41))).toBe("slug must be 3–40 characters");
         });
 
         it("validates character set", () => {

@@ -79,7 +79,8 @@ describe("papers routes", () => {
         );
 
         expect(res.status).toBe(201);
-        expect(mockDb.batch).toHaveBeenCalled();
+        expect(mockDb.batch).toHaveBeenCalledTimes(1);
+        expect(mockDb.batch.mock.calls[0][0]).toHaveLength(4); // paper, author, org, files
     });
 
     it("POST /api/papers rejects upload when content does not match declared MIME", async () => {
@@ -765,7 +766,7 @@ describe("papers routes", () => {
         expect(res1.status).toBe(200);
 
         // Array with empty string
-        await app.request(
+        const res2 = await app.request(
             "http://localhost/api/papers/paper-1",
             {
                 method: "PATCH",
@@ -777,9 +778,8 @@ describe("papers routes", () => {
             },
             env as any
         );
-        // "  " is ignored, array becomes empty. No valid fields to update?
-        // Wait, if it becomes empty, updates.tags is not set, meaning no real updates?
-        // Let's use valid tag plus empty string.
+        expect(res2.status).toBe(200); // "  " is ignored, normalized tags is [], which maps to null. Updates tags to null.
+
         const res3 = await app.request(
             "http://localhost/api/papers/paper-1",
             {
