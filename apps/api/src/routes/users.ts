@@ -72,6 +72,7 @@ type CachedSearchResult = {
 };
 const searchCache = new Map<string, CachedSearchResult>();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
+const MAX_CACHE_SIZE = 1000;
 
 function getCachedResults(key: string): any[] | null {
     const cached = searchCache.get(key);
@@ -81,10 +82,10 @@ function getCachedResults(key: string): any[] | null {
     return null;
 }
 
-function setCachedResults(key: string, data: any[], maxSize: number = 1000) {
+function setCachedResults(key: string, data: any[]) {
     if (searchCache.has(key)) {
         searchCache.delete(key);
-    } else if (searchCache.size >= maxSize) {
+    } else if (searchCache.size >= MAX_CACHE_SIZE) {
         const oldestKey = searchCache.keys().next().value;
         if (oldestKey !== undefined) {
             searchCache.delete(oldestKey);
@@ -129,8 +130,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
         .limit(10)
         .all();
 
-    const maxSize = (c.env as any).MAX_CACHE_SIZE ?? 1000;
-    setCachedResults(cacheKey, results, maxSize);
+    setCachedResults(cacheKey, results);
 
     return c.json({ users: results });
 });

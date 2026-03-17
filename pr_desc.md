@@ -1,5 +1,3 @@
-# D1 batch inserts on paper creation
-
 💡 **What:**
 The sequential database `insert` operations (`papers`, `paperAuthors`, conditional `paperOrgs`, and `paperFiles`) have been collected into an array and are now executed via a single `db.batch()` network call in `apps/api/src/routes/papers.ts`.
 
