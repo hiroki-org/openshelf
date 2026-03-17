@@ -109,11 +109,13 @@ jobs:
 
   upload-coverage:
     name: Upload Coverage
-    needs: [build-web-check, e2e]
+    needs: [test-api, test-web]
+    if: always() && (needs.test-api.result == 'success' || needs.test-api.result == 'failure') && (needs.test-web.result == 'success' || needs.test-web.result == 'failure')
     runs-on: ubuntu-latest
     env:
       CODECOV_COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       CODECOV_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+      CODECOV_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
     steps:
       - uses: actions/checkout@v6
       - name: Download API coverage artifact
@@ -136,6 +138,7 @@ jobs:
           fail_ci_if_error: false
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
+          override_pr: ${{ env.CODECOV_PR }}
           root_dir: apps/api
       - name: Upload Web coverage to Codecov
         uses: codecov/codecov-action@v5
@@ -147,6 +150,7 @@ jobs:
           fail_ci_if_error: false
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
+          override_pr: ${{ env.CODECOV_PR }}
           root_dir: apps/web
 
   build-web-check:
