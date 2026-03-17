@@ -281,7 +281,7 @@ describe("PaperDetailClient", () => {
     fireEvent.click(within(slideRow!).getByRole("button", { name: "ダウンロード" }));
 
     await waitFor(() => {
-      expect(URL.createObjectURL).toHaveBeenCalled();
+      expect(apiFetch).toHaveBeenCalledWith("/api/downloads/deck.pptx");
     });
 
     fireEvent.click(screen.getByRole("button", { name: "+ 共著者を招待" }));
