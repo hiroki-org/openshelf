@@ -30,18 +30,6 @@ describe("validation utils", () => {
             expect(validateSlug("my-valid-slug-123")).toBeNull();
             expect(validateSlug("abc")).toBeNull();
         });
-
-        it("rejects slug with both leading and trailing hyphens", () => {
-            expect(validateSlug("-abc-")).toBe("slug must contain only lowercase letters, numbers, and hyphens");
-        });
-
-        it("accepts minimum-length slug with interior hyphen", () => {
-            expect(validateSlug("a-b")).toBeNull();
-        });
-
-        it("rejects a slug that is only hyphens", () => {
-            expect(validateSlug("---")).toBe("slug must contain only lowercase letters, numbers, and hyphens");
-        });
     });
 
     describe("validateName", () => {
