@@ -79,22 +79,17 @@ function getCachedResults(key: string): any[] | null {
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
         return cached.data;
     }
+    searchCache.delete(key);
     return null;
 }
 
 function setCachedResults(key: string, data: any[]) {
-    // cleanup old cache randomly to prevent memory leak
-    if (searchCache.size >= MAX_CACHE_SIZE) {
-        const now = Date.now();
-        for (const [k, v] of searchCache.entries()) {
-            if (now - v.timestamp > CACHE_TTL_MS) {
-                searchCache.delete(k);
-            }
-        }
-
-        // if still too large, clear to prevent memory leak
-        if (searchCache.size >= MAX_CACHE_SIZE) {
-            searchCache.clear();
+    if (searchCache.has(key)) {
+        searchCache.delete(key);
+    } else if (searchCache.size >= MAX_CACHE_SIZE) {
+        const oldestKey = searchCache.keys().next().value;
+        if (oldestKey !== undefined) {
+            searchCache.delete(oldestKey);
         }
     }
     searchCache.set(key, { data, timestamp: Date.now() });

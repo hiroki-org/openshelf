@@ -250,7 +250,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       return;
     }
 
-    let cancelled = false;
     setStatsLoading(true);
     setStatsError("");
 
@@ -259,7 +258,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     setStatsLoading(false); 
 
     return () => {
-      cancelled = true;
     };
   }, [paper?.id, isAuthor, fetchStats]);
 

@@ -432,17 +432,9 @@ papersRoute.post("/", authMiddleware, async (c) => {
             throw errors[0] ?? new Error("An unknown upload error occurred.");
         }
 
-        await db.insert(papers).values(paperValues);
-
-        await db
-            .insert(paperAuthors)
-            .values({ paperId, userId, role: "uploader" });
-
-        if (vis === "org_only" && orgId) {
-            await db.insert(paperOrgs).values({ paperId, orgId });
-        }
-
-        await db.insert(paperFiles).values(
+        const insertPaper = db.insert(papers).values(paperValues);
+        const insertAuthor = db.insert(paperAuthors).values({ paperId, userId, role: "uploader" });
+        const insertFiles = db.insert(paperFiles).values(
             uploads.map((entry) => ({
                 id: crypto.randomUUID(),
                 paperId,
@@ -454,9 +446,21 @@ papersRoute.post("/", authMiddleware, async (c) => {
                 ...touchUpdatedAt(),
             })),
         );
+
+        if (vis === "org_only" && orgId) {
+            const insertOrg = db.insert(paperOrgs).values({ paperId, orgId });
+            await db.batch([insertPaper, insertAuthor, insertOrg, insertFiles]);
+        } else {
+            await db.batch([insertPaper, insertAuthor, insertFiles]);
+        }
     } catch (error) {
-        await Promise.all(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
-        await db.delete(papers).where(eq(papers.id, paperId));
+        await Promise.allSettled(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
+        await Promise.allSettled([
+            db.delete(paperFiles).where(eq(paperFiles.paperId, paperId)),
+            db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId)),
+            db.delete(paperAuthors).where(eq(paperAuthors.paperId, paperId)),
+            db.delete(papers).where(eq(papers.id, paperId)),
+        ]);
         throw error;
     }
 
