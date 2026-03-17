@@ -37,7 +37,6 @@ Thumbs.db
 
 # Logs
 *.log
-*.pid
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -53,3 +52,6 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+*.pid
+*_dev.log
+start_dev.sh

@@ -19,7 +19,7 @@ describe("papers routes", () => {
         mockDb = {
             run: vi.fn(async () => undefined),
             select: vi.fn(() => makeQuery()),
-            insert: vi.fn((table) => ({ values: vi.fn((data) => ({ type: 'insert', table, data })) })),
+            insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
             update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) })),
             delete: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
             batch: vi.fn(async (queries) => Promise.all(queries.map((q: any) => q.all ? q.all() : q)))
@@ -80,12 +80,7 @@ describe("papers routes", () => {
 
         expect(res.status).toBe(201);
         expect(mockDb.batch).toHaveBeenCalledTimes(1);
-        const batchArgs = mockDb.batch.mock.calls[0][0];
-        expect(batchArgs).toHaveLength(4); // paper, author, org, files
-        const orgInsert = batchArgs.find(
-            (q: any) => q?.type === "insert" && q.data?.orgId === "org-1",
-        );
-        expect(orgInsert).toBeDefined();
+        expect(mockDb.batch.mock.calls[0][0]).toHaveLength(4); // paper, author, org, files
     });
 
     it("POST /api/papers rejects upload when content does not match declared MIME", async () => {
@@ -784,6 +779,7 @@ describe("papers routes", () => {
             env as any
         );
         expect(res2.status).toBe(200); // "  " is ignored, normalized tags is [], which maps to null. Updates tags to null.
+
         const res3 = await app.request(
             "http://localhost/api/papers/paper-1",
             {

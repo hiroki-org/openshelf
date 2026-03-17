@@ -139,27 +139,14 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   const fetchStats = useCallback(async () => {
     if (!paperId || !isAuthor) return;
-
     try {
       const res = await apiFetch(`/api/papers/${safePath(paperId)}/stats`);
-      if (!res.ok) {
-        if (res.status === 401) {
-          setStatsError("統計情報を取得するにはログインが必要です");
-        } else if (res.status === 403) {
-          setStatsError("統計情報を閲覧する権限がありません");
-        } else if (res.status === 404) {
-          setStatsError("統計情報が見つかりません");
-        } else {
-          setStatsError("統計情報の取得に失敗しました");
-        }
-        return;
+      if (res.ok) {
+        const data = (await res.json()) as PaperStats;
+        setStats(data);
       }
-
-      const data = (await res.json()) as PaperStats;
-      setStats(data);
-      setStatsError("");
     } catch {
-      setStatsError("統計情報の取得に失敗しました");
+      // Ignore
     }
   }, [paperId, isAuthor]);
 
