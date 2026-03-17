@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, sql, inArray, or } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import {
     orgs,
     orgMembers,
@@ -447,18 +447,17 @@ orgsRoute.get("/:slug/papers", async (c) => {
     // Check authorship for non-public papers the user might be an author of
     let authoredPaperIds = new Set<string>();
     if (currentUserId) {
-        const nonPublicPapers = allPapers.filter((p) => p.visibility !== "public");
-        if (nonPublicPapers.length > 0) {
+        const nonPublicPaperIds = allPapers
+            .filter((p) => p.visibility !== "public")
+            .map((p) => p.id);
+        if (nonPublicPaperIds.length > 0) {
             const authorships = await db
                 .select({ paperId: paperAuthors.paperId })
                 .from(paperAuthors)
-                .innerJoin(papers, eq(paperAuthors.paperId, papers.id))
-                .innerJoin(paperOrgs, eq(paperAuthors.paperId, paperOrgs.paperId))
                 .where(
                     and(
-                        eq(paperOrgs.orgId, org.id),
                         eq(paperAuthors.userId, currentUserId),
-                        sql`${papers.visibility} != 'public'`
+                        inArray(paperAuthors.paperId, nonPublicPaperIds)
                     )
                 )
                 .all();

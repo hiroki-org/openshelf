@@ -454,9 +454,8 @@ papersRoute.post("/", authMiddleware, async (c) => {
             await db.batch([insertPaper, insertAuthor, insertFiles]);
         }
     } catch (error) {
-        await Promise.all(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
-        // Clean up database records created for this paper
-        await Promise.all([
+        await Promise.allSettled(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
+        await Promise.allSettled([
             db.delete(paperFiles).where(eq(paperFiles.paperId, paperId)),
             db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId)),
             db.delete(paperAuthors).where(eq(paperAuthors.paperId, paperId)),

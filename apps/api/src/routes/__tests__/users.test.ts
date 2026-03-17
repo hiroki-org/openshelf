@@ -274,7 +274,7 @@ describe("users routes", () => {
 
         mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Result 1" }] }));
 
-        // We send 1001 requests with unique queries to hit the limit
+        // We send 1002 requests with unique queries to hit the limit
         // (Wait, sending 1000 requests might be slow. Is there a better way? Let's just do it in a Promise.all or similar)
         // Alternatively, we can test MAX_CACHE_SIZE by exporting it in test. Since we can't easily, we'll just loop.
         const reqs = [];

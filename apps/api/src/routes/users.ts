@@ -79,6 +79,7 @@ function getCachedResults(key: string): any[] | null {
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
         return cached.data;
     }
+    searchCache.delete(key);
     return null;
 }
 
