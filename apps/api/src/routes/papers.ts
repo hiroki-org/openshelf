@@ -457,13 +457,17 @@ papersRoute.post("/", authMiddleware, async (c) => {
         await db.batch(operations as [BatchItem, ...BatchItem[]]);
     } catch (error) {
         const cleanupFailures: unknown[] = [];
-        const r2Results = await Promise.allSettled(
-            uploadedKeys.map((key) => c.env.BUCKET.delete(key)),
-        );
-        for (const result of r2Results) {
-            if (result.status === "rejected") {
-                cleanupFailures.push(result.reason);
+        try {
+            const r2Results = await Promise.allSettled(
+                uploadedKeys.map((key) => c.env.BUCKET.delete(key)),
+            );
+            for (const result of r2Results) {
+                if (result.status === "rejected") {
+                    cleanupFailures.push(result.reason);
+                }
             }
+        } catch (cleanupError) {
+            cleanupFailures.push(cleanupError);
         }
 
         try {
