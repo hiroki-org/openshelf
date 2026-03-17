@@ -288,7 +288,7 @@ describe("users routes", () => {
         // request oldest cached query again
         await app.request(`/api/users/search?q=limit0`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
 
-        expect(mockDb.select.mock.calls.length).toBeGreaterThan(callCountAfterFill + 1);
+        expect(mockDb.select.mock.calls.length).toBe(callCountAfterFill + 2);
     });
 
     it("GET /api/users/:id returns 404 for missing user profile fetch", async () => {
