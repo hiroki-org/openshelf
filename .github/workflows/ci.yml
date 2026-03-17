@@ -128,30 +128,30 @@ jobs:
         with:
           name: coverage-web
           path: ./coverage-artifacts/web
+      - name: Fix coverage paths for monorepo
+        run: |
+          sed -i 's|SF:src/|SF:apps/api/src/|g' ./coverage-artifacts/api/lcov.info
+          sed -i 's|SF:src/|SF:apps/web/src/|g' ./coverage-artifacts/web/lcov.info
       - name: Upload API coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          disable_search: true
           flags: api
           files: ./coverage-artifacts/api/lcov.info
           fail_ci_if_error: false
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
           override_pr: ${{ env.CODECOV_PR }}
-          root_dir: apps/api
       - name: Upload Web coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          disable_search: true
           flags: web
           files: ./coverage-artifacts/web/lcov.info
           fail_ci_if_error: false
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
           override_pr: ${{ env.CODECOV_PR }}
-          root_dir: apps/web
 
   build-web-check:
     name: Build Web (Preview Check)
