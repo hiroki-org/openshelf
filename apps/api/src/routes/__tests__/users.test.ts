@@ -267,6 +267,72 @@ describe("users routes", () => {
         }
     });
 
+    it("GET /api/users/search LRU: accessing a cached entry moves it to end and protects it from eviction", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "User1" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Result" }] }));
+
+        const smallEnv = { ...env, MAX_CACHE_SIZE: 3 } as any;
+
+        // Fill cache to capacity with 3 distinct queries (limit0, limit1, limit2)
+        for (let i = 0; i < 3; i++) {
+            await app.request(`/api/users/search?q=lru${i}`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
+        }
+        const selectCallsAfterFill = mockDb.select.mock.calls.length;
+
+        // Access lru0 again — this should move it to end (LRU touch), making lru1 the oldest
+        await app.request(`/api/users/search?q=lru0`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
+        // lru0 was cached so no new DB call
+        expect(mockDb.select.mock.calls.length).toBe(selectCallsAfterFill);
+
+        // Add a new entry — this should evict lru1 (the new oldest), not lru0
+        await app.request(`/api/users/search?q=lrunew`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
+
+        // lru0 should still be cached (no new DB call)
+        await app.request(`/api/users/search?q=lru0`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
+        expect(mockDb.select.mock.calls.length).toBe(selectCallsAfterFill + 1); // only lrunew caused a DB call
+
+        // lru1 should have been evicted (causes a new DB call)
+        const selectBeforeLru1 = mockDb.select.mock.calls.length;
+        await app.request(`/api/users/search?q=lru1`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
+        expect(mockDb.select.mock.calls.length).toBe(selectBeforeLru1 + 1);
+    });
+
+    it("GET /api/users/search setCachedResults does not evict another entry when updating an existing key", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "User1" });
+        const app = await createTestApp();
+
+        mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Result" }] }));
+
+        // Use MAX_CACHE_SIZE=2 so we can easily check eviction
+        const smallEnv = createTestEnv();
+        const tinyEnv = { ...smallEnv, MAX_CACHE_SIZE: 2 } as any;
+
+        // Fill cache: key "aa" and "bb"
+        await app.request(`/api/users/search?q=aa`, { headers: { Authorization: `Bearer ${token}` } }, tinyEnv);
+        await app.request(`/api/users/search?q=bb`, { headers: { Authorization: `Bearer ${token}` } }, tinyEnv);
+        const callsAfterFill = mockDb.select.mock.calls.length; // 2
+
+        // Re-query "aa" — triggers getCachedResults (cache hit, LRU touch), no DB call
+        await app.request(`/api/users/search?q=aa`, { headers: { Authorization: `Bearer ${token}` } }, tinyEnv);
+        expect(mockDb.select.mock.calls.length).toBe(callsAfterFill);
+
+        // Expire "aa" so the next request re-fetches and calls setCachedResults with existing key
+        vi.useFakeTimers();
+        vi.setSystemTime(Date.now() + 61 * 1000);
+        await app.request(`/api/users/search?q=aa`, { headers: { Authorization: `Bearer ${token}` } }, tinyEnv);
+        vi.useRealTimers();
+
+        // One new DB call for the expired re-fetch of "aa"
+        expect(mockDb.select.mock.calls.length).toBe(callsAfterFill + 1);
+
+        // "bb" should still be in cache (no eviction occurred because "aa" was an update, not a new entry)
+        await app.request(`/api/users/search?q=bb`, { headers: { Authorization: `Bearer ${token}` } }, tinyEnv);
+        expect(mockDb.select.mock.calls.length).toBe(callsAfterFill + 1);
+    });
+
     it("GET /api/users/search handles MAX_CACHE_SIZE limit", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "User1" });
         const app = await createTestApp();
