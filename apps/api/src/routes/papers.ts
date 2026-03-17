@@ -478,7 +478,14 @@ papersRoute.post("/", authMiddleware, async (c) => {
                 }
             }
 
-            await db.delete(papers).where(eq(papers.id, paperId));
+            const paperDeleteResults = await Promise.allSettled([
+                db.delete(papers).where(eq(papers.id, paperId)),
+            ]);
+            for (const result of paperDeleteResults) {
+                if (result.status === "rejected") {
+                    cleanupFailures.push(result.reason);
+                }
+            }
         } catch (cleanupError) {
             cleanupFailures.push(cleanupError);
         }
