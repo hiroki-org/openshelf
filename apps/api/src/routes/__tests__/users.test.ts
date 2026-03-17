@@ -271,18 +271,24 @@ describe("users routes", () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "User1" });
         const app = await createTestApp();
         const env = createTestEnv();
+        const smallEnv = { ...env, MAX_CACHE_SIZE: "3" } as any;
 
         mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Result 1" }] }));
 
-        // We send 1002 requests with unique queries to hit the cache size limit and trigger eviction
-        const reqs = [];
-        for (let i = 0; i < 1002; i++) {
-            reqs.push(app.request(`/api/users/search?q=limit${i}`, { headers: { Authorization: `Bearer ${token}` } }, env as any));
+        // Use a small cache size to keep the eviction test fast and deterministic.
+        for (let i = 0; i < 3; i++) {
+            await app.request(`/api/users/search?q=limit${i}`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
         }
-        await Promise.all(reqs);
 
-        const finalReq = await app.request("/api/users/search?q=limittrigger", { headers: { Authorization: `Bearer ${token}` } }, env as any);
-        expect(finalReq.status).toBe(200);
+        const callCountAfterFill = mockDb.select.mock.calls.length;
+
+        // trigger eviction
+        await app.request("/api/users/search?q=limittrigger", { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
+
+        // request oldest cached query again
+        await app.request(`/api/users/search?q=limit0`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
+
+        expect(mockDb.select.mock.calls.length).toBeGreaterThan(callCountAfterFill + 1);
     });
 
     it("GET /api/users/:id returns 404 for missing user profile fetch", async () => {
