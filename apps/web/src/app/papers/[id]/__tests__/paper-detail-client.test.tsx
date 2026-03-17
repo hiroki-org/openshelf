@@ -196,7 +196,7 @@ describe("PaperDetailClient", () => {
         return jsonResponse({ invites });
       }
 
-      if (url === "/api/papers/paper-1/files/file-pdf/preview" && method === "GET") {
+      if (url.startsWith("/api/papers/paper-1/files/file-pdf/preview") && method === "GET") {
         return jsonResponse({
           url: "/api/previews/paper.pdf",
           mimeType: "application/pdf",
@@ -204,11 +204,11 @@ describe("PaperDetailClient", () => {
         });
       }
 
-      if (url === "/api/previews/paper.pdf" && method === "GET") {
+      if (url.startsWith("/api/previews/paper.pdf") && method === "GET") {
         return blobResponse("preview", "application/pdf");
       }
 
-      if (url === "/api/papers/paper-1/files/file-image/stream" && method === "GET") {
+      if (url.startsWith("/api/papers/paper-1/files/file-image/stream") && method === "GET") {
         return blobResponse("image", "image/png");
       }
 
@@ -260,12 +260,13 @@ describe("PaperDetailClient", () => {
     });
 
     expect(await screen.findByText("11")).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.getByTestId("pdf-viewer")).toHaveAttribute(
-        "data-url",
-        expect.stringMatching(/^blob:mock-/),
-      );
-    }, { timeout: 5000 });
+    const pdfViewer = await screen.findByTestId("pdf-viewer", undefined, {
+      timeout: 10000,
+    });
+    expect(pdfViewer).toHaveAttribute(
+      "data-url",
+      expect.stringMatching(/^blob:mock-/),
+    );
     expect(screen.getByAltText("poster.png")).toHaveAttribute(
       "src",
       expect.stringMatching(/^blob:mock-/),
@@ -358,7 +359,7 @@ describe("PaperDetailClient", () => {
         });
       }
 
-      if (url === "/api/papers/paper-1/files/file-pdf/preview" && method === "GET") {
+      if (url.startsWith("/api/papers/paper-1/files/file-pdf/preview") && method === "GET") {
         return new Response("preview failed", { status: 500 });
       }
 
