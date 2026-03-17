@@ -8,8 +8,8 @@ describe("validation utils", () => {
         });
 
         it("validates length", () => {
-            expect(validateSlug("ab")).toBe("slug must be 3-40 characters");
-            expect(validateSlug("a".repeat(41))).toBe("slug must be 3-40 characters");
+            expect(validateSlug("ab")).toBe("slug must be 3–40 characters");
+            expect(validateSlug("a".repeat(41))).toBe("slug must be 3–40 characters");
         });
 
         it("validates character set", () => {
@@ -19,6 +19,11 @@ describe("validation utils", () => {
 
         it("rejects consecutive hyphens", () => {
             expect(validateSlug("my--slug")).toBe("slug must not contain consecutive hyphens");
+        });
+
+        it("rejects leading/trailing hyphens", () => {
+            expect(validateSlug("-invalid")).toBe("slug must contain only lowercase letters, numbers, and hyphens");
+            expect(validateSlug("invalid-")).toBe("slug must contain only lowercase letters, numbers, and hyphens");
         });
 
         it("accepts valid slugs", () => {
