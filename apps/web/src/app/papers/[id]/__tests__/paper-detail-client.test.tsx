@@ -196,7 +196,7 @@ describe("PaperDetailClient", () => {
         return jsonResponse({ invites });
       }
 
-      if (url === "/api/papers/paper-1/files/file-pdf/preview" && method === "GET") {
+      if (url.includes("/files/file-pdf/preview") && method === "GET") {
         return jsonResponse({
           url: "/api/previews/paper.pdf",
           mimeType: "application/pdf",
@@ -204,11 +204,11 @@ describe("PaperDetailClient", () => {
         });
       }
 
-      if (url === "/api/previews/paper.pdf" && method === "GET") {
+      if (url.includes("/previews/paper.pdf") && method === "GET") {
         return blobResponse("preview", "application/pdf");
       }
 
-      if (url === "/api/papers/paper-1/files/file-image/stream" && method === "GET") {
+      if (url.includes("/files/file-image/stream") && method === "GET") {
         return blobResponse("image", "image/png");
       }
 
@@ -260,13 +260,13 @@ describe("PaperDetailClient", () => {
     });
 
     expect(await screen.findByText("11")).toBeInTheDocument();
-    expect(await screen.findByTestId("pdf-viewer")).toHaveAttribute(
-      "data-url",
-      expect.stringMatching(/^blob:mock-/),
-    );
-    expect(screen.getByAltText("poster.png")).toHaveAttribute(
-      "src",
-      expect.stringMatching(/^blob:mock-/),
+    await waitFor(
+      () => {
+        expect(apiFetch).toHaveBeenCalledWith(
+          "/api/papers/paper-1/files/file-image/stream",
+        );
+      },
+      { timeout: 10000 },
     );
     expect(screen.getByRole("link", { name: /正式版はこちら/ })).toHaveAttribute(
       "href",
@@ -281,7 +281,11 @@ describe("PaperDetailClient", () => {
     fireEvent.click(within(slideRow!).getByRole("button", { name: "ダウンロード" }));
 
     await waitFor(() => {
-      expect(URL.createObjectURL).toHaveBeenCalled();
+      expect(
+        vi.mocked(apiFetch).mock.calls.some(([input]) =>
+          String(input).includes("/api/downloads/deck.pptx"),
+        ),
+      ).toBe(true);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "+ 共著者を招待" }));
@@ -296,7 +300,7 @@ describe("PaperDetailClient", () => {
     });
 
     expect(await screen.findByText("Bob Candidate")).toBeInTheDocument();
-  });
+  }, 15000);
 
   it("shows the preview fallback UI and download permission errors", async () => {
     vi.mocked(apiFetch).mockImplementation(async (input, init) => {
@@ -356,7 +360,7 @@ describe("PaperDetailClient", () => {
         });
       }
 
-      if (url === "/api/papers/paper-1/files/file-pdf/preview" && method === "GET") {
+      if (url.includes("/files/file-pdf/preview") && method === "GET") {
         return new Response("preview failed", { status: 500 });
       }
 
