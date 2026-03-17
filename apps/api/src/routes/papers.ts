@@ -432,31 +432,27 @@ papersRoute.post("/", authMiddleware, async (c) => {
             throw errors[0] ?? new Error("An unknown upload error occurred.");
         }
 
-        const insertOperations: any[] = [
-            db.insert(papers).values(paperValues),
-            db.insert(paperAuthors).values({ paperId, userId, role: "uploader" }),
-        ];
-
-        if (vis === "org_only" && orgId) {
-            insertOperations.push(db.insert(paperOrgs).values({ paperId, orgId }));
-        }
-
-        insertOperations.push(
-            db.insert(paperFiles).values(
-                uploads.map((entry) => ({
-                    id: crypto.randomUUID(),
-                    paperId,
-                    r2Key: entry.r2Key,
-                    fileType: entry.fileType,
-                    filename: entry.safeFilename,
-                    sizeBytes: entry.file.size,
-                    mimeType: entry.file.type || null,
-                    ...touchUpdatedAt(),
-                })),
-            ),
+        const insertPaper = db.insert(papers).values(paperValues);
+        const insertAuthor = db.insert(paperAuthors).values({ paperId, userId, role: "uploader" });
+        const insertFiles = db.insert(paperFiles).values(
+            uploads.map((entry) => ({
+                id: crypto.randomUUID(),
+                paperId,
+                r2Key: entry.r2Key,
+                fileType: entry.fileType,
+                filename: entry.safeFilename,
+                sizeBytes: entry.file.size,
+                mimeType: entry.file.type || null,
+                ...touchUpdatedAt(),
+            })),
         );
 
-        await db.batch(insertOperations as [typeof insertOperations[0], ...typeof insertOperations]);
+        if (vis === "org_only" && orgId) {
+            const insertOrg = db.insert(paperOrgs).values({ paperId, orgId });
+            await db.batch([insertPaper, insertAuthor, insertOrg, insertFiles]);
+        } else {
+            await db.batch([insertPaper, insertAuthor, insertFiles]);
+        }
     } catch (error) {
         await Promise.all(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
         await db.delete(papers).where(eq(papers.id, paperId));
