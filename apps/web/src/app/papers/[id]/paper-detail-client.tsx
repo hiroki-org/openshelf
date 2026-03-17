@@ -139,14 +139,27 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   const fetchStats = useCallback(async () => {
     if (!paperId || !isAuthor) return;
+
     try {
       const res = await apiFetch(`/api/papers/${safePath(paperId)}/stats`);
-      if (res.ok) {
-        const data = (await res.json()) as PaperStats;
-        setStats(data);
+      if (!res.ok) {
+        if (res.status === 401) {
+          setStatsError("統計情報を取得するにはログインが必要です");
+        } else if (res.status === 403) {
+          setStatsError("統計情報を閲覧する権限がありません");
+        } else if (res.status === 404) {
+          setStatsError("統計情報が見つかりません");
+        } else {
+          setStatsError("統計情報の取得に失敗しました");
+        }
+        return;
       }
+
+      const data = (await res.json()) as PaperStats;
+      setStats(data);
+      setStatsError("");
     } catch {
-      // Ignore
+      setStatsError("統計情報の取得に失敗しました");
     }
   }, [paperId, isAuthor]);
 
@@ -250,14 +263,16 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       return;
     }
 
+    let cancelled = false;
     setStatsLoading(true);
     setStatsError("");
 
-    fetchStats();
-    // Also set loading false in fetchStats normally, but here we use useEffect style
-    setStatsLoading(false); 
+    fetchStats().finally(() => {
+      if (!cancelled) setStatsLoading(false);
+    });
 
     return () => {
+      cancelled = true;
     };
   }, [paper?.id, isAuthor, fetchStats]);
 
