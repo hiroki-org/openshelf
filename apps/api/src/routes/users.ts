@@ -76,17 +76,28 @@ const MAX_CACHE_SIZE = 1000;
 
 function getCachedResults(key: string): any[] | null {
     const cached = searchCache.get(key);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-        return cached.data;
+    if (cached) {
+        if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
+            // Re-insert to move to the end (MRU)
+            searchCache.delete(key);
+            searchCache.set(key, cached);
+            return cached.data;
+        }
+
+        searchCache.delete(key);
     }
-    searchCache.delete(key);
     return null;
 }
 
-function setCachedResults(key: string, data: any[]) {
+function setCachedResults(key: string, data: any[], maxSize?: number) {
+    const effectiveMaxSize =
+        typeof maxSize === "number" && Number.isFinite(maxSize) && maxSize > 0
+            ? maxSize
+            : MAX_CACHE_SIZE;
+
     if (searchCache.has(key)) {
         searchCache.delete(key);
-    } else if (searchCache.size >= MAX_CACHE_SIZE) {
+    } else if (searchCache.size >= effectiveMaxSize) {
         const oldestKey = searchCache.keys().next().value;
         if (oldestKey !== undefined) {
             searchCache.delete(oldestKey);
@@ -131,7 +142,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
         .limit(10)
         .all();
 
-    setCachedResults(cacheKey, results);
+    setCachedResults(cacheKey, results, Number(c.env.MAX_CACHE_SIZE ?? MAX_CACHE_SIZE));
 
     return c.json({ users: results });
 });
