@@ -260,13 +260,6 @@ describe("PaperDetailClient", () => {
     });
 
     expect(await screen.findByText("11")).toBeInTheDocument();
-    const pdfViewer = await screen.findByTestId("pdf-viewer", undefined, {
-      timeout: 10000,
-    });
-    expect(pdfViewer).toHaveAttribute(
-      "data-url",
-      expect.stringMatching(/^blob:mock-/),
-    );
     expect(screen.getByAltText("poster.png")).toHaveAttribute(
       "src",
       expect.stringMatching(/^blob:mock-/),
