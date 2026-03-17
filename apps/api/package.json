@@ -19,11 +19,11 @@
   "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.12.21",
+    "@cloudflare/vitest-pool-workers": "^0.13.1",
     "@cloudflare/workers-types": "^4.20260218.0",
     "drizzle-kit": "^0.31.9",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4",
+    "vitest": "^4.1.0",
     "wrangler": "^4.70.0"
   },
   "dependencies": {
