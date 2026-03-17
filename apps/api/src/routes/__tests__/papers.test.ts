@@ -19,7 +19,7 @@ describe("papers routes", () => {
         mockDb = {
             run: vi.fn(async () => undefined),
             select: vi.fn(() => makeQuery()),
-            insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
+            insert: vi.fn((table) => ({ values: vi.fn((data) => ({ type: 'insert', table, data })) })),
             update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) })),
             delete: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
             batch: vi.fn(async (queries) => Promise.all(queries.map((q: any) => q.all ? q.all() : q)))
@@ -79,7 +79,11 @@ describe("papers routes", () => {
         );
 
         expect(res.status).toBe(201);
-        expect(mockDb.batch).toHaveBeenCalled();
+        expect(mockDb.batch).toHaveBeenCalledTimes(1);
+        const batchArgs = mockDb.batch.mock.calls[0][0];
+        expect(batchArgs.length).toBeGreaterThan(0);
+        const orgInsert = batchArgs.find((q: any) => q && q.type === 'insert' && q.data && q.data.orgId === "org-1");
+        expect(orgInsert).toBeDefined();
     });
 
     it("POST /api/papers rejects upload when content does not match declared MIME", async () => {
@@ -765,7 +769,7 @@ describe("papers routes", () => {
         expect(res1.status).toBe(200);
 
         // Array with empty string
-        await app.request(
+        const resX = await app.request(
             "http://localhost/api/papers/paper-1",
             {
                 method: "PATCH",
@@ -777,9 +781,7 @@ describe("papers routes", () => {
             },
             env as any
         );
-        // "  " is ignored, array becomes empty. No valid fields to update?
-        // Wait, if it becomes empty, updates.tags is not set, meaning no real updates?
-        // Let's use valid tag plus empty string.
+        expect(resX.status).toBe(200);
         const res3 = await app.request(
             "http://localhost/api/papers/paper-1",
             {

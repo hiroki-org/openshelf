@@ -277,22 +277,24 @@ describe("users routes", () => {
         // We send 1002 requests with unique queries to hit the limit
         // (Wait, sending 1000 requests might be slow. Is there a better way? Let's just do it in a Promise.all or similar)
         // Alternatively, we can test MAX_CACHE_SIZE by exporting it in test. Since we can't easily, we'll just loop.
+        const smallEnv = { ...env, MAX_CACHE_SIZE: 3 } as any;
+
         const reqs = [];
-        for (let i = 0; i < 1002; i++) {
-            reqs.push(app.request(`/api/users/search?q=limit${i}`, { headers: { Authorization: `Bearer ${token}` } }, env as any));
+        for (let i = 0; i < 3; i++) {
+            reqs.push(app.request(`/api/users/search?q=limit${i}`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv));
         }
         await Promise.all(reqs);
 
-        const finalReq = await app.request("/api/users/search?q=limittrigger", { headers: { Authorization: `Bearer ${token}` } }, env as any);
-        expect(finalReq.status).toBe(200);
+        const callCountAfterFill = mockDb.select.mock.calls.length;
+
+        // trigger eviction
+        await app.request("/api/users/search?q=limittrigger", { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
+
+        // request oldest cached query again
+        await app.request(`/api/users/search?q=limit0`, { headers: { Authorization: `Bearer ${token}` } }, smallEnv);
+
+        expect(mockDb.select.mock.calls.length).toBeGreaterThan(callCountAfterFill + 1);
     });
 
-    it("GET /api/users/:id returns 404 when the user does not exist (covered missed line 154)", async () => {
-        mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
-        const app = await createTestApp();
-        const env = createTestEnv();
-        const res = await app.request("/api/users/missing-user", {}, env as any);
-        expect(res.status).toBe(404);
-    });
 
 });

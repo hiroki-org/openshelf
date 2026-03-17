@@ -454,13 +454,17 @@ papersRoute.post("/", authMiddleware, async (c) => {
             await db.batch([insertPaper, insertAuthor, insertFiles]);
         }
     } catch (error) {
-        await Promise.allSettled(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
-        await Promise.allSettled([
+        const r2Results = await Promise.allSettled(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
+        const d1Results = await Promise.allSettled([
             db.delete(paperFiles).where(eq(paperFiles.paperId, paperId)),
             db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId)),
             db.delete(paperAuthors).where(eq(paperAuthors.paperId, paperId)),
             db.delete(papers).where(eq(papers.id, paperId)),
         ]);
+        const rejected = [...r2Results, ...d1Results].filter(r => r.status === "rejected");
+        if (rejected.length > 0) {
+            console.error("Cleanup failures for paperId:", paperId, rejected.map(r => (r as PromiseRejectedResult).reason));
+        }
         throw error;
     }
 
