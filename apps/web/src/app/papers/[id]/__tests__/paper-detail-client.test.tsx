@@ -196,7 +196,7 @@ describe("PaperDetailClient", () => {
         return jsonResponse({ invites });
       }
 
-      if (url.startsWith("/api/papers/paper-1/files/file-pdf/preview") && method === "GET") {
+      if (url.includes("/files/file-pdf/preview") && method === "GET") {
         return jsonResponse({
           url: "/api/previews/paper.pdf",
           mimeType: "application/pdf",
@@ -204,11 +204,11 @@ describe("PaperDetailClient", () => {
         });
       }
 
-      if (url.startsWith("/api/previews/paper.pdf") && method === "GET") {
+      if (url.includes("/previews/paper.pdf") && method === "GET") {
         return blobResponse("preview", "application/pdf");
       }
 
-      if (url.startsWith("/api/papers/paper-1/files/file-image/stream") && method === "GET") {
+      if (url.includes("/files/file-image/stream") && method === "GET") {
         return blobResponse("image", "image/png");
       }
 
@@ -352,7 +352,7 @@ describe("PaperDetailClient", () => {
         });
       }
 
-      if (url.startsWith("/api/papers/paper-1/files/file-pdf/preview") && method === "GET") {
+      if (url.includes("/files/file-pdf/preview") && method === "GET") {
         return new Response("preview failed", { status: 500 });
       }
 
