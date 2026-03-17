@@ -260,10 +260,12 @@ describe("PaperDetailClient", () => {
     });
 
     expect(await screen.findByText("11")).toBeInTheDocument();
-    expect(await screen.findByTestId("pdf-viewer")).toHaveAttribute(
-      "data-url",
-      expect.stringMatching(/^blob:mock-/),
-    );
+    await waitFor(() => {
+      expect(screen.getByTestId("pdf-viewer")).toHaveAttribute(
+        "data-url",
+        expect.stringMatching(/^blob:mock-/),
+      );
+    });
     expect(screen.getByAltText("poster.png")).toHaveAttribute(
       "src",
       expect.stringMatching(/^blob:mock-/),
