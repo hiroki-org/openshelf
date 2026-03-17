@@ -74,14 +74,6 @@ const searchCache = new Map<string, CachedSearchResult>();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
 const MAX_CACHE_SIZE = 1000;
 
-/**
- * キャッシュから指定したキーに対応する検索結果を取得する。
- *
- * ヒットしたエントリは有効期限内であれば返され、参照時にエントリの参照順が最新化される。
- *
- * @param key - キャッシュ検索に使用するキー
- * @returns キーに対応する結果の配列。エントリが存在しないか有効期限が切れている場合は `null`
- */
 function getCachedResults(key: string): any[] | null {
     const cached = searchCache.get(key);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
@@ -93,15 +85,6 @@ function getCachedResults(key: string): any[] | null {
     return null;
 }
 
-/**
- * 検索結果を指定したキーでキャッシュに保存し、容量が上限を超える場合は最も古いエントリを削除して収容する。
- *
- * キャッシュ内に既存のキーがある場合はそのエントリを最新扱いに更新して上書きし、保存時点のタイムスタンプを付与する。
- *
- * @param key - キャッシュ用の一意なキー
- * @param data - 保存する検索結果の配列
- * @param maxSize - キャッシュに保持する最大エントリ数。省略時は `1000`
- */
 function setCachedResults(key: string, data: any[], maxSize = 1000) {
     if (searchCache.has(key)) {
         searchCache.delete(key);
@@ -150,7 +133,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
         .limit(10)
         .all();
 
-    setCachedResults(cacheKey, results, c.env.MAX_CACHE_SIZE as any as number ?? 1000);
+    setCachedResults(cacheKey, results, (c.env as any).MAX_CACHE_SIZE as number ?? 1000);
 
     return c.json({ users: results });
 });
