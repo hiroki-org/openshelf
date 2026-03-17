@@ -86,6 +86,8 @@ type PaperStats = {
 
 const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url);
 
+const STATS_FETCH_ERROR_MESSAGE = "統計情報の取得に失敗しました";
+
 const isValidExternalUrl = (urlStr: string) => {
   try {
     const url = new URL(urlStr);
@@ -107,6 +109,7 @@ function formatStatsDateLabel(date: string) {
 export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const { user } = useAuth();
   const trackedViewPaperIdRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
 
   const [paper, setPaper] = useState<Paper | null>(null);
   const [files, setFiles] = useState<PaperFile[]>([]);
@@ -137,31 +140,53 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   const isAuthor = authors.some((a) => a.userId === user?.id);
 
-  const fetchStats = useCallback(async () => {
-    if (!paperId || !isAuthor) return;
+  const fetchStats = useCallback(
+    async (options?: { withLoading?: boolean; isCancelled?: () => boolean }) => {
+      if (!paperId || !isAuthor) return;
 
-    try {
-      const res = await apiFetch(`/api/papers/${safePath(paperId)}/stats`);
-      if (!res.ok) {
-        if (res.status === 401) {
-          setStatsError("統計情報を取得するにはログインが必要です");
-        } else if (res.status === 403) {
-          setStatsError("統計情報を閲覧する権限がありません");
-        } else if (res.status === 404) {
-          setStatsError("統計情報が見つかりません");
-        } else {
-          setStatsError("統計情報の取得に失敗しました");
-        }
-        return;
+      const canUpdateState =
+        typeof options?.isCancelled === "function"
+          ? () => mountedRef.current && !options.isCancelled?.()
+          : () => mountedRef.current;
+
+      if (options?.withLoading ?? true) {
+        if (canUpdateState()) setStatsLoading(true);
       }
+      if (canUpdateState()) setStatsError("");
 
-      const data = (await res.json()) as PaperStats;
-      setStats(data);
-      setStatsError("");
-    } catch {
-      setStatsError("統計情報の取得に失敗しました");
-    }
-  }, [paperId, isAuthor]);
+      try {
+        const res = await apiFetch(`/api/papers/${safePath(paperId)}/stats`);
+
+        if (!res.ok) {
+          if (!canUpdateState()) return;
+          setStats(null);
+          if (res.status === 401) {
+            setStatsError("統計情報を取得するにはログインが必要です");
+          } else if (res.status === 403) {
+            setStatsError("統計情報を閲覧する権限がありません");
+          } else if (res.status === 404) {
+            setStatsError("統計情報が見つかりません");
+          } else {
+            setStatsError(STATS_FETCH_ERROR_MESSAGE);
+          }
+          return;
+        }
+
+        const data = (await res.json()) as PaperStats;
+        if (!canUpdateState()) return;
+
+        setStats(data);
+        setStatsError("");
+      } catch {
+        if (!canUpdateState()) return;
+        setStats(null);
+        setStatsError(STATS_FETCH_ERROR_MESSAGE);
+      } finally {
+        if (canUpdateState()) setStatsLoading(false);
+      }
+    },
+    [paperId, isAuthor],
+  );
 
   const applyCountedView = useCallback(() => {
     setPaper((current) => {
@@ -173,7 +198,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     });
 
     // Refresh full stats after a recorded view to ensure consistency
-    void fetchStats();
+    void fetchStats({ withLoading: false });
   }, [fetchStats]);
 
   const fetchPaper = useCallback(async () => {
@@ -226,6 +251,12 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   }, [isUploader, fetchInvites]);
 
   useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!paper?.id || trackedViewPaperIdRef.current === paper.id) return;
 
     trackedViewPaperIdRef.current = paper.id;
@@ -264,12 +295,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     }
 
     let cancelled = false;
-    setStatsLoading(true);
-    setStatsError("");
-
-    fetchStats().finally(() => {
-      if (!cancelled) setStatsLoading(false);
-    });
+    void fetchStats({ isCancelled: () => cancelled });
 
     return () => {
       cancelled = true;
