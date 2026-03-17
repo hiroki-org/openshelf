@@ -4,6 +4,7 @@ export function validateSlug(slug: unknown): string | null {
     if (typeof slug !== "string") return "slug is required";
     const s = slug.trim().toLowerCase();
     if (s.length < 3 || s.length > 40) return "slug must be 3–40 characters";
+    if (s.startsWith("-") || s.endsWith("-")) return "slug must not start or end with a hyphen";
     if (!SLUG_RE.test(s)) return "slug must contain only lowercase letters, numbers, and hyphens";
     if (s.includes("--")) return "slug must not contain consecutive hyphens";
     return null;
