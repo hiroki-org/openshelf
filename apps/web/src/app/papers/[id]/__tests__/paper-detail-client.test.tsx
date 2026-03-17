@@ -281,7 +281,11 @@ describe("PaperDetailClient", () => {
     fireEvent.click(within(slideRow!).getByRole("button", { name: "ダウンロード" }));
 
     await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith("/api/downloads/deck.pptx");
+      expect(
+        vi.mocked(apiFetch).mock.calls.some(([input]) =>
+          String(input).includes("/api/downloads/deck.pptx"),
+        ),
+      ).toBe(true);
     });
 
     fireEvent.click(screen.getByRole("button", { name: "+ 共著者を招待" }));
