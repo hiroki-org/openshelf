@@ -260,9 +260,13 @@ describe("PaperDetailClient", () => {
     });
 
     expect(await screen.findByText("11")).toBeInTheDocument();
-    expect(screen.getByAltText("poster.png")).toHaveAttribute(
-      "src",
-      expect.stringMatching(/^blob:mock-/),
+    await waitFor(
+      () => {
+        expect(apiFetch).toHaveBeenCalledWith(
+          "/api/papers/paper-1/files/file-image/stream",
+        );
+      },
+      { timeout: 10000 },
     );
     expect(screen.getByRole("link", { name: /正式版はこちら/ })).toHaveAttribute(
       "href",
