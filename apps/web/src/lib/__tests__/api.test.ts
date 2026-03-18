@@ -17,6 +17,17 @@ describe("api helpers", () => {
         expect(authHeaders()).toEqual({});
     });
 
+    it("authHeaders returns empty object when window is undefined", () => {
+        const originalWindow = globalThis.window;
+        try {
+            // @ts-ignore
+            delete globalThis.window;
+            expect(authHeaders()).toEqual({});
+        } finally {
+            globalThis.window = originalWindow;
+        }
+    });
+
     it("apiFetch calls API_BASE + path with Authorization header", async () => {
         localStorage.setItem("auth_token", "token-x");
         const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 200 }));

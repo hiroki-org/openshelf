@@ -299,12 +299,33 @@ describe("users routes", () => {
         expect(mockDb.select.mock.calls.length).toBe(countBeforeLimit0);
     });
 
-    it("GET /api/users/:id returns 404 for missing user profile fetch", async () => {
-        mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+    it("PATCH /api/users/me returns 400 when no valid fields are provided", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
         const app = await createTestApp();
         const env = createTestEnv();
-        const res = await app.request("/api/users/missing-user", {}, env as any);
-        expect(res.status).toBe(404);
+
+        const res = await app.request(
+            "http://localhost/api/users/me",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ unknown: 1 })
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        expect(((await res.json()) as any).error).toBe("No valid fields to update");
     });
 
+    it("GET /api/users/:id returns user profile", async () => {
+        mockDb.select = vi.fn(() => makeQuery({ getResult: { id: "u1", name: "U" } }));
+        const app = await createTestApp();
+        const res = await app.request("http://localhost/api/users/u1", {}, createTestEnv() as any);
+        expect(res.status).toBe(200);
+        expect((await res.json() as any).user.id).toBe("u1");
+    });
 });

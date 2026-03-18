@@ -1,8 +1,9 @@
 import {
+  cleanup,
   render,
   screen,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OrgPageClient from "../org-page-client";
 import { apiFetch } from "@/lib/api";
 
@@ -32,6 +33,10 @@ describe("OrgPageClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authState = { user: { id: "user-1" } };
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("renders org details for admins", async () => {
@@ -129,5 +134,50 @@ describe("OrgPageClient", () => {
     render(<OrgPageClient slug="missing" />);
 
     expect(await screen.findByText("組織が見つかりません")).toBeInTheDocument();
+  });
+
+  it("handles generic fetch errors and network failures", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response("{}", { status: 500 }));
+    render(<OrgPageClient slug="fail" />);
+    expect(await screen.findByText("取得に失敗しました")).toBeInTheDocument();
+
+    cleanup();
+    vi.mocked(apiFetch).mockRejectedValue(new Error("Network Error"));
+    render(<OrgPageClient slug="netfail" />);
+    expect(await screen.findByText("取得に失敗しました")).toBeInTheDocument();
+  });
+
+  it("renders correctly for non-admin users and empty states", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/orgs/lab") {
+        return new Response(JSON.stringify({ org: { name: "L", slug: "lab", description: null }, memberCount: 1 }), { status: 200 });
+      }
+      if (url === "/api/orgs/lab/papers") return new Response(JSON.stringify({ papers: [] }), { status: 200 });
+      if (url === "/api/orgs/lab/members") return new Response(JSON.stringify({ members: [{ userId: "u2", role: "member", name: "B", displayName: null, avatarUrl: null }] }), { status: 200 });
+      if (url === "/api/orgs/lab/collections") return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      throw new Error("Unexpected");
+    });
+
+    render(<OrgPageClient slug="lab" />);
+
+    expect(await screen.findByText("L")).toBeInTheDocument();
+    expect(screen.queryByText("⚙ 設定")).not.toBeInTheDocument();
+    expect(screen.getByText("コレクションがありません")).toBeInTheDocument();
+    expect(screen.getByText("まだ論文がありません")).toBeInTheDocument();
+  });
+
+  it("handles sub-request partial failures", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/orgs/lab") {
+        return new Response(JSON.stringify({ org: { name: "L", slug: "lab", description: null }, memberCount: 1 }), { status: 200 });
+      }
+      return new Response(null, { status: 500 });
+    });
+
+    render(<OrgPageClient slug="lab" />);
+    expect(await screen.findByText("L")).toBeInTheDocument();
+    // collections and papers should stay empty and show empty state messages
+    expect(await screen.findByText("コレクションがありません")).toBeInTheDocument();
+    expect(await screen.findByText("まだ論文がありません")).toBeInTheDocument();
   });
 });
