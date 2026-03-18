@@ -19,12 +19,13 @@ describe("api helpers", () => {
 
     it("authHeaders returns empty object when window is undefined", () => {
         const originalWindow = globalThis.window;
-        // @ts-ignore
-        delete globalThis.window;
-        
-        expect(authHeaders()).toEqual({});
-        
-        globalThis.window = originalWindow;
+        try {
+            // @ts-ignore
+            delete globalThis.window;
+            expect(authHeaders()).toEqual({});
+        } finally {
+            globalThis.window = originalWindow;
+        }
     });
 
     it("apiFetch calls API_BASE + path with Authorization header", async () => {

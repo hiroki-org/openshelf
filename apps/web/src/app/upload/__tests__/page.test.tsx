@@ -210,6 +210,7 @@ describe("UploadPage", () => {
       expect(meta.title).toBe("Complex Paper");
       expect(meta.year).toBe(2026);
       expect(meta.tags).toEqual(["tag1", "tag2"]);
+      expect(push).toHaveBeenCalledWith("/papers/p2");
     });
   });
 });

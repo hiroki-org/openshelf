@@ -58,7 +58,9 @@ describe("OG route", () => {
     );
     expect(response.markup.props.children[0].props.children[1].props.children).toBe("Collection");
     // safeTitle truncation should happen
-    expect(response.markup.props.children[1].props.children[0].props.children.length).toBeLessThan(100);
+    const safeTitle = response.markup.props.children[1].props.children[0].props.children;
+    expect(safeTitle.length).toBe(83);
+    expect(safeTitle.endsWith("...")).toBe(true);
   });
 
   it("uses default values when search params are missing", async () => {

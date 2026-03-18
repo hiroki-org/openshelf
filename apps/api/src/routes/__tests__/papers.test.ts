@@ -784,6 +784,7 @@ describe("papers routes", () => {
             env as any
         );
         expect(res2.status).toBe(200); // "  " is ignored, normalized tags is [], which maps to null. Updates tags to null.
+
         const res3 = await app.request(
             "http://localhost/api/papers/paper-1",
             {
@@ -797,8 +798,14 @@ describe("papers routes", () => {
             env as any
         );
         expect(res3.status).toBe(200);
+    });
 
-        // Let's trigger category validations
+    it("PATCH /api/papers/:id validates category", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { id: "paper-1", visibility: "private", paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        const app = await createTestApp();
+        const env = createTestEnv();
+
         const res4 = await app.request(
             "http://localhost/api/papers/paper-1",
             {
@@ -840,8 +847,14 @@ describe("papers routes", () => {
             env as any
         );
         expect(res6.status).toBe(200);
+    });
 
-        // doi validation
+    it("PATCH /api/papers/:id validates DOI", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { id: "paper-1", visibility: "private", paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        const app = await createTestApp();
+        const env = createTestEnv();
+
         const res7 = await app.request(
             "http://localhost/api/papers/paper-1",
             {
@@ -869,8 +882,14 @@ describe("papers routes", () => {
             env as any
         );
         expect(res8.status).toBe(200);
+    });
 
-        // venue validation
+    it("PATCH /api/papers/:id validates venue and year", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { id: "paper-1", visibility: "private", paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        const app = await createTestApp();
+        const env = createTestEnv();
+
         const res9 = await app.request(
             "http://localhost/api/papers/paper-1",
             {
@@ -885,7 +904,6 @@ describe("papers routes", () => {
         );
         expect(res9.status).toBe(400);
 
-        // year validation
         const res10 = await app.request(
             "http://localhost/api/papers/paper-1",
             {
@@ -899,8 +917,14 @@ describe("papers routes", () => {
             env as any
         );
         expect(res10.status).toBe(400);
+    });
 
-        // venueType validation
+    it("PATCH /api/papers/:id validates venueType", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { id: "paper-1", visibility: "private", paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        const app = await createTestApp();
+        const env = createTestEnv();
+
         const res11 = await app.request(
             "http://localhost/api/papers/paper-1",
             {
@@ -915,7 +939,6 @@ describe("papers routes", () => {
         );
         expect(res11.status).toBe(400);
 
-        // More null tests
         const res12 = await app.request(
             "http://localhost/api/papers/paper-1",
             {
@@ -929,8 +952,14 @@ describe("papers routes", () => {
             env as any
         );
         expect(res12.status).toBe(200);
+    });
 
-        // No valid fields
+    it("PATCH /api/papers/:id rejects unknown fields", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { id: "paper-1", visibility: "private", paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        const app = await createTestApp();
+        const env = createTestEnv();
+
         const res13 = await app.request(
             "http://localhost/api/papers/paper-1",
             {
@@ -945,10 +974,9 @@ describe("papers routes", () => {
         );
         expect(res13.status).toBe(400);
         expect(await res13.json()).toEqual({ error: "No valid fields to update" });
-        });
+    });
 
-        it("POST /api/papers rejects invalid metadata", async () => {
-        const app = await createTestApp();
+    it("POST /api/papers rejects invalid metadata", async () => {        const app = await createTestApp();
         const token = await createTestJWT({ sub: "user-1" });
         const env = createTestEnv();
 
@@ -1103,7 +1131,7 @@ describe("papers routes", () => {
         expect(await res.json()).toEqual({ counted: false });
     });
 
-    it("POST /api/papers/:id/invites sends invite and GET /api/papers/:id/invites lists them", async () => {
+    it("GET /api/papers/:id/invites lists them", async () => {
         const app = await createTestApp();
         const token = await createTestJWT({ sub: "user-1" });
         const env = createTestEnv();

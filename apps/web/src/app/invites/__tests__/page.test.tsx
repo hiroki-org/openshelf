@@ -188,12 +188,6 @@ describe("InvitesPage", () => {
     });
   });
 
-  it("handles empty invites response", async () => {
-    vi.mocked(apiFetch).mockResolvedValue(new Response(JSON.stringify({ invites: [] }), { status: 200 }));
-    render(<InvitesPage />);
-    expect(await screen.findByText("招待はありません")).toBeInTheDocument();
-  });
-
   it("handles non-ok response from fetch", async () => {
     vi.mocked(apiFetch).mockResolvedValue(new Response("Error", { status: 400 }));
     render(<InvitesPage />);

@@ -456,12 +456,13 @@ describe("OrgSettingsPage", () => {
     });
   });
 
-  it("handles data fetching failure", async () => {
+  it("shows not found on 404", async () => {
     vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status: 404 }));
     render(<OrgSettingsPage />);
     expect(await screen.findByText("組織が見つかりません")).toBeInTheDocument();
+  });
 
-    cleanup();
+  it("shows error on network failure", async () => {
     vi.mocked(apiFetch).mockRejectedValue(new Error("Net Error"));
     render(<OrgSettingsPage />);
     expect(await screen.findByText("取得に失敗しました")).toBeInTheDocument();
