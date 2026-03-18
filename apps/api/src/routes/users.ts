@@ -37,6 +37,10 @@ const updateMeHandler = async (c: any) => {
         return c.json({ error: "displayName must be a string or null" }, 400);
     }
 
+    if (c.req.method === "PATCH" && !("displayName" in (body as object))) {
+        return c.json({ error: "No valid fields to update" }, 400);
+    }
+
     let trimmed = (rawDisplayName as string | null | undefined)?.trim() ?? null;
     if (trimmed !== null) {
         if (trimmed.length === 0) trimmed = null;

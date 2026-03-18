@@ -746,4 +746,55 @@ describe("orgs routes", () => {
             expect(body.error).toContain("last admin");
         });
     });
+
+    describe("Additional edge cases", () => {
+        it("POST /api/orgs/:slug/members returns 404 when user not found", async () => {
+            const token = await createTestJWT({ sub: "u1" });
+            queueSelectResponses([
+                { getResult: { id: "o1", slug: "l" } },
+                { getResult: { role: "admin" } },
+                { getResult: null } // User not found
+            ]);
+            const app = await createTestApp();
+            const res = await app.request("http://localhost/api/orgs/l/members", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Origin: "http://localhost:3000" },
+                body: JSON.stringify({ userId: "missing", role: "member" })
+            }, createTestEnv() as any);
+            expect(res.status).toBe(404);
+        });
+
+        it("PATCH /api/orgs/:slug/members/:userId returns 404 when target member not found", async () => {
+            const token = await createTestJWT({ sub: "u1" });
+            queueSelectResponses([
+                { getResult: { id: "o1", slug: "l" } },
+                { getResult: { role: "admin" } },
+                { getResult: null } // Target not found
+            ]);
+            const app = await createTestApp();
+            const res = await app.request("http://localhost/api/orgs/l/members/u2", {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Origin: "http://localhost:3000" },
+                body: JSON.stringify({ role: "admin" })
+            }, createTestEnv() as any);
+            expect(res.status).toBe(404);
+        });
+
+        it("DELETE /api/orgs/:slug/papers/:paperId deletes association", async () => {
+            const token = await createTestJWT({ sub: "u1" });
+            queueSelectResponses([
+                { getResult: { id: "o1", slug: "l" } },
+                { getResult: { role: "admin" } },
+                { getResult: null }, // not author
+                { getResult: { orgId: "o1", paperId: "p1" } } // association exists
+            ]);
+            mockDb.delete = vi.fn(() => ({ where: vi.fn(async () => ({ meta: { changes: 1 } })) }));
+            const app = await createTestApp();
+            const res = await app.request("http://localhost/api/orgs/l/papers/p1", {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
+            }, createTestEnv() as any);
+            expect(res.status).toBe(200);
+        });
+    });
 });

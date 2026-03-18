@@ -455,4 +455,144 @@ describe("OrgSettingsPage", () => {
       expect(push).toHaveBeenCalledWith("/orgs/demo-org");
     });
   });
+
+  it("handles data fetching failure", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response(null, { status: 404 }));
+    render(<OrgSettingsPage />);
+    expect(await screen.findByText("組織が見つかりません")).toBeInTheDocument();
+
+    cleanup();
+    vi.mocked(apiFetch).mockRejectedValue(new Error("Net Error"));
+    render(<OrgSettingsPage />);
+    expect(await screen.findByText("取得に失敗しました")).toBeInTheDocument();
+  });
+
+  it("handles save settings error", async () => {
+    const state: OrgState = {
+      org: { id: "o1", slug: "demo-org", name: "Org", description: null },
+      members: [{ userId: "owner-1", role: "owner", name: "o", displayName: "O", avatarUrl: null, githubId: "o" }],
+      papers: [],
+    };
+    
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (init?.method === "PATCH") return jsonResponse({ error: "Invalid slug" }, 400);
+      if (String(url).includes("/api/orgs/demo-org")) {
+          if (url === "/api/orgs/demo-org" && (!init || init.method === "GET")) return jsonResponse({ org: state.org });
+          if (String(url).endsWith("/members")) return jsonResponse({ members: state.members });
+          if (String(url).endsWith("/papers")) return jsonResponse({ papers: state.papers });
+      }
+      return jsonResponse({ error: "Unexpected" }, 500);
+    });
+
+    render(<OrgSettingsPage />);
+    await screen.findByRole("heading", { name: "Org — 設定" });
+
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    expect(await screen.findByText("Invalid slug")).toBeInTheDocument();
+
+    vi.mocked(apiFetch).mockImplementationOnce(async (url, init) => {
+        if (init?.method === "PATCH") throw new Error("Net");
+        return jsonResponse({});
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    expect(await screen.findByText("ネットワークエラー")).toBeInTheDocument();
+  });
+
+  it("handles member and paper operation errors", async () => {
+    const state: OrgState = {
+      org: { id: "o1", slug: "demo-org", name: "Org", description: null },
+      members: [
+        { userId: "owner-1", role: "owner", name: "o", displayName: "O", avatarUrl: null, githubId: "o" },
+        { userId: "member-2", role: "member", name: "b", displayName: "B", avatarUrl: null, githubId: "b" }
+      ],
+      papers: [{ id: "p1", title: "P1", visibility: "public", year: null, venue: null }],
+    };
+
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+        if (String(url).includes("/api/orgs/demo-org")) {
+            if (url === "/api/orgs/demo-org" && (!init || init.method === "GET")) return jsonResponse({ org: state.org });
+            if (String(url).includes("/members")) {
+                if (init?.method === "POST") return jsonResponse({ error: "User already member" }, 400);
+                if (init?.method === "PATCH") return jsonResponse({ error: "Forbidden" }, 403);
+                return jsonResponse({ members: state.members });
+            }
+            if (String(url).includes("/papers")) {
+                if (init?.method === "DELETE") return jsonResponse({ error: "Not found" }, 404);
+                return jsonResponse({ papers: state.papers });
+            }
+        }
+        if (String(url).includes("/api/users/search")) return jsonResponse({ users: [{ id: "u3", name: "a", displayName: "Alice Candidate", avatarUrl: null }] });
+        return jsonResponse({});
+    });
+
+    render(<OrgSettingsPage />);
+    await screen.findByRole("heading", { name: "Org — 設定" });
+
+    // Mock alert
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+
+    // Member add fail
+    fireEvent.click(screen.getByRole("button", { name: "メンバー" }));
+    fireEvent.change(screen.getByLabelText("メンバー検索"), { target: { value: "al" } });
+    const addBtn = await screen.findByRole("button", { name: "追加" });
+    fireEvent.click(addBtn);
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("User already member"));
+
+    // Role change fail
+    const roleSelect = await screen.findByDisplayValue("member");
+    fireEvent.change(roleSelect, { target: { value: "admin" } });
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Forbidden"));
+
+    // Paper remove fail
+    fireEvent.click(screen.getByRole("button", { name: "論文" }));
+    fireEvent.click(screen.getByRole("button", { name: "解除" }));
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Not found"));
+
+    alertSpy.mockRestore();
+  });
+
+  it("clears search results when query is too short", async () => {
+    setupOrgApiMock({
+      org: { id: "o1", slug: "demo-org", name: "Org", description: null },
+      members: [{ userId: "owner-1", role: "owner", name: "o", displayName: "O", avatarUrl: null, githubId: "o" }],
+      papers: [],
+    });
+    render(<OrgSettingsPage />);
+    await screen.findByRole("heading", { name: "Org — 設定" });
+
+    fireEvent.click(screen.getByRole("button", { name: "メンバー" }));
+    fireEvent.change(screen.getByLabelText("メンバー検索"), { target: { value: "al" } });
+    expect(await screen.findByText("Alice Candidate")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("メンバー検索"), { target: { value: "a" } });
+    expect(screen.queryByText("Alice Candidate")).not.toBeInTheDocument();
+  });
+
+  it("handles delete failure and cancellation", async () => {
+    setupOrgApiMock({
+      org: { id: "o1", slug: "demo-org", name: "Org", description: null },
+      members: [{ userId: "owner-1", role: "owner", name: "o", displayName: "O", avatarUrl: null, githubId: "o" }],
+      papers: [],
+    });
+    render(<OrgSettingsPage />);
+    await screen.findByRole("heading", { name: "Org — 設定" });
+
+    fireEvent.click(screen.getByRole("button", { name: "組織を削除" }));
+    
+    // Cancel
+    fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+    expect(screen.queryByLabelText("削除確認のためスラッグを入力")).not.toBeInTheDocument();
+
+    // Fail
+    fireEvent.click(screen.getByRole("button", { name: "組織を削除" }));
+    fireEvent.change(screen.getByLabelText("削除確認のためスラッグを入力"), { target: { value: "demo-org" } });
+    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+        if (init?.method === "DELETE") return jsonResponse({ error: "Protected" }, 400);
+        return jsonResponse({});
+    });
+    fireEvent.click(screen.getByRole("button", { name: "完全に削除する" }));
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Protected"));
+    alertSpy.mockRestore();
+  });
 });

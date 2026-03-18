@@ -84,4 +84,51 @@ describe("NewOrgPage", () => {
       expect(push).toHaveBeenCalledWith("/orgs/research-lab");
     });
   });
+
+  it("handles taken and invalid slugs", async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiFetch).mockResolvedValue(new Response("{}", { status: 200 })); // Status 200 means taken
+
+    render(<NewOrgPage />);
+
+    fireEvent.change(screen.getByLabelText(/スラッグ/i), {
+      target: { value: "taken-slug" },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("✗ 使用済み")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "作成" })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/スラッグ/i), {
+      target: { value: "ab" }, // Too short
+    });
+    expect(screen.getByText(/※ 3〜40文字/i)).toBeInTheDocument();
+  });
+
+  it("handles network error and api error during org creation", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/orgs/new-org") return new Response("{}", { status: 404 });
+      throw new Error("Network Error");
+    });
+
+    vi.useFakeTimers();
+    render(<NewOrgPage />);
+    fireEvent.change(screen.getByLabelText(/組織名/i), { target: { value: "New Org" } });
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+    vi.useRealTimers();
+
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+    expect(await screen.findByText("ネットワークエラーが発生しました")).toBeInTheDocument();
+
+    vi.mocked(apiFetch).mockResolvedValue(new Response(JSON.stringify({ error: "Conflict" }), { status: 409 }));
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+    expect(await screen.findByText("Conflict")).toBeInTheDocument();
+  });
 });
