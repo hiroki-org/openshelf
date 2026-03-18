@@ -15,8 +15,8 @@ jobs:
     name: Setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -28,8 +28,8 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -42,8 +42,8 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -56,8 +56,8 @@ jobs:
     needs: [lint, typecheck]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -74,7 +74,7 @@ jobs:
           flags: test-results
       - name: Upload Coverage
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-api
           path: apps/api/coverage/
@@ -84,8 +84,8 @@ jobs:
     needs: [lint, typecheck]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -102,7 +102,7 @@ jobs:
           flags: test-results
       - name: Upload Coverage
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-web
           path: apps/web/coverage/
@@ -117,49 +117,59 @@ jobs:
       CODECOV_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
       CODECOV_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - name: Download API coverage artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: coverage-api
           path: ./coverage-artifacts/api
       - name: Download Web coverage artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: coverage-web
           path: ./coverage-artifacts/web
+      - name: Fix coverage paths for monorepo
+        run: |
+          if [[ -f ./coverage-artifacts/api/lcov.info ]]; then
+            sed -i 's|SF:src/|SF:apps/api/src/|g' ./coverage-artifacts/api/lcov.info
+          else
+            echo "::warning::Missing ./coverage-artifacts/api/lcov.info"
+          fi
+          if [[ -f ./coverage-artifacts/web/lcov.info ]]; then
+            sed -i 's|SF:src/|SF:apps/web/src/|g' ./coverage-artifacts/web/lcov.info
+          else
+            echo "::warning::Missing ./coverage-artifacts/web/lcov.info"
+          fi
       - name: Upload API coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          disable_search: true
           flags: api
           files: ./coverage-artifacts/api/lcov.info
           fail_ci_if_error: false
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
           override_pr: ${{ env.CODECOV_PR }}
-          root_dir: apps/api
       - name: Upload Web coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          disable_search: true
           flags: web
           files: ./coverage-artifacts/web/lcov.info
           fail_ci_if_error: false
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
           override_pr: ${{ env.CODECOV_PR }}
-          root_dir: apps/web
 
   build-web-check:
     name: Build Web (Preview Check)
     needs: [test-api, test-web]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -173,8 +183,8 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
@@ -208,7 +218,7 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:8787
 
       - name: Upload Playwright Report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report

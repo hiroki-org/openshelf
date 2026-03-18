@@ -447,20 +447,57 @@ papersRoute.post("/", authMiddleware, async (c) => {
             })),
         );
 
+        type BatchItem = Parameters<typeof db.batch>[0][number];
+        const operations: BatchItem[] = [insertPaper, insertAuthor];
         if (vis === "org_only" && orgId) {
-            const insertOrg = db.insert(paperOrgs).values({ paperId, orgId });
-            await db.batch([insertPaper, insertAuthor, insertOrg, insertFiles]);
-        } else {
-            await db.batch([insertPaper, insertAuthor, insertFiles]);
+            operations.push(db.insert(paperOrgs).values({ paperId, orgId }));
         }
+        operations.push(insertFiles);
+
+        await db.batch(operations as [BatchItem, ...BatchItem[]]);
     } catch (error) {
-        await Promise.allSettled(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
-        await Promise.allSettled([
-            db.delete(paperFiles).where(eq(paperFiles.paperId, paperId)),
-            db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId)),
-            db.delete(paperAuthors).where(eq(paperAuthors.paperId, paperId)),
-            db.delete(papers).where(eq(papers.id, paperId)),
-        ]);
+        const cleanupFailures: unknown[] = [];
+        try {
+            const r2Results = await Promise.allSettled(
+                uploadedKeys.map((key) => c.env.BUCKET.delete(key)),
+            );
+            for (const result of r2Results) {
+                if (result.status === "rejected") {
+                    cleanupFailures.push(result.reason);
+                }
+            }
+        } catch (cleanupError) {
+            cleanupFailures.push(cleanupError);
+        }
+
+        try {
+            const d1Results = await Promise.allSettled([
+                db.delete(paperFiles).where(eq(paperFiles.paperId, paperId)),
+                db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId)),
+                db.delete(paperAuthors).where(eq(paperAuthors.paperId, paperId)),
+            ]);
+            for (const result of d1Results) {
+                if (result.status === "rejected") {
+                    cleanupFailures.push(result.reason);
+                }
+            }
+
+            const paperDeleteResults = await Promise.allSettled([
+                db.delete(papers).where(eq(papers.id, paperId)),
+            ]);
+            for (const result of paperDeleteResults) {
+                if (result.status === "rejected") {
+                    cleanupFailures.push(result.reason);
+                }
+            }
+        } catch (cleanupError) {
+            cleanupFailures.push(cleanupError);
+        }
+
+        if (cleanupFailures.length > 0) {
+            console.error("Cleanup failures for paperId:", paperId, cleanupFailures);
+        }
+
         throw error;
     }
 
