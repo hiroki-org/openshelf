@@ -491,9 +491,13 @@ describe("OrgSettingsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
     expect(await screen.findByText("Invalid slug")).toBeInTheDocument();
 
-    vi.mocked(apiFetch).mockImplementationOnce(async (url, init) => {
-        if (init?.method === "PATCH") throw new Error("Net");
-        return jsonResponse({});
+    const currentMock = vi.mocked(apiFetch).getMockImplementation();
+    if (!currentMock) {
+      throw new Error("Expected apiFetch mock implementation");
+    }
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (init?.method === "PATCH") throw new Error("Net");
+      return currentMock(url, init);
     });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
     expect(await screen.findByText("ネットワークエラー")).toBeInTheDocument();
@@ -529,8 +533,7 @@ describe("OrgSettingsPage", () => {
     render(<OrgSettingsPage />);
     await screen.findByRole("heading", { name: "Org — 設定" });
 
-    // Mock alert
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const alertSpy = vi.mocked(window.alert);
 
     // Member add fail
     fireEvent.click(screen.getByRole("button", { name: "メンバー" }));
@@ -549,7 +552,6 @@ describe("OrgSettingsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "解除" }));
     await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Not found"));
 
-    alertSpy.mockRestore();
   });
 
   it("clears search results when query is too short", async () => {
@@ -587,13 +589,16 @@ describe("OrgSettingsPage", () => {
     // Fail
     fireEvent.click(screen.getByRole("button", { name: "組織を削除" }));
     fireEvent.change(screen.getByLabelText("削除確認のためスラッグを入力"), { target: { value: "demo-org" } });
-    const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
+    const alertSpy = vi.mocked(window.alert);
+    const originalMock = vi.mocked(apiFetch).getMockImplementation();
+    if (!originalMock) {
+      throw new Error("Expected apiFetch mock implementation");
+    }
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-        if (init?.method === "DELETE") return jsonResponse({ error: "Protected" }, 400);
-        return jsonResponse({});
+      if (init?.method === "DELETE") return jsonResponse({ error: "Protected" }, 400);
+      return originalMock(url, init);
     });
     fireEvent.click(screen.getByRole("button", { name: "完全に削除する" }));
     await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Protected"));
-    alertSpy.mockRestore();
   });
 });

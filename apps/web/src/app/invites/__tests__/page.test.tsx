@@ -127,6 +127,12 @@ describe("InvitesPage", () => {
         );
       }
       if (url === "/api/invites/invite-2" && init?.method === "PATCH") {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        if (body.action !== "decline") {
+          return new Response(JSON.stringify({ error: "Invalid action" }), {
+            status: 400,
+          });
+        }
         return new Response("{}", { status: 200 });
       }
       throw new Error(`Unexpected request: ${String(url)}`);

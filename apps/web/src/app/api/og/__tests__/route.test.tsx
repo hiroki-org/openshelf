@@ -68,6 +68,9 @@ describe("OG route", () => {
     const response: any = await GET(new Request("http://localhost/api/og"));
     expect(response.markup.props.children[0].props.children[1].props.children).toBe("Paper");
     expect(response.markup.props.children[1].props.children[0].props.children).toBe("OpenShelf");
+    expect(response.markup.props.children[1].props.children[1].props.children).toBe(
+      "Research artifacts hosting and sharing",
+    );
   });
 
   it("handles font fetch failure", async () => {

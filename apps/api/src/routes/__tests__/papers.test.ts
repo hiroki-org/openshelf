@@ -976,7 +976,8 @@ describe("papers routes", () => {
         expect(await res13.json()).toEqual({ error: "No valid fields to update" });
     });
 
-    it("POST /api/papers rejects invalid metadata", async () => {        const app = await createTestApp();
+    it("POST /api/papers rejects invalid metadata", async () => {
+        const app = await createTestApp();
         const token = await createTestJWT({ sub: "user-1" });
         const env = createTestEnv();
 
@@ -1042,18 +1043,20 @@ describe("papers routes", () => {
         expect(await res6.json()).toEqual({ error: "At least one file is required" });
     });
 
-        it("authorizePaperAccess returns 401 for invalid token", async () => {
+    it("authorizePaperAccess returns 401 for invalid token", async () => {
         const app = await createTestApp();
         const env = createTestEnv();
-        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { id: "p1", visibility: "private" } }));
+        mockDb.select = vi
+            .fn()
+            .mockImplementation(() => makeQuery({ getResult: { id: "p1", visibility: "private" } }));
 
         const res = await app.request("http://localhost/api/papers/p1", {
             headers: { Authorization: "Bearer invalid-token" }
         }, env as any);
         expect(res.status).toBe(401);
-        });
+    });
 
-        it("POST /api/papers/:id/view handles missing paper", async () => {
+    it("POST /api/papers/:id/view handles missing paper", async () => {
         const app = await createTestApp();
         const env = createTestEnv();
         mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: null }));
@@ -1081,12 +1084,16 @@ describe("papers routes", () => {
         expect(res.status).toBe(403);
     });
 
-    it("POST /api/papers/:id/view records view and deduplicates", async () => {
+    it("POST /api/papers/:id/view returns 201 when recording a new view", async () => {
+        const values = vi.fn(async () => undefined);
         const app = await createTestApp();
         const env = createTestEnv();
 
-        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { id: "p1", visibility: "public" } }));
-        mockDb.run = vi.fn(async () => undefined);
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "p1", visibility: "public" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: null }));
+        mockDb.insert = vi.fn(() => ({ values }));
 
         const res = await app.request("http://localhost/api/papers/p1/view", {
             method: "POST",
@@ -1094,8 +1101,9 @@ describe("papers routes", () => {
                 Origin: "http://localhost:3000",
             }
         }, env as any);
-        expect(res.status).toBe(200);
-        expect(mockDb.run).toHaveBeenCalled();
+        expect(res.status).toBe(201);
+        expect(values).toHaveBeenCalledTimes(1);
+        expect(await res.json()).toEqual({ counted: true });
     });
 
     it("POST /api/papers/:id/view returns counted: false if view already exists", async () => {

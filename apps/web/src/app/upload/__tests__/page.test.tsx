@@ -189,6 +189,7 @@ describe("UploadPage", () => {
     fireEvent.change(screen.getByLabelText("発表年"), { target: { value: "2026" } });
     fireEvent.change(screen.getByLabelText("会場名"), { target: { value: "Conference" } });
     fireEvent.change(screen.getByLabelText("タグ（カンマ区切り）"), { target: { value: "tag1, tag2" } });
+    fireEvent.click(screen.getByRole("checkbox"));
 
     // Files
     const input = screen.getByLabelText("アップロードファイル");
@@ -208,8 +209,11 @@ describe("UploadPage", () => {
       const formData = (vi.mocked(apiFetch).mock.calls[0][1] as any).body as FormData;
       const meta = JSON.parse(formData.get("metadata") as string);
       expect(meta.title).toBe("Complex Paper");
+      expect(meta.abstract).toBe("Abstract text");
+      expect(meta.venue).toBe("Conference");
       expect(meta.year).toBe(2026);
       expect(meta.tags).toEqual(["tag1", "tag2"]);
+      expect(meta.showViewCount).toBe(true);
       expect(push).toHaveBeenCalledWith("/papers/p2");
     });
   });
