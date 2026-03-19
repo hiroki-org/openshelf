@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, like, or, and, ne } from "drizzle-orm";
-import { users, enableForeignKeys } from "../db/schema";
+import { users, orgMembers, orgs, enableForeignKeys } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 
@@ -68,8 +68,26 @@ const updateMeHandler = async (c: any) => {
 usersRoute.patch("/me", authMiddleware, updateMeHandler);
 usersRoute.put("/me", authMiddleware, updateMeHandler);
 
+// GET /api/users/me/orgs — get user's organizations
+usersRoute.get("/me/orgs", authMiddleware, async (c) => {
+    const db = drizzle(c.env.DB);
+    const userId = c.get("user").sub;
 
-// Simple in-memory cache for user search
+    const userOrgs = await db
+        .select({
+            id: orgs.id,
+            name: orgs.name,
+            slug: orgs.slug,
+            role: orgMembers.role,
+        })
+        .from(orgMembers)
+        .innerJoin(orgs, eq(orgMembers.orgId, orgs.id))
+        .where(eq(orgMembers.userId, userId))
+        .all();
+
+    return c.json({ organizations: userOrgs });
+});
+
 type CachedSearchResult = {
     data: any[];
     timestamp: number;
