@@ -115,10 +115,13 @@ test.describe('Org Management', () => {
         await page.getByRole('button', { name: '論文をアップロードする' }).click();
 
         // エラーメッセージが表示される
-        await expect(page.getByText('組織を選択してください', { exact: true })).toBeVisible();
+        const orgSelectionError = page.locator('div[class*="border-red-200"][class*="text-red-700"]', {
+            hasText: '組織を選択してください',
+        });
+        await expect(orgSelectionError).toBeVisible();
     });
 
-    test('org_onlyで論文をアップロードすると、フォームに組織IDが含まれる', async ({ page }) => {
+    test('org_onlyで論文をアップロードすると、作成した組織ページに表示される', async ({ page }) => {
         await loginAsTestUser(page);
 
         // Org作成
@@ -126,23 +129,17 @@ test.describe('Org Management', () => {
         const orgSlug = orgName.toLowerCase().replace(/_/g, '-');
         await createOrg(page, { name: orgName, slug: orgSlug });
 
-        // リクエストを監視して metadata に orgId が含まれることを検証
-        const uploadRequestPromise = page.waitForRequest(
-            (request) => request.url().includes('/api/papers') && request.method() === 'POST',
-        );
-
         // org_only論文をアップロード
         const orgOnlyTitle = generateTestPaperTitle();
         const paperId = await uploadOrgOnlyPaper(page, orgOnlyTitle);
-
-        const uploadRequest = await uploadRequestPromise;
-        const postData = uploadRequest.postData() ?? '';
-        expect(postData).toContain('name="metadata"');
-        expect(postData).toMatch(/"orgId":"[^"]+"/);
 
         // 論文が正常に作成されたことを確認
         await page.goto(`/papers/${paperId}`);
         await expect(page.getByRole('heading', { name: orgOnlyTitle })).toBeVisible();
         await expect(page.getByText('組織内')).toBeVisible();
+
+        // 作成した組織ページにも表示されることを確認（orgId紐づけの確認）
+        await page.goto(`/orgs/${orgSlug}`);
+        await expect(page.getByRole('link', { name: orgOnlyTitle })).toBeVisible();
     });
 });
