@@ -44,6 +44,23 @@ describe("UploadPage", () => {
     vi.clearAllMocks();
     push.mockReset();
     authState = { user: { id: "user-1" }, loading: false };
+    // Default mock for organization fetch
+    vi.mocked(apiFetch).mockImplementation((url) => {
+      if (url === "/api/users/me/orgs") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              organizations: [
+                { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
+                { id: "org-2", name: "Org 2", slug: "org-2", role: "admin" },
+              ],
+            }),
+            { status: 200 }
+          )
+        );
+      }
+      return Promise.resolve(new Response("{}"));
+    });
   });
 
   it("redirects guests to the home page", async () => {
@@ -82,9 +99,23 @@ describe("UploadPage", () => {
   });
 
   it("submits metadata and attached files", async () => {
-    vi.mocked(apiFetch).mockResolvedValue(
-      new Response(JSON.stringify({ paper: { id: "paper-1" } }), { status: 201 }),
-    );
+    vi.mocked(apiFetch).mockImplementation((url) => {
+      if (url === "/api/users/me/orgs") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              organizations: [
+                { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
+              ],
+            }),
+            { status: 200 }
+          )
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ paper: { id: "paper-1" } }), { status: 201 })
+      );
+    });
 
     render(<UploadPage />);
 
@@ -109,8 +140,9 @@ describe("UploadPage", () => {
       );
     });
 
-    const formData = (vi.mocked(apiFetch).mock.calls[0][1] as any)
-      .body as FormData;
+    const formData = (vi.mocked(apiFetch).mock.calls.find(
+      (call) => call[0] === "/api/papers"
+    )![1] as any).body as FormData;
     const meta = JSON.parse(formData.get("metadata") as string);
     expect(meta.title).toBe("My paper");
     expect(meta.visibility).toBe("private");
@@ -149,7 +181,21 @@ describe("UploadPage", () => {
   });
 
   it("handles network error during upload", async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new Error("Network Error"));
+    vi.mocked(apiFetch).mockImplementation((url) => {
+      if (url === "/api/users/me/orgs") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              organizations: [
+                { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
+              ],
+            }),
+            { status: 200 }
+          )
+        );
+      }
+      return Promise.reject(new Error("Network Error"));
+    });
 
     render(<UploadPage />);
     fireEvent.change(screen.getByLabelText(/タイトル/i), { target: { value: "T" } });
@@ -162,9 +208,23 @@ describe("UploadPage", () => {
   });
 
   it("handles api error response", async () => {
-    vi.mocked(apiFetch).mockResolvedValue(
-      new Response(JSON.stringify({ error: "Server Error" }), { status: 500 }),
-    );
+    vi.mocked(apiFetch).mockImplementation((url) => {
+      if (url === "/api/users/me/orgs") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              organizations: [
+                { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
+              ],
+            }),
+            { status: 200 }
+          )
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ error: "Server Error" }), { status: 500 })
+      );
+    });
 
     render(<UploadPage />);
     fireEvent.change(screen.getByLabelText(/タイトル/i), { target: { value: "T" } });
@@ -177,9 +237,23 @@ describe("UploadPage", () => {
   });
 
   it("handles complex metadata and redirects", async () => {
-    vi.mocked(apiFetch).mockResolvedValue(
-      new Response(JSON.stringify({ paper: { id: "p2" } }), { status: 201 }),
-    );
+    vi.mocked(apiFetch).mockImplementation((url) => {
+      if (url === "/api/users/me/orgs") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              organizations: [
+                { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
+              ],
+            }),
+            { status: 200 }
+          )
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ paper: { id: "p2" } }), { status: 201 })
+      );
+    });
 
     render(<UploadPage />);
 
@@ -206,7 +280,7 @@ describe("UploadPage", () => {
           method: "POST",
         }),
       );
-      const formData = (vi.mocked(apiFetch).mock.calls[0][1] as any).body as FormData;
+      const formData = (vi.mocked(apiFetch).mock.calls[vi.mocked(apiFetch).mock.calls.length - 1][1] as any).body as FormData;
       const meta = JSON.parse(formData.get("metadata") as string);
       expect(meta.title).toBe("Complex Paper");
       expect(meta.abstract).toBe("Abstract text");
@@ -215,6 +289,136 @@ describe("UploadPage", () => {
       expect(meta.tags).toEqual(["tag1", "tag2"]);
       expect(meta.showViewCount).toBe(true);
       expect(push).toHaveBeenCalledWith("/papers/p2");
+    });
+  });
+
+  it("shows organization dropdown when visibility is org_only", async () => {
+    render(<UploadPage />);
+
+    // Initially, org select should not be visible
+    expect(screen.queryByLabelText(/対象組織/i)).not.toBeInTheDocument();
+
+    // Change visibility to org_only
+    fireEvent.change(screen.getByLabelText("公開範囲"), {
+      target: { value: "org_only" },
+    });
+
+    // Now org select should be visible
+    const orgSelect = await screen.findByLabelText(/対象組織/i);
+    expect(orgSelect).toBeInTheDocument();
+
+    // Should contain the mocked organizations
+    await waitFor(() => {
+      expect(screen.getByText("Org 1")).toBeInTheDocument();
+      expect(screen.getByText("Org 2")).toBeInTheDocument();
+    });
+  });
+
+  it("hides organization dropdown when visibility is not org_only", async () => {
+    render(<UploadPage />);
+
+    // Change to org_only
+    fireEvent.change(screen.getByLabelText("公開範囲"), {
+      target: { value: "org_only" },
+    });
+    await screen.findByLabelText(/対象組織/i);
+
+    // Change back to private
+    fireEvent.change(screen.getByLabelText("公開範囲"), {
+      target: { value: "private" },
+    });
+
+    // Org select should disappear
+    expect(screen.queryByLabelText(/対象組織/i)).not.toBeInTheDocument();
+  });
+
+  it("validates that organization is required when visibility is org_only", async () => {
+    render(<UploadPage />);
+
+    // Fill title and add file
+    fireEvent.change(screen.getByLabelText(/タイトル/i), {
+      target: { value: "My paper" },
+    });
+    const input = screen.getByLabelText("アップロードファイル");
+    fireEvent.change(input, {
+      target: { files: [new File(["F"], "f.pdf", { type: "application/pdf" })] },
+    });
+
+    // Change visibility to org_only
+    fireEvent.change(screen.getByLabelText("公開範囲"), {
+      target: { value: "org_only" },
+    });
+
+    // Try to submit without selecting organization
+    const submitButton = screen.getByRole("button", { name: "論文をアップロードする" });
+    fireEvent.click(submitButton);
+
+    // Should show validation error
+    expect(
+      await screen.findByText(/組織を選択してください/i),
+    ).toBeInTheDocument();
+  });
+
+  it("includes orgId in metadata when org_only is selected with organization", async () => {
+    vi.mocked(apiFetch).mockImplementation((url) => {
+      if (url === "/api/users/me/orgs") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              organizations: [
+                { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
+              ],
+            }),
+            { status: 200 }
+          )
+        );
+      }
+      return Promise.resolve(
+        new Response(JSON.stringify({ paper: { id: "paper-1" } }), { status: 201 })
+      );
+    });
+
+    render(<UploadPage />);
+
+    // Fill required fields
+    fireEvent.change(screen.getByLabelText(/タイトル/i), {
+      target: { value: "Org Paper" },
+    });
+    const input = screen.getByLabelText("アップロードファイル");
+    fireEvent.change(input, {
+      target: { files: [new File(["F"], "f.pdf", { type: "application/pdf" })] },
+    });
+
+    // Change visibility to org_only
+    fireEvent.change(screen.getByLabelText("公開範囲"), {
+      target: { value: "org_only" },
+    });
+
+    // Select organization
+    const orgSelect = await screen.findByLabelText(/対象組織/i);
+    fireEvent.change(orgSelect, { target: { value: "org-1" } });
+
+    // Submit
+    fireEvent.click(screen.getByRole("button", { name: "論文をアップロードする" }));
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        "/api/papers",
+        expect.objectContaining({
+          method: "POST",
+        }),
+      );
+
+      // Find the /api/papers call (not the /api/users/me/orgs call)
+      const paperCall = vi.mocked(apiFetch).mock.calls.find(
+        (call) => call[0] === "/api/papers"
+      );
+      expect(paperCall).toBeDefined();
+
+      const formData = (paperCall![1] as any).body as FormData;
+      const meta = JSON.parse(formData.get("metadata") as string);
+      expect(meta.visibility).toBe("org_only");
+      expect(meta.orgId).toBe("org-1");
     });
   });
 });
