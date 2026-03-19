@@ -1,6 +1,6 @@
 import { Page } from "@playwright/test";
 
-export async function createOrg(page: Page, { name, slug, description }: { name: string; slug: string; description?: string }): Promise<string> {
+export async function createOrg(page: Page, { name, slug, description }: { name: string; slug: string; description?: string }): Promise<{ id: string; slug: string }> {
     await page.goto("/orgs/new");
     await page.locator('#org-name').fill(name);
     await page.locator('#org-slug').fill(slug);
@@ -19,5 +19,5 @@ export async function createOrg(page: Page, { name, slug, description }: { name:
     }
 
     const data: any = await response.json();
-    return data.org.slug;
+    return { id: data.org.id, slug: data.org.slug };
 }
