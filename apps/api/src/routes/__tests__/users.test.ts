@@ -328,4 +328,89 @@ describe("users routes", () => {
         expect(res.status).toBe(200);
         expect((await res.json() as any).user.id).toBe("u1");
     });
+
+    it("GET /api/users/me returns 404 when user is not found", async () => {
+        const token = await createTestJWT({ sub: "missing-user" });
+        mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/users/me",
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(404);
+        expect(((await res.json()) as any).error).toBe("User not found");
+    });
+
+    it("PATCH /api/users/me rejects non-object body", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/users/me",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: "123" // number as JSON is valid JSON but not an object
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        expect(((await res.json()) as any).error).toBe("Invalid request body");
+    });
+
+    it("PATCH /api/users/me rejects displayName longer than 50 chars", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/users/me",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ displayName: "a".repeat(51) })
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        expect(((await res.json()) as any).error).toBe("displayName must be 50 chars or less");
+    });
+
+    it("GET /api/users/search updates existing cache entry (MRU promotion)", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Alice" }] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        // 1. Initial request to cache
+        await app.request("http://localhost/api/users/search?q=alice", {
+            headers: { Authorization: `Bearer ${token}` }
+        }, env as any);
+
+        // 2. Second request should hit cache
+        await app.request("http://localhost/api/users/search?q=alice", {
+            headers: { Authorization: `Bearer ${token}` }
+        }, env as any);
+
+        expect(mockDb.select).toHaveBeenCalledTimes(1);
+    });
 });

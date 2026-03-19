@@ -211,4 +211,96 @@ describe("invites routes", () => {
 
         expect(res.status).toBe(400);
     });
+
+    it("PUT /api/invites/:id returns 400 for malformed JSON body", async () => {
+        const token = await createTestJWT({ sub: "user-2" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/invites/inv-1",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: "{"
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        expect((await res.json() as any).error).toBe("Invalid JSON body");
+    });
+
+    it("PUT /api/invites/:id validates action", async () => {
+        const token = await createTestJWT({ sub: "user-2" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/invites/inv-1",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ action: "invalid" })
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        expect((await res.json() as any).error).toBe("action must be accept or decline");
+    });
+
+    it("PUT /api/invites/:id returns 403 when responding to another user's invite", async () => {
+        const token = await createTestJWT({ sub: "user-other" });
+        mockDb.select = vi.fn(() => makeQuery({ getResult: { id: "inv-1", inviteeId: "user-2", status: "pending" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/invites/inv-1",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ action: "accept" })
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(403);
+        expect((await res.json() as any).error).toBe("Forbidden");
+    });
+
+    it("PUT /api/invites/:id returns 400 when invite is already responded", async () => {
+        const token = await createTestJWT({ sub: "user-2" });
+        mockDb.select = vi.fn(() => makeQuery({ getResult: { id: "inv-1", inviteeId: "user-2", status: "accepted" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/invites/inv-1",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ action: "decline" })
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        expect((await res.json() as any).error).toBe("Invite already responded");
+    });
 });
