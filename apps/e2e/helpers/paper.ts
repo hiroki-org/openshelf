@@ -33,6 +33,7 @@ async function uploadPaper(
     if (visibility === "org_only") {
         const orgSelect = page.getByLabel("対象組織");
         if (orgId) {
+            await orgSelect.waitFor({ state: "visible" });
             await orgSelect.selectOption(orgId);
         } else {
             // If no specific orgId provided, select the first available org

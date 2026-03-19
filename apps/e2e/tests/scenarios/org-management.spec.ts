@@ -115,10 +115,9 @@ test.describe('Org Management', () => {
         await page.getByRole('button', { name: '論文をアップロードする' }).click();
 
         // エラーメッセージが表示される
-        const orgSelectionError = page.locator('div[class*="border-red-200"][class*="text-red-700"]', {
-            hasText: '組織を選択してください',
-        });
+        const orgSelectionError = page.getByTestId('org-selection-error');
         await expect(orgSelectionError).toBeVisible();
+        await expect(orgSelectionError).toContainText('組織を選択してください');
     });
 
     test('org_onlyで論文をアップロードすると、作成した組織ページに表示される', async ({ page }) => {
