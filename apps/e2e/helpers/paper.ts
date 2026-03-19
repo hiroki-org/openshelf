@@ -15,10 +15,39 @@ export async function uploadPrivatePaper(page: Page, title: string): Promise<str
     return uploadPaper(page, title, "private");
 }
 
-async function uploadPaper(page: Page, title: string, visibility: "public" | "private"): Promise<string> {
+export async function uploadOrgOnlyPaper(page: Page, title: string, orgId?: string): Promise<string> {
+    return uploadPaper(page, title, "org_only", orgId);
+}
+
+async function uploadPaper(
+    page: Page,
+    title: string,
+    visibility: "public" | "private" | "org_only",
+    orgId?: string,
+): Promise<string> {
     await page.goto("/upload");
     await page.getByLabel(/タイトル/).fill(title);
     await page.getByLabel("公開範囲").selectOption(visibility);
+
+    // If org_only, select the organization
+    if (visibility === "org_only") {
+        if (orgId) {
+            await page.getByLabel("対象組織").selectOption(orgId);
+        } else {
+            // If no specific orgId provided, select the first available org
+            // Wait for the dropdown to appear
+            await page.getByLabel("対象組織").waitFor({ state: "visible" });
+            // Get the option value from the first available org (skip empty option)
+            const orgOption = page.locator("select[id='paper-organization'] option").nth(1);
+            const value = await orgOption.getAttribute("value");
+            if (value) {
+                await page.getByLabel("対象組織").selectOption(value);
+            } else {
+                throw new Error("No organizations available for org_only paper upload");
+            }
+        }
+    }
+
     await page.setInputFiles(
         'input[type="file"]',
         path.resolve(__dirname, "../fixtures/test-paper.pdf"),
