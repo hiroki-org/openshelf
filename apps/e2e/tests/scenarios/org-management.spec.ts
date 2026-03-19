@@ -40,8 +40,8 @@ test.describe('Org Management', () => {
         await expect(page.getByRole('link', { name: paperTitle })).toBeVisible();
     });
 
-    test('org_only公開範囲で論文をアップロードし、組織メンバーのみがアクセス可能', async ({ browser, page }) => {
-        const user1 = await loginAsTestUser(page);
+    test('org_only公開範囲で論文をアップロードし、組織メンバーのみがアクセス可能', async ({ page }) => {
+        await loginAsTestUser(page);
 
         // Org作成
         const orgName = generateTestOrgName();
@@ -58,15 +58,9 @@ test.describe('Org Management', () => {
         await expect(page.getByText('組織内')).toBeVisible();
 
         // 別ユーザー（非メンバー）がアクセスできないことを確認
-        const user2 = await loginAsTestUser(page, { name: 'Other User' });
+        await loginAsTestUser(page, { name: 'Other User' });
         await page.goto(`/papers/${orgOnlyPaperId}`);
-        await expect(
-            page
-                .locator('text=ログインが必要です')
-                .or(page.locator('text=この論文を閲覧する権限がありません'))
-                .or(page.locator('text=論文が見つかりません'))
-                .or(page.locator('text=論文の取得に失敗しました')),
-        ).toBeVisible();
+        await expect(page.getByText('この論文を閲覧する権限がありません')).toBeVisible();
     });
 
     test('アップロードページで公開範囲を変更すると、組織選択ドロップダウンが表示/非表示になる', async ({ page }) => {
@@ -120,13 +114,12 @@ test.describe('Org Management', () => {
         // 組織未選択のまま送信を試みる
         await page.getByRole('button', { name: '論文をアップロードする' }).click();
 
-        // エラーメッセージが表示される（div要素のみを対象）
-        const errorDiv = page.locator('div').filter({ hasText: /^組織を選択してください$/ });
-        await expect(errorDiv).toBeVisible();
+        // エラーメッセージが表示される
+        await expect(page.getByText('組織を選択してください', { exact: true })).toBeVisible();
     });
 
-    test('org_onlyで論文をアップロードすると、フォームに組織IDが含まれる', async ({ page }) => {
-        const user = await loginAsTestUser(page);
+    test('org_onlyで論文をアップロードすると、組織内として保存される', async ({ page }) => {
+        await loginAsTestUser(page);
 
         // Org作成
         const orgName = generateTestOrgName();
@@ -135,24 +128,9 @@ test.describe('Org Management', () => {
 
         // org_only論文をアップロード
         const orgOnlyTitle = generateTestPaperTitle();
-        const pageMock = page;
-        let capturedFormData: FormData | null = null;
-
-        // リクエストを監視して、送信されるFormDataを確認
-        pageMock.on('request', (request) => {
-            if (
-                request.url().includes('/api/papers') &&
-                request.method() === 'POST'
-            ) {
-                // FormDataの内容をログに出力
-                // (Playwrightでは直接FormDataにアクセスはできないため、
-                // レスポンスで確認するか、テスト結果の外部確認が必要)
-            }
-        });
-
         const paperId = await uploadOrgOnlyPaper(page, orgOnlyTitle);
 
-        // 論文が正常に作成されたことを確認（orgIdが送信されたことを示唆）
+        // 論文が正常に作成されたことを確認
         await page.goto(`/papers/${paperId}`);
         await expect(page.getByRole('heading', { name: orgOnlyTitle })).toBeVisible();
         await expect(page.getByText('組織内')).toBeVisible();

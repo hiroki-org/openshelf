@@ -31,17 +31,19 @@ async function uploadPaper(
 
     // If org_only, select the organization
     if (visibility === "org_only") {
+        const orgSelect = page.getByLabel("対象組織");
         if (orgId) {
-            await page.getByLabel("対象組織").selectOption(orgId);
+            await orgSelect.selectOption(orgId);
         } else {
             // If no specific orgId provided, select the first available org
             // Wait for the dropdown to appear
-            await page.getByLabel("対象組織").waitFor({ state: "visible" });
-            // Get the option value from the first available org (skip empty option)
-            const orgOption = page.locator("select[id='paper-organization'] option").nth(1);
+            await orgSelect.waitFor({ state: "visible" });
+            // Wait until at least one non-empty organization option is ready
+            const orgOption = orgSelect.locator('option[value]:not([value=""])').first();
+            await orgOption.waitFor({ state: "attached" });
             const value = await orgOption.getAttribute("value");
             if (value) {
-                await page.getByLabel("対象組織").selectOption(value);
+                await orgSelect.selectOption(value);
             } else {
                 throw new Error("No organizations available for org_only paper upload");
             }
