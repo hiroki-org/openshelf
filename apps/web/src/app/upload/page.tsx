@@ -122,9 +122,19 @@ export default function UploadPage() {
       setError("ファイルを1つ以上添付してください");
       return;
     }
-    if (visibility === "org_only" && !selectedOrgId) {
-      setError("組織を選択してください");
-      return;
+    if (visibility === "org_only") {
+      if (loadingOrgs) {
+        setError("組織を読込中です。しばらくお待ちください");
+        return;
+      }
+      if (organizations.length === 0) {
+        setError("組織がありません。別の公開範囲を選択してください");
+        return;
+      }
+      if (!selectedOrgId) {
+        setError("組織を選択してください");
+        return;
+      }
     }
 
     setUploading(true);

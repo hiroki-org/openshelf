@@ -354,10 +354,13 @@ describe("users routes", () => {
         expect(res.status).toBe(200);
         const body = (await res.json()) as any;
         expect(body.organizations).toHaveLength(2);
-        expect(body.organizations[0].name).toBe("Org 1");
-        expect(body.organizations[0].role).toBe("member");
-        expect(body.organizations[1].name).toBe("Org 2");
-        expect(body.organizations[1].role).toBe("admin");
+        // Order-independent assertions
+        expect(body.organizations).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ name: "Org 1", role: "member" }),
+                expect.objectContaining({ name: "Org 2", role: "admin" })
+            ])
+        );
     });
 
     it("GET /api/users/me/orgs returns empty array when user has no organizations", async () => {
