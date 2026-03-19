@@ -47,10 +47,10 @@ describe("UploadPage", () => {
       { id: "org-2", name: "Org 2", slug: "org-2", role: "admin" },
     ],
   }: {
-    paperResponse?: Promise<Response> | PromiseLike<Response>;
+    paperResponse?: Promise<Response>;
     orgs?: { id: string; name: string; slug: string; role: string }[];
-  } = {}) => {
-    vi.mocked(apiFetch).mockImplementation((url) => {
+  } = {}): void => {
+    vi.mocked(apiFetch).mockImplementation((url): Promise<Response> => {
       if (url === "/api/users/me/orgs") {
         return Promise.resolve(
           new Response(
