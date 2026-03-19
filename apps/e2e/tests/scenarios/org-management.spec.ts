@@ -104,6 +104,11 @@ test.describe('Org Management', () => {
         const paperTitle = generateTestPaperTitle();
         await page.getByLabel(/タイトル/).fill(paperTitle);
         await page.getByLabel('公開範囲').selectOption('org_only');
+        const orgSelect = page.getByLabel('対象組織');
+        await expect(orgSelect).toBeVisible();
+        await expect
+            .poll(async () => await orgSelect.locator('option[value]:not([value=""])').count())
+            .toBeGreaterThan(0);
 
         // ファイルを選択
         await page.setInputFiles(
