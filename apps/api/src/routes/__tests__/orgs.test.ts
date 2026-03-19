@@ -748,7 +748,7 @@ describe("orgs routes", () => {
     });
 
     describe("Additional edge cases", () => {
-        it("POST /api/orgs/:slug/members returns 404 when user not found", async () => {
+    it("POST /api/orgs/:slug/members returns 404 when user not found", async () => {
             const token = await createTestJWT({ sub: "u1" });
             queueSelectResponses([
                 { getResult: { id: "o1", slug: "l" } },
