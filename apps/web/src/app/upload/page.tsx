@@ -80,9 +80,11 @@ export default function UploadPage() {
           if (res.ok) {
             const data = await res.json();
             setOrganizations(data.organizations);
+          } else {
+            setError("組織情報の取得に失敗しました。ページを再読み込みしてください。");
           }
         } catch {
-          // Silently fail - orgs are optional for non-org uploads
+          setError("組織情報の取得に失敗しました。ページを再読み込みしてください。");
         } finally {
           setLoadingOrgs(false);
         }
@@ -143,7 +145,9 @@ export default function UploadPage() {
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean),
-          ...(visibility === "org_only" && selectedOrgId ? { orgId: selectedOrgId } : {}),
+          ...(visibility === "org_only" && selectedOrgId
+            ? { orgId: selectedOrgId }
+            : {}),
         }),
       );
 
