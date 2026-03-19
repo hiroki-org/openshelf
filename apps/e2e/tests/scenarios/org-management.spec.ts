@@ -46,11 +46,11 @@ test.describe('Org Management', () => {
         // Org作成
         const orgName = generateTestOrgName();
         const orgSlug = orgName.toLowerCase().replace(/_/g, '-');
-        await createOrg(page, { name: orgName, slug: orgSlug });
+        const { id: orgId } = await createOrg(page, { name: orgName, slug: orgSlug });
 
         // org_only論文をアップロード
         const orgOnlyTitle = generateTestPaperTitle();
-        const orgOnlyPaperId = await uploadOrgOnlyPaper(page, orgOnlyTitle);
+        const orgOnlyPaperId = await uploadOrgOnlyPaper(page, orgOnlyTitle, orgId);
 
         // 作成者が論文を見られることを確認
         await page.goto(`/papers/${orgOnlyPaperId}`);
