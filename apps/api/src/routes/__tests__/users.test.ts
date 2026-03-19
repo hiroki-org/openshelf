@@ -328,4 +328,58 @@ describe("users routes", () => {
         expect(res.status).toBe(200);
         expect((await res.json() as any).user.id).toBe("u1");
     });
+
+    it("GET /api/users/me/orgs returns user's organizations", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+        mockDb.select = vi.fn(() =>
+            makeQuery({
+                allResult: [
+                    { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
+                    { id: "org-2", name: "Org 2", slug: "org-2", role: "admin" }
+                ]
+            })
+        );
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/users/me/orgs",
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as any;
+        expect(body.organizations).toHaveLength(2);
+        // Order-independent assertions
+        expect(body.organizations).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ name: "Org 1", role: "member" }),
+                expect.objectContaining({ name: "Org 2", role: "admin" })
+            ])
+        );
+    });
+
+    it("GET /api/users/me/orgs returns empty array when user has no organizations", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+        mockDb.select = vi.fn(() => makeQuery({ allResult: [] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/users/me/orgs",
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as any;
+        expect(body.organizations).toEqual([]);
+    });
 });

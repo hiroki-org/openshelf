@@ -38,6 +38,13 @@ type FileEntry = {
   fileType: (typeof VALID_FILE_TYPES)[number];
 };
 
+type Organization = {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
+};
+
 export default function UploadPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -56,10 +63,35 @@ export default function UploadPage() {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState("");
+  const [loadingOrgs, setLoadingOrgs] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
   }, [loading, user, router]);
+
+  useEffect(() => {
+    if (!loading && user) {
+      const fetchOrganizations = async () => {
+        setLoadingOrgs(true);
+        try {
+          const res = await apiFetch("/api/users/me/orgs");
+          if (res.ok) {
+            const data = await res.json();
+            setOrganizations(data.organizations);
+          } else {
+            setError("組織情報の取得に失敗しました。ページを再読み込みしてください。");
+          }
+        } catch {
+          setError("組織情報の取得に失敗しました。ページを再読み込みしてください。");
+        } finally {
+          setLoadingOrgs(false);
+        }
+      };
+      fetchOrganizations();
+    }
+  }, [loading, user]);
 
   if (loading || !user) return null;
 
@@ -90,6 +122,20 @@ export default function UploadPage() {
       setError("ファイルを1つ以上添付してください");
       return;
     }
+    if (visibility === "org_only") {
+      if (loadingOrgs) {
+        setError("組織を読込中です。しばらくお待ちください");
+        return;
+      }
+      if (organizations.length === 0) {
+        setError("組織がありません。別の公開範囲を選択してください");
+        return;
+      }
+      if (!selectedOrgId) {
+        setError("組織を選択してください");
+        return;
+      }
+    }
 
     setUploading(true);
     try {
@@ -109,6 +155,9 @@ export default function UploadPage() {
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean),
+          ...(visibility === "org_only" && selectedOrgId
+            ? { orgId: selectedOrgId }
+            : {}),
         }),
       );
 
@@ -253,6 +302,37 @@ export default function UploadPage() {
             />
           </div>
         </div>
+
+        {visibility === "org_only" && (
+          <div>
+            <label
+              htmlFor="paper-organization"
+              className="block text-sm font-medium mb-1"
+            >
+              対象組織 <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="paper-organization"
+              value={selectedOrgId}
+              onChange={(e) => setSelectedOrgId(e.target.value)}
+              disabled={loadingOrgs || organizations.length === 0}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900 disabled:opacity-50"
+            >
+              <option value="">
+                {loadingOrgs
+                  ? "読込中..."
+                  : organizations.length === 0
+                    ? "組織がありません"
+                    : "組織を選択してください"}
+              </option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/40">
           <label

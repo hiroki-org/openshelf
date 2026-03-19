@@ -426,10 +426,153 @@ See `apps/web/README.md` and `apps/api/wrangler.toml` for environment variable r
 - For database changes, test locally with `db:migrate:local` before planning remote migrations.
 - Keep JWT secret and GitHub OAuth credentials secure; use environment variables.
 
+### Using Specialized Agents
+
+**When you encounter complex tasks, delegate to specialized agents:**
+
+#### Explore Agent - Understanding the Codebase
+Use `subagent_type: Explore` when you need to:
+- Find all implementations of a feature (e.g., "Find where org_only visibility is implemented")
+- Understand relationships between components (e.g., "How do papers and organizations relate?")
+- Map project structure for new features (e.g., "Where should dark mode state be managed?")
+
+Command pattern:
+```
+Agent with subagent_type: Explore - Understand organization selection implementation
+```
+
+#### Plan Agent - Designing Implementation
+Use `subagent_type: Plan` when you need to:
+- Design multi-file changes before writing code
+- Compare architectural approaches (e.g., state management patterns)
+- Plan database schema changes with migrations
+- Design new API endpoints and request/response shapes
+
+Command pattern:
+```
+EnterPlanMode -> Explore architecture -> AskUserQuestion for clarifications -> ExitPlanMode with approval
+```
+
+#### General Purpose Agent - Complex Workflows
+Use for workflows combining research, analysis, and decision-making:
+- Investigating test failures across multiple files
+- Analyzing error logs and proposing fixes
+- Coordinating changes to interdependent components
+
 ### PR Workflow Reminders
 
 - **New features:** Always create a feature branch and open a PR; never commit directly to `main`.
 - **PR reviews:** Reply to _each_ conversation thread on GitHub; unresolved threads block merging.
+  - Use the `pr-review-respond` skill or Agent to batch-process all open PRs
+  - Check CI status immediately: `gh pr checks <PR#>`
 - **CI failures:** Investigate immediately via `gh pr checks <PR#> --watch` and fix before re-requesting review.
+  - Type Check failures → use `typecheck-fix` skill or follow the Type Check troubleshooting guide below
+  - Test failures → run tests locally with `npm run test -- <affected-test>` to debug
+  - Lint failures → run `npm run lint` and auto-fix with `npm run lint -- --fix`
 - **Merge readiness checklist:** All conversations resolved + all CI passing + approval received = safe to merge.
 - **Use `sleep` + recheck pattern:** `sleep 300 && gh pr checks <PR#>` to let CI run before final checks.
+
+### Troubleshooting: Common CI Issues
+
+#### Type Check Failure
+```bash
+# 1. Identify specific errors
+npm run typecheck 2>&1 | grep -A 5 error
+
+# 2. Common fixes
+# - Promise return types: ensure functions returning promises declare `Promise<T>`
+# - Missing type annotations: add `as const` or explicit types to complex objects
+# - String/number mismatches: verify template literals and type assertions
+
+# 3. Test fix locally
+npm run typecheck
+
+# 4. Commit and push for CI
+git add . && git commit -m "fix(typecheck): Resolve TypeScript errors" && git push
+```
+
+#### Test Failure
+```bash
+# 1. Find failing test
+npm run test 2>&1 | grep -B 5 "FAIL"
+
+# 2. Run specific test in watch mode
+npm run test:watch -- src/path/to/test.test.ts
+
+# 3. Make fixes, re-run
+# (iterate until passing)
+
+# 4. Commit and push
+git add . && git commit -m "fix(test): Resolve failing test cases" && git push
+```
+
+#### Lint Failure
+```bash
+# 1. View lint errors
+npm run lint
+
+# 2. Auto-fix common issues
+npm run lint -- --fix
+
+# 3. Manual review for non-auto-fixable issues
+# (make changes as needed)
+
+# 4. Verify and commit
+npm run lint && git add . && git commit -m "fix(lint): Resolve linting violations" && git push
+```
+
+### Handling PR Reviews Using Agents
+
+**Scenario**: Multiple open PRs with code review comments
+
+**Approach**:
+1. Check all open PRs: `gh pr list --state open`
+2. For each PR with reviews, use the `pr-review-respond` skill:
+   ```
+   /pr-review-respond <PR#>
+   ```
+3. Agent will:
+   - Fetch all review threads
+   - Categorize comments (actionable, already fixed, out-of-scope)
+   - Implement fixes or reply with justification
+   - Verify CI passes
+   - Report resolved status
+
+Example workflow:
+```bash
+# Check all open PRs
+gh pr list --state open
+
+# Address PR #157 reviews (org selection feature)
+# → Agent fetches reviews, implements fixes, commits changes
+
+# Address PR #156 reviews (test coverage)
+# → Agent addresses CodeRabbit suggestions, marks threads resolved
+
+# Monitor CI
+sleep 300 && gh pr checks 157 && gh pr checks 156
+```
+
+### Key Patterns for Efficient Work
+
+**Pattern 1: Check-Fix-Verify Loop**
+```bash
+npm run typecheck    # Identify all issues
+# (fix issues)
+npm run typecheck    # Verify all fixed
+# (commit and push)
+```
+
+**Pattern 2: Batch PR Review**
+```bash
+gh pr list --state open --json number
+# (process each PR in sequence)
+gh pr checks <PR#> --watch  # Monitor CI after each fix
+```
+
+**Pattern 3: Test-Driven Fixes**
+```bash
+npm run test:watch -- <test-file>  # Run failing test in watch mode
+# (implement fixes)
+# (test auto-reruns on save)
+```
