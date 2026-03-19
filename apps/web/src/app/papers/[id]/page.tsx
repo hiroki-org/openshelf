@@ -65,9 +65,8 @@ export async function generateMetadata(props: {
   const { id } = await Promise.resolve(props.params);
 
   // Sanitization check
-  let sanitizedId = "";
   try {
-    sanitizedId = safePath(id);
+    safePath(id);
   } catch {
     return { title: "論文詳細 | OpenShelf" };
   }
