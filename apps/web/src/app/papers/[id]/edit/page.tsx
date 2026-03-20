@@ -46,6 +46,14 @@ type PaperEditResponse = {
     tags: string | null;
   };
   authors: Array<{ userId: string }>;
+  organizations: Array<{ id: string; name: string; slug: string }>;
+};
+
+type UserOrganization = {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
 };
 
 export default function PaperEditPage() {
@@ -62,7 +70,6 @@ export default function PaperEditPage() {
   const [title, setTitle] = useState("");
   const [abstract, setAbstract] = useState("");
   const [visibility, setVisibility] = useState<VisibilityValue>("private");
-  const [initialVisibility, setInitialVisibility] = useState<VisibilityValue | null>(null);
   const [showViewCount, setShowViewCount] = useState(false);
   const [language, setLanguage] = useState("");
   const [externalUrl, setExternalUrl] = useState("");
@@ -72,6 +79,9 @@ export default function PaperEditPage() {
   const [year, setYear] = useState("");
   const [category, setCategory] = useState("");
   const [tagsStr, setTagsStr] = useState("");
+  const [organizations, setOrganizations] = useState<UserOrganization[]>([]);
+  const [selectedOrgIds, setSelectedOrgIds] = useState<string[]>([]);
+  const [loadingOrgs, setLoadingOrgs] = useState(true);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -84,20 +94,35 @@ export default function PaperEditPage() {
 
     const fetchPaper = async () => {
       try {
-        const res = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}`);
-        if (!res.ok) {
-          if (res.status === 401 || res.status === 403) {
+        const [paperRes, orgsRes] = await Promise.all([
+          apiFetch(`/api/papers/${encodeURIComponent(paperId)}`),
+          apiFetch("/api/users/me/orgs"),
+        ]);
+
+        if (!paperRes.ok) {
+          if (paperRes.status === 401 || paperRes.status === 403) {
             router.replace("/");
             return;
           }
           throw new Error("論文の取得に失敗しました");
         }
 
-        const data = (await res.json()) as PaperEditResponse;
+        if (orgsRes.ok) {
+          const orgsData = (await orgsRes.json()) as {
+            organizations: UserOrganization[];
+          };
+          setOrganizations(orgsData.organizations ?? []);
+        } else {
+          setOrganizations([]);
+        }
+
+        const data = (await paperRes.json()) as PaperEditResponse;
         const paper = data.paper;
 
         // Ensure user is an author
-        const isAuthor = data.authors.some((author) => author.userId === user.id);
+        const isAuthor = data.authors.some(
+          (author) => author.userId === user.id,
+        );
         if (!isAuthor) {
           router.replace(`/papers/${paperId}`);
           return;
@@ -106,7 +131,6 @@ export default function PaperEditPage() {
         setTitle(paper.title || "");
         setAbstract(paper.abstract || "");
         setVisibility(paper.visibility);
-        setInitialVisibility(paper.visibility);
         setShowViewCount(paper.showViewCount);
         setLanguage(paper.language || "");
         setExternalUrl(paper.externalUrl || "");
@@ -115,22 +139,26 @@ export default function PaperEditPage() {
         setVenueType(paper.venueType || "");
         setYear(paper.year ? String(paper.year) : "");
         setCategory(paper.category || "");
+        setSelectedOrgIds(data.organizations.map((org) => org.id));
 
         let initialTags = "";
         if (paper.tags) {
-            try {
-                const parsed = JSON.parse(paper.tags);
-                if (Array.isArray(parsed)) {
-                    initialTags = parsed.join(", ");
-                }
-            } catch {
-                initialTags = String(paper.tags);
+          try {
+            const parsed = JSON.parse(paper.tags);
+            if (Array.isArray(parsed)) {
+              initialTags = parsed.join(", ");
             }
+          } catch {
+            initialTags = String(paper.tags);
+          }
         }
         setTagsStr(initialTags);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "予期せぬエラーが発生しました");
+        setError(
+          err instanceof Error ? err.message : "予期せぬエラーが発生しました",
+        );
       } finally {
+        setLoadingOrgs(false);
         setLoading(false);
       }
     };
@@ -145,6 +173,23 @@ export default function PaperEditPage() {
     if (!title.trim()) {
       setError("タイトルを入力してください。");
       return;
+    }
+
+    if (visibility === "org_only") {
+      if (loadingOrgs) {
+        setError("組織情報を読み込み中です。しばらくお待ちください。");
+        return;
+      }
+      if (organizations.length === 0) {
+        setError("所属組織がありません。公開範囲を変更してください。");
+        return;
+      }
+      if (selectedOrgIds.length === 0) {
+        setError(
+          "組織公開にする場合は少なくとも1つの対象組織を選択してください。",
+        );
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -164,6 +209,7 @@ export default function PaperEditPage() {
         title: title.trim(),
         abstract: abstract.trim() || null,
         visibility,
+        orgIds: visibility === "org_only" ? selectedOrgIds : undefined,
         showViewCount,
         language: language.trim() || null,
         externalUrl: externalUrl.trim() || null,
@@ -203,10 +249,13 @@ export default function PaperEditPage() {
     );
   }
 
-  const visibilityOptions =
-    initialVisibility === "org_only"
-      ? VISIBILITY_OPTIONS
-      : VISIBILITY_OPTIONS.filter((option) => option.value !== "org_only");
+  const toggleOrganization = (orgId: string) => {
+    setSelectedOrgIds((prev) =>
+      prev.includes(orgId)
+        ? prev.filter((id) => id !== orgId)
+        : [...prev, orgId],
+    );
+  };
 
   return (
     <div className="max-w-2xl mx-auto py-8">
@@ -245,7 +294,7 @@ export default function PaperEditPage() {
         <fieldset>
           <legend className="mb-1 block text-sm font-medium">公開範囲</legend>
           <div className="flex gap-4">
-            {visibilityOptions.map((opt) => (
+            {VISIBILITY_OPTIONS.map((opt) => (
               <div key={opt.value} className="flex items-center gap-2">
                 <input
                   id={`visibility-${opt.value}`}
@@ -263,28 +312,46 @@ export default function PaperEditPage() {
               </div>
             ))}
           </div>
-          {initialVisibility !== "org_only" && (
-            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-              組織公開への変更は対象組織を選べないため、この編集画面では未対応です。
-            </p>
-          )}
-          {initialVisibility === "org_only" && (
-            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-              現在の組織公開設定は維持できますが、公開先組織自体の編集は未対応です。
-            </p>
-          )}
           <p className="mt-1 text-xs text-gray-500">
             {visibility === "private" && "あなたと共著者のみが閲覧可能です。"}
-            {visibility === "org_only" && "所属組織のメンバーのみが閲覧可能です。"}
+            {visibility === "org_only" &&
+              "選択した対象組織のいずれかに所属するユーザーが閲覧可能です。"}
             {visibility === "public" && "誰でも閲覧可能です。"}
           </p>
         </fieldset>
 
+        {visibility === "org_only" && (
+          <fieldset className="rounded-md border border-gray-200 p-4 dark:border-gray-800">
+            <legend className="px-1 text-sm font-medium">対象組織</legend>
+            {loadingOrgs ? (
+              <p className="text-sm text-gray-500">組織情報を読み込み中...</p>
+            ) : organizations.length === 0 ? (
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                所属組織がないため、組織公開は設定できません。
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {organizations.map((org) => (
+                  <label
+                    key={org.id}
+                    className="flex items-center gap-2 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedOrgIds.includes(org.id)}
+                      onChange={() => toggleOrganization(org.id)}
+                    />
+                    <span>{org.name}</span>
+                    <span className="text-xs text-gray-500">({org.slug})</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </fieldset>
+        )}
+
         <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-          <label
-            htmlFor="show-view-count"
-            className="flex items-start gap-3"
-          >
+          <label htmlFor="show-view-count" className="flex items-start gap-3">
             <input
               id="show-view-count"
               type="checkbox"
@@ -304,7 +371,9 @@ export default function PaperEditPage() {
         </div>
 
         <div>
-          <label htmlFor="abstract" className="mb-1 block text-sm font-medium">概要</label>
+          <label htmlFor="abstract" className="mb-1 block text-sm font-medium">
+            概要
+          </label>
           <textarea
             id="abstract"
             value={abstract}
@@ -317,7 +386,12 @@ export default function PaperEditPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="category" className="mb-1 block text-sm font-medium">カテゴリ</label>
+            <label
+              htmlFor="category"
+              className="mb-1 block text-sm font-medium"
+            >
+              カテゴリ
+            </label>
             <select
               id="category"
               value={category}
@@ -333,7 +407,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label htmlFor="year" className="mb-1 block text-sm font-medium">発表年</label>
+            <label htmlFor="year" className="mb-1 block text-sm font-medium">
+              発表年
+            </label>
             <input
               id="year"
               type="number"
@@ -345,7 +421,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label htmlFor="venue" className="mb-1 block text-sm font-medium">発表場所（学会名など）</label>
+            <label htmlFor="venue" className="mb-1 block text-sm font-medium">
+              発表場所（学会名など）
+            </label>
             <input
               id="venue"
               type="text"
@@ -357,7 +435,12 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label htmlFor="venue-type" className="mb-1 block text-sm font-medium">発表種別</label>
+            <label
+              htmlFor="venue-type"
+              className="mb-1 block text-sm font-medium"
+            >
+              発表種別
+            </label>
             <select
               id="venue-type"
               value={venueType}
@@ -373,7 +456,12 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label htmlFor="language" className="mb-1 block text-sm font-medium">言語</label>
+            <label
+              htmlFor="language"
+              className="mb-1 block text-sm font-medium"
+            >
+              言語
+            </label>
             <input
               id="language"
               type="text"
@@ -385,7 +473,9 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label htmlFor="doi" className="mb-1 block text-sm font-medium">DOI</label>
+            <label htmlFor="doi" className="mb-1 block text-sm font-medium">
+              DOI
+            </label>
             <input
               id="doi"
               type="text"
@@ -398,7 +488,12 @@ export default function PaperEditPage() {
         </div>
 
         <div>
-          <label htmlFor="external-url" className="mb-1 block text-sm font-medium">外部リンク</label>
+          <label
+            htmlFor="external-url"
+            className="mb-1 block text-sm font-medium"
+          >
+            外部リンク
+          </label>
           <input
             id="external-url"
             type="url"
@@ -411,7 +506,10 @@ export default function PaperEditPage() {
 
         <div>
           <label htmlFor="tags" className="mb-1 block text-sm font-medium">
-            タグ <span className="text-gray-500 font-normal text-xs">（カンマ区切り）</span>
+            タグ{" "}
+            <span className="text-gray-500 font-normal text-xs">
+              （カンマ区切り）
+            </span>
           </label>
           <input
             id="tags"

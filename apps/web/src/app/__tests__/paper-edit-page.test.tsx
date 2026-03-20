@@ -1,9 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PaperEditPage from "../papers/[id]/edit/page";
 import { apiFetch } from "@/lib/api";
@@ -45,6 +40,17 @@ describe("PaperEditPage", () => {
 
   it("loads paper data and submits updates", async () => {
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/users/me/orgs") {
+        return new Response(
+          JSON.stringify({
+            organizations: [
+              { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
       if (url === "/api/papers/paper-1" && !init?.method) {
         return new Response(
           JSON.stringify({
@@ -63,6 +69,7 @@ describe("PaperEditPage", () => {
               tags: JSON.stringify(["AI"]),
             },
             authors: [{ userId: "user-1" }],
+            organizations: [],
           }),
           { status: 200 },
         );
@@ -89,7 +96,7 @@ describe("PaperEditPage", () => {
       target: { value: "AI, LLM" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "保存する" })[0]);
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
@@ -103,8 +110,14 @@ describe("PaperEditPage", () => {
   });
 
   it("redirects non-authors back to the paper page", async () => {
-    vi.mocked(apiFetch).mockResolvedValue(
-      new Response(
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/users/me/orgs") {
+        return new Response(JSON.stringify({ organizations: [] }), {
+          status: 200,
+        });
+      }
+
+      return new Response(
         JSON.stringify({
           paper: {
             title: "Original title",
@@ -121,15 +134,89 @@ describe("PaperEditPage", () => {
             tags: null,
           },
           authors: [{ userId: "user-2" }],
+          organizations: [],
         }),
         { status: 200 },
-      ),
-    );
+      );
+    });
 
     render(<PaperEditPage />);
 
     await waitFor(() => {
       expect(replace).toHaveBeenCalledWith("/papers/paper-1");
     });
+  });
+
+  it("submits selected orgIds when changing visibility to org_only", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/users/me/orgs") {
+        return new Response(
+          JSON.stringify({
+            organizations: [
+              { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
+              { id: "org-2", name: "Org 2", slug: "org-2", role: "admin" },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url === "/api/papers/paper-1" && !init?.method) {
+        return new Response(
+          JSON.stringify({
+            paper: {
+              title: "Original title",
+              abstract: null,
+              visibility: "private",
+              showViewCount: false,
+              language: null,
+              externalUrl: null,
+              doi: null,
+              venue: null,
+              venueType: null,
+              year: null,
+              category: null,
+              tags: null,
+            },
+            authors: [{ userId: "user-1" }],
+            organizations: [],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url === "/api/papers/paper-1" && init?.method === "PATCH") {
+        return new Response("{}", { status: 200 });
+      }
+
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<PaperEditPage />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Original title")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText("組織内"));
+    fireEvent.click(screen.getByLabelText(/Org 1/i));
+    fireEvent.click(screen.getAllByRole("button", { name: "保存する" })[0]);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        "/api/papers/paper-1",
+        expect.objectContaining({ method: "PATCH" }),
+      );
+    });
+
+    const patchCall = vi
+      .mocked(apiFetch)
+      .mock.calls.find(
+        (call) =>
+          call[0] === "/api/papers/paper-1" && call[1]?.method === "PATCH",
+      );
+    const payload = JSON.parse(String(patchCall?.[1]?.body));
+    expect(payload.visibility).toBe("org_only");
+    expect(payload.orgIds).toEqual(["org-1"]);
   });
 });

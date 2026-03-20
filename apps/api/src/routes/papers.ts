@@ -7,6 +7,7 @@ import {
     paperAuthors,
     paperViews,
     users,
+    orgs,
     coauthorInvites,
     orgMembers,
     paperOrgs,
@@ -541,7 +542,7 @@ papersRoute.get("/:id", async (c) => {
         return c.json({ error: access.error }, access.status as any);
     }
 
-    const [rawFiles, authors] = (await db.batch([
+    const [rawFiles, authors, organizations] = (await db.batch([
         db
             .select()
             .from(paperFiles)
@@ -557,9 +558,19 @@ papersRoute.get("/:id", async (c) => {
             .from(paperAuthors)
             .innerJoin(users, eq(paperAuthors.userId, users.id))
             .where(eq(paperAuthors.paperId, paperId)),
+        db
+            .select({
+                id: orgs.id,
+                name: orgs.name,
+                slug: orgs.slug,
+            })
+            .from(paperOrgs)
+            .innerJoin(orgs, eq(paperOrgs.orgId, orgs.id))
+            .where(eq(paperOrgs.paperId, paperId)),
     ])) as [
             (typeof paperFiles.$inferSelect)[],
-            { userId: string; role: string; name: string | null; displayName: string | null; avatarUrl: string | null }[]
+            { userId: string; role: string; name: string | null; displayName: string | null; avatarUrl: string | null }[],
+            { id: string; name: string; slug: string }[]
         ];
 
     const files = rawFiles.map((file) => ({
@@ -591,6 +602,7 @@ papersRoute.get("/:id", async (c) => {
         },
         files,
         authors,
+        organizations,
     });
 });
 
@@ -1091,6 +1103,9 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
 
     const updates: Record<string, any> = { ...touchUpdatedAt() };
     let hasRealUpdates = false;
+    let nextVisibility = paper.visibility;
+    let hasVisibilityInBody = false;
+    let orgIdsFromBody: string[] | undefined;
 
     if ("title" in body) {
         if (typeof body.title !== "string") {
@@ -1118,13 +1133,32 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         if (typeof body.visibility !== "string" || !VALID_VISIBILITY.includes(body.visibility)) {
             return c.json({ error: "Invalid visibility" }, 400);
         }
-        if (body.visibility === "org_only" && paper.visibility !== "org_only") {
-            return c.json(
-                { error: "Changing visibility to org_only is not supported in edit flow" },
-                400,
-            );
-        }
         updates.visibility = body.visibility;
+        nextVisibility = body.visibility;
+        hasVisibilityInBody = true;
+        hasRealUpdates = true;
+    }
+    if ("orgIds" in body) {
+        if (!Array.isArray(body.orgIds)) {
+            return c.json({ error: "orgIds must be an array" }, 400);
+        }
+
+        const normalizedOrgIds: string[] = [];
+        const seen = new Set<string>();
+        for (const orgId of body.orgIds) {
+            if (typeof orgId !== "string") {
+                return c.json({ error: "each orgId must be a string" }, 400);
+            }
+            const trimmed = orgId.trim();
+            if (!trimmed) {
+                return c.json({ error: "orgIds cannot contain empty values" }, 400);
+            }
+            if (seen.has(trimmed)) continue;
+            seen.add(trimmed);
+            normalizedOrgIds.push(trimmed);
+        }
+
+        orgIdsFromBody = normalizedOrgIds;
         hasRealUpdates = true;
     }
     if ("showViewCount" in body) {
@@ -1226,11 +1260,57 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         }
         hasRealUpdates = true;
     }
-    if (!hasRealUpdates) {
+
+    let shouldReplacePaperOrgs = false;
+    let finalOrgIds: string[] = [];
+
+    if (orgIdsFromBody && nextVisibility !== "org_only") {
+        return c.json({ error: "orgIds can only be specified when visibility is org_only" }, 400);
+    }
+
+    if (nextVisibility === "org_only") {
+        // Require explicit organization selection only when switching to org_only
+        // or when orgIds are explicitly edited.
+        if ((hasVisibilityInBody && paper.visibility !== "org_only") || orgIdsFromBody) {
+            finalOrgIds = orgIdsFromBody ?? [];
+            if (finalOrgIds.length === 0) {
+                return c.json({ error: "orgIds is required when visibility is org_only" }, 400);
+            }
+
+            const memberships = await db
+                .select({ orgId: orgMembers.orgId })
+                .from(orgMembers)
+                .where(
+                    and(
+                        eq(orgMembers.userId, userId),
+                        inArray(orgMembers.orgId, finalOrgIds),
+                    ),
+                )
+                .all();
+
+            if (memberships.length !== finalOrgIds.length) {
+                return c.json({ error: "Invalid orgIds or not a member" }, 403);
+            }
+
+            shouldReplacePaperOrgs = true;
+        }
+    }
+
+    if (!hasRealUpdates && !shouldReplacePaperOrgs) {
         return c.json({ error: "No valid fields to update" }, 400);
     }
 
     await db.update(papers).set(updates).where(eq(papers.id, paperId));
+
+    if (nextVisibility !== "org_only" && hasVisibilityInBody) {
+        await db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId));
+    } else if (shouldReplacePaperOrgs) {
+        await db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId));
+        await db.insert(paperOrgs).values(
+            finalOrgIds.map((orgId) => ({ paperId, orgId })),
+        );
+    }
+
     return c.json({ ok: true });
 });
 
