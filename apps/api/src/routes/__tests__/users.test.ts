@@ -382,4 +382,67 @@ describe("users routes", () => {
         const body = (await res.json()) as any;
         expect(body.organizations).toEqual([]);
     });
+
+    it("GET /api/users/me returns 404 when user is not found in database", async () => {
+        const token = await createTestJWT({ sub: "missing-user" });
+        mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/users/me",
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(404);
+        expect(((await res.json()) as any).error).toBe("User not found");
+    });
+
+    it("PATCH /api/users/me rejects non-object body", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/users/me",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: "123"
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        expect(((await res.json()) as any).error).toBe("Invalid request body");
+    });
+
+    it("PATCH /api/users/me rejects displayName longer than 50 chars", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/users/me",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ displayName: "a".repeat(51) })
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        expect(((await res.json()) as any).error).toBe("displayName must be 50 chars or less");
+    });
 });

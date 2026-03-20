@@ -21,9 +21,9 @@ const SITE_BASE =
   process.env.NEXT_PUBLIC_SITE_URL ??
   "http://localhost:3000";
 
-async function fetchOrgMetadata(slug: string): Promise<OrgResponse | null> {
+async function fetchOrgMetadata(safeSlug: string): Promise<OrgResponse | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/orgs/${safePath(slug)}`, {
+    const res = await fetch(`${API_BASE}/api/orgs/${safeSlug}`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -48,17 +48,15 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
   const { slug } = await Promise.resolve(props.params);
   // Ensure slug is sanitized before any further processing
-  let safeSlug = "";
+  let safeSlug: string;
   try {
     safeSlug = safePath(slug);
-    // safePath returns encoded, but for the rest we want normalized.
-    // Actually safePath(slug) is already safe to pass to fetchOrgMetadata.
   } catch {
     // Return early or generic if invalid slug
     return { title: "OpenShelf" };
   }
 
-  const data = await fetchOrgMetadata(slug);
+  const data = await fetchOrgMetadata(safeSlug);
 
   if (!data) {
     const title = "組織詳細 | OpenShelf";
@@ -67,7 +65,7 @@ export async function generateMetadata(props: {
       title,
       openGraph: {
         title,
-        url: `${SITE_BASE}/orgs/${slug}`,
+        url: `${SITE_BASE}/orgs/${safeSlug}`,
         images: [{ url: ogImage, width: 1200, height: 630 }],
       },
       twitter: {
@@ -92,7 +90,7 @@ export async function generateMetadata(props: {
       title,
       description,
       type: "website",
-      url: `${SITE_BASE}/orgs/${slug}`,
+      url: `${SITE_BASE}/orgs/${safeSlug}`,
       images: [{ url: ogImage, width: 1200, height: 630 }],
     },
     twitter: {
