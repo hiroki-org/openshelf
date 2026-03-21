@@ -19,7 +19,7 @@ describe("presentation badge helpers", () => {
       ["public", "公開", "success"],
       ["org_only", "組織内", "warning"],
       ["private", "非公開", "neutral"],
-      ["limited", "limited", "neutral"],
+      ["limited", "限定公開", "neutral"],
     ] as const)("returns correct badge for %s", (visibility, label, tone) => {
       expect(getVisibilityBadge(visibility)).toEqual({
         label,
@@ -34,15 +34,29 @@ describe("presentation badge helpers", () => {
       ["pending", "保留中", "warning"],
       ["accepted", "承認済み", "success"],
       ["declined", "拒否済み", "danger"],
-      ["expired", "expired", "neutral"],
-      ["PENDING", "PENDING", "neutral"],
-      ["", "", "neutral"],
     ] as const)("returns correct badge for %s", (status, label, tone) => {
       expect(getInviteStatusBadge(status)).toEqual({
         label,
         tone,
         className: toneClassNames[tone],
       });
+    });
+
+    describe("fallback / edge cases", () => {
+      it.each([
+        ["expired", "expired", "neutral"],
+        ["PENDING", "PENDING", "neutral"],
+        ["", "", "neutral"],
+      ] as const)(
+        "returns neutral fallback badge for %s status",
+        (status, label, tone) => {
+          expect(getInviteStatusBadge(status)).toEqual({
+            label,
+            tone,
+            className: toneClassNames[tone],
+          });
+        },
+      );
     });
   });
 
@@ -53,9 +67,6 @@ describe("presentation badge helpers", () => {
       ["member", "メンバー", "neutral"],
       ["uploader", "アップロード者", "info"],
       ["author", "著者", "success"],
-      ["reviewer", "reviewer", "neutral"],
-      ["unknown_role", "unknown_role", "neutral"],
-      ["", "", "neutral"],
     ] as const)("returns correct badge for %s", (role, label, tone) => {
       expect(getRoleBadge(role)).toEqual({
         label,
@@ -63,5 +74,20 @@ describe("presentation badge helpers", () => {
         className: toneClassNames[tone],
       });
     });
+
+    it.each([
+      ["reviewer", "reviewer", "neutral"],
+      ["unknown_role", "unknown_role", "neutral"],
+      ["", "", "neutral"],
+    ] as const)(
+      "falls back to the input label for %s when role is not recognized",
+      (role, label, tone) => {
+        expect(getRoleBadge(role)).toEqual({
+          label,
+          tone,
+          className: toneClassNames[tone],
+        });
+      },
+    );
   });
 });

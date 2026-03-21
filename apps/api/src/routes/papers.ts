@@ -196,7 +196,7 @@ async function authorizePaperAccess(
         if (!isMemberOfPaperOrg) {
             return { ok: false, status: 403, error: "Forbidden" };
         }
-    } else if (paper.visibility !== "public") {
+    } else {
         return { ok: false, status: 403, error: "Forbidden" };
     }
 
@@ -1185,22 +1185,35 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         if (!(typeof body.venueType === "string" || body.venueType === null)) {
             return c.json({ error: "venueType must be a string or null" }, 400);
         }
-        if (body.venueType && !(VALID_VENUE_TYPES as readonly string[]).includes(body.venueType)) return c.json({ error: "Invalid venueType" }, 400);
+        if (
+            body.venueType &&
+            !(VALID_VENUE_TYPES as readonly string[]).includes(body.venueType)
+        ) {
+            return c.json({ error: "Invalid venueType" }, 400);
+        }
         updates.venueType = body.venueType || null;
         hasRealUpdates = true;
     }
     if ("year" in body) {
-        if (!(typeof body.year === "number" || body.year === null) || Number.isNaN(body.year)) {
-            return c.json({ error: "year must be a number or null" }, 400);
+        const { year } = body;
+        if (year !== null) {
+            if (typeof year !== "number" || Number.isNaN(year)) {
+                return c.json({ error: "year must be a number or null" }, 400);
+            }
         }
-        updates.year = body.year;
+        updates.year = year;
         hasRealUpdates = true;
     }
     if ("category" in body) {
         if (!(typeof body.category === "string" || body.category === null)) {
             return c.json({ error: "category must be a string or null" }, 400);
         }
-        if (body.category && !(VALID_CATEGORIES as readonly string[]).includes(body.category)) return c.json({ error: "Invalid category" }, 400);
+        if (
+            body.category &&
+            !(VALID_CATEGORIES as readonly string[]).includes(body.category)
+        ) {
+            return c.json({ error: "Invalid category" }, 400);
+        }
         updates.category = body.category || null;
         hasRealUpdates = true;
     }

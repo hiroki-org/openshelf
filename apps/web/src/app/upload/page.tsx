@@ -81,10 +81,10 @@ export default function UploadPage() {
             const data = await res.json();
             setOrganizations(data.organizations);
           } else {
-            setError("組織情報の取得に失敗しました。ページを再読み込みしてください。");
+            setError("組織情報の取得中にサーバーエラーが発生しました。ページを再読み込みしてください。");
           }
         } catch {
-          setError("組織情報の取得に失敗しました。ページを再読み込みしてください。");
+          setError("組織情報の取得中にネットワークまたは予期しないエラーが発生しました。ページを再読み込みしてください。");
         } finally {
           setLoadingOrgs(false);
         }
@@ -124,7 +124,7 @@ export default function UploadPage() {
     }
     if (visibility === "org_only") {
       if (loadingOrgs) {
-        setError("組織を読込中です。しばらくお待ちください");
+        setError("組織を読み込み中です。しばらくお待ちください");
         return;
       }
       if (organizations.length === 0) {
@@ -320,7 +320,7 @@ export default function UploadPage() {
             >
               <option value="">
                 {loadingOrgs
-                  ? "読込中..."
+                  ? "読み込み中..."
                   : organizations.length === 0
                     ? "組織がありません"
                     : "組織を選択してください"}

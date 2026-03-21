@@ -138,13 +138,41 @@ describe("papers routes", () => {
 
     it("GET /api/papers/:id returns paper details", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+
+        const mockPaperDetails = {
+            id: "paper-1",
+            title: "P1",
+            visibility: "private",
+            showViewCount: true,
+            language: "ja",
+            doi: "10.1234/example"
+        };
+        const mockPaperRole = {
+            paperId: "paper-1",
+            userId: "user-1",
+            role: "uploader"
+        };
+        const mockPaperFiles = [
+            { id: "file-1", filename: "paper.pdf" }
+        ];
+        const mockPaperContributors = [
+            {
+                userId: "user-1",
+                role: "uploader",
+                name: "Uploader",
+                displayName: null,
+                avatarUrl: null
+            }
+        ];
+        const mockViewCountResult = { count: 4 };
+
         mockDb.select = vi
             .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "private", showViewCount: true, language: "ja", doi: "10.1234/example" } }))
-            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
-            .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "file-1", filename: "paper.pdf" }] }))
-            .mockImplementationOnce(() => makeQuery({ allResult: [{ userId: "user-1", role: "uploader", name: "Uploader", displayName: null, avatarUrl: null }] }))
-            .mockImplementationOnce(() => makeQuery({ getResult: { count: 4 } }));
+            .mockImplementationOnce(() => makeQuery({ getResult: mockPaperDetails }))
+            .mockImplementationOnce(() => makeQuery({ getResult: mockPaperRole }))
+            .mockImplementationOnce(() => makeQuery({ allResult: mockPaperFiles }))
+            .mockImplementationOnce(() => makeQuery({ allResult: mockPaperContributors }))
+            .mockImplementationOnce(() => makeQuery({ getResult: mockViewCountResult }));
 
         const app = await createTestApp();
         const env = createTestEnv();
@@ -749,7 +777,14 @@ describe("papers routes", () => {
 
     it("PATCH /api/papers/:id handles valid tags update including empty strings mapping to null", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
-        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { id: "paper-1", visibility: "private", paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
         mockDb.update = vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) }));
 
         const app = await createTestApp();
