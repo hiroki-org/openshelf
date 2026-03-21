@@ -58,7 +58,9 @@ export function getInviteStatusBadge(status: string): BadgePresentation {
 }
 
 export function getRoleBadge(role: string): BadgePresentation {
-  switch (role) {
+  const normalizedRole = typeof role === "string" ? role : "";
+
+  switch (normalizedRole) {
     case "owner":
       return createBadge("オーナー", "info");
     case "admin":
@@ -69,7 +71,9 @@ export function getRoleBadge(role: string): BadgePresentation {
       return createBadge("アップロード者", "info");
     case "author":
       return createBadge("著者", "success");
+    case "coauthor":
+      return createBadge("共著者", "neutral");
     default:
-      return createBadge(role, "neutral");
+      return createBadge(normalizedRole, "neutral");
   }
 }

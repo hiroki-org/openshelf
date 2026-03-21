@@ -53,8 +53,8 @@ describe("presentation badge helpers", () => {
       ["member", "メンバー", "neutral"],
       ["uploader", "アップロード者", "info"],
       ["author", "著者", "success"],
+      ["coauthor", "共著者", "neutral"],
       ["reviewer", "reviewer", "neutral"],
-      ["coauthor", "coauthor", "neutral"],
       ["unknown_role", "unknown_role", "neutral"],
       ["", "", "neutral"],
     ] as const)("returns correct badge for %s", (role, label, tone) => {
@@ -65,22 +65,19 @@ describe("presentation badge helpers", () => {
       });
     });
 
-    it("handles undefined gracefully and returns default neutral badge", () => {
-      // @ts-expect-error Testing undefined behavior at runtime
-      expect(getRoleBadge(undefined)).toEqual({
-        label: undefined,
-        tone: "neutral",
-        className: toneClassNames["neutral"],
-      });
-    });
-
-    it("handles null gracefully and returns default neutral badge", () => {
-      // @ts-expect-error Testing null behavior at runtime
-      expect(getRoleBadge(null)).toEqual({
-        label: null,
-        tone: "neutral",
-        className: toneClassNames["neutral"],
-      });
-    });
+    it.each([
+      [undefined, "undefined"],
+      [null, "null"],
+    ])(
+      "handles %s gracefully and returns default neutral badge",
+      (value) => {
+        // @ts-expect-error Testing runtime behavior with invalid types
+        expect(getRoleBadge(value)).toEqual({
+          label: "",
+          tone: "neutral",
+          className: toneClassNames["neutral"],
+        });
+      },
+    );
   });
 });
