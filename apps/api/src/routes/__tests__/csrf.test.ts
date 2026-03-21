@@ -78,4 +78,98 @@ describe("CSRF configuration", () => {
         );
         expect(res.status).toBe(403);
     });
+
+    it("allows CSRF if Origin matches FRONTEND_URL", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: "https://frontend.example.com"
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: {
+                    Origin: "https://frontend.example.com"
+                }
+            },
+            env as any
+        );
+        expect(res.status).toBe(200);
+    });
+
+    it("allows CSRF if Referer matches FRONTEND_URL", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: "https://frontend.example.com"
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: {
+                    Referer: "https://frontend.example.com/some-page"
+                }
+            },
+            env as any
+        );
+        expect(res.status).toBe(200);
+    });
+
+    it("allows CSRF if Origin is in ALLOWED_ORIGINS", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: "https://frontend.example.com",
+            ALLOWED_ORIGINS: "https://another.example.com"
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: {
+                    Origin: "https://another.example.com"
+                }
+            },
+            env as any
+        );
+        expect(res.status).toBe(200);
+    });
+
+    it("blocks CSRF if Origin and Referer are missing", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: "https://frontend.example.com"
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: {}
+            },
+            env as any
+        );
+        expect(res.status).toBe(403);
+    });
+
+    it("handles invalid Referer URL gracefully", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: "https://frontend.example.com"
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: {
+                    Referer: "not-a-url"
+                }
+            },
+            env as any
+        );
+        expect(res.status).toBe(403);
+    });
 });

@@ -64,7 +64,6 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
   const { id } = await Promise.resolve(props.params);
 
-  // Sanitization check
   let safeId: string;
   try {
     safeId = safePath(id);
