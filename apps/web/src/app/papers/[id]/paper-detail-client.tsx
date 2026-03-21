@@ -80,13 +80,11 @@ type PreviewResponse = {
 
 const PPT_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "application/vnd.ms-powerpoint",
 ] as const;
 
 const isPptMimeType = (
   mimeType: string | null,
-): mimeType is (typeof PPT_MIME_TYPES)[number] =>
-  mimeType === PPT_MIME_TYPES[0] || mimeType === PPT_MIME_TYPES[1];
+): mimeType is (typeof PPT_MIME_TYPES)[number] => mimeType === PPT_MIME_TYPES[0];
 
 type PaperStats = {
   totalViews: number;

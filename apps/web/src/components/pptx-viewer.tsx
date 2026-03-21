@@ -17,14 +17,26 @@ const LFH_SIGNATURE = 0x04034b50;
 const CEN_SIGNATURE = 0x02014b50;
 const EOCD_SIGNATURE = 0x06054b50;
 const SLIDE_PATH_PATTERN = /^ppt\/slides\/slide(\d+)\.xml$/;
+const STORE_METHOD = 0;
+const DEFLATE_METHOD = 8;
+const EOCD_MIN_SIZE = 22;
+const EOCD_MAX_COMMENT_LENGTH = 65535;
+const EOCD_TOTAL_ENTRIES_OFFSET = 10;
+const EOCD_CENTRAL_DIRECTORY_OFFSET = 16;
+const CEN_HEADER_SIZE = 46;
+const CEN_METHOD_OFFSET = 10;
+const CEN_COMPRESSED_SIZE_OFFSET = 20;
+const CEN_FILENAME_LENGTH_OFFSET = 28;
+const CEN_EXTRA_LENGTH_OFFSET = 30;
+const CEN_COMMENT_LENGTH_OFFSET = 32;
+const CEN_LOCAL_HEADER_OFFSET = 42;
+const LFH_HEADER_SIZE = 30;
+const LFH_FILENAME_LENGTH_OFFSET = 26;
+const LFH_EXTRA_LENGTH_OFFSET = 28;
 const utf8Decoder = new TextDecoder("utf-8");
 
 function decodeBytes(bytes: Uint8Array): string {
-  try {
-    return utf8Decoder.decode(bytes);
-  } catch {
-    return String.fromCharCode(...bytes);
-  }
+  return utf8Decoder.decode(bytes);
 }
 
 function extractSlideText(xml: string): string[] {
@@ -52,10 +64,10 @@ function getUint32LE(bytes: Uint8Array, offset: number): number {
   ) >>> 0;
 }
 
-async function inflateDeflateRaw(data: Uint8Array): Promise<Uint8Array> {
-  const chunk = new Uint8Array(data.byteLength);
-  chunk.set(data);
-  const source = new Response(chunk).body;
+async function inflateDeflateRaw(
+  data: Uint8Array<ArrayBuffer>,
+): Promise<Uint8Array<ArrayBuffer>> {
+  const source = new Response(data).body;
   if (!source) {
     return new Uint8Array();
   }
@@ -68,9 +80,12 @@ async function inflateDeflateRaw(data: Uint8Array): Promise<Uint8Array> {
 async function parsePptxSlides(buffer: ArrayBuffer): Promise<SlideText[]> {
   const bytes = new Uint8Array(buffer);
   const slidesByIndex = new Map<number, string[]>();
-  const minEocdOffset = Math.max(0, bytes.length - 22 - 65535);
+  const minEocdOffset = Math.max(
+    0,
+    bytes.length - EOCD_MIN_SIZE - EOCD_MAX_COMMENT_LENGTH,
+  );
   let eocdOffset = -1;
-  for (let offset = bytes.length - 22; offset >= minEocdOffset; offset -= 1) {
+  for (let offset = bytes.length - EOCD_MIN_SIZE; offset >= minEocdOffset; offset -= 1) {
     if (getUint32LE(bytes, offset) === EOCD_SIGNATURE) {
       eocdOffset = offset;
       break;
@@ -80,22 +95,25 @@ async function parsePptxSlides(buffer: ArrayBuffer): Promise<SlideText[]> {
     throw new Error("zip end-of-central-directory not found");
   }
 
-  const totalEntries = getUint16LE(bytes, eocdOffset + 10);
-  const centralDirectoryOffset = getUint32LE(bytes, eocdOffset + 16);
+  const totalEntries = getUint16LE(bytes, eocdOffset + EOCD_TOTAL_ENTRIES_OFFSET);
+  const centralDirectoryOffset = getUint32LE(
+    bytes,
+    eocdOffset + EOCD_CENTRAL_DIRECTORY_OFFSET,
+  );
   let cursor = centralDirectoryOffset;
 
   for (let entry = 0; entry < totalEntries; entry += 1) {
-    if (cursor + 46 > bytes.length) break;
+    if (cursor + CEN_HEADER_SIZE > bytes.length) break;
     if (getUint32LE(bytes, cursor) !== CEN_SIGNATURE) break;
 
-    const method = getUint16LE(bytes, cursor + 10);
-    const compressedSize = getUint32LE(bytes, cursor + 20);
-    const fileNameLength = getUint16LE(bytes, cursor + 28);
-    const extraLength = getUint16LE(bytes, cursor + 30);
-    const commentLength = getUint16LE(bytes, cursor + 32);
-    const localHeaderOffset = getUint32LE(bytes, cursor + 42);
+    const method = getUint16LE(bytes, cursor + CEN_METHOD_OFFSET);
+    const compressedSize = getUint32LE(bytes, cursor + CEN_COMPRESSED_SIZE_OFFSET);
+    const fileNameLength = getUint16LE(bytes, cursor + CEN_FILENAME_LENGTH_OFFSET);
+    const extraLength = getUint16LE(bytes, cursor + CEN_EXTRA_LENGTH_OFFSET);
+    const commentLength = getUint16LE(bytes, cursor + CEN_COMMENT_LENGTH_OFFSET);
+    const localHeaderOffset = getUint32LE(bytes, cursor + CEN_LOCAL_HEADER_OFFSET);
 
-    const fileNameStart = cursor + 46;
+    const fileNameStart = cursor + CEN_HEADER_SIZE;
     const fileNameEnd = fileNameStart + fileNameLength;
     if (fileNameEnd > bytes.length) break;
     const fileName = decodeBytes(bytes.slice(fileNameStart, fileNameEnd));
@@ -103,7 +121,7 @@ async function parsePptxSlides(buffer: ArrayBuffer): Promise<SlideText[]> {
 
     if (match) {
       const index = Number(match[1]);
-      if (localHeaderOffset + 30 > bytes.length) {
+      if (localHeaderOffset + LFH_HEADER_SIZE > bytes.length) {
         cursor = fileNameEnd + extraLength + commentLength;
         continue;
       }
@@ -112,9 +130,16 @@ async function parsePptxSlides(buffer: ArrayBuffer): Promise<SlideText[]> {
         continue;
       }
 
-      const localNameLength = getUint16LE(bytes, localHeaderOffset + 26);
-      const localExtraLength = getUint16LE(bytes, localHeaderOffset + 28);
-      const dataStart = localHeaderOffset + 30 + localNameLength + localExtraLength;
+      const localNameLength = getUint16LE(
+        bytes,
+        localHeaderOffset + LFH_FILENAME_LENGTH_OFFSET,
+      );
+      const localExtraLength = getUint16LE(
+        bytes,
+        localHeaderOffset + LFH_EXTRA_LENGTH_OFFSET,
+      );
+      const dataStart =
+        localHeaderOffset + LFH_HEADER_SIZE + localNameLength + localExtraLength;
       const dataEnd = dataStart + compressedSize;
       if (dataEnd > bytes.length) {
         cursor = fileNameEnd + extraLength + commentLength;
@@ -122,10 +147,10 @@ async function parsePptxSlides(buffer: ArrayBuffer): Promise<SlideText[]> {
       }
 
       const compressedData = bytes.slice(dataStart, dataEnd);
-      let xmlBytes: Uint8Array = new Uint8Array();
-      if (method === 0) {
+      let xmlBytes: Uint8Array<ArrayBuffer> = new Uint8Array();
+      if (method === STORE_METHOD) {
         xmlBytes = compressedData;
-      } else if (method === 8) {
+      } else if (method === DEFLATE_METHOD) {
         xmlBytes = await inflateDeflateRaw(compressedData);
       }
 
@@ -153,10 +178,13 @@ async function parsePptxSlides(buffer: ArrayBuffer): Promise<SlideText[]> {
 
 const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url);
 
-async function fetchPptxBuffer(fileUrl: string): Promise<ArrayBuffer> {
+async function fetchPptxBuffer(
+  fileUrl: string,
+  signal?: AbortSignal,
+): Promise<ArrayBuffer> {
   const response = isAbsoluteUrl(fileUrl)
-    ? await fetch(fileUrl)
-    : await apiFetch(fileUrl);
+    ? await fetch(fileUrl, { signal })
+    : await apiFetch(fileUrl, { signal });
 
   if (!response.ok) {
     throw new Error(`failed to fetch pptx: ${response.status}`);
@@ -173,6 +201,7 @@ export function PptxViewer({ fileUrl, onDownloadFallback }: PptxViewerProps) {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
 
     setSlides([]);
     setSlideNumber(1);
@@ -181,12 +210,13 @@ export function PptxViewer({ fileUrl, onDownloadFallback }: PptxViewerProps) {
 
     const run = async () => {
       try {
-        const buffer = await fetchPptxBuffer(fileUrl);
+        const buffer = await fetchPptxBuffer(fileUrl, controller.signal);
         const parsedSlides = await parsePptxSlides(buffer);
         if (cancelled) return;
         setSlides(parsedSlides);
       } catch (error) {
         if (cancelled) return;
+        if (error instanceof DOMException && error.name === "AbortError") return;
         console.error("PPTXプレビューの読み込みに失敗しました:", error);
         setLoadError(true);
       } finally {
@@ -199,6 +229,7 @@ export function PptxViewer({ fileUrl, onDownloadFallback }: PptxViewerProps) {
     void run();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [fileUrl]);
 
@@ -216,29 +247,31 @@ export function PptxViewer({ fileUrl, onDownloadFallback }: PptxViewerProps) {
       className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSlideNumber((value) => Math.max(1, value - 1))}
-            disabled={!canPrev}
-            className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
-          >
-            前へ
-          </button>
-          <span className="text-xs text-gray-600 dark:text-gray-300">
-            {slideNumber} / {totalSlides || "-"}
-          </span>
-          <button
-            type="button"
-            onClick={() =>
-              setSlideNumber((value) => Math.min(totalSlides, value + 1))
-            }
-            disabled={!canNext}
-            className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
-          >
-            次へ
-          </button>
-        </div>
+        {!loadError && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSlideNumber((value) => Math.max(1, value - 1))}
+              disabled={!canPrev}
+              className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+            >
+              前へ
+            </button>
+            <span className="text-xs text-gray-600 dark:text-gray-300">
+              {slideNumber} / {totalSlides || "-"}
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setSlideNumber((value) => Math.min(totalSlides, value + 1))
+              }
+              disabled={!canNext}
+              className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+            >
+              次へ
+            </button>
+          </div>
+        )}
         <p className="text-xs text-gray-500 dark:text-gray-400">
           テキストベースのスライドプレビュー
         </p>

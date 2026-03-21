@@ -43,7 +43,10 @@ describe("PptxViewer", () => {
     await screen.findByText("Slide 2");
     expect(screen.getByText("OpenShelf PPTX Preview 2")).toBeInTheDocument();
 
-    expect(mockApiFetch).toHaveBeenCalledWith("/api/downloads/slides.pptx");
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      "/api/downloads/slides.pptx",
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 
   it("shows fallback UI and calls download fallback on parse error", async () => {
