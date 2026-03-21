@@ -47,12 +47,16 @@ vi.mock("next/image", () => ({
 
 vi.mock("next/dynamic", () => ({
   default: () => {
-    return function MockPdfViewer(props: {
+    return function MockDynamicViewer(props: {
       fileUrl: string;
       onDownloadFallback: () => void;
     }) {
+      const isPptx = props.fileUrl.endsWith(".pptx");
       return (
-        <div data-testid="pdf-viewer" data-url={props.fileUrl}>
+        <div
+          data-testid={isPptx ? "pptx-viewer" : "pdf-viewer"}
+          data-url={props.fileUrl}
+        >
           <button type="button" onClick={props.onDownloadFallback}>
             fallback download
           </button>
@@ -272,6 +276,12 @@ describe("PaperDetailClient", () => {
       "href",
       "https://example.com/paper",
     );
+    expect(screen.getByText("PPTXプレビュー")).toBeInTheDocument();
+    expect(screen.getByTestId("pptx-viewer")).toHaveAttribute(
+      "data-url",
+      "/api/downloads/deck.pptx",
+    );
+    expect(screen.getByText("🎞️")).toBeInTheDocument();
     expect(screen.getByText("閲覧統計")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("3/2")).toBeInTheDocument();
