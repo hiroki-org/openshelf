@@ -43,7 +43,7 @@ issue ごとに以下を繰り返します。
 
    ```bash
    git checkout main
-   git pull --ff-only
+   git pull --rebase
    git checkout -b feat/issue-<number>-<short-topic>
    ```
 
@@ -73,10 +73,10 @@ issue ごとに以下を繰り返します。
 
 `open` な全PRに対して、以下をループします。
 
-1. PRの未解決レビュー会話を取得
+1. PRのレビュー会話・通常コメント・CI状態を取得
 
    ```bash
-   gh pr view <PR_NUMBER> --json reviews,comments,statusCheckRollup
+   gh pr view <PR_NUMBER> --json number,state,mergeStateStatus,reviewDecision,reviews,comments,latestReviews,headRefName,baseRefName,statusCheckRollup
    ```
 
 2. 各スレッドを判定
@@ -92,16 +92,16 @@ issue ごとに以下を繰り返します。
    gh pr checks <PR_NUMBER> --required --watch --interval 10
    ```
 
-5. しばらく待って再取得（例: 300秒）
+5. CI完了後に即時で再取得（新規レビュー/返信も確認）
 
    ```bash
-   sleep 300
-   gh pr view <PR_NUMBER> --json reviews,statusCheckRollup
+   gh pr view <PR_NUMBER> --json number,state,mergeStateStatus,reviewDecision,reviews,comments,latestReviews,statusCheckRollup
    ```
 
 6. 停止条件
    - unresolved conversation = 0
    - required checks = 全て success
+   - ループ安全上限: 最大 20 イテレーション（到達時は停止してブロッカー報告）
 
 ## 判定ポリシー
 
@@ -109,6 +109,14 @@ issue ごとに以下を繰り返します。
 - `IGNORE_WITH_REASON` は以下を満たす場合のみ許可
   - 明確な仕様・要件根拠がある
   - 返信で根拠を明示した
+
+## エスカレーション条件
+
+以下のいずれかに該当する場合、ループを止めて人間に判断を依頼する。
+
+- レビューリクエストがプロダクト要件と競合する
+- 提案修正が広範なリファクタリングを要する
+- 権限不足などで作者がスレッドを解決できない
 
 ## 運用テンプレート
 
@@ -125,7 +133,6 @@ issue ごとに以下を繰り返します。
 - [ ] open issue の本文+コメントを確認した
 - [ ] issue ごとに 1PR 以上作成した
 - [ ] すべてのPRで `Closes #<issue>` を付けた
-- [ ] 各レビュー会話に返信した
+- [ ] 各レビュー会話・通常コメントに返信した
 - [ ] unresolved threads が 0
 - [ ] required checks が green
-
