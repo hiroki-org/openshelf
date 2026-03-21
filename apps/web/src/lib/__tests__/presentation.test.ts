@@ -54,6 +54,7 @@ describe("presentation badge helpers", () => {
       ["uploader", "アップロード者", "info"],
       ["author", "著者", "success"],
       ["reviewer", "reviewer", "neutral"],
+      ["coauthor", "coauthor", "neutral"],
       ["unknown_role", "unknown_role", "neutral"],
       ["", "", "neutral"],
     ] as const)("returns correct badge for %s", (role, label, tone) => {
@@ -61,6 +62,24 @@ describe("presentation badge helpers", () => {
         label,
         tone,
         className: toneClassNames[tone],
+      });
+    });
+
+    it("handles undefined gracefully and returns default neutral badge", () => {
+      // @ts-expect-error Testing undefined behavior at runtime
+      expect(getRoleBadge(undefined)).toEqual({
+        label: undefined,
+        tone: "neutral",
+        className: toneClassNames["neutral"],
+      });
+    });
+
+    it("handles null gracefully and returns default neutral badge", () => {
+      // @ts-expect-error Testing null behavior at runtime
+      expect(getRoleBadge(null)).toEqual({
+        label: null,
+        tone: "neutral",
+        className: toneClassNames["neutral"],
       });
     });
   });
