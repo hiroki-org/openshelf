@@ -144,7 +144,6 @@ describe("papers routes", () => {
             .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
             .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "file-1", filename: "paper.pdf" }] }))
             .mockImplementationOnce(() => makeQuery({ allResult: [{ userId: "user-1", role: "uploader", name: "Uploader", displayName: null, avatarUrl: null }] }))
-            .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "org-1", name: "Org 1", slug: "org-1" }] }))
             .mockImplementationOnce(() => makeQuery({ getResult: { count: 4 } }));
 
         const app = await createTestApp();
@@ -162,8 +161,31 @@ describe("papers routes", () => {
         expect(body.paper.doi).toBe("10.1234/example");
         expect(body.paper.showViewCount).toBe(true);
         expect(body.paper.publicViewCount).toBe(4);
-        expect(body.organizations).toEqual([{ id: "org-1", name: "Org 1", slug: "org-1" }]);
+        expect(body.organizations).toEqual([]);
         expect(mockDb.batch).toHaveBeenCalledTimes(1);
+    });
+
+    it("GET /api/papers/:id returns organizations only for org_only papers", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "org_only", showViewCount: false } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-1" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "file-1", filename: "paper.pdf" }] }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ userId: "user-1", role: "uploader", name: "Uploader", displayName: null, avatarUrl: null }] }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "org-1", name: "Org 1", slug: "org-1" }] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            { headers: { Authorization: `Bearer ${token}` } },
+            env as any
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as any;
+        expect(body.organizations).toEqual([{ id: "org-1", name: "Org 1", slug: "org-1" }]);
     });
 
     it("POST /api/papers rejects a non-boolean showViewCount", async () => {
@@ -447,6 +469,34 @@ describe("papers routes", () => {
         );
         expect(deleteWhere).toHaveBeenCalledTimes(1);
         expect(insertValues).toHaveBeenCalledWith([{ paperId: "paper-1", orgId: "org-1" }]);
+    });
+
+    it("PATCH /api/papers/:id rejects orgIds for non-org visibility with explicit empty array", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ visibility: "private", orgIds: [] }),
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({
+            error: "orgIds can only be specified when visibility is org_only",
+        });
     });
 
     it("PATCH /api/papers/:id rejects orgIds when user is not a member", async () => {

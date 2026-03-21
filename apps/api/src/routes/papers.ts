@@ -34,7 +34,7 @@ const ALLOWED_MIME_TYPES = [
     "image/jpeg",
 ];
 const VALID_FILE_TYPES = ["paper", "slides", "poster", "supplementary"];
-const VALID_VISIBILITY = ["public", "org_only", "private"];
+const VALID_VISIBILITY = ["public", "org_only", "private"] as const;
 const MAX_TITLE_LENGTH = 300;
 const MAX_ABSTRACT_LENGTH = 5000;
 const MAX_LANGUAGE_LENGTH = 32;
@@ -44,6 +44,11 @@ const MAX_VENUE_LENGTH = 255;
 const MAX_TAG_LENGTH = 64;
 const VIEW_DEDUPE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const VIEW_STATS_RANGE_DAYS = 30;
+type Visibility = (typeof VALID_VISIBILITY)[number];
+
+function isVisibility(value: string): value is Visibility {
+    return (VALID_VISIBILITY as readonly string[]).includes(value);
+}
 
 function formatDateKey(date: Date): string {
     return date.toISOString().slice(0, 10);
@@ -271,9 +276,10 @@ papersRoute.post("/", authMiddleware, async (c) => {
     )
         return c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400);
 
-    const vis = (meta.visibility as string) || "private";
-    if (!VALID_VISIBILITY.includes(vis))
+    const visibilityInput = typeof meta.visibility === "string" ? meta.visibility : "private";
+    if (!isVisibility(visibilityInput))
         return c.json({ error: "Invalid visibility" }, 400);
+    const vis: Visibility = visibilityInput;
 
     const venueType = (meta.venueType as string | null | undefined) ?? null;
     if (venueType !== null && !(VALID_VENUE_TYPES as readonly string[]).includes(venueType))
@@ -542,7 +548,7 @@ papersRoute.get("/:id", async (c) => {
         return c.json({ error: access.error }, access.status as any);
     }
 
-    const [rawFiles, authors, organizations] = (await db.batch([
+    const [rawFiles, authors] = (await db.batch([
         db
             .select()
             .from(paperFiles)
@@ -558,7 +564,19 @@ papersRoute.get("/:id", async (c) => {
             .from(paperAuthors)
             .innerJoin(users, eq(paperAuthors.userId, users.id))
             .where(eq(paperAuthors.paperId, paperId)),
-        db
+    ])) as [
+            (typeof paperFiles.$inferSelect)[],
+            {
+                userId: string;
+                role: string;
+                name: string | null;
+                displayName: string | null;
+                avatarUrl: string | null;
+            }[]
+        ];
+
+    const organizations = paper.visibility === "org_only"
+        ? await db
             .select({
                 id: orgs.id,
                 name: orgs.name,
@@ -566,12 +584,9 @@ papersRoute.get("/:id", async (c) => {
             })
             .from(paperOrgs)
             .innerJoin(orgs, eq(paperOrgs.orgId, orgs.id))
-            .where(eq(paperOrgs.paperId, paperId)),
-    ])) as [
-            (typeof paperFiles.$inferSelect)[],
-            { userId: string; role: string; name: string | null; displayName: string | null; avatarUrl: string | null }[],
-            { id: string; name: string; slug: string }[]
-        ];
+            .where(eq(paperOrgs.paperId, paperId))
+            .all()
+        : [];
 
     const files = rawFiles.map((file) => ({
         ...file,
@@ -1103,7 +1118,10 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
 
     const updates: Record<string, any> = { ...touchUpdatedAt() };
     let hasRealUpdates = false;
-    let nextVisibility = paper.visibility;
+    if (!isVisibility(paper.visibility)) {
+        return c.json({ error: "Invalid paper visibility state" }, 500);
+    }
+    let nextVisibility: Visibility = paper.visibility;
     let hasVisibilityInBody = false;
     let orgIdsFromBody: string[] | undefined;
 
@@ -1130,7 +1148,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         hasRealUpdates = true;
     }
     if ("visibility" in body) {
-        if (typeof body.visibility !== "string" || !VALID_VISIBILITY.includes(body.visibility)) {
+        if (typeof body.visibility !== "string" || !isVisibility(body.visibility)) {
             return c.json({ error: "Invalid visibility" }, 400);
         }
         updates.visibility = body.visibility;
@@ -1264,14 +1282,14 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
     let shouldReplacePaperOrgs = false;
     let finalOrgIds: string[] = [];
 
-    if (orgIdsFromBody && nextVisibility !== "org_only") {
+    if (orgIdsFromBody !== undefined && nextVisibility !== "org_only") {
         return c.json({ error: "orgIds can only be specified when visibility is org_only" }, 400);
     }
 
     if (nextVisibility === "org_only") {
         // Require explicit organization selection only when switching to org_only
         // or when orgIds are explicitly edited.
-        if ((hasVisibilityInBody && paper.visibility !== "org_only") || orgIdsFromBody) {
+        if ((hasVisibilityInBody && paper.visibility !== "org_only") || orgIdsFromBody !== undefined) {
             finalOrgIds = orgIdsFromBody ?? [];
             if (finalOrgIds.length === 0) {
                 return c.json({ error: "orgIds is required when visibility is org_only" }, 400);

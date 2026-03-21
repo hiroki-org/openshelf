@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PaperEditPage from "../papers/[id]/edit/page";
 import { apiFetch } from "@/lib/api";
 
@@ -36,6 +36,10 @@ describe("PaperEditPage", () => {
     replace.mockReset();
     refresh.mockReset();
     authState = { user: { id: "user-1" }, loading: false };
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("loads paper data and submits updates", async () => {
@@ -218,5 +222,123 @@ describe("PaperEditPage", () => {
     const payload = JSON.parse(String(patchCall?.[1]?.body));
     expect(payload.visibility).toBe("org_only");
     expect(payload.orgIds).toEqual(["org-1"]);
+  });
+
+  it("does not send orgIds when org_only selection is unchanged", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/users/me/orgs") {
+        return new Response(
+          JSON.stringify({
+            organizations: [
+              { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url === "/api/papers/paper-1" && !init?.method) {
+        return new Response(
+          JSON.stringify({
+            paper: {
+              title: "Original title",
+              abstract: null,
+              visibility: "org_only",
+              showViewCount: false,
+              language: null,
+              externalUrl: null,
+              doi: null,
+              venue: null,
+              venueType: null,
+              year: null,
+              category: null,
+              tags: null,
+            },
+            authors: [{ userId: "user-1" }],
+            organizations: [{ id: "org-1", name: "Org 1", slug: "org-1" }],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url === "/api/papers/paper-1" && init?.method === "PATCH") {
+        return new Response("{}", { status: 200 });
+      }
+
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<PaperEditPage />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Original title")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "保存する" })[0]);
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        "/api/papers/paper-1",
+        expect.objectContaining({ method: "PATCH" }),
+      );
+    });
+
+    const patchCall = vi
+      .mocked(apiFetch)
+      .mock.calls.find(
+        (call) =>
+          call[0] === "/api/papers/paper-1" && call[1]?.method === "PATCH",
+      );
+    const payload = JSON.parse(String(patchCall?.[1]?.body));
+    expect(payload.visibility).toBe("org_only");
+    expect(payload.orgIds).toBeUndefined();
+  });
+
+  it("shows warning when org list fetch fails", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/users/me/orgs") {
+        return new Response("error", { status: 500 });
+      }
+
+      if (url === "/api/papers/paper-1" && !init?.method) {
+        return new Response(
+          JSON.stringify({
+            paper: {
+              title: "Original title",
+              abstract: null,
+              visibility: "private",
+              showViewCount: false,
+              language: null,
+              externalUrl: null,
+              doi: null,
+              venue: null,
+              venueType: null,
+              year: null,
+              category: null,
+              tags: null,
+            },
+            authors: [{ userId: "user-1" }],
+            organizations: [],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url === "/api/papers/paper-1" && init?.method === "PATCH") {
+        return new Response("{}", { status: 200 });
+      }
+
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<PaperEditPage />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Original title")).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(/組織情報の取得に失敗しました（status: 500）/),
+    ).toBeInTheDocument();
   });
 });

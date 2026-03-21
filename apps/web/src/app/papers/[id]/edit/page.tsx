@@ -56,6 +56,15 @@ type UserOrganization = {
   role: string;
 };
 
+function areSameOrgSelection(a: string[], b: string[]) {
+  if (a.length !== b.length) return false;
+  const aSet = new Set(a);
+  for (const id of b) {
+    if (!aSet.has(id)) return false;
+  }
+  return true;
+}
+
 export default function PaperEditPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -81,7 +90,8 @@ export default function PaperEditPage() {
   const [tagsStr, setTagsStr] = useState("");
   const [organizations, setOrganizations] = useState<UserOrganization[]>([]);
   const [selectedOrgIds, setSelectedOrgIds] = useState<string[]>([]);
-  const [loadingOrgs, setLoadingOrgs] = useState(true);
+  const [initialSelectedOrgIds, setInitialSelectedOrgIds] = useState<string[]>([]);
+  const [orgsWarning, setOrgsWarning] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -112,8 +122,12 @@ export default function PaperEditPage() {
             organizations: UserOrganization[];
           };
           setOrganizations(orgsData.organizations ?? []);
+          setOrgsWarning(null);
         } else {
           setOrganizations([]);
+          setOrgsWarning(
+            `組織情報の取得に失敗しました（status: ${orgsRes.status}）。現在は組織公開を変更できません。`,
+          );
         }
 
         const data = (await paperRes.json()) as PaperEditResponse;
@@ -139,7 +153,9 @@ export default function PaperEditPage() {
         setVenueType(paper.venueType || "");
         setYear(paper.year ? String(paper.year) : "");
         setCategory(paper.category || "");
-        setSelectedOrgIds(data.organizations.map((org) => org.id));
+        const orgIds = data.organizations.map((org) => org.id);
+        setSelectedOrgIds(orgIds);
+        setInitialSelectedOrgIds(orgIds);
 
         let initialTags = "";
         if (paper.tags) {
@@ -158,7 +174,6 @@ export default function PaperEditPage() {
           err instanceof Error ? err.message : "予期せぬエラーが発生しました",
         );
       } finally {
-        setLoadingOrgs(false);
         setLoading(false);
       }
     };
@@ -176,10 +191,6 @@ export default function PaperEditPage() {
     }
 
     if (visibility === "org_only") {
-      if (loadingOrgs) {
-        setError("組織情報を読み込み中です。しばらくお待ちください。");
-        return;
-      }
       if (organizations.length === 0) {
         setError("所属組織がありません。公開範囲を変更してください。");
         return;
@@ -205,11 +216,16 @@ export default function PaperEditPage() {
         .map((t) => t.trim())
         .filter(Boolean);
 
+      const includeOrgIds =
+        visibility === "org_only" &&
+        (!areSameOrgSelection(selectedOrgIds, initialSelectedOrgIds) ||
+          selectedOrgIds.length === 0);
+
       const payload = {
         title: title.trim(),
         abstract: abstract.trim() || null,
         visibility,
-        orgIds: visibility === "org_only" ? selectedOrgIds : undefined,
+        orgIds: includeOrgIds ? selectedOrgIds : undefined,
         showViewCount,
         language: language.trim() || null,
         externalUrl: externalUrl.trim() || null,
@@ -274,6 +290,11 @@ export default function PaperEditPage() {
           {error}
         </div>
       )}
+      {orgsWarning && (
+        <div className="mb-6 rounded-md bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+          {orgsWarning}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
@@ -323,9 +344,7 @@ export default function PaperEditPage() {
         {visibility === "org_only" && (
           <fieldset className="rounded-md border border-gray-200 p-4 dark:border-gray-800">
             <legend className="px-1 text-sm font-medium">対象組織</legend>
-            {loadingOrgs ? (
-              <p className="text-sm text-gray-500">組織情報を読み込み中...</p>
-            ) : organizations.length === 0 ? (
+            {organizations.length === 0 ? (
               <p className="text-sm text-amber-700 dark:text-amber-300">
                 所属組織がないため、組織公開は設定できません。
               </p>
