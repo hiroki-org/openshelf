@@ -104,10 +104,13 @@ export default function PaperEditPage() {
 
     const fetchPaper = async () => {
       try {
-        const [paperRes, orgsRes] = await Promise.all([
-          apiFetch(`/api/papers/${encodeURIComponent(paperId)}`),
-          apiFetch("/api/users/me/orgs"),
-        ]);
+        const paperRes = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}`);
+        let orgsRes: Response | null = null;
+        try {
+          orgsRes = await apiFetch("/api/users/me/orgs");
+        } catch {
+          orgsRes = null;
+        }
 
         if (!paperRes.ok) {
           if (paperRes.status === 401 || paperRes.status === 403) {
@@ -117,7 +120,7 @@ export default function PaperEditPage() {
           throw new Error("論文の取得に失敗しました");
         }
 
-        if (orgsRes.ok) {
+        if (orgsRes?.ok) {
           const orgsData = (await orgsRes.json()) as {
             organizations: UserOrganization[];
           };
@@ -126,7 +129,9 @@ export default function PaperEditPage() {
         } else {
           setOrganizations([]);
           setOrgsWarning(
-            `組織情報の取得に失敗しました（status: ${orgsRes.status}）。現在は組織公開を変更できません。`,
+            orgsRes
+              ? `組織情報の取得に失敗しました（status: ${orgsRes.status}）。現在は組織公開を変更できません。`
+              : "組織情報の取得に失敗しました。現在は組織公開を変更できません。",
           );
         }
 
@@ -191,7 +196,10 @@ export default function PaperEditPage() {
     }
 
     if (visibility === "org_only") {
-      if (organizations.length === 0) {
+      const hasExistingOrgSelection = initialSelectedOrgIds.length > 0;
+      const canSubmitWithoutOrgList = hasExistingOrgSelection && organizations.length === 0;
+
+      if (!canSubmitWithoutOrgList && organizations.length === 0) {
         setError("所属組織がありません。公開範囲を変更してください。");
         return;
       }

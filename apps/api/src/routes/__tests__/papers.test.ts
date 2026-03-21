@@ -642,6 +642,70 @@ describe("papers routes", () => {
         expect(mockDb.select).not.toHaveBeenCalled();
     });
 
+    it("PATCH /api/papers/:id rejects overlong orgIds", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "org_only" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ orgIds: ["o".repeat(65)], visibility: "org_only" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toContain("each orgId");
+    });
+
+    it("PATCH /api/papers/:id batches paper and paperOrgs updates when orgIds change", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const deleteWhere = vi.fn(async () => undefined);
+        const insertValues = vi.fn(async () => undefined);
+
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "org_only" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ orgId: "org-1" }] }));
+        mockDb.delete = vi.fn(() => ({ where: deleteWhere }));
+        mockDb.insert = vi.fn(() => ({ values: insertValues }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ visibility: "org_only", orgIds: ["org-1"], title: "Updated title" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(mockDb.batch).toHaveBeenCalledTimes(1);
+        expect(mockDb.update).toHaveBeenCalledTimes(1);
+        expect(deleteWhere).toHaveBeenCalledTimes(1);
+        expect(insertValues).toHaveBeenCalledTimes(1);
+        const batchedOps = mockDb.batch.mock.calls[0][0] as unknown[];
+        expect(batchedOps).toHaveLength(3);
+    });
+
     it("PATCH /api/papers/:id rejects requests without valid updatable fields", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi

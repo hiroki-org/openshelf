@@ -42,6 +42,7 @@ const MAX_EXTERNAL_URL_LENGTH = 2048;
 const MAX_DOI_LENGTH = 255;
 const MAX_VENUE_LENGTH = 255;
 const MAX_TAG_LENGTH = 64;
+const MAX_ORG_ID_LENGTH = 64;
 const VIEW_DEDUPE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const VIEW_STATS_RANGE_DAYS = 30;
 type Visibility = (typeof VALID_VISIBILITY)[number];
@@ -301,9 +302,13 @@ papersRoute.post("/", authMiddleware, async (c) => {
         return c.json({ error: "showViewCount must be a boolean" }, 400);
     }
 
-    const orgId = meta.orgId as string | undefined;
+    const orgIdRaw = typeof meta.orgId === "string" ? meta.orgId.trim() : undefined;
+    const orgId = orgIdRaw || undefined;
     if (vis === "org_only" && !orgId) {
         return c.json({ error: "orgId is required for org_only visibility" }, 400);
+    }
+    if (orgId && orgId.length > MAX_ORG_ID_LENGTH) {
+        return c.json({ error: `orgId must be ${MAX_ORG_ID_LENGTH} chars or less` }, 400);
     }
 
     const paperId = crypto.randomUUID();
@@ -1171,6 +1176,9 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             if (!trimmed) {
                 return c.json({ error: "orgIds cannot contain empty values" }, 400);
             }
+            if (trimmed.length > MAX_ORG_ID_LENGTH) {
+                return c.json({ error: `each orgId must be ${MAX_ORG_ID_LENGTH} chars or less` }, 400);
+            }
             if (seen.has(trimmed)) continue;
             seen.add(trimmed);
             normalizedOrgIds.push(trimmed);
@@ -1318,15 +1326,24 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         return c.json({ error: "No valid fields to update" }, 400);
     }
 
-    await db.update(papers).set(updates).where(eq(papers.id, paperId));
+    type BatchItem = Parameters<typeof db.batch>[0][number];
+    const operations: BatchItem[] = [
+        db.update(papers).set(updates).where(eq(papers.id, paperId)),
+    ];
 
     if (nextVisibility !== "org_only" && hasVisibilityInBody) {
-        await db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId));
+        operations.push(db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId)));
     } else if (shouldReplacePaperOrgs) {
-        await db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId));
-        await db.insert(paperOrgs).values(
+        operations.push(db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId)));
+        operations.push(db.insert(paperOrgs).values(
             finalOrgIds.map((orgId) => ({ paperId, orgId })),
-        );
+        ));
+    }
+
+    if (operations.length === 1) {
+        await operations[0];
+    } else {
+        await db.batch(operations as [BatchItem, ...BatchItem[]]);
     }
 
     return c.json({ ok: true });
