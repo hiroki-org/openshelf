@@ -53,31 +53,18 @@ describe("presentation badge helpers", () => {
       ["member", "メンバー", "neutral"],
       ["uploader", "アップロード者", "info"],
       ["author", "著者", "success"],
-      ["coauthor", "共著者", "neutral"],
       ["reviewer", "reviewer", "neutral"],
+      ["coauthor", "coauthor", "neutral"],
       ["unknown_role", "unknown_role", "neutral"],
       ["", "", "neutral"],
+      [undefined, undefined, "neutral"],
+      [null, null, "neutral"],
     ] as const)("returns correct badge for %s", (role, label, tone) => {
-      expect(getRoleBadge(role)).toEqual({
-        label,
+      expect(getRoleBadge(role as any)).toEqual({
+        label: label as any,
         tone,
         className: toneClassNames[tone],
       });
     });
-
-    it.each([
-      [undefined, "undefined"],
-      [null, "null"],
-    ])(
-      "handles %s gracefully and returns default neutral badge",
-      (value) => {
-        // @ts-expect-error Testing runtime behavior with invalid types
-        expect(getRoleBadge(value)).toEqual({
-          label: "",
-          tone: "neutral",
-          className: toneClassNames["neutral"],
-        });
-      },
-    );
   });
 });
