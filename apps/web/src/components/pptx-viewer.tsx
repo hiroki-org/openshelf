@@ -147,7 +147,7 @@ async function parsePptxSlides(buffer: ArrayBuffer): Promise<SlideText[]> {
       }
 
       const compressedData = bytes.slice(dataStart, dataEnd);
-      let xmlBytes: Uint8Array<ArrayBuffer> = new Uint8Array();
+      let xmlBytes: Uint8Array<ArrayBuffer>;
       if (method === STORE_METHOD) {
         xmlBytes = compressedData;
       } else if (method === DEFLATE_METHOD) {
