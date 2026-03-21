@@ -604,6 +604,47 @@ describe("collections routes", () => {
         expect(((await res.json()) as any).error).toBe("Paper not found");
     });
 
+    it("POST /api/collections/:id/papers returns 409 when the paper is already in the collection", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        queueSelectResponses([
+            {
+                getResult: {
+                    id: "col-1",
+                    ownerType: "user",
+                    ownerId: "user-1",
+                    visibility: "private",
+                },
+            },
+            { getResult: { id: "paper-1", visibility: "private" } },
+            { getResult: { paperId: "paper-1" } },
+            { getResult: { maxOrder: 0 } },
+        ]);
+
+        const insertValues = vi.fn(async () => {
+            throw new Error("UNIQUE constraint failed: collection_papers.collection_id, collection_papers.paper_id");
+        });
+        mockDb.insert = vi.fn(() => ({ values: insertValues }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections/col-1/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ paper_id: "paper-1" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(409);
+        expect(((await res.json()) as any).error).toBe("Paper already added");
+    });
+
     it("PATCH /api/collections/:id/papers rejects duplicate paper IDs", async () => {
         const token = await createTestJWT({ sub: "user-1" });
         queueSelectResponses([
@@ -711,6 +752,39 @@ describe("collections routes", () => {
 
         expect(res.status).toBe(404);
         expect(((await res.json()) as any).error).toBe("Paper not in collection");
+    });
+
+    it("DELETE /api/collections/:id/papers/:paperId removes the paper from the collection", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        queueSelectResponses([
+            {
+                getResult: {
+                    id: "col-1",
+                    ownerType: "user",
+                    ownerId: "user-1",
+                    visibility: "private",
+                },
+            },
+        ]);
+
+        mockDb.delete = vi.fn(() => ({
+            where: vi.fn(async () => ({ meta: { changes: 1 } })),
+        }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections/col-1/papers/paper-1",
+            {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        await expect(res.json()).resolves.toEqual({ ok: true });
     });
 
     it("GET /api/collections/:id/papers filters restricted papers by authorship and org access", async () => {
