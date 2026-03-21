@@ -5,13 +5,17 @@ import {
     validateSlug,
 } from "../validation";
 
+const maxLengthSlug = "a".repeat(40);
+const tooLongName = "a".repeat(101);
+const tooLongDescription = "a".repeat(501);
+
 describe("validation benchmarks", () => {
     bench("validateSlug valid short", () => {
         validateSlug("open-shelf");
     });
 
     bench("validateSlug valid max length", () => {
-        validateSlug("a".repeat(40));
+        validateSlug(maxLengthSlug);
     });
 
     bench("validateSlug invalid uppercase", () => {
@@ -22,11 +26,8 @@ describe("validation benchmarks", () => {
         validateSlug("open_shelf");
     });
 
-    bench("validateSlug batch mixed", () => {
-        const values = ["paper-1", "paper-2", "paper--3", "Paper4", "p5"];
-        for (const value of values) {
-            validateSlug(value);
-        }
+    bench("validateSlug invalid consecutive hyphens", () => {
+        validateSlug("paper--3");
     });
 
     bench("validateName valid", () => {
@@ -38,14 +39,7 @@ describe("validation benchmarks", () => {
     });
 
     bench("validateName invalid too long", () => {
-        validateName("a".repeat(101));
-    });
-
-    bench("validateName batch mixed", () => {
-        const values = ["Alice", "  ", "Bob", "a".repeat(101), "Carol"];
-        for (const value of values) {
-            validateName(value);
-        }
+        validateName(tooLongName);
     });
 
     bench("validateDescription null", () => {
@@ -61,19 +55,6 @@ describe("validation benchmarks", () => {
     });
 
     bench("validateDescription invalid too long", () => {
-        validateDescription("a".repeat(501));
-    });
-
-    bench("validateDescription batch mixed", () => {
-        const values: unknown[] = [
-            null,
-            "",
-            "A valid description",
-            999,
-            "a".repeat(501),
-        ];
-        for (const value of values) {
-            validateDescription(value);
-        }
+        validateDescription(tooLongDescription);
     });
 });
