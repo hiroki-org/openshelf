@@ -152,6 +152,10 @@ async function parsePptxSlides(buffer: ArrayBuffer): Promise<SlideText[]> {
         xmlBytes = compressedData;
       } else if (method === DEFLATE_METHOD) {
         xmlBytes = await inflateDeflateRaw(compressedData);
+      } else {
+        console.warn(`unsupported compression method in pptx entry: ${method}`);
+        cursor = fileNameEnd + extraLength + commentLength;
+        continue;
       }
 
       const xml = decodeBytes(xmlBytes);
@@ -247,7 +251,7 @@ export function PptxViewer({ fileUrl, onDownloadFallback }: PptxViewerProps) {
       className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        {!loadError && (
+        {!loadError && !loading && (
           <div className="flex items-center gap-2">
             <button
               type="button"

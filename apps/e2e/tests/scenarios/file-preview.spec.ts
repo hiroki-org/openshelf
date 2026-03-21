@@ -34,7 +34,7 @@ test.describe('File Preview', () => {
         await expect(page.getByText('OpenShelf PPTX Preview 1')).toBeVisible();
         await expect(page.getByText('1 / 2')).toBeVisible();
 
-        await page.getByRole('button', { name: '次へ' }).first().click();
+        await page.getByTestId('pptx-viewer').getByRole('button', { name: '次へ' }).click();
         await expect(page.getByText('Slide 2')).toBeVisible();
         await expect(page.getByText('OpenShelf PPTX Preview 2')).toBeVisible();
     });
