@@ -1,7 +1,6 @@
 name: CodeQL Alerts to Issues
 
 on:
-  code_scanning_alert:
   schedule:
     - cron: "0 2 * * *"
   workflow_dispatch:
@@ -190,35 +189,6 @@ jobs:
 
             await ensureLabel(managedLabel, "d73a4a", "Tracks CodeQL alerts");
             await ensureLabel(scopedLabel, "5319e7", "Workflow permissions alerts from CodeQL");
-
-            if (context.eventName === "code_scanning_alert") {
-              const alert = context.payload.alert;
-              if (!alert) {
-                core.info("No alert payload found. Skipping.");
-                return;
-              }
-
-              if (!isTargetAlert(alert)) {
-                core.info(`Skipping alert #${alert.number}: rule does not match target.`);
-                return;
-              }
-
-              const allIssues = await listManagedIssues("all");
-              const existing = allIssues.find((issue) => extractAlertNumber(issue) === alert.number);
-
-              if ((alert.state ?? "").toLowerCase() === "open") {
-                await upsertOpenIssueForAlert(alert, allIssues);
-              } else if (existing) {
-                await closeIssueIfResolved(
-                  existing,
-                  `CodeQL alert #${alert.number} is now \`${alert.state}\`. Closing this tracking issue.`,
-                );
-              } else {
-                core.info(`Resolved alert #${alert.number} has no tracking issue.`);
-              }
-
-              return;
-            }
 
             const openAlerts = await github.paginate(
               github.request,
