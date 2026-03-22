@@ -8,10 +8,6 @@ const SLUG_MIN_LENGTH = 3;
 const SLUG_MAX_LENGTH = 40;
 const SLUG_DEBOUNCE_MS = 400;
 
-export type NewOrgFormProps = {
-  onSuccess?: (slug: string) => void;
-};
-
 function slugify(text: string): string {
   return text
     .toLowerCase()
@@ -20,8 +16,11 @@ function slugify(text: string): string {
     .slice(0, SLUG_MAX_LENGTH);
 }
 
-export function NewOrgForm({ onSuccess }: NewOrgFormProps) {
+interface NewOrgFormProps {
+  onSuccess: (orgSlug: string) => void;
+}
 
+export function NewOrgForm({ onSuccess }: NewOrgFormProps) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [slugManual, setSlugManual] = useState(false);
@@ -43,12 +42,7 @@ export function NewOrgForm({ onSuccess }: NewOrgFormProps) {
 
   // Check slug availability
   const checkSlug = useCallback(async (s: string) => {
-    if (
-      s.length < SLUG_MIN_LENGTH ||
-      s.length > SLUG_MAX_LENGTH ||
-      !SLUG_RE.test(s) ||
-      s.includes("--")
-    ) {
+    if (s.length < SLUG_MIN_LENGTH || s.length > SLUG_MAX_LENGTH || !SLUG_RE.test(s) || s.includes("--")) {
       setSlugStatus("invalid");
       return;
     }
@@ -78,7 +72,6 @@ export function NewOrgForm({ onSuccess }: NewOrgFormProps) {
     return () => clearTimeout(timer);
   }, [slug, checkSlug]);
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -88,7 +81,7 @@ export function NewOrgForm({ onSuccess }: NewOrgFormProps) {
       return;
     }
     if (slug.length < SLUG_MIN_LENGTH) {
-      setError("スラッグは3文字以上必要です");
+      setError(`スラッグは${SLUG_MIN_LENGTH}文字以上必要です`);
       return;
     }
 
@@ -106,7 +99,7 @@ export function NewOrgForm({ onSuccess }: NewOrgFormProps) {
 
       if (res.ok) {
         const data = await res.json();
-        onSuccess?.(data.org.slug);
+        onSuccess(data.org.slug);
         return;
       }
 
@@ -130,7 +123,7 @@ export function NewOrgForm({ onSuccess }: NewOrgFormProps) {
       case "invalid":
         return (
           <span className="text-red-600 text-xs">
-            ※ 3〜40文字、英小文字・数字・ハイフンのみ
+            ※ {SLUG_MIN_LENGTH}〜{SLUG_MAX_LENGTH}文字、英小文字・数字・ハイフンのみ
           </span>
         );
       default:
@@ -164,7 +157,7 @@ export function NewOrgForm({ onSuccess }: NewOrgFormProps) {
           <input
             id="org-slug"
             type="text"
-            maxLength={40}
+            maxLength={SLUG_MAX_LENGTH}
             value={slug}
             onChange={(e) => {
               setSlugManual(true);
