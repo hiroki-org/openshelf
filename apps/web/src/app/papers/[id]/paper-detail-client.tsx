@@ -18,6 +18,10 @@ const PdfViewer = dynamic(
   () => import("@/components/pdf-viewer").then((mod) => mod.PdfViewer),
   { ssr: false },
 );
+const PptxViewer = dynamic(
+  () => import("@/components/pptx-viewer").then((mod) => mod.PptxViewer),
+  { ssr: false },
+);
 
 type Paper = {
   id: string;
@@ -73,6 +77,14 @@ type PreviewResponse = {
   mimeType: string;
   filename: string;
 };
+
+const PPT_MIME_TYPES = [
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+] as const;
+
+const isPptMimeType = (
+  mimeType: string | null,
+): mimeType is (typeof PPT_MIME_TYPES)[number] => mimeType === PPT_MIME_TYPES[0];
 
 type PaperStats = {
   totalViews: number;
@@ -310,6 +322,10 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     () => files.filter((f) => f.mimeType?.startsWith("image/")),
     [files],
   );
+  const pptxFile = useMemo(
+    () => files.find((f) => isPptMimeType(f.mimeType)) ?? null,
+    [files],
+  );
   const maxDailyViewCount = useMemo(() => {
     if (!stats || stats.dailyViews.length === 0) return 0;
     return Math.max(...stats.dailyViews.map((entry) => entry.count));
@@ -523,7 +539,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       case "paper":
         return "📄";
       case "slides":
-        return "📊";
+        return "🎞️";
       case "poster":
         return "🖼️";
       case "supplementary":
@@ -769,6 +785,16 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {pptxFile && (
+          <div className="mb-4 space-y-2">
+            <h3 className="text-sm font-medium">PPTXプレビュー</h3>
+            <PptxViewer
+              fileUrl={pptxFile.downloadUrl}
+              onDownloadFallback={() => handleDownload(pptxFile)}
+            />
           </div>
         )}
 
