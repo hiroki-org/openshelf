@@ -25,7 +25,7 @@ export async function isOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, 
 
 export async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, userId: string) {
     const author = await db
-        .select({ id: paperAuthors.paperId })
+        .select()
         .from(paperAuthors)
         .where(and(eq(paperAuthors.paperId, paperId), eq(paperAuthors.userId, userId)))
         .get();
@@ -34,7 +34,7 @@ export async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: str
 
 export async function isPaperUploader(db: ReturnType<typeof drizzle>, paperId: string, userId: string) {
     const uploader = await db
-        .select({ id: paperAuthors.paperId })
+        .select()
         .from(paperAuthors)
         .where(
             and(

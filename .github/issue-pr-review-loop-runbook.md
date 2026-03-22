@@ -87,20 +87,17 @@ issue ごとに以下を繰り返します。
 
    ```bash
    # unresolved スレッド ID を取得
-    gh api graphql -f query='
-      query($owner:String!, $repo:String!, $pr:Int!, $cursor:String) {
-        repository(owner:$owner, name:$repo) {
-          pullRequest(number:$pr) {
-            reviewThreads(first:100, after:$cursor) {
-              nodes { id isResolved }
-              pageInfo { hasNextPage endCursor }
-            }
-          }
-        }
-      }
-    ' -f owner=Hiroki-org -f repo=OpenShelf -F pr=<PR_NUMBER> -f cursor=null
-
-    # hasNextPage が true の間、endCursor を cursor に入れて繰り返す
+   gh api graphql -f query='
+     query($owner:String!, $repo:String!, $pr:Int!) {
+       repository(owner:$owner, name:$repo) {
+         pullRequest(number:$pr) {
+           reviewThreads(first:100) {
+             nodes { id isResolved }
+           }
+         }
+       }
+     }
+   ' -f owner=Hiroki-org -f repo=OpenShelf -F pr=<PR_NUMBER>
 
    # スレッドを resolve
    gh api graphql -f query='
