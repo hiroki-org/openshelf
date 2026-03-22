@@ -26,6 +26,109 @@ describe("papers routes", () => {
         };
     });
 
+    it("POST /api/papers logs cleanup failures on DB batch error", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        mockDb.batch = vi.fn().mockRejectedValue(new Error("DB batch failed"));
+        env.BUCKET.delete = vi.fn().mockRejectedValue(new Error("R2 delete rejected"));
+        mockDb.delete = vi.fn(() => ({
+            where: vi.fn().mockRejectedValue(new Error("DB delete rejected"))
+        }));
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const form = new FormData();
+        form.set("metadata", JSON.stringify({ title: "Fail Cleanup Paper", visibility: "private" }));
+        form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
+        form.set("file_types_0", "paper");
+
+        const res = await app.request(
+            "http://localhost/api/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000"
+                },
+                body: form
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(500);
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+            "Cleanup failures for paperId:",
+            expect.any(String),
+            expect.arrayContaining([
+                new Error("R2 delete rejected"),
+                new Error("DB delete rejected"),
+                new Error("DB delete rejected"),
+                new Error("DB delete rejected"),
+                new Error("DB delete rejected")
+            ])
+        );
+
+        consoleErrorSpy.mockRestore();
+    });
+
+    it("POST /api/papers logs outer cleanup failures if cleanup throws entirely", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        mockDb.batch = vi.fn().mockRejectedValue(new Error("DB batch failed"));
+
+        // Make the Promise.allSettled for BUCKET.delete throw an error
+        const originalMap = Array.prototype.map;
+        const uploadKeysMapSpy = vi.spyOn(Array.prototype, 'map').mockImplementation(function(this: any[], callback: any) {
+            // Check if this map is called within the R2 cleanup block
+            if (this.length > 0 && typeof this[0] === 'string' && this[0].includes('paper.pdf')) {
+                 throw new Error("R2 Promise map failed");
+            }
+            return originalMap.call(this, callback);
+        });
+
+        // Make the DB delete promise array evaluation throw
+        mockDb.delete = vi.fn(() => {
+            throw new Error("DB delete call failed");
+        });
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const form = new FormData();
+        form.set("metadata", JSON.stringify({ title: "Fail Cleanup Paper Outer", visibility: "private" }));
+        form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
+        form.set("file_types_0", "paper");
+
+        const res = await app.request(
+            "http://localhost/api/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000"
+                },
+                body: form
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(500);
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+            "Cleanup failures for paperId:",
+            expect.any(String),
+            expect.arrayContaining([
+                new Error("R2 Promise map failed"),
+                new Error("DB delete call failed"),
+            ])
+        );
+
+        consoleErrorSpy.mockRestore();
+        uploadKeysMapSpy.mockRestore();
+    });
+
     it("POST /api/papers uploads multipart and creates paper", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
