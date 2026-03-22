@@ -159,6 +159,14 @@ describe("PaperDetailClient", () => {
                 "application/vnd.openxmlformats-officedocument.presentationml.presentation",
               downloadUrl: "/api/downloads/deck.pptx",
             },
+            {
+              id: "file-dataset",
+              filename: "dataset.bin",
+              fileType: "dataset",
+              sizeBytes: 2 * 1024 * 1024,
+              mimeType: null,
+              downloadUrl: "/api/downloads/dataset.bin",
+            },
           ],
           authors: [
             {
@@ -243,7 +251,8 @@ describe("PaperDetailClient", () => {
       if (
         (url === "/api/downloads/paper.pdf" ||
           url === "/api/downloads/poster.png" ||
-          url === "/api/downloads/deck.pptx") &&
+          url === "/api/downloads/deck.pptx" ||
+          url === "/api/downloads/dataset.bin") &&
         method === "GET"
       ) {
         return blobResponse("download", "application/octet-stream");
@@ -281,10 +290,42 @@ describe("PaperDetailClient", () => {
       "data-url",
       "/api/downloads/deck.pptx",
     );
+    expect(screen.getByTestId("pdf-viewer")).toBeInTheDocument();
     expect(screen.getByText("🎞️")).toBeInTheDocument();
     expect(screen.getByText("閲覧統計")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("3/2")).toBeInTheDocument();
+
+    const datasetRow = screen.getByText("dataset.bin").closest("li");
+    expect(datasetRow).not.toBeNull();
+    expect(within(datasetRow!).getByText("📄")).toBeInTheDocument();
+    expect(within(datasetRow!).getByText("2.0 MB")).toBeInTheDocument();
+
+    fireEvent.click(
+      within(screen.getByTestId("pdf-viewer")).getByRole("button", {
+        name: "fallback download",
+      }),
+    );
+    await waitFor(() => {
+      expect(
+        vi.mocked(apiFetch).mock.calls.some(([input]) =>
+          String(input).includes("/api/downloads/paper.pdf"),
+        ),
+      ).toBe(true);
+    });
+
+    fireEvent.click(
+      within(screen.getByTestId("pptx-viewer")).getByRole("button", {
+        name: "fallback download",
+      }),
+    );
+    await waitFor(() => {
+      expect(
+        vi.mocked(apiFetch).mock.calls.some(([input]) =>
+          String(input).includes("/api/downloads/deck.pptx"),
+        ),
+      ).toBe(true);
+    });
 
     const slideRow = screen.getByText("deck.pptx").closest("li");
     expect(slideRow).not.toBeNull();
@@ -297,6 +338,16 @@ describe("PaperDetailClient", () => {
         ),
       ).toBe(true);
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "+ 共著者を招待" }));
+    fireEvent.change(screen.getByPlaceholderText("ユーザー名で検索..."), {
+      target: { value: "bo" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+    expect(
+      screen.queryByPlaceholderText("ユーザー名で検索..."),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "+ 共著者を招待" }));
     fireEvent.change(screen.getByPlaceholderText("ユーザー名で検索..."), {
