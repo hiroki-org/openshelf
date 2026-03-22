@@ -39,12 +39,12 @@ describe("papers routes", () => {
 
         const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-        const form = new FormData();
-        form.set("metadata", JSON.stringify({ title: "Fail Cleanup Paper", visibility: "private" }));
-        form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
-        form.set("file_types_0", "paper");
-
         try {
+            const form = new FormData();
+            form.set("metadata", JSON.stringify({ title: "Fail Cleanup Paper", visibility: "private" }));
+            form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
+            form.set("file_types_0", "paper");
+
             const res = await app.request(
                 "http://localhost/api/papers",
                 {
@@ -59,24 +59,23 @@ describe("papers routes", () => {
             );
 
             expect(res.status).toBe(500);
-            const cleanupCall = consoleErrorSpy.mock.calls.find(
-                ([message]) => message === "Cleanup failures for paperId:",
-            );
-            expect(cleanupCall).toBeDefined();
 
-            const cleanupFailures = cleanupCall?.[2] as unknown[];
-            expect(Array.isArray(cleanupFailures)).toBe(true);
+            // Validate the console.error call includes the specific expected errors
+            expect(consoleErrorSpy).toHaveBeenCalled();
+            const callArgs = consoleErrorSpy.mock.calls[0];
+            expect(callArgs[0]).toBe("Cleanup failures for paperId:");
+            expect(typeof callArgs[1]).toBe("string"); // paperId
 
-            const failureMessages = cleanupFailures.map((failure) =>
-                failure instanceof Error ? failure.message : String(failure),
-            );
-            expect(failureMessages).toContain("R2 delete rejected");
+            const failures = callArgs[2] as Error[];
+            const r2Failures = failures.filter(f => f.message === "R2 delete rejected");
+            const dbFailures = failures.filter(f => f.message === "DB delete rejected");
 
-            const dbDeleteFailureCount = failureMessages.filter(
-                (message) => message === "DB delete rejected",
-            ).length;
-            // Keep expectation coupled to actual cleanup attempts instead of hardcoding a fixed count.
-            expect(dbDeleteFailureCount).toBe(mockDb.delete.mock.calls.length);
+            expect(r2Failures.length).toBe(1);
+
+            // mockDb.delete is called multiple times.
+            // Ensure the failures reflect the number of mocked DB rejection attempts
+            expect(dbFailures.length).toBe(mockDb.delete.mock.calls.length);
+
         } finally {
             consoleErrorSpy.mockRestore();
         }
@@ -89,9 +88,10 @@ describe("papers routes", () => {
 
         mockDb.batch = vi.fn().mockRejectedValue(new Error("DB batch failed"));
 
-        const promiseAllSettledSpy = vi
-            .spyOn(Promise, "allSettled")
-            .mockRejectedValueOnce(new Error("R2 Promise map failed"));
+        // mock Promise.allSettled to throw immediately when called for R2 deletion
+        const promiseAllSettledSpy = vi.spyOn(Promise, 'allSettled').mockImplementationOnce(async () => {
+             throw new Error("R2 Promise map failed");
+        });
 
         // Make the DB delete promise array evaluation throw
         mockDb.delete = vi.fn(() => {
@@ -100,12 +100,12 @@ describe("papers routes", () => {
 
         const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-        const form = new FormData();
-        form.set("metadata", JSON.stringify({ title: "Fail Cleanup Paper Outer", visibility: "private" }));
-        form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
-        form.set("file_types_0", "paper");
-
         try {
+            const form = new FormData();
+            form.set("metadata", JSON.stringify({ title: "Fail Cleanup Paper Outer", visibility: "private" }));
+            form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
+            form.set("file_types_0", "paper");
+
             const res = await app.request(
                 "http://localhost/api/papers",
                 {
@@ -120,21 +120,27 @@ describe("papers routes", () => {
             );
 
             expect(res.status).toBe(500);
+            expect(consoleErrorSpy).toHaveBeenCalled();
 
-            const cleanupCall = consoleErrorSpy.mock.calls.find(
-                ([message]) => message === "Cleanup failures for paperId:",
-            );
-            expect(cleanupCall).toBeDefined();
-            const cleanupFailures = cleanupCall?.[2] as unknown[];
-            const cleanupFailureMessages = cleanupFailures.map((failure) =>
-                failure instanceof Error ? failure.message : String(failure),
-            );
-            expect(cleanupFailureMessages).toContain("DB delete call failed");
+            const allCalls = consoleErrorSpy.mock.calls;
+            // Map the errors depending on if they were logged together or separately
+            let foundR2 = false;
+            let foundDB = false;
 
-            const allLoggedMessages = consoleErrorSpy.mock.calls.flatMap((call) =>
-                call.map((entry) => (entry instanceof Error ? entry.message : String(entry))),
-            );
-            expect(allLoggedMessages).toContain("R2 Promise map failed");
+            for (const call of allCalls) {
+                 for (const arg of call) {
+                      if (Array.isArray(arg)) {
+                          if (arg.some(e => e?.message === "R2 Promise map failed")) foundR2 = true;
+                          if (arg.some(e => e?.message === "DB delete call failed")) foundDB = true;
+                      } else if (arg instanceof Error) {
+                          if (arg.message === "R2 Promise map failed") foundR2 = true;
+                          if (arg.message === "DB delete call failed") foundDB = true;
+                      }
+                 }
+            }
+
+            expect(foundR2).toBe(true);
+            expect(foundDB).toBe(true);
         } finally {
             consoleErrorSpy.mockRestore();
             promiseAllSettledSpy.mockRestore();
