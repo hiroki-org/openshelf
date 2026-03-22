@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, gte, inArray, sql } from "drizzle-orm";
 import {
@@ -17,7 +17,7 @@ import {
     type VenueType,
     type CategoryType,
 } from "../db/schema";
-import type { Env, Variables, AppContext } from "../types";
+import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
 
@@ -90,7 +90,7 @@ async function hashString(value: string): Promise<string> {
 }
 
 async function buildViewerFingerprint(
-    c: AppContext,
+    c: Context<{ Bindings: Env; Variables: Variables }>,
     paperId: string,
 ): Promise<string> {
     const user = c.get("user");
@@ -143,7 +143,7 @@ function isValidUrlScheme(urlStr: string): boolean {
 }
 
 async function authorizePaperAccess(
-    c: AppContext,
+    c: Context<{ Bindings: Env; Variables: Variables }>,
     db: ReturnType<typeof drizzle>,
     paper: { visibility: string; id: string },
 ) {
@@ -1046,15 +1046,7 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
         .where(eq(paperFiles.paperId, paperId))
         .all();
 
-    if (files.length > 0) {
-        const keys = files.map((f) => f.r2Key);
-        const chunkSize = 1000;
-        const chunks = [];
-        for (let i = 0; i < keys.length; i += chunkSize) {
-            chunks.push(keys.slice(i, i + chunkSize));
-        }
-        await Promise.all(chunks.map(chunk => c.env.BUCKET.delete(chunk)));
-    }
+    await Promise.all(files.map((f) => c.env.BUCKET.delete(f.r2Key)));
     await db.delete(papers).where(eq(papers.id, paperId));
 
     return c.json({ ok: true });

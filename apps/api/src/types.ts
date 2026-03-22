@@ -1,4 +1,3 @@
-import type { Context } from "hono";
 import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
 
 export type Env = {
@@ -24,5 +23,3 @@ export type JwtPayload = {
 export type Variables = {
     user: JwtPayload;
 };
-
-export type AppContext = Context<{ Bindings: Env; Variables: Variables }>;
