@@ -18,6 +18,9 @@ comment:
   behavior: default
   require_changes: false
 
+ignore:
+  - "**/*.bench.ts"
+
 flags:
   api:
     paths:
