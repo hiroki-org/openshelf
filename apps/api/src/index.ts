@@ -64,8 +64,8 @@ app.use("/api/*", async (c, next) => {
         if (isAllowedOrigin || isAllowedReferer) return await next();
 
 
-    } catch {
-        // Ignore CSRF check error
+    } catch (err) {
+        console.error(`CSRF check error: ${err}`);
     }
 
     return c.text("Forbidden", 403);
