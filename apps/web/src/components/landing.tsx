@@ -1,3 +1,5 @@
+"use client";
+
 import { useAuth } from "@/components/auth-provider";
 
 export function LandingHero() {
@@ -31,41 +33,40 @@ export function LandingHero() {
   );
 }
 
+const FEATURES = [
+  {
+    title: "1. 成果物をまとめる",
+    description: "論文、発表資料、ポスター、補足資料をひとつの単位で整理できます。",
+    icon: {
+      path: "M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z",
+      bgClass: "bg-blue-100 dark:bg-blue-900/30",
+      textClass: "text-blue-600 dark:text-blue-400",
+    },
+  },
+  {
+    title: "2. 公開範囲を選ぶ",
+    description: "非公開・組織内・公開を使い分けて、共有先に応じた見せ方にできます。",
+    icon: {
+      path: "M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z",
+      bgClass: "bg-green-100 dark:bg-green-900/30",
+      textClass: "text-green-600 dark:text-green-400",
+    },
+  },
+  {
+    title: "3. 永続URLで共有",
+    description: "研究室内の参照や外部向け案内にも使いやすい、安定した導線を用意できます。",
+    icon: {
+      path: "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244",
+      bgClass: "bg-purple-100 dark:bg-purple-900/30",
+      textClass: "text-purple-600 dark:text-purple-400",
+    },
+  },
+] as const;
+
 export function LandingFeatures() {
   return (
     <div className="mt-20 grid gap-6 sm:grid-cols-3 text-left">
-      {[
-        {
-          title: "1. 成果物をまとめる",
-          description:
-            "論文、発表資料、ポスター、補足資料をひとつの単位で整理できます。",
-          icon: {
-            path: "M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z",
-            bgClass: "bg-blue-100 dark:bg-blue-900/30",
-            textClass: "text-blue-600 dark:text-blue-400",
-          },
-        },
-        {
-          title: "2. 公開範囲を選ぶ",
-          description:
-            "非公開・組織内・公開を使い分けて、共有先に応じた見せ方にできます。",
-          icon: {
-            path: "M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z",
-            bgClass: "bg-green-100 dark:bg-green-900/30",
-            textClass: "text-green-600 dark:text-green-400",
-          },
-        },
-        {
-          title: "3. 永続URLで共有",
-          description:
-            "研究室内の参照や外部向け案内にも使いやすい、安定した導線を用意できます。",
-          icon: {
-            path: "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244",
-            bgClass: "bg-purple-100 dark:bg-purple-900/30",
-            textClass: "text-purple-600 dark:text-purple-400",
-          },
-        },
-      ].map((feature) => (
+      {FEATURES.map((feature) => (
         <div
           key={feature.title}
           className="rounded-2xl border border-gray-200 bg-gray-50/50 p-6 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50 dark:hover:bg-gray-900"
