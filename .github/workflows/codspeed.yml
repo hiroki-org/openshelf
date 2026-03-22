@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - "apps/api/**"
+      - "apps/api/vitest.bench.config.mts"
       - ".github/workflows/codspeed.yml"
   pull_request:
     branches: [main]
     paths:
       - "apps/api/**"
+      - "apps/api/vitest.bench.config.mts"
       - ".github/workflows/codspeed.yml"
   workflow_dispatch:
 

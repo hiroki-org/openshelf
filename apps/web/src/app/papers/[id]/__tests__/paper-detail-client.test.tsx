@@ -394,4 +394,96 @@ describe("PaperDetailClient", () => {
       await screen.findByText("この論文を閲覧する権限がありません"),
     ).toBeInTheDocument();
   });
+
+  it("handles image loading failure gracefully", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // As requested, spy on window.fetch
+    const fetchSpy = vi.spyOn(window, "fetch").mockImplementation(async (input, init) => {
+      if (String(input).includes("/files/file-image/stream")) {
+        return Promise.reject(new Error("Simulated network failure"));
+      }
+      return new Response();
+    });
+
+    vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/papers/paper-1" && method === "GET") {
+        return jsonResponse({
+          paper: {
+            id: "paper-1",
+            title: "Image Failure Test",
+            abstract: null,
+            visibility: "public",
+            showViewCount: false,
+            publicViewCount: null,
+            externalUrl: null,
+            venue: null,
+            venueType: null,
+            year: null,
+            category: null,
+            tags: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+          },
+          files: [
+            {
+              id: "file-image",
+              filename: "poster.png",
+              fileType: "poster",
+              sizeBytes: 2048,
+              mimeType: "image/png",
+              downloadUrl: "/api/downloads/poster.png",
+            },
+          ],
+          authors: [
+            {
+              userId: "author-1",
+              role: "author",
+              name: "alice",
+              displayName: "Alice",
+              avatarUrl: null,
+            },
+          ],
+        });
+      }
+
+      if (url === "/api/papers/paper-1/view" && method === "POST") {
+        return jsonResponse({ counted: true });
+      }
+
+      if (url === "/api/papers/paper-1/stats" && method === "GET") {
+        return jsonResponse({
+          totalViews: 0,
+          last7DaysViews: 0,
+          last30DaysViews: 0,
+          dailyViews: [],
+        });
+      }
+
+      if (url.includes("/files/file-image/stream") && method === "GET") {
+        // Forward to window.fetch so the spy is utilized
+        return window.fetch(url, init);
+      }
+
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    render(<PaperDetailClient paperId="paper-1" />);
+
+    await screen.findByRole("heading", { name: "Image Failure Test" });
+
+    await waitFor(() => {
+      expect(console.error).toHaveBeenCalledWith(
+        "Error loading image file-image:",
+        expect.any(Error)
+      );
+    });
+
+    expect(screen.getByText("画像の読み込みに失敗しました")).toBeInTheDocument();
+
+    fetchSpy.mockRestore();
+  });
 });

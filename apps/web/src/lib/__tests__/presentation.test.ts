@@ -5,6 +5,12 @@ import {
   getVisibilityBadge,
 } from "../presentation";
 
+type RoleBadgeCase = readonly [
+  string | null | undefined,
+  string | null | undefined,
+  "neutral" | "success" | "warning" | "danger" | "info",
+];
+
 const toneClassNames = {
   neutral: "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700",
   success: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900",
@@ -47,17 +53,22 @@ describe("presentation badge helpers", () => {
   });
 
   describe("getRoleBadge", () => {
-    it.each([
+    const roleBadgeCases = [
       ["owner", "オーナー", "info"],
       ["admin", "管理者", "warning"],
       ["member", "メンバー", "neutral"],
       ["uploader", "アップロード者", "info"],
       ["author", "著者", "success"],
       ["reviewer", "reviewer", "neutral"],
+      ["coauthor", "coauthor", "neutral"],
       ["unknown_role", "unknown_role", "neutral"],
       ["", "", "neutral"],
-    ] as const)("returns correct badge for %s", (role, label, tone) => {
-      expect(getRoleBadge(role)).toEqual({
+      [undefined, undefined, "neutral"],
+      [null, null, "neutral"],
+    ] as const satisfies readonly RoleBadgeCase[];
+
+    it.each(roleBadgeCases)("returns correct badge for %s", (role, label, tone) => {
+      expect(getRoleBadge(role as string)).toEqual({
         label,
         tone,
         className: toneClassNames[tone],

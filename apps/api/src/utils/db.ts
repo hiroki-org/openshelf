@@ -2,10 +2,12 @@ import { eq, and } from "drizzle-orm";
 import { type drizzle } from "drizzle-orm/d1";
 import { orgs, orgMembers, paperAuthors, paperOrgs } from "../db/schema";
 
+/** Returns the org row for a given slug. */
 export async function getOrgBySlug(db: ReturnType<typeof drizzle>, slug: string) {
     return db.select().from(orgs).where(eq(orgs.slug, slug)).get();
 }
 
+/** Returns the membership row for a user within an org. */
 export async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
     return db
         .select()
@@ -14,15 +16,18 @@ export async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: st
         .get();
 }
 
+/** Checks whether the user belongs to the org. */
 export async function isOrgMember(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
     return !!(await getOrgMembership(db, orgId, userId));
 }
 
+/** Checks whether the user is an org admin or owner. */
 export async function isOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
     const row = await getOrgMembership(db, orgId, userId);
     return !!row && (row.role === "admin" || row.role === "owner");
 }
 
+/** Checks whether the user is listed as an author of the paper. */
 export async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, userId: string) {
     const author = await db
         .select({ id: paperAuthors.paperId })
@@ -32,6 +37,7 @@ export async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: str
     return !!author;
 }
 
+/** Checks whether the user is the uploader of the paper. */
 export async function isPaperUploader(db: ReturnType<typeof drizzle>, paperId: string, userId: string) {
     const uploader = await db
         .select({ id: paperAuthors.paperId })
@@ -47,6 +53,7 @@ export async function isPaperUploader(db: ReturnType<typeof drizzle>, paperId: s
     return !!uploader;
 }
 
+/** Checks whether the user belongs to any org attached to the paper. */
 export async function isMemberOfPaperOrg(db: ReturnType<typeof drizzle>, paperId: string, userId: string) {
     const isMember = await db
         .select({ id: orgMembers.userId })
