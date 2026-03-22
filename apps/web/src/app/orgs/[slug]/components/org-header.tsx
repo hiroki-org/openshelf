@@ -3,7 +3,6 @@ import { Org } from "../types";
 
 type OrgHeaderProps = {
   org: Org;
-  slug: string;
   memberCount: number;
   paperCount: number;
   collectionCount: number;
@@ -12,7 +11,6 @@ type OrgHeaderProps = {
 
 export function OrgHeader({
   org,
-  slug,
   memberCount,
   paperCount,
   collectionCount,
@@ -32,7 +30,7 @@ export function OrgHeader({
         </div>
         {isAdmin && (
           <Link
-            href={`/orgs/${slug}/settings`}
+            href={`/orgs/${org.slug}/settings`}
             className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
           >
             ⚙ 設定

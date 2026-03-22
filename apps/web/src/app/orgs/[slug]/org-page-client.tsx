@@ -84,7 +84,6 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
     <div className="max-w-4xl">
       <OrgHeader
         org={org}
-        slug={slug}
         memberCount={memberCount}
         paperCount={orgPapers.length}
         collectionCount={collections.length}
