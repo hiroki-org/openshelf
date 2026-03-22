@@ -1,5 +1,7 @@
 import * as React from "react"
 
+import { cn } from "@/lib/utils"
+
 export interface LabelProps
   extends React.LabelHTMLAttributes<HTMLLabelElement> {}
 
@@ -7,7 +9,7 @@ const Label = React.forwardRef<HTMLLabelElement, LabelProps>(
   ({ className, ...props }, ref) => (
     <label
       ref={ref}
-      className={`block text-sm font-medium mb-1 ${className || ""}`}
+      className={cn("mb-1 block text-sm font-medium", className)}
       {...props}
     />
   )
