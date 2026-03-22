@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { timingSafeEqual } from "hono/utils/buffer";
 import type { Env, Variables } from "./types";
 import auth from "./routes/auth";
 import usersRoute from "./routes/users";
@@ -8,6 +7,25 @@ import papersRoute from "./routes/papers";
 import invitesRoute from "./routes/invites";
 import orgsRoute from "./routes/orgs";
 import collectionsRoute from "./routes/collections";
+
+const encoder = new TextEncoder();
+
+const sha256 = async (value: string): Promise<Uint8Array> => {
+    const data = encoder.encode(value);
+    const digest = await crypto.subtle.digest("SHA-256", data);
+    return new Uint8Array(digest);
+};
+
+const timingSafeEqualString = async (a: string, b: string): Promise<boolean> => {
+    const [hashA, hashB] = await Promise.all([sha256(a), sha256(b)]);
+
+    let diff = 0;
+    for (let i = 0; i < hashA.length; i++) {
+        diff |= hashA[i] ^ hashB[i];
+    }
+
+    return diff === 0;
+};
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -46,11 +64,11 @@ app.use("/api/*", async (c, next) => {
     const authHeader = c.req.header("Authorization");
     let isTestEnv = false;
     if (process.env.NODE_ENV !== "production") {
-        const testAuthHeader = c.req.header("x-test-auth-secret");
-        isTestEnv = c.env.ENABLE_TEST_AUTH === "true" &&
-            !!c.env.TEST_AUTH_SECRET &&
-            !!testAuthHeader &&
-            await timingSafeEqual(testAuthHeader, c.env.TEST_AUTH_SECRET);
+        const testAuthHeader = c.req.header("x-test-auth-secret") ?? "";
+        const configuredTestSecret = c.env.TEST_AUTH_SECRET ?? "";
+        const isSecretMatch = await timingSafeEqualString(testAuthHeader, configuredTestSecret);
+
+        isTestEnv = c.env.ENABLE_TEST_AUTH === "true" && configuredTestSecret.length > 0 && isSecretMatch;
     }
 
     // Bypass CSRF for requests with Bearer tokens or valid test auth secret in test env
