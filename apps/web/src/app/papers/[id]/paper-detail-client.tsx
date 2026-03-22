@@ -352,9 +352,9 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
         if (cancelled) return;
         setPreview({ ...data, url: resolvedUrl });
-      } catch {
+      } catch (err) {
         if (cancelled) return;
-        // TODO(observability): Report preview fetch errors to centralized monitoring when available.
+        // TODO(observability): Add proper logging for preview fetch failures
         setPreviewError(true);
         setPreview(null);
       } finally {
@@ -395,8 +395,8 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
             const objectUrl = URL.createObjectURL(blob);
             createdUrls.push(objectUrl);
             return [img.id, objectUrl] as const;
-          } catch {
-            // TODO(observability): Report image stream errors to centralized monitoring when available.
+          } catch (err) {
+            // TODO(observability): Add proper logging for image load failures
             currentFailedIds.push(img.id);
             return [img.id, ""] as const;
           }
@@ -412,8 +412,8 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       setFailedImageIds(currentFailedIds);
     };
 
-    loadImages().catch(() => {
-      // TODO(observability): Report bulk image loading failures to centralized monitoring when available.
+    loadImages().catch((err) => {
+      // TODO(observability): Add proper logging for critical loadImages failures
       if (!cancelled) {
         setImagePreviewUrls({});
         setFailedImageIds(imageFiles.map((f) => f.id));
