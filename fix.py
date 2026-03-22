@@ -1,10 +1,5 @@
-with open("apps/web/src/app/__tests__/paper-edit-page.test.tsx", "r") as f:
+with open("apps/web/src/components/papers/edit-form.tsx", "r") as f:
     content = f.read()
 
-# Fix DOM leakage by adding testing-library cleanup and vi.clearAllMocks() in beforeEach
-content = "import { cleanup } from '@testing-library/react';\n" + content
-content = content.replace("    authState = { user: { id: \"user-1\" }, loading: false };\n  });", "    authState = { user: { id: \"user-1\" }, loading: false };\n  });\n\n  afterEach(() => {\n    cleanup();\n  });")
-
-
-with open("apps/web/src/app/__tests__/paper-edit-page.test.tsx", "w") as f:
-    f.write(content)
+# Let's see what the actual validation error text is
+print(content[content.find("年は数値"):content.find("年は数値")+100])
