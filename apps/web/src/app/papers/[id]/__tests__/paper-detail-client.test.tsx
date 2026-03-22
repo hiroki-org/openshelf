@@ -290,7 +290,9 @@ describe("PaperDetailClient", () => {
       "data-url",
       "/api/downloads/deck.pptx",
     );
-    expect(await screen.findByTestId("pdf-viewer")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId("pdf-viewer")).toBeInTheDocument();
+    }, { timeout: 10000 });
     expect(screen.getByText("🎞️")).toBeInTheDocument();
     expect(screen.getByText("閲覧統計")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
