@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 export const VISIBILITY_OPTIONS = [
@@ -44,20 +44,43 @@ export type PaperEditData = {
   tags: string | null;
 };
 
+export type UserOrganization = {
+  id: string;
+  name: string;
+  slug: string;
+  role?: string | null;
+  isExistingTarget?: boolean;
+};
+
 type Props = {
   paperId: string;
   initialData: PaperEditData;
+  organizations?: UserOrganization[];
+  initialSelectedOrgIds?: string[];
+  orgsWarning?: string | null;
 };
 
-export function PaperEditForm({ paperId, initialData }: Props) {
+function areSameOrgSelection(a: string[], b: string[]) {
+  if (a.length !== b.length) return false;
+  const aSet = new Set(a);
+  for (const id of b) {
+    if (!aSet.has(id)) return false;
+  }
+  return true;
+}
+
+export function PaperEditForm({
+  paperId,
+  initialData,
+  organizations = [],
+  initialSelectedOrgIds = [],
+  orgsWarning = null,
+}: Props) {
   const router = useRouter();
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const initialVisibility = initialData.visibility;
-
-  // Form states
   const [title, setTitle] = useState(initialData.title || "");
   const [abstract, setAbstract] = useState(initialData.abstract || "");
   const [visibility, setVisibility] = useState<VisibilityValue>(initialData.visibility);
@@ -69,6 +92,7 @@ export function PaperEditForm({ paperId, initialData }: Props) {
   const [venueType, setVenueType] = useState(initialData.venueType || "");
   const [year, setYear] = useState(initialData.year ? String(initialData.year) : "");
   const [category, setCategory] = useState(initialData.category || "");
+  const [selectedOrgIds, setSelectedOrgIds] = useState(initialSelectedOrgIds);
 
   const [tagsStr, setTagsStr] = useState(() => {
     if (!initialData.tags) return "";
@@ -82,6 +106,14 @@ export function PaperEditForm({ paperId, initialData }: Props) {
       return String(initialData.tags);
     }
   });
+
+  const toggleOrganization = (orgId: string) => {
+    setSelectedOrgIds((prev) =>
+      prev.includes(orgId)
+        ? prev.filter((id) => id !== orgId)
+        : [...prev, orgId],
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,23 +134,43 @@ export function PaperEditForm({ paperId, initialData }: Props) {
       return;
     }
 
+    const keepingExistingSelection =
+      initialSelectedOrgIds.length > 0 &&
+      areSameOrgSelection(selectedOrgIds, initialSelectedOrgIds);
+
+    if (visibility === "org_only") {
+      if (organizations.length === 0 && !keepingExistingSelection) {
+        setError("所属組織がありません。公開範囲を変更してください。");
+        return;
+      }
+      if (selectedOrgIds.length === 0 && !keepingExistingSelection) {
+        setError("組織公開にする場合は少なくとも1つの対象組織を選択してください。");
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     try {
       const parsedYear = year ? parseInt(year, 10) : null;
-      if (year && isNaN(parsedYear!)) {
+      if (year && Number.isNaN(parsedYear)) {
         throw new Error("年は数値で入力してください。");
       }
 
       const tagsArray = tagsStr
         .split(",")
-        .map((t) => t.trim())
+        .map((tag) => tag.trim())
         .filter(Boolean);
 
+      const includeOrgIds =
+        visibility === "org_only" &&
+        !keepingExistingSelection;
+
       const payload = {
-        title: title.trim(),
+        title: trimmedTitle,
         abstract: abstract.trim() || null,
         visibility,
+        orgIds: includeOrgIds ? selectedOrgIds : undefined,
         showViewCount,
         language: language.trim() || null,
         externalUrl: externalUrl.trim() || null,
@@ -150,10 +202,7 @@ export function PaperEditForm({ paperId, initialData }: Props) {
     }
   };
 
-  const visibilityOptions =
-    initialVisibility === "org_only"
-      ? VISIBILITY_OPTIONS
-      : VISIBILITY_OPTIONS.filter((option) => option.value !== "org_only");
+  const hasExistingOrgSelection = initialSelectedOrgIds.length > 0;
 
   return (
     <div className="max-w-2xl mx-auto py-8">
@@ -170,6 +219,11 @@ export function PaperEditForm({ paperId, initialData }: Props) {
       {error && (
         <div className="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
           {error}
+        </div>
+      )}
+      {orgsWarning && (
+        <div className="mb-6 rounded-md bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+          {orgsWarning}
         </div>
       )}
 
@@ -193,7 +247,7 @@ export function PaperEditForm({ paperId, initialData }: Props) {
         <fieldset>
           <legend className="mb-1 block text-sm font-medium">公開範囲</legend>
           <div className="flex gap-4">
-            {visibilityOptions.map((opt) => (
+            {VISIBILITY_OPTIONS.map((opt) => (
               <div key={opt.value} className="flex items-center gap-2">
                 <input
                   id={`visibility-${opt.value}`}
@@ -201,9 +255,7 @@ export function PaperEditForm({ paperId, initialData }: Props) {
                   name="visibility"
                   value={opt.value}
                   checked={visibility === opt.value}
-                  onChange={(e) =>
-                    setVisibility(e.target.value as VisibilityValue)
-                  }
+                  onChange={(e) => setVisibility(e.target.value as VisibilityValue)}
                 />
                 <label htmlFor={`visibility-${opt.value}`} className="text-sm">
                   {opt.label}
@@ -211,28 +263,47 @@ export function PaperEditForm({ paperId, initialData }: Props) {
               </div>
             ))}
           </div>
-          {initialVisibility !== "org_only" && (
-            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-              組織公開への変更は対象組織を選べないため、この編集画面では未対応です。
-            </p>
-          )}
-          {initialVisibility === "org_only" && (
-            <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
-              現在の組織公開設定は維持できますが、公開先組織自体の編集は未対応です。
-            </p>
-          )}
           <p className="mt-1 text-xs text-gray-500">
             {visibility === "private" && "あなたと共著者のみが閲覧可能です。"}
-            {visibility === "org_only" && "所属組織のメンバーのみが閲覧可能です。"}
+            {visibility === "org_only" && "選択した対象組織のいずれかに所属するユーザーが閲覧可能です。"}
             {visibility === "public" && "誰でも閲覧可能です。"}
           </p>
         </fieldset>
 
+        {visibility === "org_only" && (
+          <fieldset className="rounded-md border border-gray-200 p-4 dark:border-gray-800">
+            <legend className="px-1 text-sm font-medium">対象組織</legend>
+            {organizations.length === 0 ? (
+              <p className="text-sm text-amber-700 dark:text-amber-300">
+                {hasExistingOrgSelection
+                  ? "対象組織一覧を取得できなかったため、現在の組織設定を維持したまま保存できます。"
+                  : "所属組織がありません。公開範囲を変更してください。"}
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {organizations.map((org) => (
+                  <label key={org.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={selectedOrgIds.includes(org.id)}
+                      onChange={() => toggleOrganization(org.id)}
+                    />
+                    <span>{org.name}</span>
+                    <span className="text-xs text-gray-500">({org.slug})</span>
+                    {org.isExistingTarget && !org.role && (
+                      <span className="text-xs text-amber-700 dark:text-amber-300">
+                        現在の対象組織
+                      </span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            )}
+          </fieldset>
+        )}
+
         <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-          <label
-            htmlFor="show-view-count"
-            className="flex items-start gap-3"
-          >
+          <label htmlFor="show-view-count" className="flex items-start gap-3">
             <input
               id="show-view-count"
               type="checkbox"
@@ -241,9 +312,7 @@ export function PaperEditForm({ paperId, initialData }: Props) {
               className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900"
             />
             <span>
-              <span className="block text-sm font-medium">
-                公開ページに閲覧数を表示する
-              </span>
+              <span className="block text-sm font-medium">公開ページに閲覧数を表示する</span>
               <span className="mt-1 block text-xs leading-5 text-gray-500">
                 著者向けの詳細統計は常に閲覧できます。この設定は、一般閲覧者向けに総閲覧数を表示するかどうかだけを切り替えます。
               </span>
@@ -252,7 +321,9 @@ export function PaperEditForm({ paperId, initialData }: Props) {
         </div>
 
         <div>
-          <label htmlFor="abstract" className="mb-1 block text-sm font-medium">概要</label>
+          <label htmlFor="abstract" className="mb-1 block text-sm font-medium">
+            概要
+          </label>
           <textarea
             id="abstract"
             value={abstract}
@@ -266,7 +337,9 @@ export function PaperEditForm({ paperId, initialData }: Props) {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label htmlFor="category" className="mb-1 block text-sm font-medium">カテゴリ</label>
+            <label htmlFor="category" className="mb-1 block text-sm font-medium">
+              カテゴリ
+            </label>
             <select
               id="category"
               value={category}
@@ -282,7 +355,9 @@ export function PaperEditForm({ paperId, initialData }: Props) {
           </div>
 
           <div>
-            <label htmlFor="year" className="mb-1 block text-sm font-medium">発表年</label>
+            <label htmlFor="year" className="mb-1 block text-sm font-medium">
+              発表年
+            </label>
             <input
               id="year"
               type="number"
@@ -294,7 +369,9 @@ export function PaperEditForm({ paperId, initialData }: Props) {
           </div>
 
           <div>
-            <label htmlFor="venue" className="mb-1 block text-sm font-medium">発表場所（学会名など）</label>
+            <label htmlFor="venue" className="mb-1 block text-sm font-medium">
+              発表場所（学会名など）
+            </label>
             <input
               id="venue"
               type="text"
@@ -306,7 +383,9 @@ export function PaperEditForm({ paperId, initialData }: Props) {
           </div>
 
           <div>
-            <label htmlFor="venue-type" className="mb-1 block text-sm font-medium">発表種別</label>
+            <label htmlFor="venue-type" className="mb-1 block text-sm font-medium">
+              発表種別
+            </label>
             <select
               id="venue-type"
               value={venueType}
@@ -322,7 +401,9 @@ export function PaperEditForm({ paperId, initialData }: Props) {
           </div>
 
           <div>
-            <label htmlFor="language" className="mb-1 block text-sm font-medium">言語</label>
+            <label htmlFor="language" className="mb-1 block text-sm font-medium">
+              言語
+            </label>
             <input
               id="language"
               type="text"
@@ -334,7 +415,9 @@ export function PaperEditForm({ paperId, initialData }: Props) {
           </div>
 
           <div>
-            <label htmlFor="doi" className="mb-1 block text-sm font-medium">DOI</label>
+            <label htmlFor="doi" className="mb-1 block text-sm font-medium">
+              DOI
+            </label>
             <input
               id="doi"
               type="text"
@@ -347,7 +430,9 @@ export function PaperEditForm({ paperId, initialData }: Props) {
         </div>
 
         <div>
-          <label htmlFor="external-url" className="mb-1 block text-sm font-medium">外部リンク</label>
+          <label htmlFor="external-url" className="mb-1 block text-sm font-medium">
+            外部リンク
+          </label>
           <input
             id="external-url"
             type="url"
