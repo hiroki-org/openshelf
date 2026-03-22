@@ -1,5 +1,4 @@
 const fs = require('fs');
-const path = require('path');
 
 const filePath = 'apps/api/src/routes/__tests__/collections.test.ts';
 let code = fs.readFileSync(filePath, 'utf-8');
