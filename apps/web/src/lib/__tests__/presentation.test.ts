@@ -5,6 +5,12 @@ import {
   getVisibilityBadge,
 } from "../presentation";
 
+type RoleBadgeCase = readonly [
+  string | null | undefined,
+  string | null | undefined,
+  "neutral" | "success" | "warning" | "danger" | "info",
+];
+
 const toneClassNames = {
   neutral: "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700",
   success: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900",
@@ -75,14 +81,19 @@ describe("presentation badge helpers", () => {
       });
     });
 
-    it.each([
+    const fallbackRoleBadgeCases = [
       ["reviewer", "reviewer", "neutral"],
+      ["coauthor", "coauthor", "neutral"],
       ["unknown_role", "unknown_role", "neutral"],
       ["", "", "neutral"],
-    ] as const)(
+      [undefined, undefined, "neutral"],
+      [null, null, "neutral"],
+    ] as const satisfies readonly RoleBadgeCase[];
+
+    it.each(fallbackRoleBadgeCases)(
       "falls back to the input label for %s when role is not recognized",
       (role, label, tone) => {
-        expect(getRoleBadge(role)).toEqual({
+        expect(getRoleBadge(role as string)).toEqual({
           label,
           tone,
           className: toneClassNames[tone],
