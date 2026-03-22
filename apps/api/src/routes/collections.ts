@@ -402,9 +402,7 @@ collectionsRoute.post("/collections/:id/papers", authMiddleware, async (c) => {
             return c.json({ error: "Paper already added" }, 409);
         }
         throw err;
-    }
-
-    return c.json({ ok: true }, 201);
+    } return c.json({ ok: true }, 201);
 });
 
 collectionsRoute.delete("/collections/:id/papers/:paperId", authMiddleware, async (c) => {
@@ -425,9 +423,7 @@ collectionsRoute.delete("/collections/:id/papers/:paperId", authMiddleware, asyn
 
     if ((result as any).meta?.changes === 0) {
         return c.json({ error: "Paper not in collection" }, 404);
-    }
-
-    return c.json({ ok: true });
+    } return c.json({ ok: true });
 });
 
 collectionsRoute.patch("/collections/:id/papers", authMiddleware, async (c) => {
