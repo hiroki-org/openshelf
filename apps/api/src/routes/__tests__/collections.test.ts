@@ -292,11 +292,14 @@ describe("collections routes", () => {
             },
         ]);
 
-        const mockWhere = vi.fn(async () => {
-            throw new Error("UNIQUE constraint failed: collections.slug");
-        });
-        const mockSet = vi.fn(() => ({ where: mockWhere }));
-        mockDb.update = vi.fn(() => ({ set: mockSet }));
+        const setValues = vi.fn(() => ({
+            where: vi.fn(async () => {
+                throw new Error("UNIQUE constraint failed: collections.slug");
+            }),
+        }));
+        mockDb.update = vi.fn(() => ({
+            set: setValues,
+        }));
 
         const app = await createTestApp();
         const env = createTestEnv();
@@ -314,12 +317,16 @@ describe("collections routes", () => {
             env as any,
         );
 
-        expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ slug: "existing-slug" }));
         expect(res.status).toBe(409);
+        expect(setValues).toHaveBeenCalledWith(
+            expect.objectContaining({
+                slug: "existing-slug",
+            }),
+        );
         expect(((await res.json()) as any).error).toBe("slug already in use");
     });
 
-    it("PATCH /api/collections/:id does not misclassify non-unique constraint errors", async () => {
+    it("PATCH /api/collections/:id rethrows non-unique constraint errors", async () => {
         const token = await createTestJWT({ sub: "user-1" });
         queueSelectResponses([
             {
