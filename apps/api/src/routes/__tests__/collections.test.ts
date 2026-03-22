@@ -279,8 +279,47 @@ describe("collections routes", () => {
         expect(((await res.json()) as any).collection.slug).toBe("renamed");
     });
 
-
     it("PATCH /api/collections/:id rejects update when slug is already in use", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        queueSelectResponses([
+            {
+                getResult: {
+                    id: "col-1",
+                    ownerType: "user",
+                    ownerId: "user-1",
+                    visibility: "private",
+                },
+            },
+        ]);
+
+        const mockWhere = vi.fn(async () => {
+            throw new Error("UNIQUE constraint failed: collections.slug");
+        });
+        const mockSet = vi.fn(() => ({ where: mockWhere }));
+        mockDb.update = vi.fn(() => ({ set: mockSet }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections/col-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ slug: "existing-slug" }),
+            },
+            env as any,
+        );
+
+        expect(mockSet).toHaveBeenCalledWith(expect.objectContaining({ slug: "existing-slug" }));
+        expect(res.status).toBe(409);
+        expect(((await res.json()) as any).error).toBe("slug already in use");
+    });
+
+    it("PATCH /api/collections/:id does not misclassify non-unique constraint errors", async () => {
         const token = await createTestJWT({ sub: "user-1" });
         queueSelectResponses([
             {
@@ -296,7 +335,7 @@ describe("collections routes", () => {
         mockDb.update = vi.fn(() => ({
             set: vi.fn(() => ({
                 where: vi.fn(async () => {
-                    throw new Error("UNIQUE constraint failed: collections.slug");
+                    throw new Error("FOREIGN KEY constraint failed");
                 }),
             })),
         }));
@@ -317,8 +356,7 @@ describe("collections routes", () => {
             env as any,
         );
 
-        expect(res.status).toBe(409);
-        expect(((await res.json()) as any).error).toBe("slug already in use");
+        expect(res.status).toBe(500);
     });
 
     it("PATCH /api/collections/:id rejects requests without updatable fields", async () => {
