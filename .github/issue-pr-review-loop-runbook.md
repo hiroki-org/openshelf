@@ -42,9 +42,8 @@ issue ごとに以下を繰り返します。
 1. `main` からブランチ作成
 
    ```bash
-   git checkout main
-   git pull --rebase
-   git checkout -b feat/issue-<number>-<short-topic>
+   git fetch origin
+   git checkout -b feat/issue-<number>-<short-topic> origin/main
    ```
 
 2. 実装 + テスト追加
@@ -66,7 +65,7 @@ issue ごとに以下を繰り返します。
 5. PR作成（必ず issue を close 連携）
 
    ```bash
-   gh pr create --base main --head <branch> --title "<title>" --body "...\n\nCloses #<ISSUE_NUMBER>"
+   gh pr create --base main --head <branch> --title "<title>" --body $'<変更概要を記載>\n\nCloses #<ISSUE_NUMBER>'
    ```
 
 ## フェーズ3: open PR review closure loop
@@ -85,6 +84,30 @@ issue ごとに以下を繰り返します。
 
 3. **必ず返信してから** スレッドを resolve  
    （返信なし resolve 禁止）
+
+   ```bash
+   # unresolved スレッド ID を取得
+   gh api graphql -f query='
+     query($owner:String!, $repo:String!, $pr:Int!) {
+       repository(owner:$owner, name:$repo) {
+         pullRequest(number:$pr) {
+           reviewThreads(first:100) {
+             nodes { id isResolved }
+           }
+         }
+       }
+     }
+   ' -f owner=Hiroki-org -f repo=OpenShelf -F pr=<PR_NUMBER>
+
+   # スレッドを resolve
+   gh api graphql -f query='
+     mutation($threadId:ID!) {
+       resolveReviewThread(input:{threadId:$threadId}) {
+         thread { id isResolved }
+       }
+     }
+   ' -f threadId=<THREAD_ID>
+   ```
 
 4. 修正がある場合は push し、required checks を監視
 
@@ -126,7 +149,7 @@ issue ごとに以下を繰り返します。
 
 ### IGNORE_WITH_REASON 返信テンプレート
 
-`今回は対応見送りとします。理由: <技術的根拠>. 前提/代替: <補足>.`
+`今回は対応見送りとします。理由: <技術的根拠>. 代替策/前提: <補足>.`
 
 ## チェックリスト
 
