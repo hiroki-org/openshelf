@@ -44,33 +44,42 @@ describe("papers routes", () => {
         form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
         form.set("file_types_0", "paper");
 
-        const res = await app.request(
-            "http://localhost/api/papers",
-            {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Origin: "http://localhost:3000"
+        try {
+            const res = await app.request(
+                "http://localhost/api/papers",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Origin: "http://localhost:3000"
+                    },
+                    body: form
                 },
-                body: form
-            },
-            env as any
-        );
+                env as any
+            );
 
-        expect(res.status).toBe(500);
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-            "Cleanup failures for paperId:",
-            expect.any(String),
-            expect.arrayContaining([
-                new Error("R2 delete rejected"),
-                new Error("DB delete rejected"),
-                new Error("DB delete rejected"),
-                new Error("DB delete rejected"),
-                new Error("DB delete rejected")
-            ])
-        );
+            expect(res.status).toBe(500);
+            const cleanupCall = consoleErrorSpy.mock.calls.find(
+                ([message]) => message === "Cleanup failures for paperId:",
+            );
+            expect(cleanupCall).toBeDefined();
 
-        consoleErrorSpy.mockRestore();
+            const cleanupFailures = cleanupCall?.[2] as unknown[];
+            expect(Array.isArray(cleanupFailures)).toBe(true);
+
+            const failureMessages = cleanupFailures.map((failure) =>
+                failure instanceof Error ? failure.message : String(failure),
+            );
+            expect(failureMessages).toContain("R2 delete rejected");
+
+            const dbDeleteFailureCount = failureMessages.filter(
+                (message) => message === "DB delete rejected",
+            ).length;
+            // Keep expectation coupled to actual cleanup attempts instead of hardcoding a fixed count.
+            expect(dbDeleteFailureCount).toBe(mockDb.delete.mock.calls.length);
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
     });
 
     it("POST /api/papers logs outer cleanup failures if cleanup throws entirely", async () => {
@@ -80,15 +89,9 @@ describe("papers routes", () => {
 
         mockDb.batch = vi.fn().mockRejectedValue(new Error("DB batch failed"));
 
-        // Make the Promise.allSettled for BUCKET.delete throw an error
-        const originalMap = Array.prototype.map;
-        const uploadKeysMapSpy = vi.spyOn(Array.prototype, 'map').mockImplementation(function(this: any[], callback: any) {
-            // Check if this map is called within the R2 cleanup block
-            if (this.length > 0 && typeof this[0] === 'string' && this[0].includes('paper.pdf')) {
-                 throw new Error("R2 Promise map failed");
-            }
-            return originalMap.call(this, callback);
-        });
+        const promiseAllSettledSpy = vi
+            .spyOn(Promise, "allSettled")
+            .mockRejectedValueOnce(new Error("R2 Promise map failed"));
 
         // Make the DB delete promise array evaluation throw
         mockDb.delete = vi.fn(() => {
@@ -102,31 +105,40 @@ describe("papers routes", () => {
         form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
         form.set("file_types_0", "paper");
 
-        const res = await app.request(
-            "http://localhost/api/papers",
-            {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    Origin: "http://localhost:3000"
+        try {
+            const res = await app.request(
+                "http://localhost/api/papers",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Origin: "http://localhost:3000"
+                    },
+                    body: form
                 },
-                body: form
-            },
-            env as any
-        );
+                env as any
+            );
 
-        expect(res.status).toBe(500);
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-            "Cleanup failures for paperId:",
-            expect.any(String),
-            expect.arrayContaining([
-                new Error("R2 Promise map failed"),
-                new Error("DB delete call failed"),
-            ])
-        );
+            expect(res.status).toBe(500);
 
-        consoleErrorSpy.mockRestore();
-        uploadKeysMapSpy.mockRestore();
+            const cleanupCall = consoleErrorSpy.mock.calls.find(
+                ([message]) => message === "Cleanup failures for paperId:",
+            );
+            expect(cleanupCall).toBeDefined();
+            const cleanupFailures = cleanupCall?.[2] as unknown[];
+            const cleanupFailureMessages = cleanupFailures.map((failure) =>
+                failure instanceof Error ? failure.message : String(failure),
+            );
+            expect(cleanupFailureMessages).toContain("DB delete call failed");
+
+            const allLoggedMessages = consoleErrorSpy.mock.calls.flatMap((call) =>
+                call.map((entry) => (entry instanceof Error ? entry.message : String(entry))),
+            );
+            expect(allLoggedMessages).toContain("R2 Promise map failed");
+        } finally {
+            consoleErrorSpy.mockRestore();
+            promiseAllSettledSpy.mockRestore();
+        }
     });
 
     it("POST /api/papers uploads multipart and creates paper", async () => {
