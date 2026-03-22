@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/components/auth-provider";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import Link from "next/link";
 import { NewOrgForm } from "@/components/orgs/new-org-form";
 
@@ -15,6 +15,13 @@ export default function NewOrgPage() {
   }, [loading, user, router]);
 
   if (loading || !user) return null;
+
+  const handleCreateSuccess = useCallback(
+    (slug: string) => {
+      router.push(`/orgs/${slug}`);
+    },
+    [router],
+  );
 
   return (
     <div className="max-w-lg">
@@ -29,7 +36,7 @@ export default function NewOrgPage() {
 
       <h1 className="text-2xl font-bold mb-6">組織を作成</h1>
 
-      <NewOrgForm />
+      <NewOrgForm onSuccess={handleCreateSuccess} />
     </div>
   );
 }

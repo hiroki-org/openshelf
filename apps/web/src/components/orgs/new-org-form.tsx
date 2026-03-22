@@ -1,23 +1,26 @@
 "use client";
 
-import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
-import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
+const SLUG_MIN_LENGTH = 3;
+const SLUG_MAX_LENGTH = 40;
+const SLUG_DEBOUNCE_MS = 400;
+
+export type NewOrgFormProps = {
+  onSuccess?: (slug: string) => void;
+};
 
 function slugify(text: string): string {
   return text
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
-    .slice(0, 40);
+    .slice(0, SLUG_MAX_LENGTH);
 }
 
-export function NewOrgForm() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
+export function NewOrgForm({ onSuccess }: NewOrgFormProps) {
 
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -40,7 +43,12 @@ export function NewOrgForm() {
 
   // Check slug availability
   const checkSlug = useCallback(async (s: string) => {
-    if (s.length < 3 || s.length > 40 || !SLUG_RE.test(s) || s.includes("--")) {
+    if (
+      s.length < SLUG_MIN_LENGTH ||
+      s.length > SLUG_MAX_LENGTH ||
+      !SLUG_RE.test(s) ||
+      s.includes("--")
+    ) {
       setSlugStatus("invalid");
       return;
     }
@@ -62,15 +70,14 @@ export function NewOrgForm() {
   }, []);
 
   useEffect(() => {
-    if (!slug || slug.length < 3) {
+    if (!slug || slug.length < SLUG_MIN_LENGTH) {
       setSlugStatus(slug.length > 0 ? "invalid" : "idle");
       return;
     }
-    const timer = setTimeout(() => checkSlug(slug), 400);
+    const timer = setTimeout(() => checkSlug(slug), SLUG_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [slug, checkSlug]);
 
-  if (loading || !user) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +87,7 @@ export function NewOrgForm() {
       setError("組織名は必須です");
       return;
     }
-    if (slug.length < 3) {
+    if (slug.length < SLUG_MIN_LENGTH) {
       setError("スラッグは3文字以上必要です");
       return;
     }
@@ -99,7 +106,7 @@ export function NewOrgForm() {
 
       if (res.ok) {
         const data = await res.json();
-        router.push(`/orgs/${data.org.slug}`);
+        onSuccess?.(data.org.slug);
         return;
       }
 
