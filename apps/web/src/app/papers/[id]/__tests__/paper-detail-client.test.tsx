@@ -71,7 +71,10 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 function blobResponse(content: string, type: string, status = 200) {
-  return new Response(new Blob([content], { type }), { status });
+  return new Response(content, {
+    status,
+    headers: { "Content-Type": type },
+  });
 }
 
 describe("PaperDetailClient", () => {

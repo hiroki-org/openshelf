@@ -195,7 +195,7 @@ describe("PptxViewer", () => {
 
   it("shows a download link fallback when no handler is provided", async () => {
     mockApiFetch.mockResolvedValueOnce(
-      new Response(new Blob([toArrayBuffer(buildZip([]))], { type: pptxMimeType }), {
+      new Response(toArrayBuffer(buildZip([])), {
         status: 200,
         headers: { "Content-Type": pptxMimeType },
       }),
