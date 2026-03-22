@@ -313,25 +313,20 @@ describe("collections routes", () => {
         expect(((await res.json()) as any).collection.slug).toBe("renamed");
     });
 
+
     it("PATCH /api/collections/:id returns 409 when slug already in use", async () => {
         const token = await createTestJWT({ sub: "user-1" });
         queueSelectResponses([
-            {
-                getResult: {
-                    id: "col-1",
-                    ownerType: "user",
-                    ownerId: "user-1",
-                    visibility: "private",
-                },
-            },
+            { getResult: { id: "col-1", ownerId: "user-1", ownerType: "user", visibility: "private" } }, // get collection to check ownership
         ]);
 
-        const setValues = vi.fn(() => ({
-            where: vi.fn(async () => {
-                throw new Error("UNIQUE constraint failed: collections.owner_id, collections.slug");
-            }),
-        }));
-        mockDb.update = vi.fn(() => ({ set: setValues }));
+        const updateSet = vi.fn(async () => {
+            throw new Error("UNIQUE constraint failed: collections.owner_id, collections.slug");
+        });
+        const whereFn = vi.fn(async () => {
+            throw new Error("UNIQUE constraint failed: collections.owner_id, collections.slug");
+        });
+        mockDb.update = vi.fn(() => ({ set: vi.fn(() => ({ where: whereFn })) }));
 
         const app = await createTestApp();
         const env = createTestEnv();
@@ -344,15 +339,17 @@ describe("collections routes", () => {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ slug: "duplicate-slug" }),
+                body: JSON.stringify({
+                    slug: "existing-slug",
+                }),
             },
             env as any,
         );
 
         expect(res.status).toBe(409);
-        expect(((await res.json()) as any).error).toBe("slug already in use");
+        const body = (await res.json()) as any;
+        expect(body.error).toBe("slug already in use");
     });
-
     it("PATCH /api/collections/:id rejects requests without updatable fields", async () => {
         const token = await createTestJWT({ sub: "user-1" });
         queueSelectResponses([
