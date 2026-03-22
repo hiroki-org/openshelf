@@ -476,13 +476,10 @@ describe("PaperDetailClient", () => {
     await screen.findByRole("heading", { name: "Image Failure Test" });
 
     await waitFor(() => {
-      expect(console.error).toHaveBeenCalledWith(
-        "Error loading image file-image:",
-        expect.any(Error)
-      );
+      expect(screen.getByText("画像の読み込みに失敗しました")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("画像の読み込みに失敗しました")).toBeInTheDocument();
+    expect(console.error).not.toHaveBeenCalled();
 
     fetchSpy.mockRestore();
   });
