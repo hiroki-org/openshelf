@@ -40,13 +40,19 @@ export default function PaperEditPage() {
 
     const fetchPaper = async () => {
       try {
-        const paperRes = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}`);
-        let orgsRes: Response | null = null;
+        const paperPromise = apiFetch(`/api/papers/${encodeURIComponent(paperId)}`);
+        const orgsPromise = apiFetch("/api/users/me/orgs");
 
-        try {
-          orgsRes = await apiFetch("/api/users/me/orgs");
-        } catch {
-          orgsRes = null;
+        const [paperSettled, orgsSettled] = await Promise.allSettled([paperPromise, orgsPromise]);
+
+        if (paperSettled.status === "rejected") {
+          throw new Error("論文の取得に失敗しました");
+        }
+        const paperRes = paperSettled.value;
+
+        let orgsRes: Response | null = null;
+        if (orgsSettled.status === "fulfilled") {
+          orgsRes = orgsSettled.value;
         }
 
         if (!paperRes.ok) {

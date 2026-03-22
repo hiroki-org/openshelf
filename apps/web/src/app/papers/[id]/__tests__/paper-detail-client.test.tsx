@@ -461,8 +461,6 @@ describe("PaperDetailClient", () => {
     ).toBeInTheDocument();
   });
   it("handles image loading failure gracefully", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-
     // As requested, spy on window.fetch
     const fetchSpy = vi.spyOn(window, "fetch").mockImplementation(async (input, _init) => {
       if (String(input).includes("/files/file-image/stream")) {

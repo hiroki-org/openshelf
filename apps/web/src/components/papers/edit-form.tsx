@@ -134,14 +134,18 @@ export function PaperEditForm({
     }
 
     if (visibility === "org_only") {
-      const hasExistingOrgSelection = initialSelectedOrgIds.length > 0;
-      const canSubmitWithoutOrgList = hasExistingOrgSelection && organizations.length === 0;
+      const keepingExistingSelection =
+        initialSelectedOrgIds.length > 0 &&
+        areSameOrgSelection(selectedOrgIds, initialSelectedOrgIds);
 
-      if (!canSubmitWithoutOrgList && organizations.length === 0) {
+      if (organizations.length === 0 && !keepingExistingSelection) {
         setError("所属組織がありません。公開範囲を変更してください。");
         return;
       }
-      if (selectedOrgIds.length === 0) {
+      if (
+        selectedOrgIds.length === 0 &&
+        !areSameOrgSelection(selectedOrgIds, initialSelectedOrgIds)
+      ) {
         setError("組織公開にする場合は少なくとも1つの対象組織を選択してください。");
         return;
       }

@@ -11,6 +11,7 @@ import {
     coauthorInvites,
 
     paperOrgs,
+    orgMembers,
     enableForeignKeys,
     touchUpdatedAt,
     VALID_VENUE_TYPES,
@@ -1248,7 +1249,23 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
                 return c.json({ error: "Invalid orgIds or not a member" }, 403);
             }
 
-            shouldReplacePaperOrgs = true;
+            const existingOrgs = await db
+                .select({ orgId: paperOrgs.orgId })
+                .from(paperOrgs)
+                .where(eq(paperOrgs.paperId, paperId))
+                .all();
+            
+            const existingOrgIds = existingOrgs.map(o => o.orgId);
+            const finalOrgIdsSet = new Set(finalOrgIds);
+            const existingOrgIdsSet = new Set(existingOrgIds);
+            
+            const areSetsEqual = 
+                finalOrgIdsSet.size === existingOrgIdsSet.size && 
+                [...finalOrgIdsSet].every(id => existingOrgIdsSet.has(id));
+
+            if (!areSetsEqual) {
+                shouldReplacePaperOrgs = true;
+            }
         }
     }
 

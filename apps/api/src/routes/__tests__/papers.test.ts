@@ -592,7 +592,8 @@ describe("papers routes", () => {
             .fn()
             .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
             .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
-            .mockImplementationOnce(() => makeQuery({ allResult: [{ orgId: "org-1" }] }));
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ orgId: "org-1" }] }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [] })); // existing paperOrgs (none)
         mockDb.update = vi.fn(() => ({ set }));
         mockDb.delete = vi.fn(() => ({ where: deleteWhere }));
         mockDb.insert = vi.fn(() => ({ values: insertValues }));
@@ -767,6 +768,45 @@ describe("papers routes", () => {
         expect(where).toHaveBeenCalledTimes(1);
     });
 
+    it("PATCH /api/papers/:id clears paperOrgs when leaving org_only", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const updateWhere = vi.fn();
+        const updateSet = vi.fn(() => ({ where: updateWhere }));
+        const deleteWhere = vi.fn();
+        
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "org_only" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        
+        mockDb.update = vi.fn(() => ({ set: updateSet }));
+        mockDb.delete = vi.fn(() => ({ where: deleteWhere }));
+        mockDb.insert = vi.fn();
+        mockDb.batch = vi.fn(async () => undefined);
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ visibility: "private" }),
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(200);
+        expect(mockDb.batch).toHaveBeenCalledTimes(1);
+        expect(mockDb.update).toHaveBeenCalledTimes(1);
+        expect(mockDb.delete).toHaveBeenCalledTimes(1);
+        expect(deleteWhere).toHaveBeenCalledTimes(1);
+        expect(mockDb.insert).not.toHaveBeenCalled();
+    });
+
     it("PATCH /api/papers/:id rejects a primitive JSON body", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
 
@@ -827,7 +867,8 @@ describe("papers routes", () => {
             .fn()
             .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "org_only" } }))
             .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
-            .mockImplementationOnce(() => makeQuery({ allResult: [{ orgId: "org-1" }] }));
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ orgId: "org-1" }] }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [] })); // existing paperOrgs (none)
         mockDb.delete = vi.fn(() => ({ where: deleteWhere }));
         mockDb.insert = vi.fn(() => ({ values: insertValues }));
 
