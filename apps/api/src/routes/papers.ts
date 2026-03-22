@@ -19,6 +19,7 @@ import {
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { getOrgMembership } from "../utils/db";
 import { validateMagicNumbers } from "../utils/file";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -306,16 +307,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
     await enableForeignKeys(db);
 
     if (vis === "org_only" && orgId) {
-        const membership = await db
-            .select({ orgId: orgMembers.orgId })
-            .from(orgMembers)
-            .where(
-                and(
-                    eq(orgMembers.orgId, orgId),
-                    eq(orgMembers.userId, userId),
-                ),
-            )
-            .get();
+        const membership = await getOrgMembership(db, orgId, userId);
         if (!membership) {
             console.error(`Membership check failed for userId: ${userId}, orgId: ${orgId}`);
             return c.json({ error: "Invalid orgId or not a member" }, 403);
