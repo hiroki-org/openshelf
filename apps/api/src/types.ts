@@ -25,5 +25,4 @@ export type Variables = {
     user: JwtPayload;
 };
 
-
 export type AppContext = Context<{ Bindings: Env; Variables: Variables }>;
