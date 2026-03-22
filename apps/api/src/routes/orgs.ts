@@ -13,11 +13,10 @@ import {
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
-import { validateSlug, validateName, validateDescription } from "../utils/validation";
 import { getOrgBySlug, getOrgMembership, isOrgMember, isPaperAuthor } from "../utils/db";
+import { validateSlug, validateName, validateDescription } from "../utils/validation";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
-
 
 async function requireOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
     const membership = await getOrgMembership(db, orgId, userId);

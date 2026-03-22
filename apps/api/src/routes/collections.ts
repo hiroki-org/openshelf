@@ -15,8 +15,8 @@ import {
 } from "../db/schema";
 import { authMiddleware } from "../middleware/auth";
 import type { Env, Variables } from "../types";
-import { validateSlug, validateName, validateDescription } from "../utils/validation";
 import { getOrgBySlug, getOrgMembership, isOrgAdmin, isOrgMember } from "../utils/db";
+import { validateSlug, validateName, validateDescription } from "../utils/validation";
 
 const collectionsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
