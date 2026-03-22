@@ -5,6 +5,12 @@ import {
   getVisibilityBadge,
 } from "../presentation";
 
+type RoleBadgeCase = readonly [
+  string | null | undefined,
+  string | null | undefined,
+  "neutral" | "success" | "warning" | "danger" | "info",
+];
+
 const toneClassNames = {
   neutral: "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700",
   success: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-900",
@@ -19,7 +25,7 @@ describe("presentation badge helpers", () => {
       ["public", "公開", "success"],
       ["org_only", "組織内", "warning"],
       ["private", "非公開", "neutral"],
-      ["limited", "limited", "neutral"],
+      ["limited", "限定公開", "neutral"],
     ] as const)("returns correct badge for %s", (visibility, label, tone) => {
       expect(getVisibilityBadge(visibility)).toEqual({
         label,
@@ -34,15 +40,29 @@ describe("presentation badge helpers", () => {
       ["pending", "保留中", "warning"],
       ["accepted", "承認済み", "success"],
       ["declined", "拒否済み", "danger"],
-      ["expired", "expired", "neutral"],
-      ["PENDING", "PENDING", "neutral"],
-      ["", "", "neutral"],
     ] as const)("returns correct badge for %s", (status, label, tone) => {
       expect(getInviteStatusBadge(status)).toEqual({
         label,
         tone,
         className: toneClassNames[tone],
       });
+    });
+
+    describe("fallback / edge cases", () => {
+      it.each([
+        ["expired", "expired", "neutral"],
+        ["PENDING", "PENDING", "neutral"],
+        ["", "", "neutral"],
+      ] as const)(
+        "returns neutral fallback badge for %s status",
+        (status, label, tone) => {
+          expect(getInviteStatusBadge(status)).toEqual({
+            label,
+            tone,
+            className: toneClassNames[tone],
+          });
+        },
+      );
     });
   });
 
@@ -53,9 +73,6 @@ describe("presentation badge helpers", () => {
       ["member", "メンバー", "neutral"],
       ["uploader", "アップロード者", "info"],
       ["author", "著者", "success"],
-      ["reviewer", "reviewer", "neutral"],
-      ["unknown_role", "unknown_role", "neutral"],
-      ["", "", "neutral"],
     ] as const)("returns correct badge for %s", (role, label, tone) => {
       expect(getRoleBadge(role)).toEqual({
         label,
@@ -63,5 +80,25 @@ describe("presentation badge helpers", () => {
         className: toneClassNames[tone],
       });
     });
+
+    const fallbackRoleBadgeCases = [
+      ["reviewer", "reviewer", "neutral"],
+      ["coauthor", "coauthor", "neutral"],
+      ["unknown_role", "unknown_role", "neutral"],
+      ["", "", "neutral"],
+      [undefined, undefined, "neutral"],
+      [null, null, "neutral"],
+    ] as const satisfies readonly RoleBadgeCase[];
+
+    it.each(fallbackRoleBadgeCases)(
+      "falls back to the input label for %s when role is not recognized",
+      (role, label, tone) => {
+        expect(getRoleBadge(role as string)).toEqual({
+          label,
+          tone,
+          className: toneClassNames[tone],
+        });
+      },
+    );
   });
 });

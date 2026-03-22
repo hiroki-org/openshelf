@@ -70,7 +70,7 @@ describe("users routes", () => {
         expect(body.user.displayName).toBe("Updated");
     });
 
-    it("PATCH /api/users/me with malformed JSON returns 400", async () => {
+    it("PATCH /api/users/me with malformed JSON string '{bad' returns 400", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
 
         const app = await createTestApp();
@@ -84,7 +84,7 @@ describe("users routes", () => {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json"
                 },
-                body: '{ "displayName": "New Name", ' // Missing closing brace
+                body: '{bad' // Malformed JSON string
             },
             env as any
         );

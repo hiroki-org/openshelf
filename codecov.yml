@@ -3,6 +3,10 @@ codecov:
   notify:
     wait_for_ci: false
 
+ignore:
+  - "apps/api/src/test/**/*"
+  - "**/*.bench.ts"
+
 coverage:
   status:
     project:
@@ -17,6 +21,9 @@ comment:
   layout: "reach,diff,flags,files"
   behavior: default
   require_changes: false
+
+ignore:
+  - "**/*.bench.ts"
 
 flags:
   api:

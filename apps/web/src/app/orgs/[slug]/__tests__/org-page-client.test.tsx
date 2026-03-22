@@ -87,8 +87,8 @@ describe("OrgPageClient", () => {
                 userId: "user-1",
                 role: "admin",
                 name: "Alice",
-                displayName: null,
-                avatarUrl: null,
+                displayName: "Alice Admin",
+                avatarUrl: "https://example.com/alice.png",
                 githubId: "alice",
               },
             ],
@@ -124,6 +124,11 @@ describe("OrgPageClient", () => {
       "href",
       "/orgs/lab/settings",
     );
+    expect(await screen.findByAltText("Alice")).toHaveAttribute(
+      "src",
+      "https://example.com/alice.png",
+    );
+    expect(await screen.findByText("Alice Admin")).toBeInTheDocument();
     expect(await screen.findByText("Featured")).toBeInTheDocument();
     expect(await screen.findByText("Paper One")).toBeInTheDocument();
   });

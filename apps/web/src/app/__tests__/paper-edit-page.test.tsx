@@ -100,7 +100,7 @@ describe("PaperEditPage", () => {
       target: { value: "AI, LLM" },
     });
 
-    fireEvent.click(screen.getAllByRole("button", { name: "保存する" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
@@ -204,7 +204,7 @@ describe("PaperEditPage", () => {
 
     fireEvent.click(screen.getByLabelText("組織内"));
     fireEvent.click(screen.getByLabelText(/Org 1/i));
-    fireEvent.click(screen.getAllByRole("button", { name: "保存する" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
@@ -274,7 +274,7 @@ describe("PaperEditPage", () => {
       expect(screen.getByDisplayValue("Original title")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getAllByRole("button", { name: "保存する" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
