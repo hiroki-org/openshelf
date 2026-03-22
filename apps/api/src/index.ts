@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { timingSafeEqual } from "hono/utils/buffer";
 import type { Env, Variables } from "./types";
 import auth from "./routes/auth";
 import usersRoute from "./routes/users";
@@ -46,7 +47,10 @@ app.use("/api/*", async (c, next) => {
     let isTestEnv = false;
     if (process.env.NODE_ENV !== "production") {
         const testAuthHeader = c.req.header("x-test-auth-secret");
-        isTestEnv = c.env.ENABLE_TEST_AUTH === "true" && !!c.env.TEST_AUTH_SECRET && testAuthHeader === c.env.TEST_AUTH_SECRET;
+        isTestEnv = c.env.ENABLE_TEST_AUTH === "true" &&
+            !!c.env.TEST_AUTH_SECRET &&
+            !!testAuthHeader &&
+            await timingSafeEqual(testAuthHeader, c.env.TEST_AUTH_SECRET);
     }
 
     // Bypass CSRF for requests with Bearer tokens or valid test auth secret in test env
