@@ -70,6 +70,31 @@ describe("users routes", () => {
         expect(body.user.displayName).toBe("Updated");
     });
 
+    it("PATCH /api/users/me with malformed JSON string '{bad' returns 400", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/users/me",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: '{bad' // Malformed JSON string
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toBe("Invalid JSON body");
+    });
+
+
     it("PATCH /api/users/me with malformed JSON returns 400", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
 
