@@ -417,6 +417,10 @@ describe("UploadPage", () => {
         { status: 200 },
       ),
     );
+
+    expect(
+      await screen.findByRole("option", { name: "Org 1" }),
+    ).toBeInTheDocument();
   });
 
   it("blocks org_only submit when no organizations are available", async () => {
