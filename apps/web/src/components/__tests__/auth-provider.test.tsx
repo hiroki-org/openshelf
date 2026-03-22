@@ -14,12 +14,15 @@ vi.mock("@/lib/api", () => ({
 }));
 
 function Consumer() {
-  const { user, loading, logout } = useAuth();
+  const { user, loading, login, logout } = useAuth();
 
   return (
     <div>
       <div data-testid="loading">{String(loading)}</div>
       <div data-testid="user">{user ? user.name : "null"}</div>
+      <button onClick={login} type="button">
+        login
+      </button>
       <button onClick={() => void logout()} type="button">
         logout
       </button>
@@ -113,5 +116,39 @@ describe("AuthProvider", () => {
       expect(localStorage.getItem("auth_token")).toBeNull();
       expect(screen.getByTestId("user").textContent).toBe("null");
     });
+  });
+
+  it("logs an error and does not navigate when NEXT_PUBLIC_API_URL is missing", async () => {
+    const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    delete process.env.NEXT_PUBLIC_API_URL;
+
+    render(
+      <AuthProvider>
+        <Consumer />
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("loading").textContent).toBe("false");
+    });
+
+    const initialHref = window.location.href;
+    fireEvent.click(screen.getByRole("button", { name: "login" }));
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "NEXT_PUBLIC_API_URL is not set. OAuth login requires the API base URL to avoid cross-origin cookie issues.",
+    );
+    expect(window.location.href).toBe(initialHref);
+
+    consoleError.mockRestore();
+    if (originalApiUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_API_URL;
+    } else {
+      process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
+    }
   });
 });
