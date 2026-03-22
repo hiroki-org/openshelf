@@ -40,6 +40,12 @@ function u32LE(value: number): Uint8Array {
   return new Uint8Array(buffer);
 }
 
+function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
 function buildZip(entries: ZipEntry[]): Uint8Array {
   const localSegments: Uint8Array[] = [];
   const localOffsets: number[] = [];
@@ -189,7 +195,7 @@ describe("PptxViewer", () => {
 
   it("shows a download link fallback when no handler is provided", async () => {
     mockApiFetch.mockResolvedValueOnce(
-      new Response(buildZip([]), {
+      new Response(new Blob([toArrayBuffer(buildZip([]))], { type: pptxMimeType }), {
         status: 200,
         headers: { "Content-Type": pptxMimeType },
       }),
@@ -242,7 +248,7 @@ describe("PptxViewer", () => {
     ]);
 
     mockApiFetch.mockResolvedValueOnce(
-      new Response(buffer, {
+      new Response(new Blob([toArrayBuffer(buffer)], { type: pptxMimeType }), {
         status: 200,
         headers: { "Content-Type": pptxMimeType },
       }),
