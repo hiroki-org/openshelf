@@ -1,4 +1,4 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, gte, inArray, sql } from "drizzle-orm";
 import {
@@ -17,7 +17,7 @@ import {
     type VenueType,
     type CategoryType,
 } from "../db/schema";
-import type { Env, Variables } from "../types";
+import type { Env, Variables, AppContext } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
 
@@ -90,7 +90,7 @@ async function hashString(value: string): Promise<string> {
 }
 
 async function buildViewerFingerprint(
-    c: Context<{ Bindings: Env; Variables: Variables }>,
+    c: AppContext,
     paperId: string,
 ): Promise<string> {
     const user = c.get("user");
@@ -143,7 +143,7 @@ function isValidUrlScheme(urlStr: string): boolean {
 }
 
 async function authorizePaperAccess(
-    c: Context<{ Bindings: Env; Variables: Variables }>,
+    c: AppContext,
     db: ReturnType<typeof drizzle>,
     paper: { visibility: string; id: string },
 ) {
