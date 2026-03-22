@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { orgs, orgMembers, paperAuthors, paperOrgs } from "../db/schema";
+import { orgs, orgMembers, paperAuthors } from "../db/schema";
 
 export async function getOrgBySlug(db: ReturnType<typeof drizzle>, slug: string) {
     return db.select().from(orgs).where(eq(orgs.slug, slug)).get();
