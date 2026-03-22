@@ -1,10 +1,11 @@
+import { cleanup } from '@testing-library/react';
 import {
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PaperEditPage from "../papers/[id]/edit/page";
 import { apiFetch } from "@/lib/api";
 
@@ -41,6 +42,10 @@ describe("PaperEditPage", () => {
     replace.mockReset();
     refresh.mockReset();
     authState = { user: { id: "user-1" }, loading: false };
+  });
+
+  afterEach(() => {
+    cleanup();
   });
 
   it("loads paper data and submits updates", async () => {
@@ -132,4 +137,5 @@ describe("PaperEditPage", () => {
       expect(replace).toHaveBeenCalledWith("/papers/paper-1");
     });
   });
+
 });
