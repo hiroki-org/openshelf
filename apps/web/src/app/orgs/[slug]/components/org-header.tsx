@@ -3,7 +3,7 @@ import { Org } from "../types";
 
 type OrgHeaderProps = {
   org: Org;
-  memberCount: number;
+    memberCount: number;
   paperCount: number;
   collectionCount: number;
   isAdmin: boolean;
@@ -11,7 +11,7 @@ type OrgHeaderProps = {
 
 export function OrgHeader({
   org,
-  memberCount,
+    memberCount,
   paperCount,
   collectionCount,
   isAdmin,

@@ -34,28 +34,26 @@ export function CollectionList({
           {collections.map((c) => {
             const badge = getVisibilityBadge(c.visibility);
             return (
-              <li key={c.id}>
-                <Link
-                  href={`/orgs/${slug}/c/${c.slug}`}
-                  className="block rounded-md border p-3 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="text-sm font-medium">{c.name}</h3>
-                      {c.description && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          {c.description}
-                        </p>
-                      )}
-                    </div>
-                    <span
-                      className={`shrink-0 rounded px-2 py-0.5 text-xs ${badge.className}`}
-                    >
+            <li key={c.id}>
+              <Link
+                href={`/orgs/${slug}/c/${c.slug}`}
+                className="block rounded-md border p-3 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-medium">{c.name}</h3>
+                    {c.description && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {c.description}
+                      </p>
+                    )}
+                  </div>
+                  <span className={`shrink-0 rounded px-2 py-0.5 text-xs ${badge.className}`}>
                       {badge.label}
                     </span>
-                  </div>
-                </Link>
-              </li>
+                </div>
+              </Link>
+            </li>
             );
           })}
         </ul>
