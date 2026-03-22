@@ -29,9 +29,6 @@ export const VENUE_TYPE_OPTIONS = [
   { value: "other", label: "その他" },
 ] as const;
 
-const MAX_TITLE_LENGTH = 300;
-const MAX_ABSTRACT_LENGTH = 5000;
-
 export type PaperEditData = {
   title: string | null;
   abstract: string | null;
@@ -77,7 +74,10 @@ export function PaperEditForm({ paperId, initialData }: Props) {
     if (!initialData.tags) return "";
     try {
       const parsed = JSON.parse(initialData.tags);
-      return Array.isArray(parsed) ? parsed.join(", ") : String(parsed);
+      if (Array.isArray(parsed)) {
+        return parsed.join(", ");
+      }
+      return String(parsed);
     } catch {
       return String(initialData.tags);
     }
@@ -87,18 +87,18 @@ export function PaperEditForm({ paperId, initialData }: Props) {
     e.preventDefault();
     setError(null);
 
-    if (!title.trim()) {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
       setError("タイトルを入力してください。");
       return;
     }
-
-    if (title.length > MAX_TITLE_LENGTH) {
-      setError(`タイトルは${MAX_TITLE_LENGTH}文字以内で入力してください。`);
+    if (trimmedTitle.length > 300) {
+      setError("タイトルは300文字以内で入力してください。");
       return;
     }
 
-    if (abstract.length > MAX_ABSTRACT_LENGTH) {
-      setError(`概要は${MAX_ABSTRACT_LENGTH}文字以内で入力してください。`);
+    if (abstract && abstract.trim().length > 5000) {
+      setError("概要は5000文字以内で入力してください。");
       return;
     }
 
@@ -182,9 +182,9 @@ export function PaperEditForm({ paperId, initialData }: Props) {
             id="title"
             type="text"
             required
-            maxLength={MAX_TITLE_LENGTH}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            maxLength={300}
             className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
             placeholder="論文のタイトル"
           />
@@ -258,7 +258,7 @@ export function PaperEditForm({ paperId, initialData }: Props) {
             value={abstract}
             onChange={(e) => setAbstract(e.target.value)}
             rows={4}
-            maxLength={MAX_ABSTRACT_LENGTH}
+            maxLength={5000}
             className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
             placeholder="アブストラクト..."
           />
