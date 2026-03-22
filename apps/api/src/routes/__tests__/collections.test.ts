@@ -140,6 +140,40 @@ describe("collections routes", () => {
         );
     });
 
+    it("POST /api/collections returns 409 when slug already in use", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+
+        const insertValues = vi.fn(async () => {
+            throw new Error("UNIQUE constraint failed");
+        });
+        mockDb.insert = vi.fn(() => ({ values: insertValues }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    owner_type: "user",
+                    name: "Favorites",
+                    slug: "favorites",
+                    description: " Picked papers ",
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(409);
+        const body = (await res.json()) as any;
+        expect(body.error).toBe("slug already in use");
+    });
+
     it("POST /api/collections returns 403 when requester cannot manage org collections", async () => {
         const token = await createTestJWT({ sub: "user-1" });
         queueSelectResponses([
