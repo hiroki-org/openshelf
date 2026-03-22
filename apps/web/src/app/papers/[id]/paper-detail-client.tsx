@@ -354,7 +354,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         setPreview({ ...data, url: resolvedUrl });
       } catch (err) {
         if (cancelled) return;
-        // TODO(observability): Add proper logging for preview fetch failures
+        console.error("プレビューURLの取得に失敗しました:", err);
         setPreviewError(true);
         setPreview(null);
       } finally {
@@ -396,7 +396,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
             createdUrls.push(objectUrl);
             return [img.id, objectUrl] as const;
           } catch (err) {
-            // TODO(observability): Add proper logging for image load failures
+            console.error(`Error loading image ${img.id}:`, err);
             currentFailedIds.push(img.id);
             return [img.id, ""] as const;
           }
@@ -413,7 +413,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     };
 
     loadImages().catch((err) => {
-      // TODO(observability): Add proper logging for critical loadImages failures
+      console.error("Critical error in loadImages:", err);
       if (!cancelled) {
         setImagePreviewUrls({});
         setFailedImageIds(imageFiles.map((f) => f.id));
