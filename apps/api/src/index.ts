@@ -65,7 +65,7 @@ app.use("/api/*", async (c, next) => {
 
 
     } catch {
-
+        // Ignore CSRF check error
     }
 
     return c.text("Forbidden", 403);
