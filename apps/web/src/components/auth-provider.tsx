@@ -61,9 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(() => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL;
     if (!apiBase) {
-      throw new Error(
-        "NEXT_PUBLIC_API_URL is not set. OAuth login requires the API base URL to avoid cross-origin cookie issues.",
-      );
+      return;
     }
     window.location.href = `${apiBase}/api/auth/github`;
   }, []);

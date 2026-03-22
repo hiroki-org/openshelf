@@ -115,3 +115,68 @@ describe("AuthProvider", () => {
     });
   });
 });
+
+function LoginConsumer() {
+  const { login } = useAuth();
+
+  return (
+    <button onClick={login} type="button">
+      login
+    </button>
+  );
+}
+
+describe("AuthProvider login", () => {
+  const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const originalLocation = window.location;
+
+  beforeEach(() => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { href: "http://localhost/" },
+    });
+  });
+
+  afterEach(() => {
+    cleanup();
+
+    if (originalApiUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_API_URL;
+    } else {
+      process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
+    }
+
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: originalLocation,
+    });
+  });
+
+  it("does nothing when NEXT_PUBLIC_API_URL is not set", () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+
+    render(
+      <AuthProvider>
+        <LoginConsumer />
+      </AuthProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "login" }));
+
+    expect(window.location.href).toBe("http://localhost/");
+  });
+
+  it("redirects to OAuth endpoint when NEXT_PUBLIC_API_URL is set", () => {
+    process.env.NEXT_PUBLIC_API_URL = "https://api.example.com";
+
+    render(
+      <AuthProvider>
+        <LoginConsumer />
+      </AuthProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "login" }));
+
+    expect(window.location.href).toBe("https://api.example.com/api/auth/github");
+  });
+});
