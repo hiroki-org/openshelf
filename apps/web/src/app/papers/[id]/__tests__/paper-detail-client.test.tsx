@@ -396,6 +396,16 @@ describe("PaperDetailClient", () => {
   });
 
   it("handles image loading failure gracefully", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    // As requested, spy on window.fetch
+    const fetchSpy = vi.spyOn(window, "fetch").mockImplementation(async (input, init) => {
+      if (String(input).includes("/files/file-image/stream")) {
+        return Promise.reject(new Error("Simulated network failure"));
+      }
+      return new Response();
+    });
+
     vi.mocked(apiFetch).mockImplementation(async (input, init) => {
       const url = String(input);
       const method = init?.method ?? "GET";
@@ -454,7 +464,8 @@ describe("PaperDetailClient", () => {
       }
 
       if (url.includes("/files/file-image/stream") && method === "GET") {
-        throw new Error("Simulated network failure");
+        // Forward to window.fetch so the spy is utilized
+        return window.fetch(url, init);
       }
 
       throw new Error(`Unexpected request: ${method} ${url}`);
@@ -467,10 +478,12 @@ describe("PaperDetailClient", () => {
     await waitFor(() => {
       expect(console.error).toHaveBeenCalledWith(
         "Error loading image file-image:",
-        expect.any(Error),
+        expect.any(Error)
       );
     });
 
-    expect(await screen.findByText("画像の読み込みに失敗しました")).toBeInTheDocument();
+    expect(screen.getByText("画像の読み込みに失敗しました")).toBeInTheDocument();
+
+    fetchSpy.mockRestore();
   });
 });
