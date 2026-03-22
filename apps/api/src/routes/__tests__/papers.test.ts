@@ -88,10 +88,13 @@ describe("papers routes", () => {
 
         mockDb.batch = vi.fn().mockRejectedValue(new Error("DB batch failed"));
 
-        // mock Promise.allSettled to throw immediately when called for R2 deletion
-        const promiseAllSettledSpy = vi.spyOn(Promise, 'allSettled').mockImplementationOnce(async () => {
-             throw new Error("R2 Promise map failed");
-        });
+        const originalAllSettled = Promise.allSettled.bind(Promise);
+        const promiseAllSettledSpy = vi
+            .spyOn(Promise, "allSettled")
+            .mockImplementationOnce((values) => originalAllSettled(values))
+            .mockImplementationOnce(async () => {
+                throw new Error("R2 Promise map failed");
+            });
 
         // Make the DB delete promise array evaluation throw
         mockDb.delete = vi.fn(() => {
