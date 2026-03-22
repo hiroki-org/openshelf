@@ -26,4 +26,5 @@ jobs:
       - name: Run CodSpeed benchmarks
         uses: CodSpeedHQ/action@v4
         with:
+          mode: simulation
           run: npm run bench -w apps/api
