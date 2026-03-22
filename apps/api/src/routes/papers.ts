@@ -9,7 +9,7 @@ import {
     users,
     orgs,
     coauthorInvites,
-    orgMembers,
+
     paperOrgs,
     enableForeignKeys,
     touchUpdatedAt,
@@ -21,6 +21,7 @@ import {
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
+import { isPaperAuthor, isPaperUploader, getOrgMembership, isMemberOfPaperOrg } from "../utils/db";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -171,16 +172,7 @@ async function authorizePaperAccess(
     }
 
     // Authors always have access
-    const isAuthor = await db
-        .select()
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paper.id),
-                eq(paperAuthors.userId, user.sub),
-            ),
-        )
-        .get();
+    const isAuthor = await isPaperAuthor(db, paper.id, user.sub);
     if (isAuthor) return { ok: true, user };
 
     if (paper.visibility === "private") {
@@ -188,19 +180,9 @@ async function authorizePaperAccess(
     }
 
     if (paper.visibility === "org_only") {
-        const isMemberOfPaperOrg = await db
-            .select({ id: orgMembers.userId })
-            .from(orgMembers)
-            .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
-            .where(
-                and(
-                    eq(paperOrgs.paperId, paper.id),
-                    eq(orgMembers.userId, user.sub),
-                ),
-            )
-            .get();
+        const isMember = await isMemberOfPaperOrg(db, paper.id, user.sub);
 
-        if (!isMemberOfPaperOrg) {
+        if (!isMember) {
             return { ok: false, status: 403, error: "Forbidden" };
         }
     } else {
@@ -210,24 +192,7 @@ async function authorizePaperAccess(
     return { ok: true, user };
 }
 
-async function isPaperAuthor(
-    db: ReturnType<typeof drizzle>,
-    paperId: string,
-    userId: string,
-): Promise<boolean> {
-    const author = await db
-        .select({ userId: paperAuthors.userId })
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paperId),
-                eq(paperAuthors.userId, userId),
-            ),
-        )
-        .get();
 
-    return !!author;
-}
 
 async function generateSignedPreviewUrl(
     bucket: Env["BUCKET"],
@@ -318,16 +283,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
     await enableForeignKeys(db);
 
     if (vis === "org_only" && orgId) {
-        const membership = await db
-            .select({ orgId: orgMembers.orgId })
-            .from(orgMembers)
-            .where(
-                and(
-                    eq(orgMembers.orgId, orgId),
-                    eq(orgMembers.userId, userId),
-                ),
-            )
-            .get();
+        const membership = await getOrgMembership(db, orgId, userId);
         if (!membership) {
             console.error(`Membership check failed for userId: ${userId}, orgId: ${orgId}`);
             return c.json({ error: "Invalid orgId or not a member" }, 403);
@@ -914,17 +870,7 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
     await enableForeignKeys(db);
     const userId = c.get("user").sub;
 
-    const isUploader = await db
-        .select()
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paperId),
-                eq(paperAuthors.userId, userId),
-                eq(paperAuthors.role, "uploader"),
-            ),
-        )
-        .get();
+    const isUploader = await isPaperUploader(db, paperId, userId);
     if (!isUploader)
         return c.json({ error: "Only uploaders can invite" }, 403);
 
@@ -997,17 +943,7 @@ papersRoute.get("/:id/invites", authMiddleware, async (c) => {
     const db = drizzle(c.env.DB);
     const userId = c.get("user").sub;
 
-    const isUploader = await db
-        .select()
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paperId),
-                eq(paperAuthors.userId, userId),
-                eq(paperAuthors.role, "uploader"),
-            ),
-        )
-        .get();
+    const isUploader = await isPaperUploader(db, paperId, userId);
     if (!isUploader) return c.json({ error: "Forbidden" }, 403);
 
     const inviteRows = await db
@@ -1059,17 +995,7 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
     const db = drizzle(c.env.DB);
     await enableForeignKeys(db);
 
-    const isUploader = await db
-        .select()
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paperId),
-                eq(paperAuthors.userId, userId),
-                eq(paperAuthors.role, "uploader"),
-            ),
-        )
-        .get();
+    const isUploader = await isPaperUploader(db, paperId, userId);
     if (!isUploader) return c.json({ error: "Forbidden" }, 403);
 
     const files = await db
@@ -1109,16 +1035,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         .get();
     if (!paper) return c.json({ error: "Not found" }, 404);
 
-    const isAuthor = await db
-        .select()
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paperId),
-                eq(paperAuthors.userId, userId)
-            )
-        )
-        .get();
+    const isAuthor = await isPaperAuthor(db, paperId, userId);
     if (!isAuthor) return c.json({ error: "Forbidden" }, 403);
 
     const updates: Record<string, any> = { ...touchUpdatedAt() };

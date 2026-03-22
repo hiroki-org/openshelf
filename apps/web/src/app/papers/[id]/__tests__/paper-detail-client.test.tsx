@@ -460,7 +460,6 @@ describe("PaperDetailClient", () => {
       await screen.findByText("この論文を閲覧する権限がありません"),
     ).toBeInTheDocument();
   });
-
   it("handles image loading failure gracefully", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
 
