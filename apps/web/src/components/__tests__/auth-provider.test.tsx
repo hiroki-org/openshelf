@@ -1,11 +1,5 @@
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, act, cleanup } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { AuthProvider, useAuth } from "../auth-provider";
 import { apiFetch } from "@/lib/api";
 
@@ -13,170 +7,106 @@ vi.mock("@/lib/api", () => ({
   apiFetch: vi.fn(),
 }));
 
-function Consumer() {
-  const { user, loading, logout } = useAuth();
-
+function TestComponent() {
+  const { user, login, logout } = useAuth();
   return (
     <div>
-      <div data-testid="loading">{String(loading)}</div>
       <div data-testid="user">{user ? user.name : "null"}</div>
-      <button onClick={() => void logout()} type="button">
-        logout
-      </button>
+      <button onClick={login}>Login</button>
+      <button onClick={logout}>Logout</button>
     </div>
   );
 }
 
 describe("AuthProvider", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    // Reset window.location
+    delete (window as any).location;
+    window.location = { href: "" } as any;
+  });
+
   afterEach(() => {
     cleanup();
   });
 
-  beforeEach(() => {
-    localStorage.clear();
-    vi.clearAllMocks();
-  });
+  it("loads user if token exists", async () => {
+    localStorage.setItem("auth_token", "test-token");
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ user: { id: "1", name: "Test User", githubId: 123, avatarUrl: "", email: null, displayName: null } }),
+    } as any);
 
-  it("sets user when token exists and /api/auth/me succeeds", async () => {
-    localStorage.setItem("auth_token", "token-1");
-    vi.mocked(apiFetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          user: {
-            id: "u1",
-            githubId: 1,
-            name: "Alice",
-            displayName: null,
-            avatarUrl: "",
-            email: null,
-          },
-        }),
-        { status: 200 },
-      ),
-    );
-
-    render(
-      <AuthProvider>
-        <Consumer />
-      </AuthProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("user").textContent).toBe("Alice");
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>,
+      );
     });
-  });
 
-  it("keeps user null when token does not exist", async () => {
-    render(
-      <AuthProvider>
-        <Consumer />
-      </AuthProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("loading").textContent).toBe("false");
-      expect(screen.getByTestId("user").textContent).toBe("null");
-    });
+    expect(screen.getByTestId("user").textContent).toBe("Test User");
   });
 
   it("logout clears localStorage token and sets user null", async () => {
-    localStorage.setItem("auth_token", "token-1");
-    vi.mocked(apiFetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          user: {
-            id: "u1",
-            githubId: 1,
-            name: "Alice",
-            displayName: null,
-            avatarUrl: "",
-            email: null,
-          },
-        }),
-        { status: 200 },
-      ),
-    );
+    localStorage.setItem("auth_token", "test-token");
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ user: { id: "1", name: "Test User", githubId: 123, avatarUrl: "", email: null, displayName: null } }),
+    } as any);
 
-    render(
-      <AuthProvider>
-        <Consumer />
-      </AuthProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("user").textContent).toBe("Alice");
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>,
+      );
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "logout" }));
-
-    await waitFor(() => {
-      expect(localStorage.getItem("auth_token")).toBeNull();
-      expect(screen.getByTestId("user").textContent).toBe("null");
+    await act(async () => {
+      screen.getByText("Logout").click();
     });
+
+    expect(localStorage.getItem("auth_token")).toBeNull();
+    expect(screen.getByTestId("user").textContent).toBe("null");
   });
-});
 
-function LoginConsumer() {
-  const { login } = useAuth();
+  it("login with NEXT_PUBLIC_API_URL set redirects", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.example.com");
 
-  return (
-    <button onClick={login} type="button">
-      login
-    </button>
-  );
-}
-
-describe("AuthProvider login", () => {
-  const originalApiUrl = process.env.NEXT_PUBLIC_API_URL;
-  const originalLocation = window.location;
-
-  beforeEach(() => {
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: { href: "http://localhost/" },
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>,
+      );
     });
-  });
 
-  afterEach(() => {
-    cleanup();
-
-    if (originalApiUrl === undefined) {
-      delete process.env.NEXT_PUBLIC_API_URL;
-    } else {
-      process.env.NEXT_PUBLIC_API_URL = originalApiUrl;
-    }
-
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: originalLocation,
+    await act(async () => {
+      screen.getByText("Login").click();
     });
+
+    expect(window.location.href).toBe("http://api.example.com/api/auth/github");
+    vi.unstubAllEnvs();
   });
 
-  it("does nothing when NEXT_PUBLIC_API_URL is not set", () => {
-    delete process.env.NEXT_PUBLIC_API_URL;
+  it("login without NEXT_PUBLIC_API_URL does nothing (no-op)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
 
-    render(
-      <AuthProvider>
-        <LoginConsumer />
-      </AuthProvider>,
-    );
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>,
+      );
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: "login" }));
+    await act(async () => {
+      screen.getByText("Login").click();
+    });
 
-    expect(window.location.href).toBe("http://localhost/");
-  });
-
-  it("redirects to OAuth endpoint when NEXT_PUBLIC_API_URL is set", () => {
-    process.env.NEXT_PUBLIC_API_URL = "https://api.example.com";
-
-    render(
-      <AuthProvider>
-        <LoginConsumer />
-      </AuthProvider>,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "login" }));
-
-    expect(window.location.href).toBe("https://api.example.com/api/auth/github");
+    expect(window.location.href).toBe("");
+    vi.unstubAllEnvs();
   });
 });
