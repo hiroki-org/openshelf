@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createTestApp, createTestEnv } from "../../test/helpers";
 
 describe("CSRF configuration", () => {
@@ -189,5 +189,34 @@ describe("CSRF configuration", () => {
             env as any
         );
         expect(res.status).toBe(403);
+    });
+
+    it("triggers the catch block and returns 403 on URL parsing error", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: "invalid-url-format"
+        });
+
+        // Spy on console.error to verify the catch block is executed
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        try {
+            const res = await app.request(
+                "http://localhost/api/auth/logout",
+                {
+                    method: "POST",
+                    headers: {
+                        Origin: "https://another.example.com"
+                    }
+                },
+                env as any
+            );
+
+            expect(res.status).toBe(403);
+            expect(await res.text()).toBe("Forbidden");
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("CSRF check error"));
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
     });
 });
