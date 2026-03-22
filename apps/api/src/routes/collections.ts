@@ -15,7 +15,6 @@ import {
 } from "../db/schema";
 import { authMiddleware } from "../middleware/auth";
 import type { Env, Variables } from "../types";
-import { getOrgBySlug, getOrgMembership, isOrgAdmin, isOrgMember } from "../utils/db";
 import { validateSlug, validateName, validateDescription } from "../utils/validation";
 
 const collectionsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -34,7 +33,7 @@ function parseVisibility(value: unknown): Visibility | null {
 
 function isUniqueConstraintError(err: unknown): boolean {
     const message = err instanceof Error ? err.message : String(err);
-    return /unique\s+constraint/i.test(message);
+    return message.includes("UNIQUE") || message.includes("unique") || message.includes("constraint");
 }
 
 async function getCurrentUser(c: any): Promise<CurrentUser> {
@@ -52,6 +51,27 @@ async function getCurrentUser(c: any): Promise<CurrentUser> {
     } catch {
         return null;
     }
+}
+
+async function getOrgBySlug(db: ReturnType<typeof drizzle>, slug: string) {
+    return db.select().from(orgs).where(eq(orgs.slug, slug)).get();
+}
+
+async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
+    return db
+        .select()
+        .from(orgMembers)
+        .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)))
+        .get();
+}
+
+async function isOrgMember(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
+    return !!(await getOrgMembership(db, orgId, userId));
+}
+
+async function isOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
+    const row = await getOrgMembership(db, orgId, userId);
+    return !!row && (row.role === "admin" || row.role === "owner");
 }
 
 async function canViewCollection(

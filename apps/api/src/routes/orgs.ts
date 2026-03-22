@@ -13,10 +13,23 @@ import {
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
-import { getOrgBySlug, getOrgMembership, isOrgMember, isPaperAuthor } from "../utils/db";
 import { validateSlug, validateName, validateDescription } from "../utils/validation";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+
+// ─── Permission helpers ─────────────────────────────────────────
+async function getOrgBySlug(db: ReturnType<typeof drizzle>, slug: string) {
+    return db.select().from(orgs).where(eq(orgs.slug, slug)).get();
+}
+
+async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
+    return db
+        .select()
+        .from(orgMembers)
+        .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)))
+        .get();
+}
 
 async function requireOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
     const membership = await getOrgMembership(db, orgId, userId);
@@ -24,6 +37,20 @@ async function requireOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, us
         return { ok: false as const, error: "Forbidden: admin access required" };
     }
     return { ok: true as const, membership };
+}
+
+async function isOrgMember(db: ReturnType<typeof drizzle>, orgId: string, userId: string): Promise<boolean> {
+    const membership = await getOrgMembership(db, orgId, userId);
+    return !!membership;
+}
+
+async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, userId: string): Promise<boolean> {
+    const author = await db
+        .select()
+        .from(paperAuthors)
+        .where(and(eq(paperAuthors.paperId, paperId), eq(paperAuthors.userId, userId)))
+        .get();
+    return !!author;
 }
 
 // ═══════════════════════════════════════════════════════════════

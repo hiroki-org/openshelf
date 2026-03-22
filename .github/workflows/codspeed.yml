@@ -3,14 +3,8 @@ name: CodSpeed
 on:
   push:
     branches: [main]
-    paths:
-      - "apps/api/**"
-      - ".github/workflows/codspeed.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "apps/api/**"
-      - ".github/workflows/codspeed.yml"
   workflow_dispatch:
 
 permissions:
