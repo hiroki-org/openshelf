@@ -354,7 +354,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         setPreview({ ...data, url: resolvedUrl });
       } catch (err) {
         if (cancelled) return;
-        console.error("プレビューURLの取得に失敗しました:", err);
         setPreviewError(true);
         setPreview(null);
       } finally {
@@ -396,7 +395,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
             createdUrls.push(objectUrl);
             return [img.id, objectUrl] as const;
           } catch (err) {
-            console.error(`Error loading image ${img.id}:`, err);
             currentFailedIds.push(img.id);
             return [img.id, ""] as const;
           }
@@ -413,7 +411,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     };
 
     loadImages().catch((err) => {
-      console.error("Critical error in loadImages:", err);
       if (!cancelled) {
         setImagePreviewUrls({});
         setFailedImageIds(imageFiles.map((f) => f.id));
