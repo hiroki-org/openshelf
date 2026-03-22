@@ -8,24 +8,29 @@ import invitesRoute from "./routes/invites";
 import orgsRoute from "./routes/orgs";
 import collectionsRoute from "./routes/collections";
 
-const encoder = new TextEncoder();
 
-const sha256 = async (value: string): Promise<Uint8Array> => {
-    const data = encoder.encode(value);
-    const digest = await crypto.subtle.digest("SHA-256", data);
-    return new Uint8Array(digest);
-};
+async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+    const encoder = new TextEncoder();
+    const aBuffer = encoder.encode(a);
+    const bBuffer = encoder.encode(b);
 
-const timingSafeEqualString = async (a: string, b: string): Promise<boolean> => {
-    const [hashA, hashB] = await Promise.all([sha256(a), sha256(b)]);
+    const aHash = await crypto.subtle.digest("SHA-256", aBuffer);
+    const bHash = await crypto.subtle.digest("SHA-256", bBuffer);
 
-    let diff = 0;
-    for (let i = 0; i < hashA.length; i++) {
-        diff |= hashA[i] ^ hashB[i];
+    const aView = new Uint8Array(aHash);
+    const bView = new Uint8Array(bHash);
+
+    let result = 0;
+    for (let i = 0; i < aView.length; i++) {
+        result |= aView[i] ^ bView[i];
     }
 
-    return diff === 0;
-};
+    // We also need to factor in length difference without early return
+    const lengthDiff = aBuffer.byteLength ^ bBuffer.byteLength;
+    result |= lengthDiff;
+
+    return result === 0;
+}
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -64,11 +69,11 @@ app.use("/api/*", async (c, next) => {
     const authHeader = c.req.header("Authorization");
     let isTestEnv = false;
     if (process.env.NODE_ENV !== "production") {
-        const testAuthHeader = c.req.header("x-test-auth-secret") ?? "";
-        const configuredTestSecret = c.env.TEST_AUTH_SECRET ?? "";
-        const isSecretMatch = await timingSafeEqualString(testAuthHeader, configuredTestSecret);
-
-        isTestEnv = c.env.ENABLE_TEST_AUTH === "true" && configuredTestSecret.length > 0 && isSecretMatch;
+        const testAuthHeader = c.req.header("x-test-auth-secret");
+        const secret = c.env.TEST_AUTH_SECRET || "";
+        const header = testAuthHeader || "";
+        const isEqual = await timingSafeEqual(header, secret);
+        isTestEnv = c.env.ENABLE_TEST_AUTH === "true" && !!c.env.TEST_AUTH_SECRET && !!testAuthHeader && isEqual;
     }
 
     // Bypass CSRF for requests with Bearer tokens or valid test auth secret in test env

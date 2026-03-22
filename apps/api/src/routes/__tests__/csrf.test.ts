@@ -42,23 +42,6 @@ describe("CSRF configuration", () => {
         expect(res.status).toBe(403);
     });
 
-    it("blocks CSRF if test auth secret header is missing", async () => {
-        const app = await createTestApp();
-        const env = createTestEnv({
-            ENABLE_TEST_AUTH: "true",
-            TEST_AUTH_SECRET: "my-secret-key"
-        });
-
-        const res = await app.request(
-            "http://localhost/api/auth/logout",
-            {
-                method: "POST"
-            },
-            env as any
-        );
-        expect(res.status).toBe(403);
-    });
-
     it("blocks CSRF if ENABLE_TEST_AUTH is false", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
@@ -90,6 +73,24 @@ describe("CSRF configuration", () => {
                 headers: {
                     "x-test-auth-secret": "any-value"
                 }
+            },
+            env as any
+        );
+        expect(res.status).toBe(403);
+    });
+
+    it("blocks CSRF if x-test-auth-secret is missing when test auth is enabled", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            ENABLE_TEST_AUTH: "true",
+            TEST_AUTH_SECRET: "my-secret-key"
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: {}
             },
             env as any
         );
