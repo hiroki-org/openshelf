@@ -182,21 +182,23 @@ describe("CSRF configuration", () => {
         // Spy on console.error to verify the catch block is executed
         const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-        const res = await app.request(
-            "http://localhost/api/auth/logout",
-            {
-                method: "POST",
-                headers: {
-                    Origin: "https://another.example.com"
-                }
-            },
-            env as any
-        );
+        try {
+            const res = await app.request(
+                "http://localhost/api/auth/logout",
+                {
+                    method: "POST",
+                    headers: {
+                        Origin: "https://another.example.com"
+                    }
+                },
+                env as any
+            );
 
-        expect(res.status).toBe(403);
-        expect(await res.text()).toBe("Forbidden");
-        expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("CSRF check error"));
-
-        consoleErrorSpy.mockRestore();
+            expect(res.status).toBe(403);
+            expect(await res.text()).toBe("Forbidden");
+            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("CSRF check error"));
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
     });
 });
