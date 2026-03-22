@@ -3,10 +3,6 @@ codecov:
   notify:
     wait_for_ci: false
 
-ignore:
-  - "apps/api/src/test/**/*"
-  - "**/*.bench.ts"
-
 coverage:
   status:
     project:

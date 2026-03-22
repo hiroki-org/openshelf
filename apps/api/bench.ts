@@ -1,9 +1,7 @@
-import { bench, describe } from "vitest";
-
 const inviteRows = Array.from({ length: 10000 }).map((_, i) => ({
     id: `invite-${i}`,
-    paperId: "paper-1",
-    inviterId: "user-1",
+    paperId: 'paper-1',
+    inviterId: 'user-1',
     inviteeId: i % 2 === 0 ? `user-${i % 100}` : null,
     inviteeEmail: null,
 }));
@@ -35,20 +33,25 @@ function optimizedReduce() {
                 acc.add(inv.inviteeId);
             }
             return acc;
-        }, new Set<string>()),
+        }, new Set<string>())
     );
 }
 
-describe("invites unique extraction", () => {
-    bench("original", () => {
-        original();
-    });
+const N = 10000;
+const WARMUP = 100;
 
-    bench("optimized (for...of)", () => {
-        optimized();
-    });
+function runBenchmark(label: string, fn: () => string[]) {
+    for (let i = 0; i < WARMUP; i++) {
+        fn();
+    }
 
-    bench("optimized (reduce)", () => {
-        optimizedReduce();
-    });
-});
+    console.time(label);
+    for (let i = 0; i < N; i++) {
+        fn();
+    }
+    console.timeEnd(label);
+}
+
+runBenchmark("original", original);
+runBenchmark("optimized (for...of)", optimized);
+runBenchmark("optimized (reduce)", optimizedReduce);
