@@ -306,6 +306,63 @@ describe("PaperEditPage", () => {
             paper: {
               title: "Original title",
               abstract: null,
+              visibility: "org_only",
+              showViewCount: false,
+              language: null,
+              externalUrl: null,
+              doi: null,
+              venue: null,
+              venueType: null,
+              year: null,
+              category: null,
+              tags: null,
+            },
+            authors: [{ userId: "user-1" }],
+            organizations: [{ id: "org-1", name: "Org 1", slug: "org-1" }],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url === "/api/papers/paper-1" && init?.method === "PATCH") {
+        return new Response("{}", { status: 200 });
+      }
+
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<PaperEditPage />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("Original title")).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(/組織情報の取得に失敗しました（status: 500）/),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Org 1/i)).toBeChecked();
+    expect(screen.getByText("現在の対象組織")).toBeInTheDocument();
+  });
+
+  it("blocks switching to org_only without selecting a target organization", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/users/me/orgs") {
+        return new Response(
+          JSON.stringify({
+            organizations: [
+              { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url === "/api/papers/paper-1" && !init?.method) {
+        return new Response(
+          JSON.stringify({
+            paper: {
+              title: "Original title",
+              abstract: null,
               visibility: "private",
               showViewCount: false,
               language: null,
@@ -337,8 +394,17 @@ describe("PaperEditPage", () => {
       expect(screen.getByDisplayValue("Original title")).toBeInTheDocument();
     });
 
+    fireEvent.click(screen.getByLabelText("組織内"));
+    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+
     expect(
-      screen.getByText(/組織情報の取得に失敗しました（status: 500）/),
+      await screen.findByText("組織公開にする場合は少なくとも1つの対象組織を選択してください。"),
     ).toBeInTheDocument();
+    expect(
+      vi.mocked(apiFetch).mock.calls.some(
+        (call) =>
+          call[0] === "/api/papers/paper-1" && call[1]?.method === "PATCH",
+      ),
+    ).toBe(false);
   });
 });

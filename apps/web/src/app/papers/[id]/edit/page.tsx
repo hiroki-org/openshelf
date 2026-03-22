@@ -16,6 +16,34 @@ type PaperEditResponse = {
   organizations: Array<{ id: string; name: string; slug: string }>;
 };
 
+function mergeOrganizations(
+  memberOrganizations: UserOrganization[],
+  selectedOrganizations: PaperEditResponse["organizations"],
+): UserOrganization[] {
+  const merged = new Map<string, UserOrganization>();
+
+  for (const org of selectedOrganizations) {
+    merged.set(org.id, {
+      id: org.id,
+      name: org.name,
+      slug: org.slug,
+      role: null,
+      isExistingTarget: true,
+    });
+  }
+
+  for (const org of memberOrganizations) {
+    const existing = merged.get(org.id);
+    merged.set(org.id, {
+      ...existing,
+      ...org,
+      isExistingTarget: existing?.isExistingTarget ?? false,
+    });
+  }
+
+  return [...merged.values()];
+}
+
 export default function PaperEditPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -63,21 +91,6 @@ export default function PaperEditPage() {
           throw new Error("論文の取得に失敗しました");
         }
 
-        if (orgsRes?.ok) {
-          const orgsData = (await orgsRes.json()) as {
-            organizations: UserOrganization[];
-          };
-          setOrganizations(orgsData.organizations ?? []);
-          setOrgsWarning(null);
-        } else {
-          setOrganizations([]);
-          setOrgsWarning(
-            orgsRes
-              ? `組織情報の取得に失敗しました（status: ${orgsRes.status}）。現在は組織公開を変更できません。`
-              : "組織情報の取得に失敗しました。現在は組織公開を変更できません。",
-          );
-        }
-
         const data = (await paperRes.json()) as PaperEditResponse;
         const isAuthor = data.authors.some((author) => author.userId === user.id);
         if (!isAuthor) {
@@ -85,8 +98,25 @@ export default function PaperEditPage() {
           return;
         }
 
+        let memberOrganizations: UserOrganization[] = [];
+        if (orgsRes?.ok) {
+          const orgsData = (await orgsRes.json()) as {
+            organizations: UserOrganization[];
+          };
+          memberOrganizations = orgsData.organizations ?? [];
+          setOrgsWarning(null);
+        } else {
+          setOrgsWarning(
+            orgsRes
+              ? `組織情報の取得に失敗しました（status: ${orgsRes.status}）。現在は組織公開を変更できません。`
+              : "組織情報の取得に失敗しました。現在は組織公開を変更できません。",
+          );
+        }
+
+        const selectedOrganizations = data.organizations ?? [];
         setPaperData(data.paper);
-        setInitialSelectedOrgIds((data.organizations ?? []).map((org) => org.id));
+        setOrganizations(mergeOrganizations(memberOrganizations, selectedOrganizations));
+        setInitialSelectedOrgIds(selectedOrganizations.map((org) => org.id));
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "予期せぬエラーが発生しました");
       } finally {

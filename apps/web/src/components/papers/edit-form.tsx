@@ -48,7 +48,8 @@ export type UserOrganization = {
   id: string;
   name: string;
   slug: string;
-  role: string;
+  role?: string | null;
+  isExistingTarget?: boolean;
 };
 
 type Props = {
@@ -133,19 +134,16 @@ export function PaperEditForm({
       return;
     }
 
-    if (visibility === "org_only") {
-      const keepingExistingSelection =
-        initialSelectedOrgIds.length > 0 &&
-        areSameOrgSelection(selectedOrgIds, initialSelectedOrgIds);
+    const keepingExistingSelection =
+      initialSelectedOrgIds.length > 0 &&
+      areSameOrgSelection(selectedOrgIds, initialSelectedOrgIds);
 
+    if (visibility === "org_only") {
       if (organizations.length === 0 && !keepingExistingSelection) {
         setError("所属組織がありません。公開範囲を変更してください。");
         return;
       }
-      if (
-        selectedOrgIds.length === 0 &&
-        !areSameOrgSelection(selectedOrgIds, initialSelectedOrgIds)
-      ) {
+      if (selectedOrgIds.length === 0 && !keepingExistingSelection) {
         setError("組織公開にする場合は少なくとも1つの対象組織を選択してください。");
         return;
       }
@@ -166,7 +164,7 @@ export function PaperEditForm({
 
       const includeOrgIds =
         visibility === "org_only" &&
-        !areSameOrgSelection(selectedOrgIds, initialSelectedOrgIds);
+        !keepingExistingSelection;
 
       const payload = {
         title: trimmedTitle,
@@ -292,6 +290,11 @@ export function PaperEditForm({
                     />
                     <span>{org.name}</span>
                     <span className="text-xs text-gray-500">({org.slug})</span>
+                    {org.isExistingTarget && !org.role && (
+                      <span className="text-xs text-amber-700 dark:text-amber-300">
+                        現在の対象組織
+                      </span>
+                    )}
                   </label>
                 ))}
               </div>
