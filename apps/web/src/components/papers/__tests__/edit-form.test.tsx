@@ -172,4 +172,46 @@ describe("PaperEditForm", () => {
     });
   });
 
+
+
+  it("handles form inputs appropriately and maps to the payload", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response("{}", { status: 200 }));
+
+    render(<PaperEditForm paperId="paper-1" initialData={defaultInitialData} />);
+
+    // Change various fields to trigger onChange handlers and cover those lines
+    fireEvent.change(screen.getByLabelText(/カテゴリ/i), { target: { value: "report" } });
+    fireEvent.change(screen.getByLabelText(/発表場所（学会名など）/i), { target: { value: "Test Venue" } });
+    fireEvent.change(screen.getByLabelText(/発表種別/i), { target: { value: "conference" } });
+    fireEvent.change(screen.getByLabelText(/言語/i), { target: { value: "ja" } });
+    fireEvent.change(screen.getByLabelText(/DOI/i), { target: { value: "10.1000/182" } });
+    fireEvent.change(screen.getByLabelText(/外部リンク/i), { target: { value: "https://example.com" } });
+    fireEvent.click(screen.getByLabelText(/公開ページに閲覧数を表示する/i));
+    fireEvent.change(screen.getByLabelText(/タグ/i), { target: { value: "AI, test" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        "/api/papers/paper-1",
+        expect.objectContaining({
+          method: "PATCH",
+          body: expect.stringContaining('"category":"report"')
+        })
+      );
+    });
+
+    const calls = vi.mocked(apiFetch).mock.calls;
+    const bodyStr = (calls[0][1] as RequestInit).body as string;
+    const body = JSON.parse(bodyStr);
+
+    expect(body.venue).toBe("Test Venue");
+    expect(body.venueType).toBe("conference");
+    expect(body.language).toBe("ja");
+    expect(body.doi).toBe("10.1000/182");
+    expect(body.externalUrl).toBe("https://example.com");
+    expect(body.showViewCount).toBe(true);
+    expect(body.tags).toEqual(["AI", "test"]);
+  });
+
 });
