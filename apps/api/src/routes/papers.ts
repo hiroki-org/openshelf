@@ -1049,11 +1049,11 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
     if (files.length > 0) {
         const keys = files.map((f) => f.r2Key);
         const chunkSize = 1000;
-        const chunks: string[][] = [];
+        const chunks = [];
         for (let i = 0; i < keys.length; i += chunkSize) {
             chunks.push(keys.slice(i, i + chunkSize));
         }
-        await Promise.all(chunks.map((chunk) => c.env.BUCKET.delete(chunk)));
+        await Promise.all(chunks.map(chunk => c.env.BUCKET.delete(chunk)));
     }
     await db.delete(papers).where(eq(papers.id, paperId));
 
