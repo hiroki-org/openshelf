@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { render, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { PdfViewer } from "../pdf-viewer";
@@ -19,20 +19,29 @@ type MockDocumentProps = {
   error?: ReactNode;
 };
 
-const mockDocument = vi.fn((props: MockDocumentProps) => (
-  <div data-testid="mock-document">
-    <button
-      data-testid="mock-load-success"
-      onClick={() => props.onLoadSuccess?.({ numPages: 5 })}
-    >Load Success</button>
-    <button
-      data-testid="mock-load-error"
-      onClick={() => props.onLoadError?.(new Error("Test error"))}
-    >Load Error</button>
-    <div data-testid="error-state">{props.error}</div>
-    {props.children}
-  </div>
-));
+const MockDocument = (props: MockDocumentProps) => {
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <div data-testid="mock-document">
+      <button
+        data-testid="mock-load-success"
+        onClick={() => props.onLoadSuccess?.({ numPages: 5 })}
+      >Load Success</button>
+      <button
+        data-testid="mock-load-error"
+        onClick={() => {
+          setHasError(true);
+          props.onLoadError?.(new Error("Test error"));
+        }}
+      >Load Error</button>
+      {hasError ? <div data-testid="error-state">{props.error}</div> : null}
+      {props.children}
+    </div>
+  );
+};
+
+const mockDocument = vi.fn((props: MockDocumentProps) => <MockDocument {...props} />);
 
 const mockPage = vi.fn((props: any) => <div data-testid="mock-page" data-page={props.pageNumber} data-width={props.width} />);
 
@@ -159,7 +168,9 @@ describe("PdfViewer", () => {
 
   it("handles document load error with fallback", () => {
     const onFallback = vi.fn();
-    const { getByTestId, getByText } = render(<PdfViewer fileUrl="https://example.com/paper.pdf" onDownloadFallback={onFallback} />);
+    const { getByTestId, getByText, queryByText } = render(<PdfViewer fileUrl="https://example.com/paper.pdf" onDownloadFallback={onFallback} />);
+
+    expect(queryByText("ダウンロードする")).toBeNull();
 
     fireEvent.click(getByTestId("mock-load-error"));
 
@@ -170,8 +181,12 @@ describe("PdfViewer", () => {
   });
 
   it("handles document load error without fallback", () => {
-    const { getByTestId, getByText } = render(<PdfViewer fileUrl="https://example.com/paper.pdf" />);
+    const { getByTestId, getByText, queryByText } = render(<PdfViewer fileUrl="https://example.com/paper.pdf" />);
+
+    expect(queryByText("ダウンロードする")).toBeNull();
+
     fireEvent.click(getByTestId("mock-load-error"));
+
     expect(getByText("ダウンロードする").closest("a")).toHaveAttribute("href", "https://example.com/paper.pdf");
   });
 });
