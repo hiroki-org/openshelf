@@ -143,9 +143,7 @@ describe("PdfViewer", () => {
 
     // Enter fullscreen
     fireEvent.click(fullscreenBtn);
-    await waitFor(() => {
-      expect(HTMLElement.prototype.requestFullscreen).toHaveBeenCalled();
-    });
+    await waitFor(() => expect(HTMLElement.prototype.requestFullscreen).toHaveBeenCalled());
 
     // Mock being in fullscreen
     Object.defineProperty(document, "fullscreenElement", {
@@ -156,9 +154,7 @@ describe("PdfViewer", () => {
 
     // Exit fullscreen
     fireEvent.click(fullscreenBtn);
-    await waitFor(() => {
-      expect(document.exitFullscreen).toHaveBeenCalled();
-    });
+    await waitFor(() => expect(document.exitFullscreen).toHaveBeenCalled());
   });
 
   it("handles document load error with fallback", () => {
