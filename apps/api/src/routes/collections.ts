@@ -524,10 +524,13 @@ collectionsRoute.get("/collections/:id/papers", async (c) => {
             .from(paperAuthors)
             .where(and(inArray(paperAuthors.paperId, restrictedIds), eq(paperAuthors.userId, currentUserId)));
 
-        const orgOnlyIds = restrictedRows.filter(r => r.visibility === "org_only").map(r => r.id);
+        const orgOnlyIds = restrictedRows
+            .filter(r => r.visibility === "org_only")
+            .map(r => r.id);
 
-        let authoredSet = new Set<string>();
-        let orgAccessSet = new Set<string>();
+        let authoredRows: any[];
+        let orgAccessRows: any[] = [];
+
         if (orgOnlyIds.length > 0) {
             const orgAccessQuery = db
                 .select({ paperId: paperOrgs.paperId })
@@ -535,13 +538,15 @@ collectionsRoute.get("/collections/:id/papers", async (c) => {
                 .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
                 .where(and(inArray(paperOrgs.paperId, orgOnlyIds), eq(orgMembers.userId, currentUserId)));
 
-            const [authoredRows, orgAccessRows] = await db.batch([authoredQuery, orgAccessQuery]);
-            authoredSet = new Set(authoredRows.map(r => r.paperId));
-            orgAccessSet = new Set(orgAccessRows.map(r => r.paperId));
+            const results = await db.batch([authoredQuery, orgAccessQuery]);
+            authoredRows = results[0];
+            orgAccessRows = results[1];
         } else {
-            const authoredRows = await authoredQuery.all();
-            authoredSet = new Set(authoredRows.map(r => r.paperId));
+            authoredRows = await authoredQuery.all();
         }
+
+        const authoredSet = new Set(authoredRows.map(r => r.paperId));
+        const orgAccessSet = new Set(orgAccessRows.map(r => r.paperId));
 
         visiblePapers = rows.filter(r => {
             if (r.visibility === "public") return true;
