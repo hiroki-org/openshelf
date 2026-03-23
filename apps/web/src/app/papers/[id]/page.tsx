@@ -42,7 +42,7 @@ async function fetchPaperMetadata(
 
 function toDescription(value: string | null | undefined): string | undefined {
   if (!value) return undefined;
-  return value.slice(0, 200);
+  return [...value].slice(0, 200).join("");
 }
 
 function buildOgImageUrl(
@@ -129,11 +129,10 @@ export default async function PaperPage(props: {
   params: Params | Promise<Params>;
 }) {
   const { id } = await Promise.resolve(props.params);
-  let safeId: string;
   try {
-    safeId = safePath(id);
+    safePath(id);
   } catch {
     return <div className="text-center py-20">無効な識別子です</div>;
   }
-  return <PaperDetailClient paperId={safeId} />;
+  return <PaperDetailClient paperId={id} />;
 }

@@ -8,7 +8,7 @@ import {
     paperViews,
     users,
     coauthorInvites,
-
+    orgMembers,
     paperOrgs,
     enableForeignKeys,
     touchUpdatedAt,
@@ -19,8 +19,8 @@ import {
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { getOrgMembership } from "../utils/db";
 import { validateMagicNumbers } from "../utils/file";
-import { isPaperAuthor, isPaperUploader, getOrgMembership, isMemberOfPaperOrg } from "../utils/db";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -165,7 +165,16 @@ async function authorizePaperAccess(
     }
 
     // Authors always have access
-    const isAuthor = await isPaperAuthor(db, paper.id, user.sub);
+    const isAuthor = await db
+        .select()
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paper.id),
+                eq(paperAuthors.userId, user.sub),
+            ),
+        )
+        .get();
     if (isAuthor) return { ok: true, user };
 
     if (paper.visibility === "private") {
@@ -173,19 +182,46 @@ async function authorizePaperAccess(
     }
 
     if (paper.visibility === "org_only") {
-        const isMember = await isMemberOfPaperOrg(db, paper.id, user.sub);
+        const isMemberOfPaperOrg = await db
+            .select({ id: orgMembers.userId })
+            .from(orgMembers)
+            .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
+            .where(
+                and(
+                    eq(paperOrgs.paperId, paper.id),
+                    eq(orgMembers.userId, user.sub),
+                ),
+            )
+            .get();
 
-        if (!isMember) {
+        if (!isMemberOfPaperOrg) {
             return { ok: false, status: 403, error: "Forbidden" };
         }
-    } else {
+    } else if (paper.visibility !== "public") {
         return { ok: false, status: 403, error: "Forbidden" };
     }
 
     return { ok: true, user };
 }
 
+async function isPaperAuthor(
+    db: ReturnType<typeof drizzle>,
+    paperId: string,
+    userId: string,
+): Promise<boolean> {
+    const author = await db
+        .select({ userId: paperAuthors.userId })
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paperId),
+                eq(paperAuthors.userId, userId),
+            ),
+        )
+        .get();
 
+    return !!author;
+}
 
 async function generateSignedPreviewUrl(
     bucket: Env["BUCKET"],
@@ -838,7 +874,17 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
     await enableForeignKeys(db);
     const userId = c.get("user").sub;
 
-    const isUploader = await isPaperUploader(db, paperId, userId);
+    const isUploader = await db
+        .select()
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paperId),
+                eq(paperAuthors.userId, userId),
+                eq(paperAuthors.role, "uploader"),
+            ),
+        )
+        .get();
     if (!isUploader)
         return c.json({ error: "Only uploaders can invite" }, 403);
 
@@ -911,7 +957,17 @@ papersRoute.get("/:id/invites", authMiddleware, async (c) => {
     const db = drizzle(c.env.DB);
     const userId = c.get("user").sub;
 
-    const isUploader = await isPaperUploader(db, paperId, userId);
+    const isUploader = await db
+        .select()
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paperId),
+                eq(paperAuthors.userId, userId),
+                eq(paperAuthors.role, "uploader"),
+            ),
+        )
+        .get();
     if (!isUploader) return c.json({ error: "Forbidden" }, 403);
 
     const inviteRows = await db
@@ -963,7 +1019,17 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
     const db = drizzle(c.env.DB);
     await enableForeignKeys(db);
 
-    const isUploader = await isPaperUploader(db, paperId, userId);
+    const isUploader = await db
+        .select()
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paperId),
+                eq(paperAuthors.userId, userId),
+                eq(paperAuthors.role, "uploader"),
+            ),
+        )
+        .get();
     if (!isUploader) return c.json({ error: "Forbidden" }, 403);
 
     const files = await db
@@ -1003,7 +1069,16 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         .get();
     if (!paper) return c.json({ error: "Not found" }, 404);
 
-    const isAuthor = await isPaperAuthor(db, paperId, userId);
+    const isAuthor = await db
+        .select()
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paperId),
+                eq(paperAuthors.userId, userId)
+            )
+        )
+        .get();
     if (!isAuthor) return c.json({ error: "Forbidden" }, 403);
 
     const updates: Record<string, any> = { ...touchUpdatedAt() };
@@ -1102,35 +1177,22 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         if (!(typeof body.venueType === "string" || body.venueType === null)) {
             return c.json({ error: "venueType must be a string or null" }, 400);
         }
-        if (
-            body.venueType &&
-            !(VALID_VENUE_TYPES as readonly string[]).includes(body.venueType)
-        ) {
-            return c.json({ error: "Invalid venueType" }, 400);
-        }
+        if (body.venueType && !(VALID_VENUE_TYPES as readonly string[]).includes(body.venueType)) return c.json({ error: "Invalid venueType" }, 400);
         updates.venueType = body.venueType || null;
         hasRealUpdates = true;
     }
     if ("year" in body) {
-        const { year } = body;
-        if (year !== null) {
-            if (typeof year !== "number" || Number.isNaN(year)) {
-                return c.json({ error: "year must be a number or null" }, 400);
-            }
+        if (!(typeof body.year === "number" || body.year === null) || Number.isNaN(body.year)) {
+            return c.json({ error: "year must be a number or null" }, 400);
         }
-        updates.year = year;
+        updates.year = body.year;
         hasRealUpdates = true;
     }
     if ("category" in body) {
         if (!(typeof body.category === "string" || body.category === null)) {
             return c.json({ error: "category must be a string or null" }, 400);
         }
-        if (
-            body.category &&
-            !(VALID_CATEGORIES as readonly string[]).includes(body.category)
-        ) {
-            return c.json({ error: "Invalid category" }, 400);
-        }
+        if (body.category && !(VALID_CATEGORIES as readonly string[]).includes(body.category)) return c.json({ error: "Invalid category" }, 400);
         updates.category = body.category || null;
         hasRealUpdates = true;
     }

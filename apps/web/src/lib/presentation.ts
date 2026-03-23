@@ -39,8 +39,6 @@ export function getVisibilityBadge(visibility: string): BadgePresentation {
       return createBadge("組織内", "warning");
     case "private":
       return createBadge("非公開", "neutral");
-    case "limited":
-      return createBadge("限定公開", "neutral");
     default:
       return createBadge(visibility, "neutral");
   }

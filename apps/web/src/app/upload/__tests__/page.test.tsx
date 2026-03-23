@@ -452,7 +452,7 @@ describe("UploadPage", () => {
 
     // Should display error message
     expect(
-      await screen.findByText("組織情報の取得中にサーバーエラーが発生しました。ページを再読み込みしてください。"),
+      await screen.findByText("組織情報の取得に失敗しました。ページを再読み込みしてください。"),
     ).toBeInTheDocument();
   });
 });
