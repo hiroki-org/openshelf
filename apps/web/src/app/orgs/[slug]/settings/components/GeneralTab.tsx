@@ -25,6 +25,7 @@ export function GeneralTab({
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const handleSave = async () => {
     setSaving(true);
@@ -43,6 +44,9 @@ export function GeneralTab({
       if (res.ok) {
         const data = await res.json();
         setOrg(data.org);
+        setEditName(data.org.name);
+        setEditSlug(data.org.slug);
+        setEditDescription(data.org.description ?? "");
         setSaveMsg("保存しました");
         if (data.org.slug !== slug) {
           router.replace(`/orgs/${data.org.slug}/settings`);
@@ -60,6 +64,7 @@ export function GeneralTab({
 
   const handleDelete = async () => {
     setDeleting(true);
+    setDeleteError("");
     try {
       const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
         method: "DELETE",
@@ -68,10 +73,10 @@ export function GeneralTab({
         router.push("/");
       } else {
         const data = await res.json();
-        alert(data.error ?? "削除に失敗しました");
+        setDeleteError(data.error ?? "削除に失敗しました");
       }
     } catch {
-      alert("ネットワークエラー");
+      setDeleteError("ネットワークエラー");
     } finally {
       setDeleting(false);
     }
@@ -185,12 +190,14 @@ export function GeneralTab({
                 onClick={() => {
                   setShowDelete(false);
                   setDeleteConfirm("");
+                  setDeleteError("");
                 }}
                 className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
               >
                 キャンセル
               </button>
             </div>
+            {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
           </div>
         )}
       </div>

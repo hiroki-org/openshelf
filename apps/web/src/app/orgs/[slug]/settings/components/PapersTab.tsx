@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { apiFetch } from "@/lib/api";
 import type { OrgPaper } from "./types";
 
@@ -16,38 +16,57 @@ export function PapersTab({
     { id: string; title: string }[]
   >([]);
   const [addingPaper, setAddingPaper] = useState(false);
+  const [error, setError] = useState("");
   const paperSearchRef = useRef(0);
+  const paperSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handlePaperSearch = async (q: string) => {
+  useEffect(() => {
+    return () => {
+      if (paperSearchTimerRef.current) {
+        clearTimeout(paperSearchTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handlePaperSearch = (q: string) => {
     setPaperSearch(q);
+    if (paperSearchTimerRef.current) {
+      clearTimeout(paperSearchTimerRef.current);
+    }
     if (q.length < 2) {
+      paperSearchRef.current += 1;
       setPaperSearchResults([]);
       return;
     }
     const requestId = ++paperSearchRef.current;
-    try {
-      // GET /api/papers returns all papers; filter client-side by title
-      const res = await apiFetch("/api/papers");
-      if (paperSearchRef.current !== requestId) return;
-      if (res.ok) {
-        const data = await res.json();
-        const existingIds = new Set(orgPapers.map((p) => p.id));
-        const lowerQ = q.toLowerCase();
-        setPaperSearchResults(
-          (data.papers || []).filter(
-            (p: { id: string; title: string }) =>
-              !existingIds.has(p.id) && p.title.toLowerCase().includes(lowerQ),
-          ),
-        );
+    paperSearchTimerRef.current = setTimeout(async () => {
+      try {
+        // GET /api/papers returns all papers; filter client-side by title
+        const res = await apiFetch("/api/papers");
+        if (paperSearchRef.current !== requestId) return;
+        if (res.ok) {
+          const data = await res.json();
+          const existingIds = new Set(orgPapers.map((p) => p.id));
+          const lowerQ = q.toLowerCase();
+          setPaperSearchResults(
+            (data.papers || []).filter(
+              (p: { id: string; title: string }) =>
+                !existingIds.has(p.id) && p.title.toLowerCase().includes(lowerQ),
+            ),
+          );
+        } else {
+          setPaperSearchResults([]);
+        }
+      } catch {
+        if (paperSearchRef.current !== requestId) return;
+        setPaperSearchResults([]);
       }
-    } catch {
-      if (paperSearchRef.current !== requestId) return;
-      setPaperSearchResults([]);
-    }
+    }, 300);
   };
 
   const handleAddPaper = async (paperId: string) => {
     setAddingPaper(true);
+    setError("");
     try {
       const res = await apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/papers`,
@@ -61,12 +80,13 @@ export function PapersTab({
         setPaperSearch("");
         setPaperSearchResults([]);
         await fetchData();
+        setError("");
       } else {
         const data = await res.json();
-        alert(data.error ?? "追加に失敗しました");
+        setError(data.error ?? "追加に失敗しました");
       }
     } catch {
-      alert("ネットワークエラー");
+      setError("ネットワークエラー");
     } finally {
       setAddingPaper(false);
     }
@@ -74,6 +94,7 @@ export function PapersTab({
 
   const handleRemovePaper = async (paperId: string) => {
     if (!confirm("この論文の紐づけを解除しますか？")) return;
+    setError("");
     try {
       const res = await apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/papers/${encodeURIComponent(paperId)}`,
@@ -83,12 +104,13 @@ export function PapersTab({
       );
       if (res.ok) {
         await fetchData();
+        setError("");
       } else {
         const data = await res.json();
-        alert(data.error ?? "解除に失敗しました");
+        setError(data.error ?? "解除に失敗しました");
       }
     } catch {
-      alert("ネットワークエラー");
+      setError("ネットワークエラー");
     }
   };
 
@@ -126,6 +148,8 @@ export function PapersTab({
           </ul>
         )}
       </div>
+
+      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
       {/* Paper list */}
       <h3 className="text-sm font-medium mb-2">紐づけ済み論文</h3>

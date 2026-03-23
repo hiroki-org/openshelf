@@ -18,6 +18,7 @@ export function MembersTab({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [inviting, setInviting] = useState(false);
+  const [error, setError] = useState("");
   const userSearchRef = useRef(0);
 
   const handleUserSearch = async (q: string) => {
@@ -28,16 +29,12 @@ export function MembersTab({
     }
     const requestId = ++userSearchRef.current;
     try {
-      const res = await apiFetch(
-        `/api/users/search?q=${encodeURIComponent(q)}`,
-      );
+      const res = await apiFetch(`/api/users/search?q=${encodeURIComponent(q)}`);
       if (userSearchRef.current !== requestId) return;
       if (res.ok) {
         const data = await res.json();
         const existingIds = new Set(members.map((m) => m.userId));
-        setSearchResults(
-          data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
-        );
+        setSearchResults(data.users.filter((u: SearchUser) => !existingIds.has(u.id)));
       }
     } catch {
       if (userSearchRef.current !== requestId) return;
@@ -47,31 +44,30 @@ export function MembersTab({
 
   const handleAddMember = async (userId: string, role: string = "member") => {
     setInviting(true);
+    setError("");
     try {
-      const res = await apiFetch(
-        `/api/orgs/${encodeURIComponent(slug)}/members`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, role }),
-        },
-      );
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, role }),
+      });
       if (res.ok) {
         setSearchQuery("");
         setSearchResults([]);
         await fetchData();
       } else {
         const data = await res.json();
-        alert(data.error ?? "追加に失敗しました");
+        setError(data.error ?? "追加に失敗しました");
       }
     } catch {
-      alert("ネットワークエラー");
+      setError("ネットワークエラー");
     } finally {
       setInviting(false);
     }
   };
 
   const handleChangeRole = async (userId: string, newRole: string) => {
+    setError("");
     try {
       const res = await apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
@@ -85,15 +81,16 @@ export function MembersTab({
         await fetchData();
       } else {
         const data = await res.json();
-        alert(data.error ?? "変更に失敗しました");
+        setError(data.error ?? "変更に失敗しました");
       }
     } catch {
-      alert("ネットワークエラー");
+      setError("ネットワークエラー");
     }
   };
 
   const handleRemoveMember = async (userId: string) => {
     if (!confirm("このメンバーを削除しますか？")) return;
+    setError("");
     try {
       const res = await apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
@@ -105,10 +102,10 @@ export function MembersTab({
         await fetchData();
       } else {
         const data = await res.json();
-        alert(data.error ?? "削除に失敗しました");
+        setError(data.error ?? "削除に失敗しました");
       }
     } catch {
-      alert("ネットワークエラー");
+      setError("ネットワークエラー");
     }
   };
 
@@ -157,6 +154,8 @@ export function MembersTab({
           </ul>
         )}
       </div>
+
+      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
       {/* Member list */}
       <h3 className="text-sm font-medium mb-2">メンバー一覧</h3>
