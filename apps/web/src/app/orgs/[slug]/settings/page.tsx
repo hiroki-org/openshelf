@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { toast } from "@/components/toast";
 
 type Org = {
   id: string;
@@ -62,7 +63,6 @@ export default function OrgSettingsPage() {
   const [editSlug, setEditSlug] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState("");
 
   // Members tab
   const [searchQuery, setSearchQuery] = useState("");
@@ -146,12 +146,33 @@ export default function OrgSettingsPage() {
     return <div className="text-center py-20 text-red-600">{error}</div>;
   if (!org || !isAdmin) return null;
 
+
+  const handleApiAction = async (
+    requestPromise: Promise<Response>,
+    onSuccess: (res: Response) => Promise<void> | void,
+    defaultErrorMsg: string,
+    onFinally?: () => void
+  ) => {
+    try {
+      const res = await requestPromise;
+      if (res.ok) {
+        await onSuccess(res);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error ?? defaultErrorMsg);
+      }
+    } catch {
+      toast.error("ネットワークエラー");
+    } finally {
+      if (onFinally) onFinally();
+    }
+  };
+
   // ── General handlers ──
   const handleSave = async () => {
     setSaving(true);
-    setSaveMsg("");
-    try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+        await handleApiAction(
+      apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -159,46 +180,33 @@ export default function OrgSettingsPage() {
           slug: editSlug.trim().toLowerCase(),
           description: editDescription.trim() || null,
         }),
-      });
-
-      if (res.ok) {
+      }),
+      async (res) => {
         const data = await res.json();
         setOrg(data.org);
-        setSaveMsg("保存しました");
+        toast.success("保存しました");
         if (data.org.slug !== slug) {
           router.replace(`/orgs/${data.org.slug}/settings`);
         }
-      } else {
-        const data = await res.json();
-        setSaveMsg(data.error ?? "保存に失敗しました");
-      }
-    } catch {
-      setSaveMsg("ネットワークエラー");
-    } finally {
-      setSaving(false);
-    }
+      },
+      "保存に失敗しました",
+      () => setSaving(false)
+    );
   };
-
-  const handleDelete = async () => {
+const handleDelete = async () => {
     setDeleting(true);
-    try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+    await handleApiAction(
+      apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
         method: "DELETE",
-      });
-      if (res.ok) {
+      }),
+      () => {
         router.push("/");
-      } else {
-        const data = await res.json();
-        alert(data.error ?? "削除に失敗しました");
-      }
-    } catch {
-      alert("ネットワークエラー");
-    } finally {
-      setDeleting(false);
-    }
+      },
+      "削除に失敗しました",
+      () => setDeleting(false)
+    );
   };
-
-  // ── Members handlers ──
+// ── Members handlers ──
   const handleUserSearch = async (q: string) => {
     setSearchQuery(q);
     if (q.length < 2) {
@@ -226,72 +234,56 @@ export default function OrgSettingsPage() {
 
   const handleAddMember = async (userId: string, role: string = "member") => {
     setInviting(true);
-    try {
-      const res = await apiFetch(
-        `/api/orgs/${encodeURIComponent(slug)}/members`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, role }),
-        },
-      );
-      if (res.ok) {
+    await handleApiAction(
+      apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, role }),
+      }),
+      async () => {
         setSearchQuery("");
         setSearchResults([]);
         await fetchData();
-      } else {
-        const data = await res.json();
-        alert(data.error ?? "追加に失敗しました");
-      }
-    } catch {
-      alert("ネットワークエラー");
-    } finally {
-      setInviting(false);
-    }
+        toast.success("メンバーを追加しました");
+      },
+      "追加に失敗しました",
+      () => setInviting(false)
+    );
   };
-
-  const handleChangeRole = async (userId: string, newRole: string) => {
-    try {
-      const res = await apiFetch(
+const handleChangeRole = async (userId: string, newRole: string) => {
+    await handleApiAction(
+      apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ role: newRole }),
-        },
-      );
-      if (res.ok) {
+        }
+      ),
+      async () => {
         await fetchData();
-      } else {
-        const data = await res.json();
-        alert(data.error ?? "変更に失敗しました");
-      }
-    } catch {
-      alert("ネットワークエラー");
-    }
+        toast.success("権限を変更しました");
+      },
+      "変更に失敗しました"
+    );
   };
-
-  const handleRemoveMember = async (userId: string) => {
+const handleRemoveMember = async (userId: string) => {
     if (!confirm("このメンバーを削除しますか？")) return;
-    try {
-      const res = await apiFetch(
+    await handleApiAction(
+      apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
         {
           method: "DELETE",
-        },
-      );
-      if (res.ok) {
+        }
+      ),
+      async () => {
         await fetchData();
-      } else {
-        const data = await res.json();
-        alert(data.error ?? "削除に失敗しました");
-      }
-    } catch {
-      alert("ネットワークエラー");
-    }
+        toast.success("メンバーを削除しました");
+      },
+      "削除に失敗しました"
+    );
   };
-
-  // ── Papers handlers ──
+// ── Papers handlers ──
   const handlePaperSearch = async (q: string) => {
     setPaperSearch(q);
     if (q.length < 2) {
@@ -322,51 +314,39 @@ export default function OrgSettingsPage() {
 
   const handleAddPaper = async (paperId: string) => {
     setAddingPaper(true);
-    try {
-      const res = await apiFetch(
-        `/api/orgs/${encodeURIComponent(slug)}/papers`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paperId }),
-        },
-      );
-      if (res.ok) {
+    await handleApiAction(
+      apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paperId }),
+      }),
+      async () => {
         setPaperSearch("");
         setPaperSearchResults([]);
         await fetchData();
-      } else {
-        const data = await res.json();
-        alert(data.error ?? "追加に失敗しました");
-      }
-    } catch {
-      alert("ネットワークエラー");
-    } finally {
-      setAddingPaper(false);
-    }
+        toast.success("論文を追加しました");
+      },
+      "追加に失敗しました",
+      () => setAddingPaper(false)
+    );
   };
-
-  const handleRemovePaper = async (paperId: string) => {
+const handleRemovePaper = async (paperId: string) => {
     if (!confirm("この論文の紐づけを解除しますか？")) return;
-    try {
-      const res = await apiFetch(
+    await handleApiAction(
+      apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/papers/${encodeURIComponent(paperId)}`,
         {
           method: "DELETE",
-        },
-      );
-      if (res.ok) {
+        }
+      ),
+      async () => {
         await fetchData();
-      } else {
-        const data = await res.json();
-        alert(data.error ?? "削除に失敗しました");
-      }
-    } catch {
-      alert("ネットワークエラー");
-    }
+        toast.success("論文の紐づけを解除しました");
+      },
+      "削除に失敗しました"
+    );
   };
-
-  const tabClass = (t: string) =>
+const tabClass = (t: string) =>
     `px-4 py-2 text-sm font-medium border-b-2 ${
       tab === t
         ? "border-gray-900 text-gray-900 dark:border-white dark:text-white"
@@ -468,7 +448,7 @@ export default function OrgSettingsPage() {
             />
           </div>
 
-          {saveMsg && <p className="text-sm text-gray-600">{saveMsg}</p>}
+
 
           <button
             type="button"
