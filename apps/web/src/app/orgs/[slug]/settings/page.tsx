@@ -14,25 +14,16 @@ const handleApiAction = async (
   defaultErrorMsg: string,
   onFinally?: () => void
 ) => {
-  let res: Response;
   try {
-    res = await requestPromise;
-  } catch {
-    toast.error("ネットワークエラー");
-    if (onFinally) onFinally();
-    return;
-  }
-
-  try {
-    if (!res.ok) {
+    const res = await requestPromise;
+    if (res.ok) {
+      await onSuccess(res);
+    } else {
       const data = await res.json().catch(() => ({}));
       toast.error(data.error ?? defaultErrorMsg);
-      return;
     }
-
-    await onSuccess(res);
   } catch {
-    toast.error("内部エラー");
+    toast.error("ネットワークエラー");
   } finally {
     if (onFinally) onFinally();
   }
@@ -176,10 +167,13 @@ export default function OrgSettingsPage() {
     return <div className="text-center py-20 text-red-600">{error}</div>;
   if (!org || !isAdmin) return null;
 
+
+
+
   // ── General handlers ──
   const handleSave = async () => {
     setSaving(true);
-    await handleApiAction(
+        await handleApiAction(
       apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
