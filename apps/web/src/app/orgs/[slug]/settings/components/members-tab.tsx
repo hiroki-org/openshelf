@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { apiFetch } from "@/lib/api";
+import type { Member, SearchUser } from "./types";
 import type { User } from "@/components/auth-provider";
-import type { Member, SearchUser } from "../types";
 
 export function MembersTab({
   members,
@@ -18,9 +18,9 @@ export function MembersTab({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [inviting, setInviting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const userSearchRef = useRef(0);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -46,7 +46,9 @@ export function MembersTab({
     searchTimeoutRef.current = setTimeout(async () => {
       const requestId = ++userSearchRef.current;
       try {
-        const res = await apiFetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+        const res = await apiFetch(
+          `/api/users/search?q=${encodeURIComponent(q)}`,
+        );
         if (userSearchRef.current !== requestId) return;
         if (res.ok) {
           const data = await res.json();
@@ -66,11 +68,14 @@ export function MembersTab({
     setError(null);
     setInviting(true);
     try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, role }),
-      });
+      const res = await apiFetch(
+        `/api/orgs/${encodeURIComponent(slug)}/members`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, role }),
+        },
+      );
       if (res.ok) {
         setSearchQuery("");
         setSearchResults([]);

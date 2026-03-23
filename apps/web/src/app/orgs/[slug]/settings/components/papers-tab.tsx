@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
-import type { OrgPaper } from "../types";
+import type { OrgPaper } from "./types";
 
 export function PapersTab({
   orgPapers,
@@ -64,11 +64,14 @@ export function PapersTab({
     setError(null);
     setAddingPaper(true);
     try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paperId }),
-      });
+      const res = await apiFetch(
+        `/api/orgs/${encodeURIComponent(slug)}/papers`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paperId }),
+        },
+      );
       if (res.ok) {
         setPaperSearch("");
         setPaperSearchResults([]);

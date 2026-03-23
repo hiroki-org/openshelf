@@ -519,35 +519,28 @@ collectionsRoute.get("/collections/:id/papers", async (c) => {
     } else {
         const restrictedIds = restrictedRows.map(r => r.id);
 
-        const authoredQuery = db
+        // Batch 1: which restricted papers is this user an author of?
+        const authoredRows = await db
             .select({ paperId: paperAuthors.paperId })
             .from(paperAuthors)
-            .where(and(inArray(paperAuthors.paperId, restrictedIds), eq(paperAuthors.userId, currentUserId)));
+            .where(and(inArray(paperAuthors.paperId, restrictedIds), eq(paperAuthors.userId, currentUserId)))
+            .all();
+        const authoredSet = new Set(authoredRows.map(r => r.paperId));
 
+        // Batch 2: which org_only papers can the user see via org membership?
         const orgOnlyIds = restrictedRows
-            .filter(r => r.visibility === "org_only")
+            .filter(r => r.visibility === "org_only" && !authoredSet.has(r.id))
             .map(r => r.id);
-
-        type PaperIdRow = { paperId: string };
-        let authoredRows: PaperIdRow[];
-        let orgAccessRows: PaperIdRow[] = [];
-
+        const orgAccessSet = new Set<string>();
         if (orgOnlyIds.length > 0) {
-            const orgAccessQuery = db
+            const orgAccessRows = await db
                 .select({ paperId: paperOrgs.paperId })
                 .from(orgMembers)
                 .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
-                .where(and(inArray(paperOrgs.paperId, orgOnlyIds), eq(orgMembers.userId, currentUserId)));
-
-            const results = await db.batch([authoredQuery, orgAccessQuery]);
-            authoredRows = results[0] as PaperIdRow[];
-            orgAccessRows = results[1] as PaperIdRow[];
-        } else {
-            authoredRows = await authoredQuery.all();
+                .where(and(inArray(paperOrgs.paperId, orgOnlyIds), eq(orgMembers.userId, currentUserId)))
+                .all();
+            for (const r of orgAccessRows) orgAccessSet.add(r.paperId);
         }
-
-        const authoredSet = new Set(authoredRows.map(r => r.paperId));
-        const orgAccessSet = new Set(orgAccessRows.map(r => r.paperId));
 
         visiblePapers = rows.filter(r => {
             if (r.visibility === "public") return true;
