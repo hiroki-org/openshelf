@@ -172,7 +172,21 @@ function setupOrgApiMock(state: OrgState) {
     }
 
     if (url.startsWith("/api/papers") && method === "GET") {
-      return jsonResponse({ papers: searchablePapers });
+      const requestUrl = new URL(url, "http://localhost");
+      const q = requestUrl.searchParams.get("q");
+      const visibility = requestUrl.searchParams.get("visibility");
+      if (!q) {
+        return jsonResponse({ error: "q is required" }, 400);
+      }
+      if (visibility) {
+        return jsonResponse({ error: "visibility should not be specified" }, 400);
+      }
+      const loweredQ = q.toLowerCase();
+      return jsonResponse({
+        papers: searchablePapers.filter((paper) =>
+          paper.title.toLowerCase().includes(loweredQ),
+        ),
+      });
     }
 
     if (url === "/api/orgs/demo-org/papers" && method === "POST") {
@@ -537,7 +551,6 @@ describe("OrgSettingsPage", () => {
     render(<OrgSettingsPage />);
     await screen.findByRole("heading", { name: "Org — 設定" });
 
-    const alertSpy = vi.mocked(window.alert);
 
     // Member add fail
     fireEvent.click(screen.getByRole("button", { name: "メンバー" }));
