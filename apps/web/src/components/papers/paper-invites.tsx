@@ -22,7 +22,9 @@ type PaperInvitesProps = {
   showInvite: boolean;
   setShowInvite: (show: boolean) => void;
   searchQuery: string;
+  setSearchQuery: (q: string) => void;
   searchResults: SearchUser[];
+  setSearchResults: (results: SearchUser[]) => void;
   inviting: boolean;
   handleSearch: (q: string) => Promise<void>;
   handleInvite: (inviteeId: string) => Promise<void>;
@@ -34,7 +36,9 @@ export function PaperInvites({
   showInvite,
   setShowInvite,
   searchQuery,
+  setSearchQuery,
   searchResults,
+  setSearchResults,
   inviting,
   handleSearch,
   handleInvite,
@@ -47,11 +51,7 @@ export function PaperInvites({
       {showInvite && (
         <div className="mb-6 rounded-md border border-gray-200 p-4 dark:border-gray-700">
           <h3 className="font-medium mb-2">共著者招待</h3>
-          <label htmlFor="paper-invite-search" className="sr-only">
-            ユーザー名で検索
-          </label>
           <input
-            id="paper-invite-search"
             type="text"
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
@@ -93,7 +93,8 @@ export function PaperInvites({
             type="button"
             onClick={() => {
               setShowInvite(false);
-              void handleSearch("");
+              setSearchQuery("");
+              setSearchResults([]);
             }}
             className="mt-2 text-sm text-gray-500 hover:underline"
           >
