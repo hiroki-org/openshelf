@@ -20,11 +20,9 @@ export type SearchUser = {
 type PaperInvitesProps = {
   isUploader: boolean;
   showInvite: boolean;
-  setShowInvite: (show: boolean) => void;
+  onCloseInvite: () => void;
   searchQuery: string;
-  setSearchQuery: (q: string) => void;
   searchResults: SearchUser[];
-  setSearchResults: (results: SearchUser[]) => void;
   inviting: boolean;
   handleSearch: (q: string) => Promise<void>;
   handleInvite: (inviteeId: string) => Promise<void>;
@@ -34,11 +32,9 @@ type PaperInvitesProps = {
 export function PaperInvites({
   isUploader,
   showInvite,
-  setShowInvite,
+  onCloseInvite,
   searchQuery,
-  setSearchQuery,
   searchResults,
-  setSearchResults,
   inviting,
   handleSearch,
   handleInvite,
@@ -91,11 +87,7 @@ export function PaperInvites({
           )}
           <button
             type="button"
-            onClick={() => {
-              setShowInvite(false);
-              setSearchQuery("");
-              setSearchResults([]);
-            }}
+            onClick={onCloseInvite}
             className="mt-2 text-sm text-gray-500 hover:underline"
           >
             キャンセル
