@@ -1,7 +1,17 @@
-"use client";
-
 import Image from "next/image";
 import { Member, SearchUser } from "../types";
+
+type MembersTabProps = {
+  searchQuery: string;
+  handleUserSearch: (q: string) => Promise<void>;
+  searchResults: SearchUser[];
+  handleAddMember: (userId: string, role?: string) => Promise<void>;
+  inviting: boolean;
+  members: Member[];
+  user: { id: string } | null;
+  handleChangeRole: (userId: string, newRole: string) => Promise<void>;
+  handleRemoveMember: (userId: string) => Promise<void>;
+};
 
 export function MembersTab({
   searchQuery,
@@ -13,17 +23,7 @@ export function MembersTab({
   user,
   handleChangeRole,
   handleRemoveMember,
-}: {
-  searchQuery: string;
-  handleUserSearch: (q: string) => Promise<void>;
-  searchResults: SearchUser[];
-  handleAddMember: (userId: string, role?: string) => Promise<void>;
-  inviting: boolean;
-  members: Member[];
-  user: { id: string } | null;
-  handleChangeRole: (userId: string, newRole: string) => Promise<void>;
-  handleRemoveMember: (userId: string) => Promise<void>;
-}) {
+}: MembersTabProps) {
   return (
     <div>
       {/* Invite form */}

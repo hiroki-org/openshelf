@@ -1,6 +1,14 @@
-"use client";
+import { OrgPaper, PaperSearchResult } from "../types";
 
-import { OrgPaper } from "../types";
+type PapersTabProps = {
+  paperSearch: string;
+  handlePaperSearch: (q: string) => Promise<void>;
+  paperSearchResults: PaperSearchResult[];
+  handleAddPaper: (paperId: string) => Promise<void>;
+  addingPaper: boolean;
+  orgPapers: OrgPaper[];
+  handleRemovePaper: (paperId: string) => Promise<void>;
+};
 
 export function PapersTab({
   paperSearch,
@@ -10,15 +18,7 @@ export function PapersTab({
   addingPaper,
   orgPapers,
   handleRemovePaper,
-}: {
-  paperSearch: string;
-  handlePaperSearch: (q: string) => Promise<void>;
-  paperSearchResults: { id: string; title: string }[];
-  handleAddPaper: (paperId: string) => Promise<void>;
-  addingPaper: boolean;
-  orgPapers: OrgPaper[];
-  handleRemovePaper: (paperId: string) => Promise<void>;
-}) {
+}: PapersTabProps) {
   return (
     <div>
       {/* Add paper form */}
