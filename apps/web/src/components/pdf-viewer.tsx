@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 
 type PdfViewerProps = {
@@ -11,6 +10,22 @@ type PdfViewerProps = {
 
 const ZOOM_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 type ZoomPreset = (typeof ZOOM_PRESETS)[number];
+
+type PdfToolbarProps = {
+  pageNumber: number;
+  numPages: number;
+  zoom: ZoomPreset;
+  canPrev: boolean;
+  canNext: boolean;
+  canZoomOut: boolean;
+  canZoomIn: boolean;
+  goToPrevPage: () => void;
+  goToNextPage: () => void;
+  zoomOut: () => void;
+  zoomIn: () => void;
+  changeZoom: (zoom: ZoomPreset) => void;
+  toggleFullScreen: () => Promise<void>;
+};
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -48,6 +63,8 @@ function usePdfViewer() {
 
   const canPrev = pageNumber > 1;
   const canNext = numPages > 0 && pageNumber < numPages;
+  const canZoomOut = zoom > ZOOM_PRESETS[0];
+  const canZoomIn = zoom < ZOOM_PRESETS[ZOOM_PRESETS.length - 1];
 
   const onDocumentLoadSuccess = useCallback((info: { numPages: number }) => {
     setNumPages(info.numPages);
@@ -59,54 +76,85 @@ function usePdfViewer() {
     setLoadingError(true);
   }, []);
 
+  const goToPrevPage = useCallback(() => {
+    setPageNumber((p) => Math.max(1, p - 1));
+  }, []);
+
+  const goToNextPage = useCallback(() => {
+    setPageNumber((p) => Math.min(numPages, p + 1));
+  }, [numPages]);
+
+  const zoomOut = useCallback(() => {
+    setZoom((currentZoom) => {
+      const idx = ZOOM_PRESETS.indexOf(currentZoom);
+      if (idx <= 0) return currentZoom;
+      return ZOOM_PRESETS[idx - 1];
+    });
+  }, []);
+
+  const zoomIn = useCallback(() => {
+    setZoom((currentZoom) => {
+      const idx = ZOOM_PRESETS.indexOf(currentZoom);
+      if (idx >= ZOOM_PRESETS.length - 1) return currentZoom;
+      return ZOOM_PRESETS[idx + 1];
+    });
+  }, []);
+
+  const changeZoom = useCallback((nextZoom: ZoomPreset) => {
+    setZoom(nextZoom);
+  }, []);
+
   const toggleFullScreen = useCallback(async () => {
     const node = containerRef.current;
     if (!node) return;
 
-    if (!document.fullscreenElement) {
-      await node.requestFullscreen();
-      return;
-    }
+    try {
+      if (!document.fullscreenElement) {
+        await node.requestFullscreen();
+        return;
+      }
 
-    await document.exitFullscreen();
+      await document.exitFullscreen();
+    } catch {
+      // Ignore fullscreen rejections caused by browser/user policy.
+    }
   }, []);
 
   return {
     containerRef,
     numPages,
     pageNumber,
-    setPageNumber,
     zoom,
-    setZoom,
     loadingError,
     pageWidth,
     canPrev,
     canNext,
+    canZoomOut,
+    canZoomIn,
     onDocumentLoadSuccess,
     onDocumentLoadError,
+    goToPrevPage,
+    goToNextPage,
+    zoomOut,
+    zoomIn,
+    changeZoom,
     toggleFullScreen,
   };
 }
 
-type PdfToolbarProps = {
-  pageNumber: number;
-  numPages: number;
-  setPageNumber: Dispatch<SetStateAction<number>>;
-  canPrev: boolean;
-  canNext: boolean;
-  zoom: ZoomPreset;
-  setZoom: Dispatch<SetStateAction<ZoomPreset>>;
-  toggleFullScreen: () => Promise<void>;
-};
-
 function PdfToolbar({
   pageNumber,
   numPages,
-  setPageNumber,
+  zoom,
   canPrev,
   canNext,
-  zoom,
-  setZoom,
+  canZoomOut,
+  canZoomIn,
+  goToPrevPage,
+  goToNextPage,
+  zoomOut,
+  zoomIn,
+  changeZoom,
   toggleFullScreen,
 }: PdfToolbarProps) {
   return (
@@ -114,7 +162,7 @@ function PdfToolbar({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
+          onClick={goToPrevPage}
           disabled={!canPrev}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
@@ -125,7 +173,7 @@ function PdfToolbar({
         </span>
         <button
           type="button"
-          onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
+          onClick={goToNextPage}
           disabled={!canNext}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
@@ -136,11 +184,8 @@ function PdfToolbar({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => {
-            const idx = ZOOM_PRESETS.indexOf(zoom);
-            if (idx > 0) setZoom(ZOOM_PRESETS[idx - 1]);
-          }}
-          disabled={zoom === ZOOM_PRESETS[0]}
+          onClick={zoomOut}
+          disabled={!canZoomOut}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
           -
@@ -149,7 +194,7 @@ function PdfToolbar({
         <select
           aria-label="PDF zoom"
           value={zoom}
-          onChange={(e) => setZoom(Number(e.target.value) as ZoomPreset)}
+          onChange={(e) => changeZoom(Number(e.target.value) as ZoomPreset)}
           className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
         >
           {ZOOM_PRESETS.map((preset) => (
@@ -161,11 +206,8 @@ function PdfToolbar({
 
         <button
           type="button"
-          onClick={() => {
-            const idx = ZOOM_PRESETS.indexOf(zoom);
-            if (idx < ZOOM_PRESETS.length - 1) setZoom(ZOOM_PRESETS[idx + 1]);
-          }}
-          disabled={zoom === ZOOM_PRESETS[ZOOM_PRESETS.length - 1]}
+          onClick={zoomIn}
+          disabled={!canZoomIn}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
           +
@@ -188,15 +230,20 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     containerRef,
     numPages,
     pageNumber,
-    setPageNumber,
     zoom,
-    setZoom,
     loadingError,
     pageWidth,
     canPrev,
     canNext,
+    canZoomOut,
+    canZoomIn,
     onDocumentLoadSuccess,
     onDocumentLoadError,
+    goToPrevPage,
+    goToNextPage,
+    zoomOut,
+    zoomIn,
+    changeZoom,
     toggleFullScreen,
   } = usePdfViewer();
 
@@ -208,11 +255,16 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       <PdfToolbar
         pageNumber={pageNumber}
         numPages={numPages}
-        setPageNumber={setPageNumber}
+        zoom={zoom}
         canPrev={canPrev}
         canNext={canNext}
-        zoom={zoom}
-        setZoom={setZoom}
+        canZoomOut={canZoomOut}
+        canZoomIn={canZoomIn}
+        goToPrevPage={goToPrevPage}
+        goToNextPage={goToNextPage}
+        zoomOut={zoomOut}
+        zoomIn={zoomIn}
+        changeZoom={changeZoom}
         toggleFullScreen={toggleFullScreen}
       />
 
