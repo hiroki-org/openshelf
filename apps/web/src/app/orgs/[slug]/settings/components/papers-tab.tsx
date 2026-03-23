@@ -44,7 +44,7 @@ export function PapersTab({
     searchTimeoutRef.current = setTimeout(async () => {
       const requestId = ++paperSearchRef.current;
       try {
-        const res = await apiFetch(`/api/papers?q=${encodeURIComponent(q)}`);
+        const res = await apiFetch(`/api/papers?q=${encodeURIComponent(q)}&visibility=public`);
         if (paperSearchRef.current !== requestId) return;
         if (res.ok) {
           const data = await res.json();

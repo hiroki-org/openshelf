@@ -26,13 +26,6 @@ export default function OrgSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const tabClass = (t: "general" | "members" | "papers") =>
-    `px-4 py-2 text-sm font-medium border-b-2 ${
-      tab === t
-        ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
-        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
-    }`;
-
   const fetchData = useCallback(async () => {
     try {
       const [orgRes, membersRes, papersRes] = await Promise.all([
@@ -114,7 +107,11 @@ export default function OrgSettingsPage() {
             setTab("general");
             router.replace(`?tab=general`, { scroll: false });
           }}
-          className={tabClass("general")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            tab === "general"
+              ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+          }`}
         >
           基本設定
         </button>
@@ -124,7 +121,11 @@ export default function OrgSettingsPage() {
             setTab("members");
             router.replace(`?tab=members`, { scroll: false });
           }}
-          className={tabClass("members")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            tab === "members"
+              ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+          }`}
         >
           メンバー
         </button>
@@ -134,7 +135,11 @@ export default function OrgSettingsPage() {
             setTab("papers");
             router.replace(`?tab=papers`, { scroll: false });
           }}
-          className={tabClass("papers")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            tab === "papers"
+              ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+          }`}
         >
           論文
         </button>
