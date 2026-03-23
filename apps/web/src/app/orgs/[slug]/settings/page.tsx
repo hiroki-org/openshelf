@@ -22,9 +22,8 @@ const handleApiAction = async (
       const data = await res.json().catch(() => ({}));
       toast.error(data.error ?? defaultErrorMsg);
     }
-  } catch (err) {
-    console.error("API Action failed:", err);
-    toast.error("処理中にエラーが発生しました。");
+  } catch {
+    toast.error("ネットワークエラー");
   } finally {
     if (onFinally) onFinally();
   }
@@ -168,10 +167,13 @@ export default function OrgSettingsPage() {
     return <div className="text-center py-20 text-red-600">{error}</div>;
   if (!org || !isAdmin) return null;
 
+
+
+
   // ── General handlers ──
   const handleSave = async () => {
     setSaving(true);
-    await handleApiAction(
+        await handleApiAction(
       apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -193,8 +195,7 @@ export default function OrgSettingsPage() {
       () => setSaving(false)
     );
   };
-
-  const handleDelete = async () => {
+const handleDelete = async () => {
     setDeleting(true);
     await handleApiAction(
       apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
@@ -207,8 +208,7 @@ export default function OrgSettingsPage() {
       () => setDeleting(false)
     );
   };
-
-  // ── Members handlers ──
+// ── Members handlers ──
   const handleUserSearch = async (q: string) => {
     setSearchQuery(q);
     if (q.length < 2) {
@@ -449,6 +449,8 @@ const tabClass = (t: string) =>
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             />
           </div>
+
+
 
           <button
             type="button"

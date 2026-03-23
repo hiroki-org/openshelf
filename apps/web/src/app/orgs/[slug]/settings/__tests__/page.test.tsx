@@ -7,15 +7,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-  type MockInstance,
-} from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OrgSettingsPage from "../page";
 import { apiFetch } from "@/lib/api";
 
@@ -203,8 +195,8 @@ function setupOrgApiMock(state: OrgState) {
 }
 
 describe("OrgSettingsPage", () => {
-  let toastErrorSpy: MockInstance;
-  let toastSuccessSpy: MockInstance;
+  let toastErrorSpy: any;
+  let toastSuccessSpy: any;
   beforeEach(() => {
     vi.clearAllMocks();
     push.mockReset();
@@ -215,6 +207,7 @@ describe("OrgSettingsPage", () => {
       loading: false,
     };
     vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal("alert", vi.fn());
 
     toastErrorSpy = vi.spyOn(toast, "error").mockImplementation(() => {});
     toastSuccessSpy = vi.spyOn(toast, "success").mockImplementation(() => {});
@@ -226,6 +219,7 @@ describe("OrgSettingsPage", () => {
     toastErrorSpy.mockRestore();
     toastSuccessSpy.mockRestore();
   });
+
 
   it("saves general settings and routes to the renamed slug", async () => {
     setupOrgApiMock({
@@ -515,9 +509,7 @@ describe("OrgSettingsPage", () => {
       return currentMock(url, init);
     });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
-    await waitFor(() =>
-      expect(toastErrorSpy).toHaveBeenCalledWith("処理中にエラーが発生しました。"),
-    );
+    await waitFor(() => expect(toastErrorSpy).toHaveBeenCalledWith("ネットワークエラー"));
   });
 
   it("handles member and paper operation errors", async () => {
