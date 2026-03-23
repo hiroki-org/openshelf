@@ -54,7 +54,7 @@ export function PaperInvites({
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => void handleSearch(e.target.value)}
             placeholder="ユーザー名で検索..."
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm mb-2 dark:border-gray-700 dark:bg-gray-900"
           />
