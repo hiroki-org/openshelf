@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { render, fireEvent, cleanup } from "@testing-library/react";
+import { render, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { PdfViewer } from "../pdf-viewer";
 
@@ -136,14 +136,16 @@ describe("PdfViewer", () => {
     expect((select as HTMLSelectElement).value).toBe("1.5");
   });
 
-  it("handles fullscreen toggle", () => {
+  it("handles fullscreen toggle", async () => {
     const { getByText } = render(<PdfViewer fileUrl="https://example.com/paper.pdf" />);
 
     const fullscreenBtn = getByText("全画面");
 
     // Enter fullscreen
     fireEvent.click(fullscreenBtn);
-    expect(HTMLElement.prototype.requestFullscreen).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(HTMLElement.prototype.requestFullscreen).toHaveBeenCalled();
+    });
 
     // Mock being in fullscreen
     Object.defineProperty(document, "fullscreenElement", {
@@ -154,7 +156,9 @@ describe("PdfViewer", () => {
 
     // Exit fullscreen
     fireEvent.click(fullscreenBtn);
-    expect(document.exitFullscreen).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(document.exitFullscreen).toHaveBeenCalled();
+    });
   });
 
   it("handles document load error with fallback", () => {
