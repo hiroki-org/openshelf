@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useRef, useId, useState } from "react";
 
 export const VALID_FILE_TYPES = [
   "paper",
@@ -10,23 +10,13 @@ export const VALID_FILE_TYPES = [
 ] as const;
 
 export type FileEntry = {
-  id: string;
   file: File;
   fileType: (typeof VALID_FILE_TYPES)[number];
 };
 
-const ACCEPTED_EXTENSIONS = [
-  ".pdf",
-  ".ppt",
-  ".pptx",
-  ".png",
-  ".jpg",
-  ".jpeg",
-] as const;
-
 type FileDropzoneProps = {
   files: FileEntry[];
-  onAddFiles: (files: FileList | File[] | null) => void;
+  onAddFiles: (files: FileList | null) => void;
   onRemoveFile: (index: number) => void;
   onUpdateFileType: (index: number, newType: FileEntry["fileType"]) => void;
 };
@@ -41,34 +31,34 @@ export function FileDropzone({
   const dropzoneId = useId();
   const [isDragging, setIsDragging] = useState(false);
 
-  const handleDragOver = (e: React.DragEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-  };
-
-  const handleDragEnter = (e: React.DragEvent<HTMLButtonElement>) => {
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLButtonElement>) => {
+  const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-      setIsDragging(false);
-    }
+    setIsDragging(false);
   };
+
 
   const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setIsDragging(false);
-
-    const validFiles = Array.from(e.dataTransfer.files).filter((file) =>
-      ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext)),
-    );
-
-    if (validFiles.length === 0) return;
-
-    onAddFiles(validFiles);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      // Filter out invalid file extensions
+      const allowedExtensions = [".pdf", ".ppt", ".pptx", ".png", ".jpg", ".jpeg"];
+      const dt = new DataTransfer();
+      Array.from(e.dataTransfer.files).forEach((file) => {
+        const name = file.name.toLowerCase();
+        if (allowedExtensions.some((ext) => name.endsWith(ext))) {
+          dt.items.add(file);
+        }
+      });
+      if (dt.files.length > 0) {
+        onAddFiles(dt.files);
+      }
+    }
   };
 
   return (
@@ -91,16 +81,11 @@ export function FileDropzone({
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
         aria-describedby={`upload-files-label-${dropzoneId}`}
-        className={`group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-10 transition-all ${
-          isDragging
-            ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
-            : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
-        }`}
+        className={`group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-10 transition-all ${isDragging ? "border-gray-500 bg-gray-100 dark:border-gray-400 dark:bg-gray-800" : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
       >
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors group-hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:group-hover:bg-gray-700">
           <span className="text-2xl">+</span>
@@ -117,7 +102,7 @@ export function FileDropzone({
         <ul className="mt-6 space-y-3">
           {files.map((entry, i) => (
             <li
-              key={entry.id}
+              key={`${entry.file.name}-${entry.file.lastModified}-${i}`}
               className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:flex-row sm:items-center"
             >
               <div className="min-w-0 flex-1">

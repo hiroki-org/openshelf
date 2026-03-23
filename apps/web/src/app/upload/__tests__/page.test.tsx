@@ -35,21 +35,6 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-const createDropDataTransfer = (files: File[]) => {
-  if (typeof DataTransfer !== "undefined") {
-    const dt = new DataTransfer();
-    files.forEach((file) => dt.items.add(file));
-    return dt;
-  }
-
-  return {
-    files,
-    items: {
-      add: () => undefined,
-    },
-  };
-};
-
 describe("UploadPage", () => {
   afterEach(() => {
     cleanup();
@@ -91,6 +76,36 @@ describe("UploadPage", () => {
     setupApiMocks();
   });
 
+
+
+  it("adds files via drag and drop and ignores invalid extensions", async () => {
+    authState = { user: { id: "user1", name: "Test User" }, loading: false };
+
+    render(<UploadPage />);
+
+    const dropzoneButton = screen.getByRole("button", { name: /ファイルを複数選択/i });
+    const droppedFile = new File(["DROP"], "drop.pdf", { type: "application/pdf" });
+    const invalidFile = new File(["EXE"], "virus.exe", { type: "application/x-msdownload" });
+
+    // Mock DataTransfer specifically for this test
+    global.DataTransfer = class {
+      files: File[] = [];
+      items = {
+        add: (file: File) => {
+          this.files.push(file);
+        },
+      };
+    } as any;
+
+    fireEvent.drop(dropzoneButton, {
+      dataTransfer: {
+        files: [droppedFile, invalidFile],
+      },
+    });
+
+    expect(await screen.findByText("drop.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("virus.exe")).not.toBeInTheDocument();
+  });
   it("redirects guests to the home page", async () => {
     authState = { user: null, loading: false };
     render(<UploadPage />);
@@ -181,37 +196,6 @@ describe("UploadPage", () => {
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith("/papers/paper-1");
     });
-  });
-
-  it("adds files via drag and drop", async () => {
-    render(<UploadPage />);
-
-    const dropzoneButton = screen.getByRole("button", { name: /ファイルを複数選択/i });
-    const droppedFile = new File(["DROP"], "drop.pdf", { type: "application/pdf" });
-
-    const dataTransfer = createDropDataTransfer([droppedFile]);
-
-    fireEvent.drop(dropzoneButton, {
-      dataTransfer,
-    });
-
-    expect(await screen.findByText("drop.pdf")).toBeInTheDocument();
-  });
-
-
-  it("does not add files with invalid type via drag and drop", async () => {
-    render(<UploadPage />);
-
-    const dropzoneButton = screen.getByRole("button", { name: /ファイルを複数選択/i });
-    const invalidFile = new File(["EXE"], "malware.exe", { type: "application/octet-stream" });
-
-    const dataTransfer = createDropDataTransfer([invalidFile]);
-
-    fireEvent.drop(dropzoneButton, {
-      dataTransfer,
-    });
-
-    expect(screen.queryByText("malware.exe")).not.toBeInTheDocument();
   });
 
   it("handles file removal and file type change", async () => {
