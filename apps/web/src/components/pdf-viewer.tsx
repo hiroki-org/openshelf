@@ -11,22 +11,6 @@ type PdfViewerProps = {
 const ZOOM_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
 type ZoomPreset = (typeof ZOOM_PRESETS)[number];
 
-type PdfToolbarProps = {
-  pageNumber: number;
-  numPages: number;
-  zoom: ZoomPreset;
-  canPrev: boolean;
-  canNext: boolean;
-  canZoomOut: boolean;
-  canZoomIn: boolean;
-  goToPrevPage: () => void;
-  goToNextPage: () => void;
-  zoomOut: () => void;
-  zoomIn: () => void;
-  changeZoom: (zoom: ZoomPreset) => void;
-  toggleFullScreen: () => Promise<void>;
-};
-
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const options = {
@@ -63,8 +47,6 @@ function usePdfViewer() {
 
   const canPrev = pageNumber > 1;
   const canNext = numPages > 0 && pageNumber < numPages;
-  const canZoomOut = zoom > ZOOM_PRESETS[0];
-  const canZoomIn = zoom < ZOOM_PRESETS[ZOOM_PRESETS.length - 1];
 
   const onDocumentLoadSuccess = useCallback((info: { numPages: number }) => {
     setNumPages(info.numPages);
@@ -85,23 +67,17 @@ function usePdfViewer() {
   }, [numPages]);
 
   const zoomOut = useCallback(() => {
-    setZoom((currentZoom) => {
-      const idx = ZOOM_PRESETS.indexOf(currentZoom);
-      if (idx <= 0) return currentZoom;
-      return ZOOM_PRESETS[idx - 1];
-    });
-  }, []);
+    const idx = ZOOM_PRESETS.indexOf(zoom);
+    if (idx > 0) setZoom(ZOOM_PRESETS[idx - 1]);
+  }, [zoom]);
 
   const zoomIn = useCallback(() => {
-    setZoom((currentZoom) => {
-      const idx = ZOOM_PRESETS.indexOf(currentZoom);
-      if (idx >= ZOOM_PRESETS.length - 1) return currentZoom;
-      return ZOOM_PRESETS[idx + 1];
-    });
-  }, []);
+    const idx = ZOOM_PRESETS.indexOf(zoom);
+    if (idx < ZOOM_PRESETS.length - 1) setZoom(ZOOM_PRESETS[idx + 1]);
+  }, [zoom]);
 
-  const changeZoom = useCallback((nextZoom: ZoomPreset) => {
-    setZoom(nextZoom);
+  const changeZoom = useCallback((newZoom: ZoomPreset) => {
+    setZoom(newZoom);
   }, []);
 
   const toggleFullScreen = useCallback(async () => {
@@ -113,10 +89,9 @@ function usePdfViewer() {
         await node.requestFullscreen();
         return;
       }
-
       await document.exitFullscreen();
     } catch {
-      // Ignore fullscreen rejections caused by browser/user policy.
+      // Ignore error
     }
   }, []);
 
@@ -129,8 +104,6 @@ function usePdfViewer() {
     pageWidth,
     canPrev,
     canNext,
-    canZoomOut,
-    canZoomIn,
     onDocumentLoadSuccess,
     onDocumentLoadError,
     goToPrevPage,
@@ -142,14 +115,26 @@ function usePdfViewer() {
   };
 }
 
+type PdfToolbarProps = {
+  pageNumber: number;
+  numPages: number;
+  canPrev: boolean;
+  canNext: boolean;
+  zoom: ZoomPreset;
+  goToPrevPage: () => void;
+  goToNextPage: () => void;
+  zoomOut: () => void;
+  zoomIn: () => void;
+  changeZoom: (zoom: ZoomPreset) => void;
+  toggleFullScreen: () => Promise<void>;
+};
+
 function PdfToolbar({
   pageNumber,
   numPages,
-  zoom,
   canPrev,
   canNext,
-  canZoomOut,
-  canZoomIn,
+  zoom,
   goToPrevPage,
   goToNextPage,
   zoomOut,
@@ -185,7 +170,7 @@ function PdfToolbar({
         <button
           type="button"
           onClick={zoomOut}
-          disabled={!canZoomOut}
+          disabled={zoom === ZOOM_PRESETS[0]}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
           -
@@ -207,7 +192,7 @@ function PdfToolbar({
         <button
           type="button"
           onClick={zoomIn}
-          disabled={!canZoomIn}
+          disabled={zoom === ZOOM_PRESETS[ZOOM_PRESETS.length - 1]}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
           +
@@ -235,8 +220,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     pageWidth,
     canPrev,
     canNext,
-    canZoomOut,
-    canZoomIn,
     onDocumentLoadSuccess,
     onDocumentLoadError,
     goToPrevPage,
@@ -255,11 +238,9 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       <PdfToolbar
         pageNumber={pageNumber}
         numPages={numPages}
-        zoom={zoom}
         canPrev={canPrev}
         canNext={canNext}
-        canZoomOut={canZoomOut}
-        canZoomIn={canZoomIn}
+        zoom={zoom}
         goToPrevPage={goToPrevPage}
         goToNextPage={goToNextPage}
         zoomOut={zoomOut}
