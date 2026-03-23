@@ -168,6 +168,21 @@ describe("UploadPage", () => {
     });
   });
 
+  it("adds files via drag and drop", async () => {
+    render(<UploadPage />);
+
+    const dropzoneButton = screen.getByRole("button", { name: /ファイルを複数選択/i });
+    const droppedFile = new File(["DROP"], "drop.pdf", { type: "application/pdf" });
+
+    fireEvent.drop(dropzoneButton, {
+      dataTransfer: {
+        files: [droppedFile],
+      },
+    });
+
+    expect(await screen.findByText("drop.pdf")).toBeInTheDocument();
+  });
+
   it("handles file removal and file type change", async () => {
     render(<UploadPage />);
 

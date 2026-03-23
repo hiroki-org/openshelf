@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useId } from "react";
+import { useId, useRef } from "react";
 
 export const VALID_FILE_TYPES = [
   "paper",
@@ -30,6 +30,16 @@ export function FileDropzone({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropzoneId = useId();
 
+  const handleDragOver = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    onAddFiles(e.dataTransfer.files);
+  };
+
   return (
     <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-6 dark:border-gray-800 dark:bg-gray-900/50">
       <p
@@ -50,6 +60,8 @@ export function FileDropzone({
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
         aria-describedby={`upload-files-label-${dropzoneId}`}
         className="group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-white px-5 py-10 transition-all hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
       >
