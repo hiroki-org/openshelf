@@ -26,7 +26,7 @@ test.describe('Org Management', () => {
 
         // 論文アップロード
         const paperTitle = generateTestPaperTitle();
-        await uploadPublicPaper(page, paperTitle);
+        const paperId = await uploadPublicPaper(page, paperTitle);
 
         // orgに論文を紐づけ
         await page.goto(`/orgs/${orgSlug}/settings`);
