@@ -28,8 +28,3 @@ export type OrgPaper = {
   year: number | null;
   venue: string | null;
 };
-export type PaperSearchResult = {
-  id: string;
-  title: string;
-};
-

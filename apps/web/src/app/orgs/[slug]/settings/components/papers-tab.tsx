@@ -1,6 +1,6 @@
 "use client";
 
-import { OrgPaper, PaperSearchResult } from "../types";
+import { OrgPaper } from "../types";
 
 export function PapersTab({
   paperSearch,
@@ -13,7 +13,7 @@ export function PapersTab({
 }: {
   paperSearch: string;
   handlePaperSearch: (q: string) => Promise<void>;
-  paperSearchResults: PaperSearchResult[];
+  paperSearchResults: { id: string; title: string }[];
   handleAddPaper: (paperId: string) => Promise<void>;
   addingPaper: boolean;
   orgPapers: OrgPaper[];

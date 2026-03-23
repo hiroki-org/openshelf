@@ -96,7 +96,6 @@ export function MembersTab({
                 value={m.role === "owner" ? "admin" : m.role}
                 onChange={(e) => handleChangeRole(m.userId, e.target.value)}
                 disabled={m.userId === user?.id}
-                aria-label={`${m.displayName ?? m.name}のロール`}
                 className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
               >
                 <option value="admin">admin</option>
