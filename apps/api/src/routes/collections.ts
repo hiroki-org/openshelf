@@ -524,31 +524,23 @@ collectionsRoute.get("/collections/:id/papers", async (c) => {
             .from(paperAuthors)
             .where(and(inArray(paperAuthors.paperId, restrictedIds), eq(paperAuthors.userId, currentUserId)));
 
-        const orgOnlyIds = restrictedRows
-            .filter(r => r.visibility === "org_only")
-            .map(r => r.id);
+        const orgOnlyIds = restrictedRows.filter(r => r.visibility === "org_only").map(r => r.id);
 
-        let orgAccessQuery = undefined;
+        let authoredSet = new Set<string>();
+        let orgAccessSet = new Set<string>();
         if (orgOnlyIds.length > 0) {
-            orgAccessQuery = db
+            const orgAccessQuery = db
                 .select({ paperId: paperOrgs.paperId })
                 .from(orgMembers)
                 .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
                 .where(and(inArray(paperOrgs.paperId, orgOnlyIds), eq(orgMembers.userId, currentUserId)));
-        }
 
-        const queries: any[] = [authoredQuery];
-        if (orgAccessQuery) queries.push(orgAccessQuery);
-
-        const results = await db.batch(queries as any);
-
-        const authoredRows = results[0];
-        const authoredSet = new Set((authoredRows as any[]).map(r => r.paperId));
-
-        const orgAccessSet = new Set<string>();
-        if (orgAccessQuery) {
-            const orgAccessRows = results[1];
-            for (const r of (orgAccessRows as any[])) orgAccessSet.add(r.paperId);
+            const [authoredRows, orgAccessRows] = await db.batch([authoredQuery, orgAccessQuery]);
+            authoredSet = new Set(authoredRows.map(r => r.paperId));
+            orgAccessSet = new Set(orgAccessRows.map(r => r.paperId));
+        } else {
+            const authoredRows = await authoredQuery.all();
+            authoredSet = new Set(authoredRows.map(r => r.paperId));
         }
 
         visiblePapers = rows.filter(r => {
