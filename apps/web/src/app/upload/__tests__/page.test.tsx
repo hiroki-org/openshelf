@@ -183,6 +183,22 @@ describe("UploadPage", () => {
     expect(await screen.findByText("drop.pdf")).toBeInTheDocument();
   });
 
+
+  it("does not add files with invalid type via drag and drop", async () => {
+    render(<UploadPage />);
+
+    const dropzoneButton = screen.getByRole("button", { name: /ファイルを複数選択/i });
+    const invalidFile = new File(["EXE"], "malware.exe", { type: "application/octet-stream" });
+
+    fireEvent.drop(dropzoneButton, {
+      dataTransfer: {
+        files: [invalidFile],
+      },
+    });
+
+    expect(screen.queryByText("malware.exe")).not.toBeInTheDocument();
+  });
+
   it("handles file removal and file type change", async () => {
     render(<UploadPage />);
 

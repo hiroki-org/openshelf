@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef } from "react";
+import { useId, useRef, useState } from "react";
 
 export const VALID_FILE_TYPES = [
   "paper",
@@ -14,9 +14,18 @@ export type FileEntry = {
   fileType: (typeof VALID_FILE_TYPES)[number];
 };
 
+const ACCEPTED_EXTENSIONS = [
+  ".pdf",
+  ".ppt",
+  ".pptx",
+  ".png",
+  ".jpg",
+  ".jpeg",
+] as const;
+
 type FileDropzoneProps = {
   files: FileEntry[];
-  onAddFiles: (files: FileList | null) => void;
+  onAddFiles: (files: FileList | File[] | null) => void;
   onRemoveFile: (index: number) => void;
   onUpdateFileType: (index: number, newType: FileEntry["fileType"]) => void;
 };
@@ -29,15 +38,34 @@ export function FileDropzone({
 }: FileDropzoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropzoneId = useId();
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleDragOver = (e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
   };
 
+  const handleDragEnter = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
   const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    onAddFiles(e.dataTransfer.files);
+    setIsDragging(false);
+
+    const validFiles = Array.from(e.dataTransfer.files).filter((file) =>
+      ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext)),
+    );
+
+    if (validFiles.length === 0) return;
+
+    onAddFiles(validFiles);
   };
 
   return (
@@ -60,10 +88,16 @@ export function FileDropzone({
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         aria-describedby={`upload-files-label-${dropzoneId}`}
-        className="group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-white px-5 py-10 transition-all hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
+        className={`group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-10 transition-all ${
+          isDragging
+            ? "border-blue-400 bg-blue-50 dark:border-blue-500 dark:bg-blue-950/30"
+            : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
+        }`}
       >
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors group-hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:group-hover:bg-gray-700">
           <span className="text-2xl">+</span>

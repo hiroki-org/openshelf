@@ -88,7 +88,7 @@ export default function UploadPage() {
 
   if (loading || !user) return null;
 
-  const addFiles = (selected: FileList | null) => {
+  const addFiles = (selected: FileList | File[] | null) => {
     if (!selected) return;
     const newEntries: FileEntry[] = Array.from(selected).map((f) => ({
       file: f,
