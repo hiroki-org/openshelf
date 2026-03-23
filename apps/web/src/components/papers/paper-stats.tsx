@@ -1,5 +1,3 @@
-import React from 'react';
-
 export type PaperStatsData = {
   totalViews: number;
   last7DaysViews: number;
@@ -11,7 +9,7 @@ export type PaperStatsData = {
 };
 
 type PaperStatsProps = {
-  stats: PaperStatsData;
+  stats: PaperStatsData | null;
   statsLoading: boolean;
   statsError: string;
   maxDailyViewCount: number;
