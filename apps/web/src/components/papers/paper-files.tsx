@@ -112,8 +112,7 @@ export function PaperFiles({
               className="rounded-md border border-gray-200 p-2 dark:border-gray-700"
             >
               {imagePreviewUrls[img.id] ? (
-                // eslint-disable-next-line @next/next/no-img-element -- URL.createObjectURL の blob URL は next/image 最適化対象外
-                <img
+                                <img
                   src={imagePreviewUrls[img.id]}
                   alt={img.filename}
                   className="h-auto w-full rounded"
