@@ -20,12 +20,12 @@ export function GeneralTab({
   const [editDescription, setEditDescription] = useState(org.description ?? "");
   const [saving, setSaving] = useState(false);
 
+  const [saveMsg, setSaveMsg] = useState("");
   useEffect(() => {
     setEditName(org.name);
     setEditSlug(org.slug);
     setEditDescription(org.description ?? "");
   }, [org.name, org.slug, org.description]);
-  const [saveMsg, setSaveMsg] = useState("");
 
   // Delete dialog
   const [showDelete, setShowDelete] = useState(false);
