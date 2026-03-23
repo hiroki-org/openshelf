@@ -5,7 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { Org, Member, SearchUser, OrgPaper, PaperSearchResult } from "./types";
+import { Org, Member, SearchUser, OrgPaper } from "./types";
 import { GeneralTab } from "./components/general-tab";
 import { MembersTab } from "./components/members-tab";
 import { PapersTab } from "./components/papers-tab";
@@ -43,7 +43,9 @@ export default function OrgSettingsPage() {
 
   // Papers tab
   const [paperSearch, setPaperSearch] = useState("");
-  const [paperSearchResults, setPaperSearchResults] = useState<PaperSearchResult[]>([]);
+  const [paperSearchResults, setPaperSearchResults] = useState<
+    { id: string; title: string }[]
+  >([]);
   const [addingPaper, setAddingPaper] = useState(false);
 
   // Delete dialog
