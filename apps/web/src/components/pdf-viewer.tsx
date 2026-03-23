@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 
 type PdfViewerProps = {
@@ -90,48 +91,30 @@ function usePdfViewer() {
 type PdfToolbarProps = {
   pageNumber: number;
   numPages: number;
-  onPrevPage: () => void;
-  onNextPage: () => void;
+  setPageNumber: Dispatch<SetStateAction<number>>;
   canPrev: boolean;
   canNext: boolean;
   zoom: ZoomPreset;
-  onZoomChange: (zoom: ZoomPreset) => void;
+  setZoom: Dispatch<SetStateAction<ZoomPreset>>;
   toggleFullScreen: () => Promise<void>;
 };
 
 function PdfToolbar({
   pageNumber,
   numPages,
-  onPrevPage,
-  onNextPage,
+  setPageNumber,
   canPrev,
   canNext,
   zoom,
-  onZoomChange,
+  setZoom,
   toggleFullScreen,
 }: PdfToolbarProps) {
-  const zoomOut = () => {
-    const idx = ZOOM_PRESETS.indexOf(zoom);
-    if (idx > 0) onZoomChange(ZOOM_PRESETS[idx - 1]);
-  };
-
-  const zoomIn = () => {
-    const idx = ZOOM_PRESETS.indexOf(zoom);
-    if (idx < ZOOM_PRESETS.length - 1) onZoomChange(ZOOM_PRESETS[idx + 1]);
-  };
-
-  const handleZoomSelectChange = (value: string) => {
-    const parsed = Number(value);
-    const nextZoom = ZOOM_PRESETS.find((preset) => preset === parsed);
-    if (nextZoom !== undefined) onZoomChange(nextZoom);
-  };
-
   return (
     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={onPrevPage}
+          onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
           disabled={!canPrev}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
@@ -142,7 +125,7 @@ function PdfToolbar({
         </span>
         <button
           type="button"
-          onClick={onNextPage}
+          onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
           disabled={!canNext}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
@@ -153,7 +136,10 @@ function PdfToolbar({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={zoomOut}
+          onClick={() => {
+            const idx = ZOOM_PRESETS.indexOf(zoom);
+            if (idx > 0) setZoom(ZOOM_PRESETS[idx - 1]);
+          }}
           disabled={zoom === ZOOM_PRESETS[0]}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
@@ -163,7 +149,7 @@ function PdfToolbar({
         <select
           aria-label="PDF zoom"
           value={zoom}
-          onChange={(e) => handleZoomSelectChange(e.target.value)}
+          onChange={(e) => setZoom(Number(e.target.value) as ZoomPreset)}
           className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
         >
           {ZOOM_PRESETS.map((preset) => (
@@ -175,7 +161,10 @@ function PdfToolbar({
 
         <button
           type="button"
-          onClick={zoomIn}
+          onClick={() => {
+            const idx = ZOOM_PRESETS.indexOf(zoom);
+            if (idx < ZOOM_PRESETS.length - 1) setZoom(ZOOM_PRESETS[idx + 1]);
+          }}
           disabled={zoom === ZOOM_PRESETS[ZOOM_PRESETS.length - 1]}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
@@ -219,12 +208,11 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       <PdfToolbar
         pageNumber={pageNumber}
         numPages={numPages}
-        onPrevPage={() => setPageNumber((p) => Math.max(1, p - 1))}
-        onNextPage={() => setPageNumber((p) => Math.min(numPages, p + 1))}
+        setPageNumber={setPageNumber}
         canPrev={canPrev}
         canNext={canNext}
         zoom={zoom}
-        onZoomChange={setZoom}
+        setZoom={setZoom}
         toggleFullScreen={toggleFullScreen}
       />
 

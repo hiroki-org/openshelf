@@ -79,7 +79,7 @@ describe("PdfViewer", () => {
   });
 
   it("passes multilingual font options to react-pdf Document", () => {
-    render(<PdfViewer fileUrl="https://example.com/paper.pdf" />);
+    const { container } = render(<PdfViewer fileUrl="https://example.com/paper.pdf" />);
 
     expect(mockDocument).toHaveBeenCalledTimes(1);
     const [props] = mockDocument.mock.calls[0] as [MockDocumentProps];
