@@ -39,10 +39,11 @@ type OrgPaper = {
   venue: string | null;
 };
 
+// ── Helper ──
 const executeApiAction = async (
   action: () => Promise<Response>,
   onSuccess: (res: Response) => Promise<void> | void,
-  defaultErrorMessage: string,
+  defaultErrorMessage: string
 ) => {
   try {
     const res = await action();
@@ -166,52 +167,47 @@ export default function OrgSettingsPage() {
     return <div className="text-center py-20 text-red-600">{error}</div>;
   if (!org || !isAdmin) return null;
 
+
   // ── General handlers ──
   const handleSave = async () => {
     setSaving(true);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: editName.trim(),
-              slug: editSlug.trim().toLowerCase(),
-              description: editDescription.trim() || null,
-            }),
+    await executeApiAction(
+      () =>
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: editName.trim(),
+            slug: editSlug.trim().toLowerCase(),
+            description: editDescription.trim() || null,
           }),
-        async (res) => {
-          const data = await res.json();
-          setOrg(data.org);
-          toast.success("保存しました");
-          if (data.org.slug !== slug) {
-            router.replace(`/orgs/${data.org.slug}/settings`);
-          }
-        },
-        "保存に失敗しました",
-      );
-    } finally {
-      setSaving(false);
-    }
+        }),
+      async (res) => {
+        const data = await res.json();
+        setOrg(data.org);
+        toast.success("保存しました");
+        if (data.org.slug !== slug) {
+          router.replace(`/orgs/${data.org.slug}/settings`);
+        }
+      },
+      "保存に失敗しました"
+    );
+    setSaving(false);
   };
 
   const handleDelete = async () => {
     setDeleting(true);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
-            method: "DELETE",
-          }),
-        () => {
-          router.push("/");
-        },
-        "削除に失敗しました",
-      );
-    } finally {
-      setDeleting(false);
-    }
+    await executeApiAction(
+      () =>
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+          method: "DELETE",
+        }),
+      () => {
+        router.push("/");
+      },
+      "削除に失敗しました"
+    );
+    setDeleting(false);
   };
 
   // ── Members handlers ──
@@ -242,65 +238,56 @@ export default function OrgSettingsPage() {
 
   const handleAddMember = async (userId: string, role: string = "member") => {
     setInviting(true);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId, role }),
-          }),
-        async () => {
-          setSearchQuery("");
-          setSearchResults([]);
-          await fetchData();
-        },
-        "追加に失敗しました",
-      );
-    } finally {
-      setInviting(false);
-    }
+    await executeApiAction(
+      () =>
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, role }),
+        }),
+      async () => {
+        setSearchQuery("");
+        setSearchResults([]);
+        await fetchData();
+      },
+      "追加に失敗しました"
+    );
+    setInviting(false);
   };
 
   const handleChangeRole = async (userId: string, newRole: string) => {
     setUpdatingMemberId(userId);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(
-            `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
-            {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ role: newRole }),
-            },
-          ),
-        fetchData,
-        "変更に失敗しました",
-      );
-    } finally {
-      setUpdatingMemberId(null);
-    }
+    await executeApiAction(
+      () =>
+        apiFetch(
+          `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ role: newRole }),
+          }
+        ),
+      fetchData,
+      "変更に失敗しました"
+    );
+    setUpdatingMemberId(null);
   };
 
   const handleRemoveMember = async (userId: string) => {
     if (!confirm("このメンバーを削除しますか？")) return;
     setRemovingMemberId(userId);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(
-            `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
-            {
-              method: "DELETE",
-            },
-          ),
-        fetchData,
-        "削除に失敗しました",
-      );
-    } finally {
-      setRemovingMemberId(null);
-    }
+    await executeApiAction(
+      () =>
+        apiFetch(
+          `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
+          {
+            method: "DELETE",
+          }
+        ),
+      fetchData,
+      "削除に失敗しました"
+    );
+    setRemovingMemberId(null);
   };
 
   // ── Papers handlers ──
@@ -334,24 +321,21 @@ export default function OrgSettingsPage() {
 
   const handleAddPaper = async (paperId: string) => {
     setAddingPaper(true);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paperId }),
-          }),
-        async () => {
-          setPaperSearch("");
-          setPaperSearchResults([]);
-          await fetchData();
-        },
-        "追加に失敗しました",
-      );
-    } finally {
-      setAddingPaper(false);
-    }
+    await executeApiAction(
+      () =>
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paperId }),
+        }),
+      async () => {
+        setPaperSearch("");
+        setPaperSearchResults([]);
+        await fetchData();
+      },
+      "追加に失敗しました"
+    );
+    setAddingPaper(false);
   };
 
   const handleRemovePaper = async (paperId: string) => {
@@ -606,10 +590,8 @@ export default function OrgSettingsPage() {
                   <select
                     value={m.role === "owner" ? "admin" : m.role}
                     onChange={(e) => handleChangeRole(m.userId, e.target.value)}
-                    disabled={
-                      m.userId === user?.id || updatingMemberId === m.userId
-                    }
-                    className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
+                    disabled={m.userId === user?.id || updatingMemberId === m.userId || removingMemberId === m.userId}
+                    className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900 disabled:opacity-50"
                   >
                     <option value="admin">admin</option>
                     <option value="member">member</option>
@@ -618,7 +600,7 @@ export default function OrgSettingsPage() {
                     <button
                       type="button"
                       onClick={() => handleRemoveMember(m.userId)}
-                      disabled={removingMemberId === m.userId}
+                      disabled={removingMemberId === m.userId || updatingMemberId === m.userId}
                       className="text-red-500 hover:text-red-700 text-xs disabled:opacity-50"
                     >
                       {removingMemberId === m.userId ? "削除中..." : "削除"}
