@@ -542,8 +542,6 @@ describe("OrgSettingsPage", () => {
     render(<OrgSettingsPage />);
     await screen.findByRole("heading", { name: "Org — 設定" });
 
-
-
     // Member add fail
     fireEvent.click(screen.getByRole("button", { name: "メンバー" }));
     fireEvent.change(screen.getByLabelText("メンバー検索"), { target: { value: "al" } });
