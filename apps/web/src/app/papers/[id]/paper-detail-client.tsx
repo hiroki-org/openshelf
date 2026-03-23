@@ -15,6 +15,8 @@ import { PaperFiles, type PaperFile, type PreviewResponse } from "@/components/p
 import { PaperAuthors, type Author } from "@/components/papers/paper-authors";
 import { PaperInvites, type Invite, type SearchUser } from "@/components/papers/paper-invites";
 
+
+
 type Paper = {
   id: string;
   title: string;
@@ -32,6 +34,11 @@ type Paper = {
   updatedAt: string;
 };
 
+
+
+
+
+
 const PPT_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 ] as const;
@@ -39,6 +46,7 @@ const PPT_MIME_TYPES = [
 const isPptMimeType = (
   mimeType: string | null,
 ): mimeType is (typeof PPT_MIME_TYPES)[number] => mimeType === PPT_MIME_TYPES[0];
+
 
 const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url);
 
@@ -56,6 +64,7 @@ const isValidExternalUrl = (urlStr: string) => {
 type PaperDetailClientProps = {
   paperId: string;
 };
+
 
 export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const { user } = useAuth();
@@ -532,7 +541,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
       {isAuthor && (
         <PaperStats
-          stats={stats}
+          stats={stats as PaperStatsData}
           statsLoading={statsLoading}
           statsError={statsError}
           maxDailyViewCount={maxDailyViewCount}
