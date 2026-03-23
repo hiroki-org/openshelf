@@ -96,7 +96,6 @@ export default function OrgSettingsPage() {
     { id: string; title: string }[]
   >([]);
   const [addingPaper, setAddingPaper] = useState(false);
-  const [removingPaperId, setRemovingPaperId] = useState<string | null>(null);
 
   // Delete dialog
   const [showDelete, setShowDelete] = useState(false);
@@ -172,31 +171,28 @@ export default function OrgSettingsPage() {
   // ── General handlers ──
   const handleSave = async () => {
     setSaving(true);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: editName.trim(),
-              slug: editSlug.trim().toLowerCase(),
-              description: editDescription.trim() || null,
-            }),
+    await executeApiAction(
+      () =>
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: editName.trim(),
+            slug: editSlug.trim().toLowerCase(),
+            description: editDescription.trim() || null,
           }),
-        async (res) => {
-          const data = await res.json();
-          setOrg(data.org);
-          toast.success("保存しました");
-          if (data.org.slug !== slug) {
-            router.replace(`/orgs/${data.org.slug}/settings`);
-          }
-        },
-        "保存に失敗しました"
-      );
-    } finally {
-      setSaving(false);
-    }
+        }),
+      async (res) => {
+        const data = await res.json();
+        setOrg(data.org);
+        toast.success("保存しました");
+        if (data.org.slug !== slug) {
+          router.replace(`/orgs/${data.org.slug}/settings`);
+        }
+      },
+      "保存に失敗しました"
+    );
+    setSaving(false);
   };
 
   const handleDelete = async () => {
@@ -344,22 +340,17 @@ export default function OrgSettingsPage() {
 
   const handleRemovePaper = async (paperId: string) => {
     if (!confirm("この論文の紐づけを解除しますか？")) return;
-    setRemovingPaperId(paperId);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(
-            `/api/orgs/${encodeURIComponent(slug)}/papers/${encodeURIComponent(paperId)}`,
-            {
-              method: "DELETE",
-            }
-          ),
-        fetchData,
-        "削除に失敗しました"
-      );
-    } finally {
-      setRemovingPaperId(null);
-    }
+    await executeApiAction(
+      () =>
+        apiFetch(
+          `/api/orgs/${encodeURIComponent(slug)}/papers/${encodeURIComponent(paperId)}`,
+          {
+            method: "DELETE",
+          }
+        ),
+      fetchData,
+      "削除に失敗しました"
+    );
   };
 
   const tabClass = (t: string) =>
@@ -673,10 +664,9 @@ export default function OrgSettingsPage() {
                   <button
                     type="button"
                     onClick={() => handleRemovePaper(p.id)}
-                    disabled={removingPaperId === p.id}
-                    className="text-red-500 hover:text-red-700 text-xs shrink-0 ml-2 disabled:opacity-50"
+                    className="text-red-500 hover:text-red-700 text-xs shrink-0 ml-2"
                   >
-                    {removingPaperId === p.id ? "解除中..." : "解除"}
+                    解除
                   </button>
                 </li>
               ))}
