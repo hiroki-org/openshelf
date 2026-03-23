@@ -11,6 +11,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OrgSettingsPage from "../page";
 import { apiFetch } from "@/lib/api";
 
+vi.mock("@/components/toast", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+  },
+}));
+
 const push = vi.fn();
 const replace = vi.fn();
 let authState: any;
@@ -408,7 +416,7 @@ describe("OrgSettingsPage", () => {
     });
   });
 
-  it("redirects guests and non-admin members away from the settings page", async () => {
+  it("redirects guests away from the settings page", async () => {
     authState = { user: null, loading: false };
 
     render(<OrgSettingsPage />);
@@ -416,12 +424,9 @@ describe("OrgSettingsPage", () => {
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith("/");
     });
+  });
 
-    cleanup();
-    vi.clearAllMocks();
-    if (vi.mocked(toast.success)) vi.mocked(toast.success).mockClear();
-    if (vi.mocked(toast.error)) vi.mocked(toast.error).mockClear();
-
+  it("redirects non-admin members away from the settings page", async () => {
     authState = {
       user: { id: "member-2", name: "bob", displayName: "Bob" },
       loading: false,
@@ -538,8 +543,6 @@ describe("OrgSettingsPage", () => {
     render(<OrgSettingsPage />);
     await screen.findByRole("heading", { name: "Org — 設定" });
 
-    // const alertSpy = vi.mocked(window.alert);
-
     // Member add fail
     fireEvent.click(screen.getByRole("button", { name: "メンバー" }));
     fireEvent.change(screen.getByLabelText("メンバー検索"), { target: { value: "al" } });
@@ -594,7 +597,6 @@ describe("OrgSettingsPage", () => {
     // Fail
     fireEvent.click(screen.getByRole("button", { name: "組織を削除" }));
     fireEvent.change(screen.getByLabelText("削除確認のためスラッグを入力"), { target: { value: "demo-org" } });
-    // const alertSpy = vi.mocked(window.alert);
     const originalMock = vi.mocked(apiFetch).getMockImplementation();
     if (!originalMock) {
       throw new Error("Expected apiFetch mock implementation");
@@ -608,10 +610,3 @@ describe("OrgSettingsPage", () => {
   });
 });
 
-vi.mock("@/components/toast", () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-  },
-}));
