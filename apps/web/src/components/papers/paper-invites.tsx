@@ -54,7 +54,7 @@ export function PaperInvites({
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
+            onChange={(e) => { void handleSearch(e.target.value); }}
             placeholder="ユーザー名で検索..."
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm mb-2 dark:border-gray-700 dark:bg-gray-900"
           />
@@ -79,7 +79,7 @@ export function PaperInvites({
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleInvite(u.id)}
+                    onClick={() => { void handleInvite(u.id); }}
                     disabled={inviting}
                     className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                   >
