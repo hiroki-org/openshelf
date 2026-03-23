@@ -96,6 +96,7 @@ export default function OrgSettingsPage() {
     { id: string; title: string }[]
   >([]);
   const [addingPaper, setAddingPaper] = useState(false);
+  const [removingPaperId, setRemovingPaperId] = useState<string | null>(null);
 
   // Delete dialog
   const [showDelete, setShowDelete] = useState(false);
@@ -340,17 +341,22 @@ export default function OrgSettingsPage() {
 
   const handleRemovePaper = async (paperId: string) => {
     if (!confirm("この論文の紐づけを解除しますか？")) return;
-    await executeApiAction(
-      () =>
-        apiFetch(
-          `/api/orgs/${encodeURIComponent(slug)}/papers/${encodeURIComponent(paperId)}`,
-          {
-            method: "DELETE",
-          }
-        ),
-      fetchData,
-      "削除に失敗しました"
-    );
+    setRemovingPaperId(paperId);
+    try {
+      await executeApiAction(
+        () =>
+          apiFetch(
+            `/api/orgs/${encodeURIComponent(slug)}/papers/${encodeURIComponent(paperId)}`,
+            {
+              method: "DELETE",
+            }
+          ),
+        fetchData,
+        "削除に失敗しました"
+      );
+    } finally {
+      setRemovingPaperId(null);
+    }
   };
 
   const tabClass = (t: string) =>
@@ -664,9 +670,10 @@ export default function OrgSettingsPage() {
                   <button
                     type="button"
                     onClick={() => handleRemovePaper(p.id)}
-                    className="text-red-500 hover:text-red-700 text-xs shrink-0 ml-2"
+                    disabled={removingPaperId === p.id}
+                    className="text-red-500 hover:text-red-700 text-xs shrink-0 ml-2 disabled:opacity-50"
                   >
-                    解除
+                    {removingPaperId === p.id ? "解除中..." : "解除"}
                   </button>
                 </li>
               ))}
