@@ -600,7 +600,6 @@ describe("OrgSettingsPage", () => {
     // Fail
     fireEvent.click(screen.getByRole("button", { name: "組織を削除" }));
     fireEvent.change(screen.getByLabelText("削除確認のためスラッグを入力"), { target: { value: "demo-org" } });
-    const alertSpy = vi.mocked(toast.error);
     const originalMock = vi.mocked(apiFetch).getMockImplementation();
     if (!originalMock) {
       throw new Error("Expected apiFetch mock implementation");
