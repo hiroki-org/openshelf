@@ -36,11 +36,9 @@ export function FileDropzone({
     setIsDragging(true);
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLButtonElement>) => {
+  const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsDragging(false);
-    }
+    setIsDragging(false);
   };
 
 
