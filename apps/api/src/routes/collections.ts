@@ -528,8 +528,8 @@ collectionsRoute.get("/collections/:id/papers", async (c) => {
             .filter(r => r.visibility === "org_only")
             .map(r => r.id);
 
-        let authoredRows: { paperId: string }[];
-        let orgAccessRows: { paperId: string }[] = [];
+        let authoredRows: any[];
+        let orgAccessRows: any[] = [];
 
         if (orgOnlyIds.length > 0) {
             const orgAccessQuery = db
@@ -539,8 +539,8 @@ collectionsRoute.get("/collections/:id/papers", async (c) => {
                 .where(and(inArray(paperOrgs.paperId, orgOnlyIds), eq(orgMembers.userId, currentUserId)));
 
             const results = await db.batch([authoredQuery, orgAccessQuery]);
-            authoredRows = results[0] as { paperId: string }[];
-            orgAccessRows = results[1] as { paperId: string }[];
+            authoredRows = results[0];
+            orgAccessRows = results[1];
         } else {
             authoredRows = await authoredQuery.all();
         }
