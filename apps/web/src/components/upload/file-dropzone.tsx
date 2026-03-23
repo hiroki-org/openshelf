@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useId, useRef } from "react";
 
 export const VALID_FILE_TYPES = [
   "paper",
@@ -26,11 +26,12 @@ export function FileDropzone({
   onUpdateFileType,
 }: FileDropzoneProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const labelId = useId();
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-6 dark:border-gray-800 dark:bg-gray-900/50">
       <p
-        id="upload-files-label"
+        id={labelId}
         className="mb-4 block text-sm font-semibold text-gray-900 dark:text-gray-100"
       >
         添付ファイル <span className="text-red-500">*</span>
@@ -47,7 +48,7 @@ export function FileDropzone({
       <button
         type="button"
         onClick={() => fileInputRef.current?.click()}
-        aria-describedby="upload-files-label"
+        aria-describedby={labelId}
         className="group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-white px-5 py-10 transition-all hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
       >
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors group-hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:group-hover:bg-gray-700">
@@ -65,7 +66,7 @@ export function FileDropzone({
         <ul className="mt-6 space-y-3">
           {files.map((entry, i) => (
             <li
-              key={i}
+              key={`${entry.file.name}-${entry.file.lastModified}-${i}`}
               className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:flex-row sm:items-center"
             >
               <div className="min-w-0 flex-1">
