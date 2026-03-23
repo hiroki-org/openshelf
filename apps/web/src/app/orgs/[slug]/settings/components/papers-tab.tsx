@@ -44,16 +44,14 @@ export function PapersTab({
     searchTimeoutRef.current = setTimeout(async () => {
       const requestId = ++paperSearchRef.current;
       try {
-        const res = await apiFetch("/api/papers");
+        const res = await apiFetch(`/api/papers?q=${encodeURIComponent(q)}`);
         if (paperSearchRef.current !== requestId) return;
         if (res.ok) {
           const data = await res.json();
           const existingIds = new Set(orgPapers.map((p) => p.id));
-          const lowerQ = q.toLowerCase();
           setPaperSearchResults(
             (data.papers || []).filter(
-              (p: { id: string; title: string }) =>
-                !existingIds.has(p.id) && p.title.toLowerCase().includes(lowerQ),
+              (p: { id: string; title: string }) => !existingIds.has(p.id),
             ),
           );
         }

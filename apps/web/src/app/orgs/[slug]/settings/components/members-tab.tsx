@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { apiFetch } from "@/lib/api";
 import type { Member, SearchUser } from "./types";
@@ -19,46 +19,58 @@ export function MembersTab({
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [inviting, setInviting] = useState(false);
   const userSearchRef = useRef(0);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleUserSearch = async (q: string) => {
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleUserSearch = (q: string) => {
     setError(null);
     setSearchQuery(q);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
     if (q.length < 2) {
       setSearchResults([]);
       return;
     }
-    const requestId = ++userSearchRef.current;
-    try {
-      const res = await apiFetch(
-        `/api/users/search?q=${encodeURIComponent(q)}`,
-      );
-      if (userSearchRef.current !== requestId) return;
-      if (res.ok) {
-        const data = await res.json();
-        const existingIds = new Set(members.map((m) => m.userId));
-        setSearchResults(
-          data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
-        );
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      const requestId = ++userSearchRef.current;
+      try {
+        const res = await apiFetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+        if (userSearchRef.current !== requestId) return;
+        if (res.ok) {
+          const data = await res.json();
+          const existingIds = new Set(members.map((m) => m.userId));
+          setSearchResults(
+            data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
+          );
+        }
+      } catch {
+        if (userSearchRef.current !== requestId) return;
+        setSearchResults([]);
       }
-    } catch {
-      if (userSearchRef.current !== requestId) return;
-      setSearchResults([]);
-    }
+    }, 300);
   };
 
   const handleAddMember = async (userId: string, role: string = "member") => {
     setError(null);
     setInviting(true);
     try {
-      const res = await apiFetch(
-        `/api/orgs/${encodeURIComponent(slug)}/members`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, role }),
-        },
-      );
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, role }),
+      });
       if (res.ok) {
         setSearchQuery("");
         setSearchResults([]);
@@ -167,46 +179,57 @@ export function MembersTab({
       {/* Member list */}
       <h3 className="text-sm font-medium mb-2">メンバー一覧</h3>
       <ul className="space-y-2">
-        {members.map((m) => (
-          <li
-            key={m.userId}
-            className="flex items-center justify-between text-sm border rounded-md p-3 dark:border-gray-700"
-          >
-            <div className="flex items-center gap-2">
-              {m.avatarUrl && (
-                <Image
-                  src={m.avatarUrl}
-                  alt={m.name}
-                  width={24}
-                  height={24}
-                  className="rounded-full"
-                />
-              )}
-              <span>{m.displayName ?? m.name}</span>
-              <span className="text-xs text-gray-400">@{m.githubId}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={m.role === "owner" ? "admin" : m.role}
-                onChange={(e) => handleChangeRole(m.userId, e.target.value)}
-                disabled={m.userId === user?.id}
-                className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
-              >
-                <option value="admin">admin</option>
-                <option value="member">member</option>
-              </select>
-              {m.userId !== user?.id && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveMember(m.userId)}
-                  className="text-red-500 hover:text-red-700 text-xs"
-                >
-                  削除
-                </button>
-              )}
-            </div>
-          </li>
-        ))}
+        {members.map((m) => {
+          const isOwner = m.role === "owner";
+          const isSelf = m.userId === user?.id;
+
+          return (
+            <li
+              key={m.userId}
+              className="flex items-center justify-between text-sm border rounded-md p-3 dark:border-gray-700"
+            >
+              <div className="flex items-center gap-2">
+                {m.avatarUrl && (
+                  <Image
+                    src={m.avatarUrl}
+                    alt={m.name}
+                    width={24}
+                    height={24}
+                    className="rounded-full"
+                  />
+                )}
+                <span>{m.displayName ?? m.name}</span>
+                <span className="text-xs text-gray-400">@{m.githubId}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {isOwner ? (
+                  <span className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700">
+                    owner
+                  </span>
+                ) : (
+                  <select
+                    value={m.role}
+                    onChange={(e) => handleChangeRole(m.userId, e.target.value)}
+                    disabled={isSelf}
+                    className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
+                  >
+                    <option value="admin">admin</option>
+                    <option value="member">member</option>
+                  </select>
+                )}
+                {!isSelf && !isOwner && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveMember(m.userId)}
+                    className="text-red-500 hover:text-red-700 text-xs"
+                  >
+                    削除
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

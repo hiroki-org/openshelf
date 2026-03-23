@@ -477,8 +477,9 @@ papersRoute.post("/", authMiddleware, async (c) => {
 papersRoute.get("/", authMiddleware, async (c) => {
     const db = drizzle(c.env.DB);
     const userId = c.get("user").sub;
+    const query = c.req.query("q")?.trim().toLowerCase();
 
-    const rows = await db
+    const baseQuery = db
         .select({ paper: papers })
         .from(papers)
         .innerJoin(
@@ -487,8 +488,13 @@ papersRoute.get("/", authMiddleware, async (c) => {
                 eq(paperAuthors.paperId, papers.id),
                 eq(paperAuthors.userId, userId),
             ),
-        )
-        .all();
+        );
+
+    const rows = query
+        ? await baseQuery
+            .where(sql`lower(${papers.title}) like ${`%${query}%`}`)
+            .all()
+        : await baseQuery.all();
 
     return c.json({ papers: rows.map((r) => r.paper) });
 });

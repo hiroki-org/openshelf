@@ -171,8 +171,12 @@ function setupOrgApiMock(state: OrgState) {
       return jsonResponse({ ok: true });
     }
 
-    if (url === "/api/papers" && method === "GET") {
-      return jsonResponse({ papers: searchablePapers });
+    if (url.startsWith("/api/papers") && method === "GET") {
+      const q = new URL(url, "http://localhost").searchParams.get("q")?.toLowerCase();
+      const papers = q
+        ? searchablePapers.filter((paper) => paper.title.toLowerCase().includes(q))
+        : searchablePapers;
+      return jsonResponse({ papers });
     }
 
     if (url === "/api/orgs/demo-org/papers" && method === "POST") {
