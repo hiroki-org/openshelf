@@ -25,7 +25,7 @@ export function GeneralTab({
   const [showDelete, setShowDelete] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const handleSave = async () => {
     setSaving(true);
@@ -63,8 +63,8 @@ export function GeneralTab({
   };
 
   const handleDelete = async () => {
+    setDeleteError(null);
     setDeleting(true);
-    setDeleteError("");
     try {
       const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
         method: "DELETE",
@@ -166,6 +166,7 @@ export function GeneralTab({
           </button>
         ) : (
           <div className="space-y-2">
+                {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
             <p className="text-xs text-red-600">
               確認のため「<strong>{org.slug}</strong>」を入力してください。
             </p>
@@ -190,14 +191,13 @@ export function GeneralTab({
                 onClick={() => {
                   setShowDelete(false);
                   setDeleteConfirm("");
-                  setDeleteError("");
+                  setDeleteError(null);
                 }}
                 className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
               >
                 キャンセル
               </button>
             </div>
-            {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
           </div>
         )}
       </div>

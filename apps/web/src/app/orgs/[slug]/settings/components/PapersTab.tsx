@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
 import type { OrgPaper } from "./types";
 
@@ -16,32 +16,34 @@ export function PapersTab({
     { id: string; title: string }[]
   >([]);
   const [addingPaper, setAddingPaper] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const paperSearchRef = useRef(0);
-  const paperSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     return () => {
-      if (paperSearchTimerRef.current) {
-        clearTimeout(paperSearchTimerRef.current);
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
       }
     };
   }, []);
 
   const handlePaperSearch = (q: string) => {
     setPaperSearch(q);
-    if (paperSearchTimerRef.current) {
-      clearTimeout(paperSearchTimerRef.current);
+    setError(null);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
+
     if (q.length < 2) {
-      paperSearchRef.current += 1;
       setPaperSearchResults([]);
       return;
     }
-    const requestId = ++paperSearchRef.current;
-    paperSearchTimerRef.current = setTimeout(async () => {
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      const requestId = ++paperSearchRef.current;
       try {
-        // GET /api/papers returns all papers; filter client-side by title
         const res = await apiFetch("/api/papers");
         if (paperSearchRef.current !== requestId) return;
         if (res.ok) {
@@ -54,8 +56,6 @@ export function PapersTab({
                 !existingIds.has(p.id) && p.title.toLowerCase().includes(lowerQ),
             ),
           );
-        } else {
-          setPaperSearchResults([]);
         }
       } catch {
         if (paperSearchRef.current !== requestId) return;
@@ -65,8 +65,8 @@ export function PapersTab({
   };
 
   const handleAddPaper = async (paperId: string) => {
+    setError(null);
     setAddingPaper(true);
-    setError("");
     try {
       const res = await apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/papers`,
@@ -80,7 +80,6 @@ export function PapersTab({
         setPaperSearch("");
         setPaperSearchResults([]);
         await fetchData();
-        setError("");
       } else {
         const data = await res.json();
         setError(data.error ?? "追加に失敗しました");
@@ -94,7 +93,7 @@ export function PapersTab({
 
   const handleRemovePaper = async (paperId: string) => {
     if (!confirm("この論文の紐づけを解除しますか？")) return;
-    setError("");
+    setError(null);
     try {
       const res = await apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/papers/${encodeURIComponent(paperId)}`,
@@ -104,7 +103,6 @@ export function PapersTab({
       );
       if (res.ok) {
         await fetchData();
-        setError("");
       } else {
         const data = await res.json();
         setError(data.error ?? "解除に失敗しました");
@@ -117,6 +115,7 @@ export function PapersTab({
   return (
     <div>
       {/* Add paper form */}
+      {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
       <div className="mb-6">
         <h3 className="text-sm font-medium mb-2">論文を追加</h3>
         <input
@@ -148,8 +147,6 @@ export function PapersTab({
           </ul>
         )}
       </div>
-
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 
       {/* Paper list */}
       <h3 className="text-sm font-medium mb-2">紐づけ済み論文</h3>

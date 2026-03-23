@@ -540,17 +540,17 @@ describe("OrgSettingsPage", () => {
     fireEvent.change(screen.getByLabelText("メンバー検索"), { target: { value: "al" } });
     const addBtn = await screen.findByRole("button", { name: "追加" });
     fireEvent.click(addBtn);
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("User already member"));
+    await waitFor(() => expect(screen.getByText("User already member")).toBeInTheDocument());
 
     // Role change fail
     const roleSelect = await screen.findByDisplayValue("member");
     fireEvent.change(roleSelect, { target: { value: "admin" } });
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Forbidden"));
+    await waitFor(() => expect(screen.getByText("Forbidden")).toBeInTheDocument());
 
     // Paper remove fail
     fireEvent.click(screen.getByRole("button", { name: "論文" }));
     fireEvent.click(screen.getByRole("button", { name: "解除" }));
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Not found"));
+    await waitFor(() => expect(screen.getByText("Not found")).toBeInTheDocument());
 
   });
 
@@ -589,16 +589,17 @@ describe("OrgSettingsPage", () => {
     // Fail
     fireEvent.click(screen.getByRole("button", { name: "組織を削除" }));
     fireEvent.change(screen.getByLabelText("削除確認のためスラッグを入力"), { target: { value: "demo-org" } });
-    const alertSpy = vi.mocked(window.alert);
-    const originalMock = vi.mocked(apiFetch).getMockImplementation();
-    if (!originalMock) {
+    const originalMockDelete = vi.mocked(apiFetch).getMockImplementation();
+    if (!originalMockDelete) {
       throw new Error("Expected apiFetch mock implementation");
     }
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-      if (init?.method === "DELETE") return jsonResponse({ error: "Protected" }, 400);
-      return originalMock(url, init);
+      if (init?.method === "DELETE" && url.includes("/api/orgs/demo-org")) {
+        return jsonResponse({ error: "Protected" }, 400);
+      }
+      return originalMockDelete(url, init);
     });
     fireEvent.click(screen.getByRole("button", { name: "完全に削除する" }));
-    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Protected"));
+    await waitFor(() => expect(screen.getByText("Protected")).toBeInTheDocument());
   });
 });
