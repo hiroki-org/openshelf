@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { apiFetch } from "@/lib/api";
 import type { Member, SearchUser } from "./types";
@@ -19,7 +19,7 @@ export function MembersTab({
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [inviting, setInviting] = useState(false);
   const userSearchRef = useRef(0);
-  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -36,7 +36,6 @@ export function MembersTab({
 
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
-      searchTimeoutRef.current = null;
     }
 
     if (q.length < 2) {

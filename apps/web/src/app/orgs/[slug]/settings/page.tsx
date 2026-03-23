@@ -10,12 +10,6 @@ import { GeneralTab } from "./components/general-tab";
 import { MembersTab } from "./components/members-tab";
 import { PapersTab } from "./components/papers-tab";
 
-const TAB_BASE_CLASS = "px-4 py-2 text-sm font-medium border-b-2";
-const TAB_ACTIVE_CLASS =
-  "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400";
-const TAB_INACTIVE_CLASS =
-  "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300";
-
 export default function OrgSettingsPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -113,8 +107,10 @@ export default function OrgSettingsPage() {
             setTab("general");
             router.replace(`?tab=general`, { scroll: false });
           }}
-          className={`${TAB_BASE_CLASS} ${
-            tab === "general" ? TAB_ACTIVE_CLASS : TAB_INACTIVE_CLASS
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            tab === "general"
+              ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
           }`}
         >
           基本設定
@@ -125,8 +121,10 @@ export default function OrgSettingsPage() {
             setTab("members");
             router.replace(`?tab=members`, { scroll: false });
           }}
-          className={`${TAB_BASE_CLASS} ${
-            tab === "members" ? TAB_ACTIVE_CLASS : TAB_INACTIVE_CLASS
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            tab === "members"
+              ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
           }`}
         >
           メンバー
@@ -137,8 +135,10 @@ export default function OrgSettingsPage() {
             setTab("papers");
             router.replace(`?tab=papers`, { scroll: false });
           }}
-          className={`${TAB_BASE_CLASS} ${
-            tab === "papers" ? TAB_ACTIVE_CLASS : TAB_INACTIVE_CLASS
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            tab === "papers"
+              ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
           }`}
         >
           論文

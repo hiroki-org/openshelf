@@ -19,8 +19,8 @@ export function GeneralTab({
   const [editSlug, setEditSlug] = useState(org.slug);
   const [editDescription, setEditDescription] = useState(org.description ?? "");
   const [saving, setSaving] = useState(false);
-
   const [saveMsg, setSaveMsg] = useState("");
+
   useEffect(() => {
     setEditName(org.name);
     setEditSlug(org.slug);
