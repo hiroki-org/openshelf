@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import type { Org } from "./types";
+import type { Org } from "../types";
 
 export function GeneralTab({
   org,
@@ -89,12 +89,9 @@ export function GeneralTab({
   };
 
   return (
-    <div className="max-w-xl space-y-6">
+    <div className="space-y-4">
       <div>
-        <label
-          htmlFor="org-edit-name"
-          className="block text-sm font-medium mb-1"
-        >
+        <label htmlFor="org-edit-name" className="block text-sm font-medium mb-1">
           組織名
         </label>
         <input
@@ -107,10 +104,7 @@ export function GeneralTab({
         />
       </div>
       <div>
-        <label
-          htmlFor="org-edit-slug"
-          className="block text-sm font-medium mb-1"
-        >
+        <label htmlFor="org-edit-slug" className="block text-sm font-medium mb-1">
           スラッグ
         </label>
         <input
@@ -119,18 +113,13 @@ export function GeneralTab({
           maxLength={40}
           value={editSlug}
           onChange={(e) =>
-            setEditSlug(
-              e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
-            )
+            setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
           }
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
         />
       </div>
       <div>
-        <label
-          htmlFor="org-edit-description"
-          className="block text-sm font-medium mb-1"
-        >
+        <label htmlFor="org-edit-description" className="block text-sm font-medium mb-1">
           説明
         </label>
         <textarea
@@ -156,9 +145,7 @@ export function GeneralTab({
 
       {/* Danger zone */}
       <div className="mt-10 rounded-md border border-red-300 p-4 dark:border-red-700">
-        <h3 className="text-sm font-medium text-red-600 mb-2">
-          Danger Zone
-        </h3>
+        <h3 className="text-sm font-medium text-red-600 mb-2">Danger Zone</h3>
         <p className="text-xs text-gray-500 mb-3">
           組織を削除すると、メンバー情報と論文の紐づけが全て削除されます。
         </p>

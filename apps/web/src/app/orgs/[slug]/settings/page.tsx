@@ -5,7 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import type { Org, Member, OrgPaper } from "./components/types";
+import type { Org, Member, OrgPaper } from "./types";
 import { GeneralTab } from "./components/general-tab";
 import { MembersTab } from "./components/members-tab";
 import { PapersTab } from "./components/papers-tab";
