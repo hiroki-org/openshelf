@@ -172,6 +172,44 @@ sleep 300 && gh pr checks 157 157 156 155
 - CI status is green for all affected PRs
 - All conversation threads marked as resolved (if approved)
 
+### Persistent Loop Addendum (Required for "do not stop" requests)
+
+When users request persistent looping (e.g., "keep running", "stopしない", "at least 5 loops"), `pr-review-respond` must:
+
+1. Execute a minimum fixed number of cycles before reporting completion.
+2. Track cycles in SQL tables to avoid premature success snapshots.
+3. In each cycle, inspect not only review threads but also:
+   - normal PR comments (codecov/codspeed/greptile/vercel/coderabbit/gemini/jules),
+   - PR description/body updates,
+   - review events feed.
+4. Post concise timeline follow-up comments with action/no-action decisions for bot signals.
+5. Re-run closure handling immediately if new unresolved threads appear mid-cycle.
+
+Suggested SQL tracking schema:
+
+```sql
+CREATE TABLE IF NOT EXISTS pr_loop_runs (
+  cycle_no INTEGER PRIMARY KEY,
+  started_at TEXT NOT NULL,
+  ended_at TEXT,
+  open_pr_count INTEGER,
+  unresolved_before INTEGER,
+  unresolved_after INTEGER,
+  notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS pr_loop_pr_status (
+  cycle_no INTEGER NOT NULL,
+  phase TEXT NOT NULL, -- before/after
+  pr_number INTEGER NOT NULL,
+  unresolved INTEGER,
+  req_non_success INTEGER,
+  bot_followup_needed INTEGER,
+  recorded_at TEXT NOT NULL,
+  PRIMARY KEY (cycle_no, phase, pr_number)
+);
+```
+
 ---
 
 ## pr-status-check
