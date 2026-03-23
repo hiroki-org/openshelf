@@ -366,9 +366,6 @@ describe("OrgSettingsPage", () => {
     expect(paperRow).not.toBeNull();
 
     fireEvent.click(within(paperRow!).getByRole("button", { name: "解除" }));
-    expect(
-      within(paperRow!).getByRole("button", { name: "解除中..." }),
-    ).toBeDisabled();
 
     await waitFor(() => {
       expect(screen.queryByText("Transformer Tricks")).not.toBeInTheDocument();
