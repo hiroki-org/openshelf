@@ -197,14 +197,7 @@ function setupOrgApiMock(state: OrgState) {
 describe("OrgSettingsPage", () => {
   let toastErrorSpy: any;
   let toastSuccessSpy: any;
-  beforeEach(() => {
-    toastErrorSpy = vi.spyOn(toast, "error").mockImplementation(() => {});
-    toastSuccessSpy = vi.spyOn(toast, "success").mockImplementation(() => {});
-  });
-  afterEach(() => {
-    toastErrorSpy.mockRestore();
-    toastSuccessSpy.mockRestore();
-  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     push.mockReset();
@@ -216,11 +209,15 @@ describe("OrgSettingsPage", () => {
     };
     vi.stubGlobal("confirm", vi.fn(() => true));
     vi.stubGlobal("alert", vi.fn());
+    toastErrorSpy = vi.spyOn(toast, "error").mockImplementation(() => {});
+    toastSuccessSpy = vi.spyOn(toast, "success").mockImplementation(() => {});
   });
 
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
+    toastErrorSpy.mockRestore();
+    toastSuccessSpy.mockRestore();
   });
 
   it("saves general settings and routes to the renamed slug", async () => {
