@@ -39,15 +39,6 @@ type Paper = {
 
 
 
-const PPT_MIME_TYPES = [
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-] as const;
-
-const isPptMimeType = (
-  mimeType: string | null,
-): mimeType is (typeof PPT_MIME_TYPES)[number] => mimeType === PPT_MIME_TYPES[0];
-
-
 const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url);
 
 const STATS_FETCH_ERROR_MESSAGE = "統計情報の取得に失敗しました";
@@ -268,10 +259,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   );
   const imageFiles = useMemo(
     () => files.filter((f) => f.mimeType?.startsWith("image/")),
-    [files],
-  );
-  const pptxFile = useMemo(
-    () => files.find((f) => isPptMimeType(f.mimeType)) ?? null,
     [files],
   );
   const maxDailyViewCount = useMemo(() => {
@@ -566,7 +553,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       <PaperFiles
         files={files}
         pdfFile={pdfFile}
-        pptxFile={pptxFile}
         imageFiles={imageFiles}
         preview={preview}
         previewLoading={previewLoading}

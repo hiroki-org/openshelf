@@ -28,7 +28,6 @@ export type PreviewResponse = {
 type PaperFilesProps = {
   files: PaperFile[];
   pdfFile: PaperFile | null;
-  pptxFile: PaperFile | null;
   imageFiles: PaperFile[];
   preview: PreviewResponse | null;
   previewLoading: boolean;
@@ -43,6 +42,15 @@ const formatSize = (bytes: number) => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
+
+
+const PPT_MIME_TYPES = [
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+] as const;
+
+const isPptMimeType = (
+  mimeType: string | null,
+): mimeType is (typeof PPT_MIME_TYPES)[number] => mimeType === PPT_MIME_TYPES[0];
 
 const getFileIcon = (fileType: string) => {
   switch (fileType) {
@@ -62,7 +70,6 @@ const getFileIcon = (fileType: string) => {
 export function PaperFiles({
   files,
   pdfFile,
-  pptxFile,
   imageFiles,
   preview,
   previewLoading,
@@ -72,6 +79,8 @@ export function PaperFiles({
   handleDownload,
 }: PaperFilesProps) {
   if (files.length === 0) return null;
+
+  const pptxFile = files.find((f) => isPptMimeType(f.mimeType)) ?? null;
 
   return (
     <div className="mb-6">
@@ -86,7 +95,7 @@ export function PaperFiles({
           {!previewLoading && preview?.url && (
             <PdfViewer
               fileUrl={preview.url}
-              onDownloadFallback={() => handleDownload(pdfFile)}
+              onDownloadFallback={() => { void handleDownload(pdfFile); }}
             />
           )}
           {!previewLoading && previewError && (
@@ -95,7 +104,7 @@ export function PaperFiles({
               <button
                 type="button"
                 className="underline"
-                onClick={() => handleDownload(pdfFile)}
+                onClick={() => { void handleDownload(pdfFile); }}
               >
                 ダウンロードする
               </button>
@@ -135,7 +144,7 @@ export function PaperFiles({
           <h3 className="text-sm font-medium">PPTXプレビュー</h3>
           <PptxViewer
             fileUrl={pptxFile.downloadUrl}
-            onDownloadFallback={() => handleDownload(pptxFile)}
+            onDownloadFallback={() => { void handleDownload(pptxFile); }}
           />
         </div>
       )}
@@ -159,7 +168,7 @@ export function PaperFiles({
             </div>
             <button
               type="button"
-              onClick={() => handleDownload(f)}
+              onClick={() => { void handleDownload(f); }}
               className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white hover:bg-blue-500 transition-colors"
             >
               ダウンロード
