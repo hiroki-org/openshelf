@@ -20,7 +20,12 @@ type MockDocumentProps = {
   error?: ReactNode;
 };
 
-const mockDocument = vi.fn((props: MockDocumentProps) => {
+type MockPageProps = {
+  pageNumber?: number;
+  width?: number;
+};
+
+function MockDocumentImpl(props: MockDocumentProps) {
   const [hasError, setHasError] = useState(false);
   return (
     <div data-testid="mock-document">
@@ -39,9 +44,11 @@ const mockDocument = vi.fn((props: MockDocumentProps) => {
       {props.children}
     </div>
   );
-});
+}
 
-const mockPage = vi.fn((props: any) => <div data-testid="mock-page" data-page={props.pageNumber} data-width={props.width} />);
+const mockDocument = vi.fn(MockDocumentImpl);
+
+const mockPage = vi.fn((props: MockPageProps) => <div data-testid="mock-page" data-page={props.pageNumber} data-width={props.width} />);
 
 vi.mock("react-pdf", () => {
   const workerOptions = { workerSrc: "" };
@@ -52,7 +59,7 @@ vi.mock("react-pdf", () => {
       GlobalWorkerOptions: workerOptions,
     },
     Document: (props: MockDocumentProps) => mockDocument(props),
-    Page: (props: any) => mockPage(props),
+    Page: (props: MockPageProps) => mockPage(props),
   };
 });
 
