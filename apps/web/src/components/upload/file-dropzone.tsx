@@ -9,6 +9,9 @@ export const VALID_FILE_TYPES = [
   "supplementary",
 ] as const;
 
+const ALLOWED_EXTENSIONS = [".pdf", ".ppt", ".pptx", ".png", ".jpg", ".jpeg"];
+const ACCEPTED_FILE_TYPES = ALLOWED_EXTENSIONS.join(",");
+
 export type FileEntry = {
   file: File;
   fileType: (typeof VALID_FILE_TYPES)[number];
@@ -33,7 +36,9 @@ export function FileDropzone({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
+    if (!isDragging) {
+      setIsDragging(true);
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -41,17 +46,14 @@ export function FileDropzone({
     setIsDragging(false);
   };
 
-
   const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      // Filter out invalid file extensions
-      const allowedExtensions = [".pdf", ".ppt", ".pptx", ".png", ".jpg", ".jpeg"];
       const dt = new DataTransfer();
       Array.from(e.dataTransfer.files).forEach((file) => {
         const name = file.name.toLowerCase();
-        if (allowedExtensions.some((ext) => name.endsWith(ext))) {
+        if (ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext))) {
           dt.items.add(file);
         }
       });
@@ -74,8 +76,11 @@ export function FileDropzone({
         aria-label="アップロードファイル"
         type="file"
         multiple
-        accept=".pdf,.ppt,.pptx,.png,.jpg,.jpeg"
-        onChange={(e) => { onAddFiles(e.target.files); e.target.value = ""; }}
+        accept={ACCEPTED_FILE_TYPES}
+        onChange={(e) => {
+          onAddFiles(e.target.files);
+          e.target.value = "";
+        }}
         className="hidden"
       />
       <button

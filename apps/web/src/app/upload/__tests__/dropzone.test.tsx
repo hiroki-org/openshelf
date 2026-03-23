@@ -1,8 +1,7 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { FileDropzone } from "@/components/upload/file-dropzone";
 
-// Add a mock DataTransfer
 class MockDataTransfer {
   files: File[] = [];
   items = {
@@ -12,9 +11,21 @@ class MockDataTransfer {
   };
 }
 
-global.DataTransfer = MockDataTransfer as any;
-
 describe("FileDropzone", () => {
+  const originalDataTransfer = global.DataTransfer;
+
+  beforeEach(() => {
+    global.DataTransfer = MockDataTransfer as any;
+  });
+
+  afterEach(() => {
+    if (originalDataTransfer) {
+      global.DataTransfer = originalDataTransfer;
+    } else {
+      delete (global as any).DataTransfer;
+    }
+  });
+
   it("handles drop events correctly and filters invalid file types", () => {
     const mockOnAddFiles = vi.fn();
 
@@ -30,11 +41,13 @@ describe("FileDropzone", () => {
     const dropzone = screen.getByText("ファイルを複数選択").closest("button")!;
 
     const validFile = new File(["dummy"], "dragged.pdf", { type: "application/pdf" });
-    const invalidFile = new File(["dummy"], "malicious.exe", { type: "application/x-msdownload" });
+    const invalidFile = new File(["dummy"], "malicious.exe", {
+      type: "application/x-msdownload",
+    });
 
     const dragEvent = new Event("drop", { bubbles: true }) as any;
-    Object.defineProperty(dragEvent, 'dataTransfer', {
-      value: { files: [validFile, invalidFile] }
+    Object.defineProperty(dragEvent, "dataTransfer", {
+      value: { files: [validFile, invalidFile] },
     });
 
     fireEvent(dropzone, dragEvent);
