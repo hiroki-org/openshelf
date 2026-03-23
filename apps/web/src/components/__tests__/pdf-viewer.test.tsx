@@ -20,12 +20,7 @@ type MockDocumentProps = {
   error?: ReactNode;
 };
 
-type MockPageProps = {
-  pageNumber?: number;
-  width?: number;
-};
-
-function MockDocumentImpl(props: MockDocumentProps) {
+const MockDocumentImpl = (props: MockDocumentProps) => {
   const [hasError, setHasError] = useState(false);
   return (
     <div data-testid="mock-document">
@@ -44,9 +39,14 @@ function MockDocumentImpl(props: MockDocumentProps) {
       {props.children}
     </div>
   );
-}
+};
 
 const mockDocument = vi.fn(MockDocumentImpl);
+
+type MockPageProps = {
+  pageNumber?: number;
+  width?: number;
+};
 
 const mockPage = vi.fn((props: MockPageProps) => <div data-testid="mock-page" data-page={props.pageNumber} data-width={props.width} />);
 
