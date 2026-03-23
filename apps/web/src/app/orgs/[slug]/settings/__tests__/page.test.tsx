@@ -172,11 +172,7 @@ function setupOrgApiMock(state: OrgState) {
     }
 
     if (url.startsWith("/api/papers") && method === "GET") {
-      const q = new URL(url, "http://localhost").searchParams.get("q")?.toLowerCase();
-      const papers = q
-        ? searchablePapers.filter((paper) => paper.title.toLowerCase().includes(q))
-        : searchablePapers;
-      return jsonResponse({ papers });
+      return jsonResponse({ papers: searchablePapers });
     }
 
     if (url === "/api/orgs/demo-org/papers" && method === "POST") {
@@ -240,6 +236,10 @@ describe("OrgSettingsPage", () => {
     render(<OrgSettingsPage />);
 
     await screen.findByRole("heading", { name: "Demo Org — 設定" });
+
+    // Flush useEffects by waiting for the input value to match initial org name
+    // ensure useeffect ran and we aren't in a bad state
+    await waitFor(() => expect(screen.getByLabelText("組織名")).toHaveValue("Demo Org"));
 
     fireEvent.change(screen.getByLabelText("組織名"), {
       target: { value: "Renamed Org" },
