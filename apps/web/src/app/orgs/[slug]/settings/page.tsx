@@ -258,37 +258,43 @@ export default function OrgSettingsPage() {
 
   const handleChangeRole = async (userId: string, newRole: string) => {
     setUpdatingMemberId(userId);
-    await executeApiAction(
-      () =>
-        apiFetch(
-          `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ role: newRole }),
-          }
-        ),
-      fetchData,
-      "変更に失敗しました"
-    );
-    setUpdatingMemberId(null);
+    try {
+      await executeApiAction(
+        () =>
+          apiFetch(
+            `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
+            {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ role: newRole }),
+            }
+          ),
+        fetchData,
+        "変更に失敗しました"
+      );
+    } finally {
+      setUpdatingMemberId(null);
+    }
   };
 
   const handleRemoveMember = async (userId: string) => {
     if (!confirm("このメンバーを削除しますか？")) return;
     setRemovingMemberId(userId);
-    await executeApiAction(
-      () =>
-        apiFetch(
-          `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
-          {
-            method: "DELETE",
-          }
-        ),
-      fetchData,
-      "削除に失敗しました"
-    );
-    setRemovingMemberId(null);
+    try {
+      await executeApiAction(
+        () =>
+          apiFetch(
+            `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
+            {
+              method: "DELETE",
+            }
+          ),
+        fetchData,
+        "削除に失敗しました"
+      );
+    } finally {
+      setRemovingMemberId(null);
+    }
   };
 
   // ── Papers handlers ──
