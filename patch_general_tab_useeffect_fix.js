@@ -1,6 +1,5 @@
 const fs = require('fs');
 const file = 'apps/web/src/app/orgs/[slug]/settings/components/general-tab.tsx';
-let code = fs.readFileSync(file, 'utf8');
 
 // The previous `useEffect` in general-tab was overriding the local state changes because it fired unnecessarily or the component re-rendered.
 // Let's modify it to only update if the org prop actually changes in a way that should overwrite the user's edits (e.g. after a save, which re-syncs the object from the server).
