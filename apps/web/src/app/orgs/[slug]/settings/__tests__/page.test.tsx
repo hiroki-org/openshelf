@@ -412,9 +412,7 @@ describe("OrgSettingsPage", () => {
   it("redirects guests away from the settings page", async () => {
     authState = { user: null, loading: false };
     render(<OrgSettingsPage />);
-    await waitFor(() => {
-      expect(push).toHaveBeenCalledWith("/");
-    });
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/"));
   });
 
   it("redirects non-admin members away from the settings page", async () => {
