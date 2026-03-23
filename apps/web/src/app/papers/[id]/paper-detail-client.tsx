@@ -413,12 +413,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     }
   };
 
-  const handleCloseInvite = useCallback(() => {
-    setShowInvite(false);
-    setSearchQuery("");
-    setSearchResults([]);
-  }, []);
-
   const handleInvite = async (inviteeId: string) => {
     setInviting(true);
     try {
@@ -431,7 +425,9 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         },
       );
       if (res.ok) {
-        handleCloseInvite();
+        setShowInvite(false);
+        setSearchQuery("");
+        setSearchResults([]);
         await fetchInvites();
         toast.success("招待を送信しました");
       } else {
@@ -591,9 +587,11 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       <PaperInvites
         isUploader={isUploader}
         showInvite={showInvite}
-        onCloseInvite={handleCloseInvite}
+        setShowInvite={setShowInvite}
         searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
         searchResults={searchResults}
+        setSearchResults={setSearchResults}
         inviting={inviting}
         handleSearch={handleSearch}
         handleInvite={handleInvite}
