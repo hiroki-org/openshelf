@@ -1,3 +1,5 @@
+"use client";
+
 import { useRef, useId } from "react";
 
 export const VALID_FILE_TYPES = [
