@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { useState } from "react";
 import { render, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { PdfViewer } from "../pdf-viewer";
@@ -19,9 +20,8 @@ type MockDocumentProps = {
   error?: ReactNode;
 };
 
-const MockDocument = (props: MockDocumentProps) => {
+const mockDocument = vi.fn((props: MockDocumentProps) => {
   const [hasError, setHasError] = useState(false);
-
   return (
     <div data-testid="mock-document">
       <button
@@ -35,13 +35,11 @@ const MockDocument = (props: MockDocumentProps) => {
           props.onLoadError?.(new Error("Test error"));
         }}
       >Load Error</button>
-      {hasError ? <div data-testid="error-state">{props.error}</div> : null}
+      {hasError && <div data-testid="error-state">{props.error}</div>}
       {props.children}
     </div>
   );
-};
-
-const mockDocument = vi.fn((props: MockDocumentProps) => <MockDocument {...props} />);
+});
 
 const mockPage = vi.fn((props: any) => <div data-testid="mock-page" data-page={props.pageNumber} data-width={props.width} />);
 
