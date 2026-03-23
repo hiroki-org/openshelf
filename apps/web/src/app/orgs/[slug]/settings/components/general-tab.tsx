@@ -172,7 +172,7 @@ export function GeneralTab({
           </button>
         ) : (
           <div className="space-y-2">
-                {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
+            {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
             <p className="text-xs text-red-600">
               確認のため「<strong>{org.slug}</strong>」を入力してください。
             </p>

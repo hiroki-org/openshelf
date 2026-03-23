@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { apiFetch } from "@/lib/api";
 import type { Member, SearchUser } from "./types";
@@ -19,32 +19,50 @@ export function MembersTab({
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [inviting, setInviting] = useState(false);
   const userSearchRef = useRef(0);
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleUserSearch = async (q: string) => {
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleUserSearch = (q: string) => {
     setError(null);
     setSearchQuery(q);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+      searchTimeoutRef.current = null;
+    }
+
     if (q.length < 2) {
       setSearchResults([]);
       return;
     }
-    const requestId = ++userSearchRef.current;
-    try {
-      const res = await apiFetch(
-        `/api/users/search?q=${encodeURIComponent(q)}`,
-      );
-      if (userSearchRef.current !== requestId) return;
-      if (res.ok) {
-        const data = await res.json();
-        const existingIds = new Set(members.map((m) => m.userId));
-        setSearchResults(
-          data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      const requestId = ++userSearchRef.current;
+      try {
+        const res = await apiFetch(
+          `/api/users/search?q=${encodeURIComponent(q)}`,
         );
+        if (userSearchRef.current !== requestId) return;
+        if (res.ok) {
+          const data = await res.json();
+          const existingIds = new Set(members.map((m) => m.userId));
+          setSearchResults(
+            data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
+          );
+        }
+      } catch {
+        if (userSearchRef.current !== requestId) return;
+        setSearchResults([]);
       }
-    } catch {
-      if (userSearchRef.current !== requestId) return;
-      setSearchResults([]);
-    }
+    }, 300);
   };
 
   const handleAddMember = async (userId: string, role: string = "member") => {
