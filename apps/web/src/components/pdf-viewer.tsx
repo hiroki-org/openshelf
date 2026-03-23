@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 
 type PdfViewerProps = {
@@ -91,22 +90,24 @@ function usePdfViewer() {
 type PdfToolbarProps = {
   pageNumber: number;
   numPages: number;
-  setPageNumber: Dispatch<SetStateAction<number>>;
+  onPrevPage: () => void;
+  onNextPage: () => void;
   canPrev: boolean;
   canNext: boolean;
   zoom: ZoomPreset;
-  setZoom: Dispatch<SetStateAction<ZoomPreset>>;
+  onZoomChange: (zoom: ZoomPreset) => void;
   toggleFullScreen: () => Promise<void>;
 };
 
 function PdfToolbar({
   pageNumber,
   numPages,
-  setPageNumber,
+  onPrevPage,
+  onNextPage,
   canPrev,
   canNext,
   zoom,
-  setZoom,
+  onZoomChange,
   toggleFullScreen,
 }: PdfToolbarProps) {
   return (
@@ -114,7 +115,7 @@ function PdfToolbar({
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
+          onClick={onPrevPage}
           disabled={!canPrev}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
@@ -125,7 +126,7 @@ function PdfToolbar({
         </span>
         <button
           type="button"
-          onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
+          onClick={onNextPage}
           disabled={!canNext}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
@@ -138,7 +139,7 @@ function PdfToolbar({
           type="button"
           onClick={() => {
             const idx = ZOOM_PRESETS.indexOf(zoom);
-            if (idx > 0) setZoom(ZOOM_PRESETS[idx - 1]);
+            if (idx > 0) onZoomChange(ZOOM_PRESETS[idx - 1]);
           }}
           disabled={zoom === ZOOM_PRESETS[0]}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
@@ -149,7 +150,12 @@ function PdfToolbar({
         <select
           aria-label="PDF zoom"
           value={zoom}
-          onChange={(e) => setZoom(Number(e.target.value) as ZoomPreset)}
+          onChange={(e) => {
+            const parsed = Number(e.target.value);
+            if (ZOOM_PRESETS.includes(parsed as ZoomPreset)) {
+              onZoomChange(parsed as ZoomPreset);
+            }
+          }}
           className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
         >
           {ZOOM_PRESETS.map((preset) => (
@@ -163,7 +169,7 @@ function PdfToolbar({
           type="button"
           onClick={() => {
             const idx = ZOOM_PRESETS.indexOf(zoom);
-            if (idx < ZOOM_PRESETS.length - 1) setZoom(ZOOM_PRESETS[idx + 1]);
+            if (idx < ZOOM_PRESETS.length - 1) onZoomChange(ZOOM_PRESETS[idx + 1]);
           }}
           disabled={zoom === ZOOM_PRESETS[ZOOM_PRESETS.length - 1]}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
@@ -208,11 +214,12 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       <PdfToolbar
         pageNumber={pageNumber}
         numPages={numPages}
-        setPageNumber={setPageNumber}
+        onPrevPage={() => setPageNumber((p) => Math.max(1, p - 1))}
+        onNextPage={() => setPageNumber((p) => Math.min(numPages, p + 1))}
         canPrev={canPrev}
         canNext={canNext}
         zoom={zoom}
-        setZoom={setZoom}
+        onZoomChange={setZoom}
         toggleFullScreen={toggleFullScreen}
       />
 
