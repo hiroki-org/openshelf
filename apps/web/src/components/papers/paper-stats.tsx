@@ -11,7 +11,7 @@ export type PaperStatsData = {
 };
 
 type PaperStatsProps = {
-  stats: PaperStatsData;
+  stats: PaperStatsData | null;
   statsLoading: boolean;
   statsError: string;
   maxDailyViewCount: number;

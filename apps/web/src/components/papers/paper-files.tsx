@@ -27,9 +27,6 @@ export type PreviewResponse = {
 
 type PaperFilesProps = {
   files: PaperFile[];
-  pdfFile: PaperFile | null;
-  pptxFile: PaperFile | null;
-  imageFiles: PaperFile[];
   preview: PreviewResponse | null;
   previewLoading: boolean;
   previewError: boolean;
@@ -61,9 +58,6 @@ const getFileIcon = (fileType: string) => {
 
 export function PaperFiles({
   files,
-  pdfFile,
-  pptxFile,
-  imageFiles,
   preview,
   previewLoading,
   previewError,
@@ -72,6 +66,15 @@ export function PaperFiles({
   handleDownload,
 }: PaperFilesProps) {
   if (files.length === 0) return null;
+
+  const pdfFile = files.find((f) => f.mimeType === "application/pdf") ?? null;
+  const pptxFile =
+    files.find(
+      (f) =>
+        f.mimeType ===
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ) ?? null;
+  const imageFiles = files.filter((f) => f.mimeType?.startsWith("image/"));
 
   return (
     <div className="mb-6">

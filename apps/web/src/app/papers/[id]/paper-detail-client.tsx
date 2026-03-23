@@ -37,17 +37,6 @@ type Paper = {
 
 
 
-
-
-const PPT_MIME_TYPES = [
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-] as const;
-
-const isPptMimeType = (
-  mimeType: string | null,
-): mimeType is (typeof PPT_MIME_TYPES)[number] => mimeType === PPT_MIME_TYPES[0];
-
-
 const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url);
 
 const STATS_FETCH_ERROR_MESSAGE = "統計情報の取得に失敗しました";
@@ -69,6 +58,7 @@ type PaperDetailClientProps = {
 export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const { user } = useAuth();
   const trackedViewPaperIdRef = useRef<string | null>(null);
+  const searchRequestIdRef = useRef(0);
   const mountedRef = useRef(true);
 
   const [paper, setPaper] = useState<Paper | null>(null);
@@ -262,18 +252,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     };
   }, [paper?.id, isAuthor, fetchStats]);
 
-  const pdfFile = useMemo(
-    () => files.find((f) => f.mimeType === "application/pdf") ?? null,
-    [files],
-  );
-  const imageFiles = useMemo(
-    () => files.filter((f) => f.mimeType?.startsWith("image/")),
-    [files],
-  );
-  const pptxFile = useMemo(
-    () => files.find((f) => isPptMimeType(f.mimeType)) ?? null,
-    [files],
-  );
   const maxDailyViewCount = useMemo(() => {
     if (!stats || stats.dailyViews.length === 0) return 0;
     return Math.max(...stats.dailyViews.map((entry) => entry.count));
@@ -333,9 +311,11 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         URL.revokeObjectURL(createdObjectUrl);
       }
     };
-  }, [paperId, pdfFile]);
+  }, [paperId, files]);
 
   useEffect(() => {
+    const imageFiles = files.filter((f) => f.mimeType?.startsWith("image/"));
+
     if (imageFiles.length === 0) {
       setImagePreviewUrls({});
       return;
@@ -390,26 +370,35 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         URL.revokeObjectURL(url);
       }
     };
-  }, [paperId, imageFiles]);
+  }, [paperId, files]);
 
   const handleSearch = async (q: string) => {
     setSearchQuery(q);
+    const requestId = ++searchRequestIdRef.current;
+
     if (q.length < 2) {
       setSearchResults([]);
       return;
     }
+
     try {
       const res = await apiFetch(
         `/api/users/search?q=${encodeURIComponent(q)}`,
       );
+
+      if (requestId !== searchRequestIdRef.current) return;
+
       if (res.ok) {
         const data = await res.json();
+        if (requestId !== searchRequestIdRef.current) return;
         setSearchResults(data.users);
       } else {
         setSearchResults([]);
       }
     } catch {
-      setSearchResults([]);
+      if (requestId === searchRequestIdRef.current) {
+        setSearchResults([]);
+      }
     }
   };
 
@@ -541,7 +530,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
       {isAuthor && (
         <PaperStats
-          stats={stats as PaperStatsData}
+          stats={stats}
           statsLoading={statsLoading}
           statsError={statsError}
           maxDailyViewCount={maxDailyViewCount}
@@ -565,9 +554,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       {/* Files */}
       <PaperFiles
         files={files}
-        pdfFile={pdfFile}
-        pptxFile={pptxFile}
-        imageFiles={imageFiles}
         preview={preview}
         previewLoading={previewLoading}
         previewError={previewError}
@@ -589,9 +575,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         showInvite={showInvite}
         setShowInvite={setShowInvite}
         searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
         searchResults={searchResults}
-        setSearchResults={setSearchResults}
         inviting={inviting}
         handleSearch={handleSearch}
         handleInvite={handleInvite}
