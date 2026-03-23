@@ -35,6 +35,21 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+const createDropDataTransfer = (files: File[]) => {
+  if (typeof DataTransfer !== "undefined") {
+    const dt = new DataTransfer();
+    files.forEach((file) => dt.items.add(file));
+    return dt;
+  }
+
+  return {
+    files,
+    items: {
+      add: () => undefined,
+    },
+  };
+};
+
 describe("UploadPage", () => {
   afterEach(() => {
     cleanup();
@@ -174,10 +189,10 @@ describe("UploadPage", () => {
     const dropzoneButton = screen.getByRole("button", { name: /ファイルを複数選択/i });
     const droppedFile = new File(["DROP"], "drop.pdf", { type: "application/pdf" });
 
+    const dataTransfer = createDropDataTransfer([droppedFile]);
+
     fireEvent.drop(dropzoneButton, {
-      dataTransfer: {
-        files: [droppedFile],
-      },
+      dataTransfer,
     });
 
     expect(await screen.findByText("drop.pdf")).toBeInTheDocument();
@@ -190,10 +205,10 @@ describe("UploadPage", () => {
     const dropzoneButton = screen.getByRole("button", { name: /ファイルを複数選択/i });
     const invalidFile = new File(["EXE"], "malware.exe", { type: "application/octet-stream" });
 
+    const dataTransfer = createDropDataTransfer([invalidFile]);
+
     fireEvent.drop(dropzoneButton, {
-      dataTransfer: {
-        files: [invalidFile],
-      },
+      dataTransfer,
     });
 
     expect(screen.queryByText("malware.exe")).not.toBeInTheDocument();

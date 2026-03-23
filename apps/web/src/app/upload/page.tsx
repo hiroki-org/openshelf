@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
-import { FileDropzone, type FileEntry } from "@/components/upload/file-dropzone";
+import { FileDropzone, VALID_FILE_TYPES, type FileEntry } from "@/components/upload/file-dropzone";
 
 const VISIBILITY_OPTIONS = [
   { value: "private", label: "非公開" },
@@ -90,9 +90,10 @@ export default function UploadPage() {
 
   const addFiles = (selected: FileList | File[] | null) => {
     if (!selected) return;
-    const newEntries: FileEntry[] = Array.from(selected).map((f) => ({
+    const newEntries: FileEntry[] = Array.from(selected).map((f, idx) => ({
+      id: `${f.name}-${f.lastModified}-${Date.now()}-${idx}`,
       file: f,
-      fileType: "paper",
+      fileType: VALID_FILE_TYPES[0],
     }));
     setFiles((prev) => [...prev, ...newEntries]);
   };
