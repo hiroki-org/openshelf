@@ -16,8 +16,7 @@ import {
 import { authMiddleware } from "../middleware/auth";
 import type { Env, Variables } from "../types";
 import { validateSlug, validateName, validateDescription } from "../utils/validation";
-import { getOrgBySlug, getOrgMembership, isOrgAdmin, isOrgMember } from "../utils/db";
-
+import { getOrgBySlug, getOrgMembership, isOrgMember, isOrgAdmin, isPaperAuthor, isMemberOfPaperOrg } from "../utils/db";
 
 const collectionsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -93,23 +92,10 @@ async function canViewPaper(
     if (paper.visibility === "public") return true;
     if (!userId) return false;
 
-    const isAuthor = await db
-        .select({ paperId: paperAuthors.paperId })
-        .from(paperAuthors)
-        .where(and(eq(paperAuthors.paperId, paper.id), eq(paperAuthors.userId, userId)))
-        .get();
-    if (isAuthor) return true;
-
+    if (await isPaperAuthor(db, paper.id, userId)) return true;
     if (paper.visibility === "private") return false;
 
-    // org_only: user must be a member of an org that owns this paper
-    const membership = await db
-        .select({ orgId: orgMembers.orgId })
-        .from(orgMembers)
-        .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
-        .where(and(eq(paperOrgs.paperId, paper.id), eq(orgMembers.userId, userId)))
-        .get();
-    return !!membership;
+    return await isMemberOfPaperOrg(db, paper.id, userId);
 }
 
 collectionsRoute.post("/collections", authMiddleware, async (c) => {
