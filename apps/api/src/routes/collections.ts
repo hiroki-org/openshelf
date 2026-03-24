@@ -55,7 +55,6 @@ async function getCurrentUser(c: any): Promise<CurrentUser> {
     }
 }
 
-
 async function canViewCollection(
     db: ReturnType<typeof drizzle>,
     collection: typeof collections.$inferSelect,
