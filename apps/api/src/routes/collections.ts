@@ -16,6 +16,14 @@ import {
 import { authMiddleware } from "../middleware/auth";
 import type { Env, Variables } from "../types";
 import { validateSlug, validateName, validateDescription } from "../utils/validation";
+import {
+    getOrgBySlug,
+    getOrgMembership,
+    isMemberOfPaperOrg,
+    isOrgAdmin,
+    isOrgMember,
+    isPaperAuthor,
+} from "../utils/db";
 
 const collectionsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -51,27 +59,6 @@ async function getCurrentUser(c: any): Promise<CurrentUser> {
     } catch {
         return null;
     }
-}
-
-async function getOrgBySlug(db: ReturnType<typeof drizzle>, slug: string) {
-    return db.select().from(orgs).where(eq(orgs.slug, slug)).get();
-}
-
-async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
-    return db
-        .select()
-        .from(orgMembers)
-        .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)))
-        .get();
-}
-
-async function isOrgMember(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
-    return !!(await getOrgMembership(db, orgId, userId));
-}
-
-async function isOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
-    const row = await getOrgMembership(db, orgId, userId);
-    return !!row && (row.role === "admin" || row.role === "owner");
 }
 
 async function canViewCollection(
@@ -112,23 +99,10 @@ async function canViewPaper(
     if (paper.visibility === "public") return true;
     if (!userId) return false;
 
-    const isAuthor = await db
-        .select({ paperId: paperAuthors.paperId })
-        .from(paperAuthors)
-        .where(and(eq(paperAuthors.paperId, paper.id), eq(paperAuthors.userId, userId)))
-        .get();
-    if (isAuthor) return true;
-
+    if (await isPaperAuthor(db, paper.id, userId)) return true;
     if (paper.visibility === "private") return false;
 
-    // org_only: user must be a member of an org that owns this paper
-    const membership = await db
-        .select({ orgId: orgMembers.orgId })
-        .from(orgMembers)
-        .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
-        .where(and(eq(paperOrgs.paperId, paper.id), eq(orgMembers.userId, userId)))
-        .get();
-    return !!membership;
+    return isMemberOfPaperOrg(db, paper.id, userId);
 }
 
 collectionsRoute.post("/collections", authMiddleware, async (c) => {
@@ -518,29 +492,35 @@ collectionsRoute.get("/collections/:id/papers", async (c) => {
         visiblePapers = rows.filter(r => r.visibility === "public");
     } else {
         const restrictedIds = restrictedRows.map(r => r.id);
-
-        // Batch 1: which restricted papers is this user an author of?
-        const authoredRows = await db
+        const authoredQuery = db
             .select({ paperId: paperAuthors.paperId })
             .from(paperAuthors)
-            .where(and(inArray(paperAuthors.paperId, restrictedIds), eq(paperAuthors.userId, currentUserId)))
-            .all();
-        const authoredSet = new Set(authoredRows.map(r => r.paperId));
+            .where(and(inArray(paperAuthors.paperId, restrictedIds), eq(paperAuthors.userId, currentUserId)));
 
-        // Batch 2: which org_only papers can the user see via org membership?
         const orgOnlyIds = restrictedRows
-            .filter(r => r.visibility === "org_only" && !authoredSet.has(r.id))
+            .filter(r => r.visibility === "org_only")
             .map(r => r.id);
-        const orgAccessSet = new Set<string>();
+
+        let authoredRows: Array<{ paperId: string }>;
+        let orgAccessRows: Array<{ paperId: string }> = [];
+
         if (orgOnlyIds.length > 0) {
-            const orgAccessRows = await db
+            const orgAccessQuery = db
                 .select({ paperId: paperOrgs.paperId })
                 .from(orgMembers)
                 .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
-                .where(and(inArray(paperOrgs.paperId, orgOnlyIds), eq(orgMembers.userId, currentUserId)))
-                .all();
-            for (const r of orgAccessRows) orgAccessSet.add(r.paperId);
+                .where(and(inArray(paperOrgs.paperId, orgOnlyIds), eq(orgMembers.userId, currentUserId)));
+            [authoredRows, orgAccessRows] = await db.batch([
+                authoredQuery,
+                orgAccessQuery,
+            ]);
+        } else {
+            authoredRows = await authoredQuery.all();
         }
+
+        const authoredSet = new Set(authoredRows.map(r => r.paperId));
+        const orgAccessSet = new Set<string>();
+        for (const r of orgAccessRows) orgAccessSet.add(r.paperId);
 
         visiblePapers = rows.filter(r => {
             if (r.visibility === "public") return true;

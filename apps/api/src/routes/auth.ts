@@ -12,6 +12,25 @@ const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
 const OAUTH_STATE_TTL_MS = 5 * 60 * 1000;
 const OAUTH_STATE_TTL_SECONDS = OAUTH_STATE_TTL_MS / 1000;
 const OAUTH_FLOW_NONCE_COOKIE = "oauth_flow_nonce";
+const TEST_AUTH_SUB_MAX_LENGTH = 400;
+const TEST_AUTH_GITHUB_ID_MAX_LENGTH = 255;
+const TEST_AUTH_NAME_MAX_LENGTH = 255;
+const TEST_AUTH_ORG_ID_MAX_LENGTH = 255;
+
+function isProductionTestAuthEnv(env: Pick<Env, "NODE_ENV" | "DEPLOYMENT_ENV">) {
+    return (
+        env.NODE_ENV === "production" ||
+        env.DEPLOYMENT_ENV === "production" ||
+        env.DEPLOYMENT_ENV === "prod"
+    );
+}
+
+function getBoundedString(value: unknown, maxLength: number): string | null {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    if (trimmed.length === 0 || trimmed.length > maxLength) return null;
+    return trimmed;
+}
 
 // GET /api/auth/github — redirect to GitHub OAuth
 auth.get("/github", async (c) => {
@@ -249,7 +268,7 @@ auth.post("/logout", async (c) => {
 // POST /api/auth/test-token — only for E2E testing
 auth.post("/test-token", async (c) => {
     // Double check: flag must be true AND a secret key must match
-    if (c.env.ENABLE_TEST_AUTH !== "true") {
+    if (c.env.ENABLE_TEST_AUTH !== "true" || isProductionTestAuthEnv(c.env)) {
         return c.json({ error: "Not Found" }, 404);
     }
 
@@ -261,15 +280,26 @@ auth.post("/test-token", async (c) => {
     let body: { sub: string; githubId: string; name: string };
     try {
         const raw = await c.req.json();
-        if (
-            !raw ||
-            typeof raw.sub !== "string" ||
-            typeof raw.githubId !== "string" ||
-            typeof raw.name !== "string"
-        ) {
+        if (!raw || typeof raw !== "object") {
             return c.json({ error: "Invalid request body" }, 400);
         }
-        body = raw;
+
+        const sub = getBoundedString(
+            (raw as { sub?: unknown }).sub,
+            TEST_AUTH_SUB_MAX_LENGTH,
+        );
+        const githubId = getBoundedString(
+            (raw as { githubId?: unknown }).githubId,
+            TEST_AUTH_GITHUB_ID_MAX_LENGTH,
+        );
+        const name = getBoundedString(
+            (raw as { name?: unknown }).name,
+            TEST_AUTH_NAME_MAX_LENGTH,
+        );
+        if (!sub || !githubId || !name) {
+            return c.json({ error: "Invalid request body" }, 400);
+        }
+        body = { sub, githubId, name };
     } catch {
         return c.json({ error: "Invalid JSON" }, 400);
     }
@@ -325,7 +355,7 @@ auth.post("/test-token", async (c) => {
 
 // POST /api/auth/test-org — only for E2E testing
 auth.post("/test-org", async (c) => {
-    if (c.env.ENABLE_TEST_AUTH !== "true") {
+    if (c.env.ENABLE_TEST_AUTH !== "true" || isProductionTestAuthEnv(c.env)) {
         return c.json({ error: "Not Found" }, 404);
     }
     const testSecret = c.req.header("x-test-auth-secret");
@@ -333,14 +363,27 @@ auth.post("/test-org", async (c) => {
         return c.json({ error: "Unauthorized (E2E)" }, 401);
     }
 
-    let body: { userId?: string; orgId?: string };
+    let body: { userId: string; orgId: string };
     try {
-        body = await c.req.json();
+        const raw = await c.req.json();
+        if (!raw || typeof raw !== "object") {
+            return c.json({ error: "userId and orgId are required" }, 400);
+        }
+
+        const userId = getBoundedString(
+            (raw as { userId?: unknown }).userId,
+            TEST_AUTH_SUB_MAX_LENGTH,
+        );
+        const orgId = getBoundedString(
+            (raw as { orgId?: unknown }).orgId,
+            TEST_AUTH_ORG_ID_MAX_LENGTH,
+        );
+        if (!userId || !orgId) {
+            return c.json({ error: "userId and orgId are required" }, 400);
+        }
+        body = { userId, orgId };
     } catch {
         return c.json({ error: "Invalid JSON" }, 400);
-    }
-    if (!body.userId || !body.orgId) {
-        return c.json({ error: "userId and orgId are required" }, 400);
     }
 
     const db = drizzle(c.env.DB);

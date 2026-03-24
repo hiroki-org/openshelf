@@ -11,6 +11,8 @@ export type Env = {
     ENABLE_TEST_AUTH?: string;
     TEST_AUTH_SECRET?: string;
     MAX_CACHE_SIZE?: string;
+    NODE_ENV?: string;
+    DEPLOYMENT_ENV?: string;
 };
 
 export type JwtPayload = {
