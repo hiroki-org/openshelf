@@ -61,12 +61,16 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     const node = containerRef.current;
     if (!node) return;
 
-    if (!document.fullscreenElement) {
-      await node.requestFullscreen();
-      return;
-    }
+    try {
+      if (!document.fullscreenElement) {
+        await node.requestFullscreen();
+        return;
+      }
 
-    await document.exitFullscreen();
+      await document.exitFullscreen();
+    } catch {
+      // Ignore unsupported fullscreen API errors.
+    }
   }, []);
 
   return (

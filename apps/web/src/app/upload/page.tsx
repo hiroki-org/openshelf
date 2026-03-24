@@ -36,6 +36,14 @@ const VENUE_TYPE_OPTIONS = [
   { value: "workshop", label: "ワークショップ" },
   { value: "other", label: "その他" },
 ] as const;
+const ALLOWED_UPLOAD_EXTENSIONS = [
+  ".pdf",
+  ".ppt",
+  ".pptx",
+  ".png",
+  ".jpg",
+  ".jpeg",
+] as const;
 
 type FileEntry = {
   file: File;
@@ -65,6 +73,7 @@ export default function UploadPage() {
   const [category, setCategory] = useState("");
   const [tags, setTags] = useState("");
   const [files, setFiles] = useState<FileEntry[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -99,7 +108,7 @@ export default function UploadPage() {
 
   if (loading || !user) return null;
 
-  const addFiles = (selected: FileList | null) => {
+  const addFiles = (selected: ArrayLike<File> | Iterable<File> | null) => {
     if (!selected) return;
     const newEntries: FileEntry[] = Array.from(selected).map((f) => ({
       file: f,
@@ -113,6 +122,31 @@ export default function UploadPage() {
 
   const removeFile = (idx: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const droppedFiles = Array.from(e.dataTransfer.files).filter((file) =>
+      ALLOWED_UPLOAD_EXTENSIONS.some((ext) =>
+        file.name.toLowerCase().endsWith(ext),
+      ),
+    );
+
+    if (droppedFiles.length > 0) {
+      addFiles(droppedFiles);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -377,7 +411,14 @@ export default function UploadPage() {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             aria-describedby="upload-files-label"
-            className="group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-white px-5 py-10 transition-all hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-10 transition-all ${
+              isDragging
+                ? "border-gray-500 bg-gray-100 dark:border-gray-400 dark:bg-gray-800"
+                : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
+            }`}
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors group-hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:group-hover:bg-gray-700">
               <span className="text-2xl">+</span>
@@ -394,7 +435,7 @@ export default function UploadPage() {
             <ul className="mt-6 space-y-3">
               {files.map((entry, i) => (
                 <li
-                  key={i}
+                  key={`${entry.file.name}-${entry.file.lastModified}-${i}`}
                   className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:flex-row sm:items-center"
                 >
                   <div className="min-w-0 flex-1">
