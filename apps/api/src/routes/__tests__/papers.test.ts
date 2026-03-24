@@ -19,8 +19,8 @@ describe("papers routes", () => {
         const paperId = "test-paper-cache";
         const fileId = "test-file-cache";
 
-        mockDb.select.mockReturnValueOnce(makeQuery({ id: paperId, visibility: "private" }));
-        mockDb.select.mockReturnValueOnce(makeQuery({ id: "user-author" })); // Is author
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } })); // Is author
 
         // First call
         const req1 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
@@ -35,8 +35,8 @@ describe("papers routes", () => {
         });
 
         // Second call should hit cache
-        mockDb.select.mockReturnValueOnce(makeQuery({ id: paperId, visibility: "private" }));
-        mockDb.select.mockReturnValueOnce(makeQuery({ id: "user-author" })); // Is author
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } })); // Is author
         const req2 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
             headers: {
                 Authorization: "Bearer test-token",
@@ -54,8 +54,8 @@ describe("papers routes", () => {
 
         // Generate enough dummy requests to force the cache to purge
         for (let i = 0; i <= 1000; i++) {
-             mockDb.select.mockReturnValueOnce(makeQuery({ id: "dummy", visibility: "private" }));
-             mockDb.select.mockReturnValueOnce(makeQuery({ id: "user-author" }));
+             mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "dummy", visibility: "private" } }));
+             mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
              const req = new Request(`http://localhost/api/papers/dummy/files/dummy/download`, {
                  headers: {
                      Authorization: `Bearer test-token-${i}`,
@@ -78,8 +78,8 @@ describe("papers routes", () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date(1000000000000));
 
-        mockDb.select.mockReturnValueOnce(makeQuery({ id: paperId, visibility: "private" }));
-        mockDb.select.mockReturnValueOnce(makeQuery({ id: "user-author" }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
 
         const req1 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
             headers: {
@@ -95,8 +95,8 @@ describe("papers routes", () => {
         // Advance time by 2 minutes
         vi.setSystemTime(new Date(1000000000000 + 120 * 1000));
 
-        mockDb.select.mockReturnValueOnce(makeQuery({ id: paperId, visibility: "private" }));
-        mockDb.select.mockReturnValueOnce(makeQuery({ id: "user-author" }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
         const req2 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
             headers: {
                 Authorization: "Bearer test-token-expire",
@@ -117,8 +117,8 @@ describe("papers routes", () => {
         const paperId = "test-paper-cache";
         const fileId = "test-file-cache";
 
-        mockDb.select.mockReturnValueOnce(makeQuery({ id: paperId, visibility: "private" }));
-        mockDb.select.mockReturnValueOnce(makeQuery({ id: "user-author" })); // Is author
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } })); // Is author
 
         // First call
         const req1 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
@@ -133,8 +133,8 @@ describe("papers routes", () => {
         });
 
         // Second call should hit cache
-        mockDb.select.mockReturnValueOnce(makeQuery({ id: paperId, visibility: "private" }));
-        mockDb.select.mockReturnValueOnce(makeQuery({ id: "user-author" })); // Is author
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } })); // Is author
         const req2 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
             headers: {
                 Authorization: "Bearer test-token",
