@@ -20,6 +20,7 @@ export function GeneralTab({
   const [editDescription, setEditDescription] = useState(org.description ?? "");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
+  const [saveStatus, setSaveStatus] = useState<"success" | "error" | null>(null);
 
   useEffect(() => {
     setEditName(org.name);
@@ -36,6 +37,7 @@ export function GeneralTab({
   const handleSave = async () => {
     setSaving(true);
     setSaveMsg("");
+    setSaveStatus(null);
     try {
       const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
         method: "PATCH",
@@ -54,15 +56,18 @@ export function GeneralTab({
         setEditSlug(data.org.slug);
         setEditDescription(data.org.description ?? "");
         setSaveMsg("保存しました");
+        setSaveStatus("success");
         if (data.org.slug !== slug) {
           router.replace(`/orgs/${data.org.slug}/settings`);
         }
       } else {
         const data = await res.json();
         setSaveMsg(data.error ?? "保存に失敗しました");
+        setSaveStatus("error");
       }
     } catch {
       setSaveMsg("ネットワークエラー");
+      setSaveStatus("error");
     } finally {
       setSaving(false);
     }
@@ -143,7 +148,13 @@ export function GeneralTab({
         />
       </div>
 
-      {saveMsg && <p className="text-sm text-gray-600">{saveMsg}</p>}
+      {saveMsg && (
+        <p
+          className={`text-sm ${saveStatus === "error" ? "text-red-600" : "text-gray-600"}`}
+        >
+          {saveMsg}
+        </p>
+      )}
 
       <button
         type="button"

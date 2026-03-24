@@ -36,13 +36,14 @@ export function PapersTab({
       clearTimeout(searchTimeoutRef.current);
     }
 
+    const requestId = ++paperSearchRef.current;
+
     if (q.length < 2) {
       setPaperSearchResults([]);
       return;
     }
 
     searchTimeoutRef.current = setTimeout(async () => {
-      const requestId = ++paperSearchRef.current;
       try {
         const res = await apiFetch(`/api/papers?q=${encodeURIComponent(q)}&visibility=public`);
         if (paperSearchRef.current !== requestId) return;

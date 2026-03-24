@@ -38,13 +38,14 @@ export function MembersTab({
       clearTimeout(searchTimeoutRef.current);
     }
 
+    const requestId = ++userSearchRef.current;
+
     if (q.length < 2) {
       setSearchResults([]);
       return;
     }
 
     searchTimeoutRef.current = setTimeout(async () => {
-      const requestId = ++userSearchRef.current;
       try {
         const res = await apiFetch(
           `/api/users/search?q=${encodeURIComponent(q)}`,
@@ -203,31 +204,24 @@ export function MembersTab({
               <span className="text-xs text-gray-400">@{m.githubId}</span>
             </div>
             <div className="flex items-center gap-2">
-              {m.role === "owner" ? (
-                <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800 dark:bg-gray-800 dark:text-gray-200">
-                  owner
-                </span>
-              ) : (
-                <>
-                  <select
-                    value={m.role}
-                    onChange={(e) => handleChangeRole(m.userId, e.target.value)}
-                    disabled={m.userId === user?.id}
-                    className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
-                  >
-                    <option value="admin">admin</option>
-                    <option value="member">member</option>
-                  </select>
-                  {m.userId !== user?.id && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveMember(m.userId)}
-                      className="text-red-500 hover:text-red-700 text-xs"
-                    >
-                      削除
-                    </button>
-                  )}
-                </>
+              <select
+                value={m.role}
+                onChange={(e) => handleChangeRole(m.userId, e.target.value)}
+                disabled={m.userId === user?.id}
+                className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
+              >
+                {m.role === "owner" && <option value="owner">owner</option>}
+                <option value="admin">admin</option>
+                <option value="member">member</option>
+              </select>
+              {m.userId !== user?.id && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveMember(m.userId)}
+                  className="text-red-500 hover:text-red-700 text-xs"
+                >
+                  削除
+                </button>
               )}
             </div>
           </li>

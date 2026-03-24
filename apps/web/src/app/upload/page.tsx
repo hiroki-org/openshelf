@@ -38,6 +38,7 @@ const VENUE_TYPE_OPTIONS = [
 ] as const;
 
 type FileEntry = {
+  id: string;
   file: File;
   fileType: (typeof VALID_FILE_TYPES)[number];
 };
@@ -102,6 +103,7 @@ export default function UploadPage() {
   const addFiles = (selected: FileList | null) => {
     if (!selected) return;
     const newEntries: FileEntry[] = Array.from(selected).map((f) => ({
+      id: crypto.randomUUID(),
       file: f,
       fileType: "paper",
     }));
@@ -111,8 +113,16 @@ export default function UploadPage() {
     }
   };
 
-  const removeFile = (idx: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== idx));
+  const removeFile = (fileId: string) => {
+    setFiles((prev) => prev.filter((entry) => entry.id !== fileId));
+  };
+
+  const handleUpdateFileType = (fileId: string, newType: FileEntry["fileType"]) => {
+    setFiles((prev) =>
+      prev.map((entry) =>
+        entry.id === fileId ? { ...entry, fileType: newType } : entry,
+      ),
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -392,9 +402,9 @@ export default function UploadPage() {
 
           {files.length > 0 && (
             <ul className="mt-6 space-y-3">
-              {files.map((entry, i) => (
+              {files.map((entry) => (
                 <li
-                  key={i}
+                  key={entry.id}
                   className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:flex-row sm:items-center"
                 >
                   <div className="min-w-0 flex-1">
@@ -409,14 +419,12 @@ export default function UploadPage() {
                     <select
                       aria-label="ファイル種別"
                       value={entry.fileType}
-                      onChange={(e) => {
-                        const updated = [...files];
-                        updated[i] = {
-                          ...entry,
-                          fileType: e.target.value as FileEntry["fileType"],
-                        };
-                        setFiles(updated);
-                      }}
+                      onChange={(e) =>
+                        handleUpdateFileType(
+                          entry.id,
+                          e.target.value as FileEntry["fileType"],
+                        )
+                      }
                       className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 focus:border-gray-900 focus:ring-0 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-gray-100"
                     >
                       {VALID_FILE_TYPES.map((ft) => (
@@ -427,7 +435,7 @@ export default function UploadPage() {
                     </select>
                     <button
                       type="button"
-                      onClick={() => removeFile(i)}
+                      onClick={() => removeFile(entry.id)}
                       className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                     >
                       <span>✕</span>

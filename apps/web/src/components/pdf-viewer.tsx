@@ -57,16 +57,20 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     setLoadingError(true);
   }, []);
 
-  const toggleFullScreen = useCallback(async () => {
+  const toggleFullScreen = useCallback(async (): Promise<void> => {
     const node = containerRef.current;
     if (!node) return;
 
-    if (!document.fullscreenElement) {
-      await node.requestFullscreen();
-      return;
-    }
+    try {
+      if (!document.fullscreenElement) {
+        await node.requestFullscreen();
+        return;
+      }
 
-    await document.exitFullscreen();
+      await document.exitFullscreen();
+    } catch {
+      // Ignore browser/fullscreen permission errors.
+    }
   }, []);
 
   return (
