@@ -85,7 +85,7 @@ testAuth.post("/test-token", async (c) => {
     return c.json({ token: jwt });
 });
 
-// POST /api/auth/test-org — only for E2E testing
+// POST /api/test-auth/test-org — only for E2E testing
 testAuth.post("/test-org", async (c) => {
     if (c.env.ENABLE_TEST_AUTH !== "true") {
         return c.json({ error: "Not Found" }, 404);
