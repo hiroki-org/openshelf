@@ -53,6 +53,7 @@ export default function UploadPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const [title, setTitle] = useState("");
   const [abstract, setAbstract] = useState("");
@@ -98,6 +99,34 @@ export default function UploadPage() {
   }, [loading, user]);
 
   if (loading || !user) return null;
+
+  const handleDragOver = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const allowedExtensions = [".pdf", ".ppt", ".pptx", ".png", ".jpg", ".jpeg"];
+      const dt = new DataTransfer();
+      Array.from(e.dataTransfer.files).forEach((file) => {
+        const name = file.name.toLowerCase();
+        if (allowedExtensions.some((ext) => name.endsWith(ext))) {
+          dt.items.add(file);
+        }
+      });
+      if (dt.files.length > 0) {
+        addFiles(dt.files);
+      }
+    }
+  };
 
   const addFiles = (selected: FileList | null) => {
     if (!selected) return;
@@ -377,7 +406,10 @@ export default function UploadPage() {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             aria-describedby="upload-files-label"
-            className="group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-white px-5 py-10 transition-all hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
+            className={`group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-10 transition-all ${isDragging ? "border-gray-500 bg-gray-100 dark:border-gray-400 dark:bg-gray-800" : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
           >
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors group-hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:group-hover:bg-gray-700">
               <span className="text-2xl">+</span>
@@ -394,7 +426,7 @@ export default function UploadPage() {
             <ul className="mt-6 space-y-3">
               {files.map((entry, i) => (
                 <li
-                  key={i}
+                  key={`${entry.file.name}-${entry.file.lastModified}-${entry.file.size}`}
                   className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:flex-row sm:items-center"
                 >
                   <div className="min-w-0 flex-1">

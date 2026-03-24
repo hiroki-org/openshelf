@@ -171,14 +171,7 @@ function setupOrgApiMock(state: OrgState) {
       return jsonResponse({ ok: true });
     }
 
-    if (url.startsWith("/api/papers") && method === "GET") {
-      const parsedUrl = new URL(url, "http://localhost");
-      if (!parsedUrl.searchParams.has("q")) {
-        return jsonResponse({ error: "Missing q parameter" }, 400);
-      }
-      if (parsedUrl.searchParams.get("visibility") !== "public") {
-        return jsonResponse({ error: "Invalid visibility" }, 400);
-      }
+    if (url === "/api/papers" && method === "GET") {
       return jsonResponse({ papers: searchablePapers });
     }
 
