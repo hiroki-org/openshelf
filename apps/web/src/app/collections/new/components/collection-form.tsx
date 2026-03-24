@@ -72,7 +72,6 @@ export function CollectionForm({ user }: CollectionFormProps) {
       setSlugStatus("checking");
 
       try {
-        if (!user) return;
         if (ownerType === "org" && !orgSlug.trim()) {
           setSlugStatus("idle");
           return;
@@ -118,17 +117,17 @@ export function CollectionForm({ user }: CollectionFormProps) {
         }
 
         if (slug.length < 3) {
-          setError("slug は3文字以上必要です");
+          setError("Slug must be at least 3 characters");
           return;
         }
 
-        if (slugStatus === "checking") {
-          setError("slug の確認完了を待ってください");
+        if (slugStatus === "checking" || slugStatus === "idle") {
+          setError("Please wait for slug availability check to complete");
           return;
         }
 
         if (slugStatus === "invalid" || slugStatus === "taken") {
-          setError("slug を修正してください");
+          setError("Please correct the slug");
           return;
         }
 
@@ -155,7 +154,7 @@ export function CollectionForm({ user }: CollectionFormProps) {
 
           const data = await res.json();
           if (!res.ok) {
-            setError(data.error ?? "作成に失敗しました");
+            setError(data.error ?? "Failed to create collection");
             return;
           }
 
@@ -165,7 +164,7 @@ export function CollectionForm({ user }: CollectionFormProps) {
             router.push(`/users/${user.id}/c/${data.collection.slug}`);
           }
         } catch {
-          setError("ネットワークエラー");
+          setError("Network error");
         } finally {
           setSubmitting(false);
         }
@@ -292,6 +291,7 @@ export function CollectionForm({ user }: CollectionFormProps) {
           submitting ||
           slug.length < 3 ||
           slugStatus === "checking" ||
+          slugStatus === "idle" ||
           slugStatus === "taken" ||
           slugStatus === "invalid"
         }
