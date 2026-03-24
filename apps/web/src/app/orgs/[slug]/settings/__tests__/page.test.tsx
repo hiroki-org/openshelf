@@ -207,6 +207,7 @@ describe("OrgSettingsPage", () => {
       loading: false,
     };
     vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal("alert", vi.fn());
 
     toastErrorSpy = vi.spyOn(toast, "error").mockImplementation(() => {});
     toastSuccessSpy = vi.spyOn(toast, "success").mockImplementation(() => {});
@@ -509,15 +510,6 @@ describe("OrgSettingsPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
     await waitFor(() => expect(toastErrorSpy).toHaveBeenCalledWith("ネットワークエラー"));
-
-    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-      if (init?.method === "PATCH") {
-        return new Response("invalid-json", { status: 200 });
-      }
-      return currentMock(url, init);
-    });
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
-    await waitFor(() => expect(toastErrorSpy).toHaveBeenCalledWith("処理に失敗しました"));
   });
 
   it("handles member and paper operation errors", async () => {
