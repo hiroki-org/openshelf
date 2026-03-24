@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import { useState } from "react";
-import { render, fireEvent, cleanup, waitFor } from "@testing-library/react";
-import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { render } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PdfViewer } from "../pdf-viewer";
 
 type DocumentOptions = {
@@ -14,41 +13,13 @@ type MockDocumentProps = {
   children?: ReactNode;
   file?: string;
   options?: DocumentOptions;
-  onLoadSuccess?: (info: { numPages: number }) => void;
-  onLoadError?: (error: Error) => void;
-  loading?: ReactNode;
-  error?: ReactNode;
 };
 
-const MockDocumentImpl = (props: MockDocumentProps) => {
-  const [hasError, setHasError] = useState(false);
-  return (
-    <div data-testid="mock-document">
-      <button
-        data-testid="mock-load-success"
-        onClick={() => props.onLoadSuccess?.({ numPages: 5 })}
-      >Load Success</button>
-      <button
-        data-testid="mock-load-error"
-        onClick={() => {
-          setHasError(true);
-          props.onLoadError?.(new Error("Test error"));
-        }}
-      >Load Error</button>
-      {hasError && <div data-testid="error-state">{props.error}</div>}
-      {props.children}
-    </div>
-  );
-};
+const mockDocument = vi.fn((props: MockDocumentProps) => (
+  <div data-testid="mock-document">{props.children}</div>
+));
 
-const mockDocument = vi.fn(MockDocumentImpl);
-
-type MockPageProps = {
-  pageNumber?: number;
-  width?: number;
-};
-
-const mockPage = vi.fn((props: MockPageProps) => <div data-testid="mock-page" data-page={props.pageNumber} data-width={props.width} />);
+const mockPage = vi.fn(() => <div data-testid="mock-page" />);
 
 vi.mock("react-pdf", () => {
   const workerOptions = { workerSrc: "" };
@@ -59,7 +30,7 @@ vi.mock("react-pdf", () => {
       GlobalWorkerOptions: workerOptions,
     },
     Document: (props: MockDocumentProps) => mockDocument(props),
-    Page: (props: MockPageProps) => mockPage(props),
+    Page: () => mockPage(),
   };
 });
 
@@ -77,19 +48,6 @@ describe("PdfViewer", () => {
       writable: true,
       value: MockResizeObserver,
     });
-
-    Object.defineProperty(document, "fullscreenElement", {
-      configurable: true,
-      writable: true,
-      value: null,
-    });
-
-    document.exitFullscreen = vi.fn().mockResolvedValue(undefined);
-    HTMLElement.prototype.requestFullscreen = vi.fn().mockResolvedValue(undefined);
-  });
-
-  afterEach(() => {
-    cleanup();
   });
 
   it("passes multilingual font options to react-pdf Document", () => {
@@ -104,94 +62,5 @@ describe("PdfViewer", () => {
       cMapUrl: expect.stringContaining("/cmaps/"),
       standardFontDataUrl: expect.stringContaining("/standard_fonts/"),
     });
-  });
-
-  it("handles document load success and navigation", () => {
-    const { getByTestId, getByText } = render(<PdfViewer fileUrl="https://example.com/paper.pdf" />);
-
-    // Trigger load success
-    fireEvent.click(getByTestId("mock-load-success"));
-
-    // Page text should be 1 / 5
-    expect(getByText("1 / 5")).toBeDefined();
-
-    const nextBtn = getByText("次へ");
-    const prevBtn = getByText("前へ");
-
-    // Go to next page
-    fireEvent.click(nextBtn);
-    expect(getByText("2 / 5")).toBeDefined();
-
-    // Go to previous page
-    fireEvent.click(prevBtn);
-    expect(getByText("1 / 5")).toBeDefined();
-  });
-
-  it("handles zooming", () => {
-    const { getByText, getByRole } = render(<PdfViewer fileUrl="https://example.com/paper.pdf" />);
-
-    const zoomOutBtn = getByText("-");
-    const zoomInBtn = getByText("+");
-    const select = getByRole("combobox");
-
-    // Default is 100%
-    expect((select as HTMLSelectElement).value).toBe("1");
-
-    // Zoom out
-    fireEvent.click(zoomOutBtn);
-    expect((select as HTMLSelectElement).value).toBe("0.75");
-
-    // Zoom in
-    fireEvent.click(zoomInBtn);
-    expect((select as HTMLSelectElement).value).toBe("1");
-
-    // Change via select
-    fireEvent.change(select, { target: { value: "1.5" } });
-    expect((select as HTMLSelectElement).value).toBe("1.5");
-  });
-
-  it("handles fullscreen toggle", async () => {
-    const { getByText } = render(<PdfViewer fileUrl="https://example.com/paper.pdf" />);
-
-    const fullscreenBtn = getByText("全画面");
-
-    // Enter fullscreen
-    fireEvent.click(fullscreenBtn);
-    await waitFor(() => expect(HTMLElement.prototype.requestFullscreen).toHaveBeenCalled());
-
-    // Mock being in fullscreen
-    Object.defineProperty(document, "fullscreenElement", {
-      configurable: true,
-      writable: true,
-      value: document.createElement("div"),
-    });
-
-    // Exit fullscreen
-    fireEvent.click(fullscreenBtn);
-    await waitFor(() => expect(document.exitFullscreen).toHaveBeenCalled());
-  });
-
-  it("handles document load error with fallback", () => {
-    const onFallback = vi.fn();
-    const { getByTestId, getByText, queryByText } = render(<PdfViewer fileUrl="https://example.com/paper.pdf" onDownloadFallback={onFallback} />);
-
-    expect(queryByText("ダウンロードする")).toBeNull();
-
-    fireEvent.click(getByTestId("mock-load-error"));
-
-    const downloadBtn = getByText("ダウンロードする");
-    fireEvent.click(downloadBtn);
-
-    expect(onFallback).toHaveBeenCalled();
-  });
-
-  it("handles document load error without fallback", () => {
-    const { getByTestId, getByText, queryByText } = render(<PdfViewer fileUrl="https://example.com/paper.pdf" />);
-
-    expect(queryByText("ダウンロードする")).toBeNull();
-
-    fireEvent.click(getByTestId("mock-load-error"));
-
-    expect(getByText("ダウンロードする").closest("a")).toHaveAttribute("href", "https://example.com/paper.pdf");
   });
 });

@@ -45,24 +45,16 @@ const executeApiAction = async (
   onSuccess: (res: Response) => Promise<void> | void,
   defaultErrorMessage: string
 ) => {
-  let res: Response;
   try {
-    res = await action();
+    const res = await action();
+    if (res.ok) {
+      await onSuccess(res);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error ?? defaultErrorMessage);
+    }
   } catch {
     toast.error("ネットワークエラーが発生しました");
-    return;
-  }
-
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    toast.error(data.error ?? defaultErrorMessage);
-    return;
-  }
-
-  try {
-    await onSuccess(res);
-  } catch {
-    toast.error("レスポンス処理中にエラーが発生しました");
   }
 };
 
@@ -206,20 +198,17 @@ export default function OrgSettingsPage() {
 
   const handleDelete = async () => {
     setDeleting(true);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
-            method: "DELETE",
-          }),
-        () => {
-          router.push("/");
-        },
-        "削除に失敗しました"
-      );
-    } finally {
-      setDeleting(false);
-    }
+    await executeApiAction(
+      () =>
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+          method: "DELETE",
+        }),
+      () => {
+        router.push("/");
+      },
+      "削除に失敗しました"
+    );
+    setDeleting(false);
   };
 
   // ── Members handlers ──
@@ -250,24 +239,21 @@ export default function OrgSettingsPage() {
 
   const handleAddMember = async (userId: string, role: string = "member") => {
     setInviting(true);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId, role }),
-          }),
-        async () => {
-          setSearchQuery("");
-          setSearchResults([]);
-          await fetchData();
-        },
-        "追加に失敗しました"
-      );
-    } finally {
-      setInviting(false);
-    }
+    await executeApiAction(
+      () =>
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, role }),
+        }),
+      async () => {
+        setSearchQuery("");
+        setSearchResults([]);
+        await fetchData();
+      },
+      "追加に失敗しました"
+    );
+    setInviting(false);
   };
 
   const handleChangeRole = async (userId: string, newRole: string) => {
@@ -342,24 +328,21 @@ export default function OrgSettingsPage() {
 
   const handleAddPaper = async (paperId: string) => {
     setAddingPaper(true);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paperId }),
-          }),
-        async () => {
-          setPaperSearch("");
-          setPaperSearchResults([]);
-          await fetchData();
-        },
-        "追加に失敗しました"
-      );
-    } finally {
-      setAddingPaper(false);
-    }
+    await executeApiAction(
+      () =>
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paperId }),
+        }),
+      async () => {
+        setPaperSearch("");
+        setPaperSearchResults([]);
+        await fetchData();
+      },
+      "追加に失敗しました"
+    );
+    setAddingPaper(false);
   };
 
   const handleRemovePaper = async (paperId: string) => {
