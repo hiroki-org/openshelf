@@ -20,7 +20,6 @@ export function GeneralTab({
   const [editDescription, setEditDescription] = useState(org.description ?? "");
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState("");
-  const [saveStatus, setSaveStatus] = useState<"success" | "error" | null>(null);
 
   useEffect(() => {
     setEditName(org.name);
@@ -34,10 +33,9 @@ export function GeneralTab({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const handleSave = async (): Promise<void> => {
+  const handleSave = async () => {
     setSaving(true);
     setSaveMsg("");
-    setSaveStatus(null);
     try {
       const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
         method: "PATCH",
@@ -56,28 +54,25 @@ export function GeneralTab({
         setEditSlug(data.org.slug);
         setEditDescription(data.org.description ?? "");
         setSaveMsg("保存しました");
-        setSaveStatus("success");
         if (data.org.slug !== slug) {
           router.replace(`/orgs/${data.org.slug}/settings`);
         }
       } else {
         const data = await res.json();
         setSaveMsg(data.error ?? "保存に失敗しました");
-        setSaveStatus("error");
       }
     } catch {
       setSaveMsg("ネットワークエラー");
-      setSaveStatus("error");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (): Promise<void> => {
+  const handleDelete = async () => {
     setDeleteError(null);
     setDeleting(true);
     try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(org.slug)}`, {
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -148,15 +143,7 @@ export function GeneralTab({
         />
       </div>
 
-      {saveMsg && (
-        <p
-          role={saveStatus === "error" ? "alert" : "status"}
-          aria-live={saveStatus === "error" ? "assertive" : "polite"}
-          className={`text-sm ${saveStatus === "error" ? "text-red-600" : "text-gray-600"}`}
-        >
-          {saveMsg}
-        </p>
-      )}
+      {saveMsg && <p className="text-sm text-gray-600">{saveMsg}</p>}
 
       <button
         type="button"
@@ -185,11 +172,7 @@ export function GeneralTab({
           </button>
         ) : (
           <div className="space-y-2">
-            {deleteError && (
-              <p role="alert" aria-live="assertive" className="text-xs text-red-600">
-                {deleteError}
-              </p>
-            )}
+            {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
             <p className="text-xs text-red-600">
               確認のため「<strong>{org.slug}</strong>」を入力してください。
             </p>

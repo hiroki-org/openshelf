@@ -29,9 +29,6 @@ const CATEGORY_OPTIONS = [
   { value: "presentation", label: "プレゼンテーション" },
   { value: "other", label: "その他" },
 ] as const;
-const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = new Set(["pdf", "ppt", "pptx", "png", "jpg", "jpeg"]);
-
 const VENUE_TYPE_OPTIONS = [
   { value: "", label: "（なし）" },
   { value: "conference", label: "学会" },
@@ -41,7 +38,6 @@ const VENUE_TYPE_OPTIONS = [
 ] as const;
 
 type FileEntry = {
-  id: string;
   file: File;
   fileType: (typeof VALID_FILE_TYPES)[number];
 };
@@ -105,49 +101,18 @@ export default function UploadPage() {
 
   const addFiles = (selected: FileList | null) => {
     if (!selected) return;
-
-    const validEntries: FileEntry[] = [];
-    const rejectedFiles: string[] = [];
-
-    for (const file of Array.from(selected)) {
-      const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
-      if (!ALLOWED_EXTENSIONS.has(extension) || file.size > MAX_FILE_SIZE_BYTES) {
-        rejectedFiles.push(file.name);
-        continue;
-      }
-      validEntries.push({
-        id: crypto.randomUUID(),
-        file,
-        fileType: "paper",
-      });
-    }
-
-    if (rejectedFiles.length > 0) {
-      setError(
-        `次のファイルは追加できません（拡張子またはサイズ制限超過）: ${rejectedFiles.join(", ")}`,
-      );
-    }
-
-    if (validEntries.length > 0) {
-      setError("");
-      setFiles((prev) => [...prev, ...validEntries]);
-    }
-
+    const newEntries: FileEntry[] = Array.from(selected).map((f) => ({
+      file: f,
+      fileType: "paper",
+    }));
+    setFiles((prev) => [...prev, ...newEntries]);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  const removeFile = (fileId: string) => {
-    setFiles((prev) => prev.filter((entry) => entry.id !== fileId));
-  };
-
-  const handleUpdateFileType = (fileId: string, newType: FileEntry["fileType"]) => {
-    setFiles((prev) =>
-      prev.map((entry) =>
-        entry.id === fileId ? { ...entry, fileType: newType } : entry,
-      ),
-    );
+  const removeFile = (idx: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -411,11 +376,6 @@ export default function UploadPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              addFiles(e.dataTransfer.files);
-            }}
             aria-describedby="upload-files-label"
             className="group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-white px-5 py-10 transition-all hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
           >
@@ -432,9 +392,9 @@ export default function UploadPage() {
 
           {files.length > 0 && (
             <ul className="mt-6 space-y-3">
-              {files.map((entry) => (
+              {files.map((entry, i) => (
                 <li
-                  key={entry.id}
+                  key={i}
                   className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:flex-row sm:items-center"
                 >
                   <div className="min-w-0 flex-1">
@@ -449,12 +409,14 @@ export default function UploadPage() {
                     <select
                       aria-label="ファイル種別"
                       value={entry.fileType}
-                      onChange={(e) =>
-                        handleUpdateFileType(
-                          entry.id,
-                          e.target.value as FileEntry["fileType"],
-                        )
-                      }
+                      onChange={(e) => {
+                        const updated = [...files];
+                        updated[i] = {
+                          ...entry,
+                          fileType: e.target.value as FileEntry["fileType"],
+                        };
+                        setFiles(updated);
+                      }}
                       className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 focus:border-gray-900 focus:ring-0 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-gray-100"
                     >
                       {VALID_FILE_TYPES.map((ft) => (
@@ -465,8 +427,7 @@ export default function UploadPage() {
                     </select>
                     <button
                       type="button"
-                      onClick={() => removeFile(entry.id)}
-                      aria-label={`${entry.file.name} を削除`}
+                      onClick={() => removeFile(i)}
                       className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                     >
                       <span>✕</span>

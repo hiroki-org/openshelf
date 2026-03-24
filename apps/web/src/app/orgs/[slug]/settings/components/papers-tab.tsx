@@ -36,31 +36,26 @@ export function PapersTab({
       clearTimeout(searchTimeoutRef.current);
     }
 
-    const requestId = ++paperSearchRef.current;
-
     if (q.length < 2) {
       setPaperSearchResults([]);
       return;
     }
 
     searchTimeoutRef.current = setTimeout(async () => {
+      const requestId = ++paperSearchRef.current;
       try {
         const res = await apiFetch(`/api/papers?q=${encodeURIComponent(q)}&visibility=public`);
         if (paperSearchRef.current !== requestId) return;
-        if (!res.ok) {
-          setPaperSearchResults([]);
-          setError("論文検索に失敗しました");
-          return;
+        if (res.ok) {
+          const data = await res.json();
+          const existingIds = new Set(orgPapers.map((p) => p.id));
+          setPaperSearchResults(
+            data.papers.filter((p: { id: string }) => !existingIds.has(p.id)),
+          );
         }
-        const data = await res.json();
-        const existingIds = new Set(orgPapers.map((p) => p.id));
-        setPaperSearchResults(
-          data.papers.filter((p: { id: string }) => !existingIds.has(p.id)),
-        );
       } catch {
         if (paperSearchRef.current !== requestId) return;
         setPaperSearchResults([]);
-        setError("論文検索に失敗しました");
       }
     }, 300);
   };
@@ -80,11 +75,7 @@ export function PapersTab({
       if (res.ok) {
         setPaperSearch("");
         setPaperSearchResults([]);
-        try {
-          await fetchData();
-        } catch {
-          setError("追加は成功しましたが、一覧の再取得に失敗しました");
-        }
+        await fetchData();
       } else {
         const data = await res.json();
         setError(data.error ?? "追加に失敗しました");
@@ -107,11 +98,7 @@ export function PapersTab({
         },
       );
       if (res.ok) {
-        try {
-          await fetchData();
-        } catch {
-          setError("解除は成功しましたが、一覧の再取得に失敗しました");
-        }
+        await fetchData();
       } else {
         const data = await res.json();
         setError(data.error ?? "解除に失敗しました");

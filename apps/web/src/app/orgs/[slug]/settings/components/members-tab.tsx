@@ -38,33 +38,28 @@ export function MembersTab({
       clearTimeout(searchTimeoutRef.current);
     }
 
-    const requestId = ++userSearchRef.current;
-
     if (q.length < 2) {
       setSearchResults([]);
       return;
     }
 
     searchTimeoutRef.current = setTimeout(async () => {
+      const requestId = ++userSearchRef.current;
       try {
         const res = await apiFetch(
           `/api/users/search?q=${encodeURIComponent(q)}`,
         );
         if (userSearchRef.current !== requestId) return;
-        if (!res.ok) {
-          setSearchResults([]);
-          setError("ユーザー検索に失敗しました");
-          return;
+        if (res.ok) {
+          const data = await res.json();
+          const existingIds = new Set(members.map((m) => m.userId));
+          setSearchResults(
+            data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
+          );
         }
-        const data = await res.json();
-        const existingIds = new Set(members.map((m) => m.userId));
-        setSearchResults(
-          data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
-        );
       } catch {
         if (userSearchRef.current !== requestId) return;
         setSearchResults([]);
-        setError("ユーザー検索に失敗しました");
       }
     }, 300);
   };
@@ -84,11 +79,7 @@ export function MembersTab({
       if (res.ok) {
         setSearchQuery("");
         setSearchResults([]);
-        try {
-          await fetchData();
-        } catch {
-          setError("追加は成功しましたが、一覧の再取得に失敗しました");
-        }
+        await fetchData();
       } else {
         const data = await res.json();
         setError(data.error ?? "追加に失敗しました");
@@ -112,11 +103,7 @@ export function MembersTab({
         },
       );
       if (res.ok) {
-        try {
-          await fetchData();
-        } catch {
-          setError("権限変更は成功しましたが、一覧の再取得に失敗しました");
-        }
+        await fetchData();
       } else {
         const data = await res.json();
         setError(data.error ?? "変更に失敗しました");
@@ -137,11 +124,7 @@ export function MembersTab({
         },
       );
       if (res.ok) {
-        try {
-          await fetchData();
-        } catch {
-          setError("削除は成功しましたが、一覧の再取得に失敗しました");
-        }
+        await fetchData();
       } else {
         const data = await res.json();
         setError(data.error ?? "削除に失敗しました");
@@ -220,24 +203,31 @@ export function MembersTab({
               <span className="text-xs text-gray-400">@{m.githubId}</span>
             </div>
             <div className="flex items-center gap-2">
-              <select
-                value={m.role}
-                onChange={(e) => handleChangeRole(m.userId, e.target.value)}
-                disabled={m.userId === user?.id}
-                className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
-              >
-                {m.role === "owner" && <option value="owner">owner</option>}
-                <option value="admin">admin</option>
-                <option value="member">member</option>
-              </select>
-              {m.userId !== user?.id && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveMember(m.userId)}
-                  className="text-red-500 hover:text-red-700 text-xs"
-                >
-                  削除
-                </button>
+              {m.role === "owner" ? (
+                <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                  owner
+                </span>
+              ) : (
+                <>
+                  <select
+                    value={m.role}
+                    onChange={(e) => handleChangeRole(m.userId, e.target.value)}
+                    disabled={m.userId === user?.id}
+                    className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
+                  >
+                    <option value="admin">admin</option>
+                    <option value="member">member</option>
+                  </select>
+                  {m.userId !== user?.id && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveMember(m.userId)}
+                      className="text-red-500 hover:text-red-700 text-xs"
+                    >
+                      削除
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </li>
