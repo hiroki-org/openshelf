@@ -467,4 +467,5 @@ describe("users routes", () => {
         const body = (await res.json()) as any;
         expect(body.organizations).toEqual([]);
     });
+
 });

@@ -52,6 +52,14 @@ Use these agents for complex multi-step tasks:
 
 ## Usage for Agents
 
+### Autonomy Rule
+
+When a user asks for conflict resolution, CI verification, review handling, or other PR maintenance work, agents must continue through every actionable open PR or directly-related follow-up task they can identify without waiting for another user prompt.
+
+- Do not stop after the first PR if additional open PRs still match the user's request.
+- Do not end with optional follow-up language such as "if needed", "let me know if you want me to continue", or similar wording when actionable work remains.
+- Only stop when all reachable tasks are done, or when the remaining blocker is external and non-actionable (for example: third-party rate limits, missing permissions, or a human product decision). In that case, report the blocker explicitly.
+
 When tasked with "PR Review" or "Resolving Feedback," agents should:
 1. Check all open PRs via `gh pr list --state open`
 2. For each PR, fetch review comments: `gh pr view <PR#> --json reviews`
@@ -168,4 +176,3 @@ Refer to `.github/copilot-instructions.md` for:
 - Database schema
 - Test patterns
 - Deployment instructions
-

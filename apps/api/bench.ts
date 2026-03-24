@@ -38,21 +38,20 @@ function optimizedReduce() {
 }
 
 const N = 10000;
+const WARMUP = 100;
 
-console.time("original");
-for (let i = 0; i < N; i++) {
-    original();
-}
-console.timeEnd("original");
+function runBenchmark(label: string, fn: () => string[]) {
+    for (let i = 0; i < WARMUP; i++) {
+        fn();
+    }
 
-console.time("optimized (for...of)");
-for (let i = 0; i < N; i++) {
-    optimized();
+    console.time(label);
+    for (let i = 0; i < N; i++) {
+        fn();
+    }
+    console.timeEnd(label);
 }
-console.timeEnd("optimized (for...of)");
 
-console.time("optimized (reduce)");
-for (let i = 0; i < N; i++) {
-    optimizedReduce();
-}
-console.timeEnd("optimized (reduce)");
+runBenchmark("original", original);
+runBenchmark("optimized (for...of)", optimized);
+runBenchmark("optimized (reduce)", optimizedReduce);

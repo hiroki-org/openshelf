@@ -7,9 +7,11 @@ import {
     paperAuthors,
     paperViews,
     users,
+    orgs,
     coauthorInvites,
-    orgMembers,
+
     paperOrgs,
+    orgMembers,
     enableForeignKeys,
     touchUpdatedAt,
     VALID_VENUE_TYPES,
@@ -20,6 +22,7 @@ import {
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
+import { isPaperAuthor, isPaperUploader, getOrgMembership, isMemberOfPaperOrg } from "../utils/db";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -33,7 +36,7 @@ const ALLOWED_MIME_TYPES = [
     "image/jpeg",
 ];
 const VALID_FILE_TYPES = ["paper", "slides", "poster", "supplementary"];
-const VALID_VISIBILITY = ["public", "org_only", "private"];
+const VALID_VISIBILITY = ["public", "org_only", "private"] as const;
 const MAX_TITLE_LENGTH = 300;
 const MAX_ABSTRACT_LENGTH = 5000;
 const MAX_LANGUAGE_LENGTH = 32;
@@ -41,8 +44,14 @@ const MAX_EXTERNAL_URL_LENGTH = 2048;
 const MAX_DOI_LENGTH = 255;
 const MAX_VENUE_LENGTH = 255;
 const MAX_TAG_LENGTH = 64;
+const MAX_ORG_ID_LENGTH = 64;
 const VIEW_DEDUPE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const VIEW_STATS_RANGE_DAYS = 30;
+type Visibility = (typeof VALID_VISIBILITY)[number];
+
+function isVisibility(value: string): value is Visibility {
+    return (VALID_VISIBILITY as readonly string[]).includes(value);
+}
 
 function formatDateKey(date: Date): string {
     return date.toISOString().slice(0, 10);
@@ -164,16 +173,7 @@ async function authorizePaperAccess(
     }
 
     // Authors always have access
-    const isAuthor = await db
-        .select()
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paper.id),
-                eq(paperAuthors.userId, user.sub),
-            ),
-        )
-        .get();
+    const isAuthor = await isPaperAuthor(db, paper.id, user.sub);
     if (isAuthor) return { ok: true, user };
 
     if (paper.visibility === "private") {
@@ -181,46 +181,19 @@ async function authorizePaperAccess(
     }
 
     if (paper.visibility === "org_only") {
-        const isMemberOfPaperOrg = await db
-            .select({ id: orgMembers.userId })
-            .from(orgMembers)
-            .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
-            .where(
-                and(
-                    eq(paperOrgs.paperId, paper.id),
-                    eq(orgMembers.userId, user.sub),
-                ),
-            )
-            .get();
+        const isMember = await isMemberOfPaperOrg(db, paper.id, user.sub);
 
-        if (!isMemberOfPaperOrg) {
+        if (!isMember) {
             return { ok: false, status: 403, error: "Forbidden" };
         }
-    } else if (paper.visibility !== "public") {
+    } else {
         return { ok: false, status: 403, error: "Forbidden" };
     }
 
     return { ok: true, user };
 }
 
-async function isPaperAuthor(
-    db: ReturnType<typeof drizzle>,
-    paperId: string,
-    userId: string,
-): Promise<boolean> {
-    const author = await db
-        .select({ userId: paperAuthors.userId })
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paperId),
-                eq(paperAuthors.userId, userId),
-            ),
-        )
-        .get();
 
-    return !!author;
-}
 
 async function generateSignedPreviewUrl(
     bucket: Env["BUCKET"],
@@ -270,9 +243,10 @@ papersRoute.post("/", authMiddleware, async (c) => {
     )
         return c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400);
 
-    const vis = (meta.visibility as string) || "private";
-    if (!VALID_VISIBILITY.includes(vis))
+    const visibilityInput = typeof meta.visibility === "string" ? meta.visibility : "private";
+    if (!isVisibility(visibilityInput))
         return c.json({ error: "Invalid visibility" }, 400);
+    const vis: Visibility = visibilityInput;
 
     const venueType = (meta.venueType as string | null | undefined) ?? null;
     if (venueType !== null && !(VALID_VENUE_TYPES as readonly string[]).includes(venueType))
@@ -294,9 +268,13 @@ papersRoute.post("/", authMiddleware, async (c) => {
         return c.json({ error: "showViewCount must be a boolean" }, 400);
     }
 
-    const orgId = meta.orgId as string | undefined;
+    const orgIdRaw = typeof meta.orgId === "string" ? meta.orgId.trim() : undefined;
+    const orgId = orgIdRaw || undefined;
     if (vis === "org_only" && !orgId) {
         return c.json({ error: "orgId is required for org_only visibility" }, 400);
+    }
+    if (orgId && orgId.length > MAX_ORG_ID_LENGTH) {
+        return c.json({ error: `orgId must be ${MAX_ORG_ID_LENGTH} chars or less` }, 400);
     }
 
     const paperId = crypto.randomUUID();
@@ -306,16 +284,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
     await enableForeignKeys(db);
 
     if (vis === "org_only" && orgId) {
-        const membership = await db
-            .select({ orgId: orgMembers.orgId })
-            .from(orgMembers)
-            .where(
-                and(
-                    eq(orgMembers.orgId, orgId),
-                    eq(orgMembers.userId, userId),
-                ),
-            )
-            .get();
+        const membership = await getOrgMembership(db, orgId, userId);
         if (!membership) {
             console.error(`Membership check failed for userId: ${userId}, orgId: ${orgId}`);
             return c.json({ error: "Invalid orgId or not a member" }, 403);
@@ -410,8 +379,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
             const chunk = uploads.slice(i, i + MAX_CONCURRENT_UPLOADS);
             const results = await Promise.allSettled(
                 chunk.map(async (entry) => {
-                    const fileBuffer = await entry.file.arrayBuffer();
-                    await c.env.BUCKET.put(entry.r2Key, fileBuffer, {
+                    await c.env.BUCKET.put(entry.r2Key, entry.file, {
                         httpMetadata: { contentType: entry.file.type },
                     });
                     return entry.r2Key;
@@ -559,8 +527,27 @@ papersRoute.get("/:id", async (c) => {
             .where(eq(paperAuthors.paperId, paperId)),
     ])) as [
             (typeof paperFiles.$inferSelect)[],
-            { userId: string; role: string; name: string | null; displayName: string | null; avatarUrl: string | null }[]
+            {
+                userId: string;
+                role: string;
+                name: string | null;
+                displayName: string | null;
+                avatarUrl: string | null;
+            }[]
         ];
+
+    const organizations = paper.visibility === "org_only"
+        ? await db
+            .select({
+                id: orgs.id,
+                name: orgs.name,
+                slug: orgs.slug,
+            })
+            .from(paperOrgs)
+            .innerJoin(orgs, eq(paperOrgs.orgId, orgs.id))
+            .where(eq(paperOrgs.paperId, paperId))
+            .all()
+        : [];
 
     const files = rawFiles.map((file) => ({
         ...file,
@@ -591,6 +578,7 @@ papersRoute.get("/:id", async (c) => {
         },
         files,
         authors,
+        organizations,
     });
 });
 
@@ -882,17 +870,7 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
     await enableForeignKeys(db);
     const userId = c.get("user").sub;
 
-    const isUploader = await db
-        .select()
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paperId),
-                eq(paperAuthors.userId, userId),
-                eq(paperAuthors.role, "uploader"),
-            ),
-        )
-        .get();
+    const isUploader = await isPaperUploader(db, paperId, userId);
     if (!isUploader)
         return c.json({ error: "Only uploaders can invite" }, 403);
 
@@ -965,17 +943,7 @@ papersRoute.get("/:id/invites", authMiddleware, async (c) => {
     const db = drizzle(c.env.DB);
     const userId = c.get("user").sub;
 
-    const isUploader = await db
-        .select()
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paperId),
-                eq(paperAuthors.userId, userId),
-                eq(paperAuthors.role, "uploader"),
-            ),
-        )
-        .get();
+    const isUploader = await isPaperUploader(db, paperId, userId);
     if (!isUploader) return c.json({ error: "Forbidden" }, 403);
 
     const inviteRows = await db
@@ -1027,17 +995,7 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
     const db = drizzle(c.env.DB);
     await enableForeignKeys(db);
 
-    const isUploader = await db
-        .select()
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paperId),
-                eq(paperAuthors.userId, userId),
-                eq(paperAuthors.role, "uploader"),
-            ),
-        )
-        .get();
+    const isUploader = await isPaperUploader(db, paperId, userId);
     if (!isUploader) return c.json({ error: "Forbidden" }, 403);
 
     const files = await db
@@ -1077,20 +1035,17 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         .get();
     if (!paper) return c.json({ error: "Not found" }, 404);
 
-    const isAuthor = await db
-        .select()
-        .from(paperAuthors)
-        .where(
-            and(
-                eq(paperAuthors.paperId, paperId),
-                eq(paperAuthors.userId, userId)
-            )
-        )
-        .get();
+    const isAuthor = await isPaperAuthor(db, paperId, userId);
     if (!isAuthor) return c.json({ error: "Forbidden" }, 403);
 
     const updates: Record<string, any> = { ...touchUpdatedAt() };
     let hasRealUpdates = false;
+    if (!isVisibility(paper.visibility)) {
+        return c.json({ error: "Invalid paper visibility state" }, 500);
+    }
+    let nextVisibility: Visibility = paper.visibility;
+    let hasVisibilityInBody = false;
+    let orgIdsFromBody: string[] | undefined;
 
     if ("title" in body) {
         if (typeof body.title !== "string") {
@@ -1115,16 +1070,38 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         hasRealUpdates = true;
     }
     if ("visibility" in body) {
-        if (typeof body.visibility !== "string" || !VALID_VISIBILITY.includes(body.visibility)) {
+        if (typeof body.visibility !== "string" || !isVisibility(body.visibility)) {
             return c.json({ error: "Invalid visibility" }, 400);
         }
-        if (body.visibility === "org_only" && paper.visibility !== "org_only") {
-            return c.json(
-                { error: "Changing visibility to org_only is not supported in edit flow" },
-                400,
-            );
-        }
         updates.visibility = body.visibility;
+        nextVisibility = body.visibility;
+        hasVisibilityInBody = true;
+        hasRealUpdates = true;
+    }
+    if ("orgIds" in body) {
+        if (!Array.isArray(body.orgIds)) {
+            return c.json({ error: "orgIds must be an array" }, 400);
+        }
+
+        const normalizedOrgIds: string[] = [];
+        const seen = new Set<string>();
+        for (const orgId of body.orgIds) {
+            if (typeof orgId !== "string") {
+                return c.json({ error: "each orgId must be a string" }, 400);
+            }
+            const trimmed = orgId.trim();
+            if (!trimmed) {
+                return c.json({ error: "orgIds cannot contain empty values" }, 400);
+            }
+            if (trimmed.length > MAX_ORG_ID_LENGTH) {
+                return c.json({ error: `each orgId must be ${MAX_ORG_ID_LENGTH} chars or less` }, 400);
+            }
+            if (seen.has(trimmed)) continue;
+            seen.add(trimmed);
+            normalizedOrgIds.push(trimmed);
+        }
+
+        orgIdsFromBody = normalizedOrgIds;
         hasRealUpdates = true;
     }
     if ("showViewCount" in body) {
@@ -1185,22 +1162,35 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         if (!(typeof body.venueType === "string" || body.venueType === null)) {
             return c.json({ error: "venueType must be a string or null" }, 400);
         }
-        if (body.venueType && !(VALID_VENUE_TYPES as readonly string[]).includes(body.venueType)) return c.json({ error: "Invalid venueType" }, 400);
+        if (
+            body.venueType &&
+            !(VALID_VENUE_TYPES as readonly string[]).includes(body.venueType)
+        ) {
+            return c.json({ error: "Invalid venueType" }, 400);
+        }
         updates.venueType = body.venueType || null;
         hasRealUpdates = true;
     }
     if ("year" in body) {
-        if (!(typeof body.year === "number" || body.year === null) || Number.isNaN(body.year)) {
-            return c.json({ error: "year must be a number or null" }, 400);
+        const { year } = body;
+        if (year !== null) {
+            if (typeof year !== "number" || Number.isNaN(year)) {
+                return c.json({ error: "year must be a number or null" }, 400);
+            }
         }
-        updates.year = body.year;
+        updates.year = year;
         hasRealUpdates = true;
     }
     if ("category" in body) {
         if (!(typeof body.category === "string" || body.category === null)) {
             return c.json({ error: "category must be a string or null" }, 400);
         }
-        if (body.category && !(VALID_CATEGORIES as readonly string[]).includes(body.category)) return c.json({ error: "Invalid category" }, 400);
+        if (
+            body.category &&
+            !(VALID_CATEGORIES as readonly string[]).includes(body.category)
+        ) {
+            return c.json({ error: "Invalid category" }, 400);
+        }
         updates.category = body.category || null;
         hasRealUpdates = true;
     }
@@ -1226,11 +1216,82 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         }
         hasRealUpdates = true;
     }
-    if (!hasRealUpdates) {
+
+    let shouldReplacePaperOrgs = false;
+    let finalOrgIds: string[] = [];
+
+    if (orgIdsFromBody !== undefined && nextVisibility !== "org_only") {
+        return c.json({ error: "orgIds can only be specified when visibility is org_only" }, 400);
+    }
+
+    if (nextVisibility === "org_only") {
+        // Require explicit organization selection only when switching to org_only
+        // or when orgIds are explicitly edited.
+        if ((hasVisibilityInBody && paper.visibility !== "org_only") || orgIdsFromBody !== undefined) {
+            finalOrgIds = orgIdsFromBody ?? [];
+            if (finalOrgIds.length === 0) {
+                return c.json({ error: "orgIds is required when visibility is org_only" }, 400);
+            }
+
+            const memberships = await db
+                .select({ orgId: orgMembers.orgId })
+                .from(orgMembers)
+                .where(
+                    and(
+                        eq(orgMembers.userId, userId),
+                        inArray(orgMembers.orgId, finalOrgIds),
+                    ),
+                )
+                .all();
+
+            if (memberships.length !== finalOrgIds.length) {
+                return c.json({ error: "Invalid orgIds or not a member" }, 403);
+            }
+
+            const existingOrgs = await db
+                .select({ orgId: paperOrgs.orgId })
+                .from(paperOrgs)
+                .where(eq(paperOrgs.paperId, paperId))
+                .all();
+            
+            const existingOrgIds = existingOrgs.map(o => o.orgId);
+            const finalOrgIdsSet = new Set(finalOrgIds);
+            const existingOrgIdsSet = new Set(existingOrgIds);
+            
+            const areSetsEqual = 
+                finalOrgIdsSet.size === existingOrgIdsSet.size && 
+                [...finalOrgIdsSet].every(id => existingOrgIdsSet.has(id));
+
+            if (!areSetsEqual) {
+                shouldReplacePaperOrgs = true;
+            }
+        }
+    }
+
+    if (!hasRealUpdates && !shouldReplacePaperOrgs) {
         return c.json({ error: "No valid fields to update" }, 400);
     }
 
-    await db.update(papers).set(updates).where(eq(papers.id, paperId));
+    type BatchItem = Parameters<typeof db.batch>[0][number];
+    const operations: BatchItem[] = [
+        db.update(papers).set(updates).where(eq(papers.id, paperId)),
+    ];
+
+    if (nextVisibility !== "org_only" && hasVisibilityInBody) {
+        operations.push(db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId)));
+    } else if (shouldReplacePaperOrgs) {
+        operations.push(db.delete(paperOrgs).where(eq(paperOrgs.paperId, paperId)));
+        operations.push(db.insert(paperOrgs).values(
+            finalOrgIds.map((orgId) => ({ paperId, orgId })),
+        ));
+    }
+
+    if (operations.length === 1) {
+        await operations[0];
+    } else {
+        await db.batch(operations as [BatchItem, ...BatchItem[]]);
+    }
+
     return c.json({ ok: true });
 });
 

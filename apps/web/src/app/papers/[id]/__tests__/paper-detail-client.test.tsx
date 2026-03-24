@@ -47,12 +47,16 @@ vi.mock("next/image", () => ({
 
 vi.mock("next/dynamic", () => ({
   default: () => {
-    return function MockPdfViewer(props: {
+    return function MockDynamicViewer(props: {
       fileUrl: string;
       onDownloadFallback: () => void;
     }) {
+      const isPptx = props.fileUrl.endsWith(".pptx");
       return (
-        <div data-testid="pdf-viewer" data-url={props.fileUrl}>
+        <div
+          data-testid={isPptx ? "pptx-viewer" : "pdf-viewer"}
+          data-url={props.fileUrl}
+        >
           <button type="button" onClick={props.onDownloadFallback}>
             fallback download
           </button>
@@ -67,7 +71,10 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 function blobResponse(content: string, type: string, status = 200) {
-  return new Response(new Blob([content], { type }), { status });
+  return new Response(content, {
+    status,
+    headers: { "Content-Type": type },
+  });
 }
 
 describe("PaperDetailClient", () => {
@@ -155,6 +162,14 @@ describe("PaperDetailClient", () => {
                 "application/vnd.openxmlformats-officedocument.presentationml.presentation",
               downloadUrl: "/api/downloads/deck.pptx",
             },
+            {
+              id: "file-dataset",
+              filename: "dataset.bin",
+              fileType: "dataset",
+              sizeBytes: 2 * 1024 * 1024,
+              mimeType: null,
+              downloadUrl: "/api/downloads/dataset.bin",
+            },
           ],
           authors: [
             {
@@ -239,7 +254,8 @@ describe("PaperDetailClient", () => {
       if (
         (url === "/api/downloads/paper.pdf" ||
           url === "/api/downloads/poster.png" ||
-          url === "/api/downloads/deck.pptx") &&
+          url === "/api/downloads/deck.pptx" ||
+          url === "/api/downloads/dataset.bin") &&
         method === "GET"
       ) {
         return blobResponse("download", "application/octet-stream");
@@ -272,9 +288,49 @@ describe("PaperDetailClient", () => {
       "href",
       "https://example.com/paper",
     );
+    expect(screen.getByText("PPTXプレビュー")).toBeInTheDocument();
+    expect(screen.getByTestId("pptx-viewer")).toHaveAttribute(
+      "data-url",
+      "/api/downloads/deck.pptx",
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("pdf-viewer")).toBeInTheDocument();
+    }, { timeout: 10000 });
+    expect(screen.getByText("🎞️")).toBeInTheDocument();
     expect(screen.getByText("閲覧統計")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("3/2")).toBeInTheDocument();
+
+    const datasetRow = screen.getByText("dataset.bin").closest("li");
+    expect(datasetRow).not.toBeNull();
+    expect(within(datasetRow!).getByText("📄")).toBeInTheDocument();
+    expect(within(datasetRow!).getByText("2.0 MB")).toBeInTheDocument();
+
+    fireEvent.click(
+      within(screen.getByTestId("pdf-viewer")).getByRole("button", {
+        name: "fallback download",
+      }),
+    );
+    await waitFor(() => {
+      expect(
+        vi.mocked(apiFetch).mock.calls.some(([input]) =>
+          String(input).includes("/api/downloads/paper.pdf"),
+        ),
+      ).toBe(true);
+    });
+
+    fireEvent.click(
+      within(screen.getByTestId("pptx-viewer")).getByRole("button", {
+        name: "fallback download",
+      }),
+    );
+    await waitFor(() => {
+      expect(
+        vi.mocked(apiFetch).mock.calls.some(([input]) =>
+          String(input).includes("/api/downloads/deck.pptx"),
+        ),
+      ).toBe(true);
+    });
 
     const slideRow = screen.getByText("deck.pptx").closest("li");
     expect(slideRow).not.toBeNull();
@@ -287,6 +343,16 @@ describe("PaperDetailClient", () => {
         ),
       ).toBe(true);
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "+ 共著者を招待" }));
+    fireEvent.change(screen.getByPlaceholderText("ユーザー名で検索..."), {
+      target: { value: "bo" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+    expect(
+      screen.queryByPlaceholderText("ユーザー名で検索..."),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "+ 共著者を招待" }));
     fireEvent.change(screen.getByPlaceholderText("ユーザー名で検索..."), {
@@ -393,5 +459,83 @@ describe("PaperDetailClient", () => {
     expect(
       await screen.findByText("この論文を閲覧する権限がありません"),
     ).toBeInTheDocument();
+  });
+  it("handles image loading failure gracefully", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/papers/paper-1" && method === "GET") {
+        return jsonResponse({
+          paper: {
+            id: "paper-1",
+            title: "Image Failure Test",
+            abstract: null,
+            visibility: "public",
+            showViewCount: false,
+            publicViewCount: null,
+            externalUrl: null,
+            venue: null,
+            venueType: null,
+            year: null,
+            category: null,
+            tags: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+          },
+          files: [
+            {
+              id: "file-image",
+              filename: "poster.png",
+              fileType: "poster",
+              sizeBytes: 2048,
+              mimeType: "image/png",
+              downloadUrl: "/api/downloads/poster.png",
+            },
+          ],
+          authors: [
+            {
+              userId: "author-1",
+              role: "author",
+              name: "alice",
+              displayName: "Alice",
+              avatarUrl: null,
+            },
+          ],
+        });
+      }
+
+      if (url === "/api/papers/paper-1/view" && method === "POST") {
+        return jsonResponse({ counted: true });
+      }
+
+      if (url === "/api/papers/paper-1/stats" && method === "GET") {
+        return jsonResponse({
+          totalViews: 0,
+          last7DaysViews: 0,
+          last30DaysViews: 0,
+          dailyViews: [],
+        });
+      }
+
+      if (url.includes("/files/file-image/stream") && method === "GET") {
+        throw new Error("Simulated network failure");
+      }
+
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    render(<PaperDetailClient paperId="paper-1" />);
+
+    await screen.findByRole("heading", { name: "Image Failure Test" });
+
+    await waitFor(() => {
+      expect(console.error).toHaveBeenCalledWith(
+        "Error loading image file-image:",
+        expect.any(Error)
+      );
+    });
+
+    expect(screen.getByText("画像の読み込みに失敗しました")).toBeInTheDocument();
   });
 });

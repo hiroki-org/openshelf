@@ -26,6 +26,127 @@ describe("papers routes", () => {
         };
     });
 
+    it("POST /api/papers logs cleanup failures on DB batch error", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        mockDb.batch = vi.fn().mockRejectedValue(new Error("DB batch failed"));
+        env.BUCKET.delete = vi.fn().mockRejectedValue(new Error("R2 delete rejected"));
+        mockDb.delete = vi.fn(() => ({
+            where: vi.fn().mockRejectedValue(new Error("DB delete rejected"))
+        }));
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        try {
+            const form = new FormData();
+            form.set("metadata", JSON.stringify({ title: "Fail Cleanup Paper", visibility: "private" }));
+            form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
+            form.set("file_types_0", "paper");
+
+            const res = await app.request(
+                "http://localhost/api/papers",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Origin: "http://localhost:3000"
+                    },
+                    body: form
+                },
+                env as any
+            );
+
+            expect(res.status).toBe(500);
+
+            // Validate the console.error call includes the specific expected errors
+            expect(consoleErrorSpy).toHaveBeenCalled();
+            const callArgs = consoleErrorSpy.mock.calls[0];
+            expect(callArgs[0]).toBe("Cleanup failures for paperId:");
+            expect(typeof callArgs[1]).toBe("string"); // paperId
+
+            const failures = callArgs[2] as Error[];
+            const r2Failures = failures.filter(f => f.message === "R2 delete rejected");
+            const dbFailures = failures.filter(f => f.message === "DB delete rejected");
+
+            expect(r2Failures.length).toBe(1);
+
+            // mockDb.delete is called multiple times.
+            // Ensure the failures reflect the number of mocked DB rejection attempts
+            expect(dbFailures.length).toBe(mockDb.delete.mock.calls.length);
+
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
+    });
+
+    it("POST /api/papers logs outer cleanup failures if cleanup throws entirely", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        mockDb.batch = vi.fn().mockRejectedValue(new Error("DB batch failed"));
+
+        // mock Promise.allSettled to throw immediately when called for R2 deletion
+        const promiseAllSettledSpy = vi.spyOn(Promise, 'allSettled').mockImplementationOnce(async () => {
+             throw new Error("R2 Promise map failed");
+        });
+
+        // Make the DB delete promise array evaluation throw
+        mockDb.delete = vi.fn(() => {
+            throw new Error("DB delete call failed");
+        });
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        try {
+            const form = new FormData();
+            form.set("metadata", JSON.stringify({ title: "Fail Cleanup Paper Outer", visibility: "private" }));
+            form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
+            form.set("file_types_0", "paper");
+
+            const res = await app.request(
+                "http://localhost/api/papers",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Origin: "http://localhost:3000"
+                    },
+                    body: form
+                },
+                env as any
+            );
+
+            expect(res.status).toBe(500);
+            expect(consoleErrorSpy).toHaveBeenCalled();
+
+            const allCalls = consoleErrorSpy.mock.calls;
+            // Map the errors depending on if they were logged together or separately
+            let foundR2 = false;
+            let foundDB = false;
+
+            for (const call of allCalls) {
+                 for (const arg of call) {
+                      if (Array.isArray(arg)) {
+                          if (arg.some(e => e?.message === "R2 Promise map failed")) foundR2 = true;
+                          if (arg.some(e => e?.message === "DB delete call failed")) foundDB = true;
+                      } else if (arg instanceof Error) {
+                          if (arg.message === "R2 Promise map failed") foundR2 = true;
+                          if (arg.message === "DB delete call failed") foundDB = true;
+                      }
+                 }
+            }
+
+            expect(foundR2).toBe(true);
+            expect(foundDB).toBe(true);
+        } finally {
+            consoleErrorSpy.mockRestore();
+            promiseAllSettledSpy.mockRestore();
+        }
+    });
+
     it("POST /api/papers uploads multipart and creates paper", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
@@ -138,13 +259,41 @@ describe("papers routes", () => {
 
     it("GET /api/papers/:id returns paper details", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+
+        const mockPaperDetails = {
+            id: "paper-1",
+            title: "P1",
+            visibility: "private",
+            showViewCount: true,
+            language: "ja",
+            doi: "10.1234/example"
+        };
+        const mockPaperRole = {
+            paperId: "paper-1",
+            userId: "user-1",
+            role: "uploader"
+        };
+        const mockPaperFiles = [
+            { id: "file-1", filename: "paper.pdf" }
+        ];
+        const mockPaperContributors = [
+            {
+                userId: "user-1",
+                role: "uploader",
+                name: "Uploader",
+                displayName: null,
+                avatarUrl: null
+            }
+        ];
+        const mockViewCountResult = { count: 4 };
+
         mockDb.select = vi
             .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "private", showViewCount: true, language: "ja", doi: "10.1234/example" } }))
-            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
-            .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "file-1", filename: "paper.pdf" }] }))
-            .mockImplementationOnce(() => makeQuery({ allResult: [{ userId: "user-1", role: "uploader", name: "Uploader", displayName: null, avatarUrl: null }] }))
-            .mockImplementationOnce(() => makeQuery({ getResult: { count: 4 } }));
+            .mockImplementationOnce(() => makeQuery({ getResult: mockPaperDetails }))
+            .mockImplementationOnce(() => makeQuery({ getResult: mockPaperRole }))
+            .mockImplementationOnce(() => makeQuery({ allResult: mockPaperFiles }))
+            .mockImplementationOnce(() => makeQuery({ allResult: mockPaperContributors }))
+            .mockImplementationOnce(() => makeQuery({ getResult: mockViewCountResult }));
 
         const app = await createTestApp();
         const env = createTestEnv();
@@ -161,7 +310,31 @@ describe("papers routes", () => {
         expect(body.paper.doi).toBe("10.1234/example");
         expect(body.paper.showViewCount).toBe(true);
         expect(body.paper.publicViewCount).toBe(4);
+        expect(body.organizations).toEqual([]);
         expect(mockDb.batch).toHaveBeenCalledTimes(1);
+    });
+
+    it("GET /api/papers/:id returns organizations only for org_only papers", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "org_only", showViewCount: false } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-1" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "file-1", filename: "paper.pdf" }] }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ userId: "user-1", role: "uploader", name: "Uploader", displayName: null, avatarUrl: null }] }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "org-1", name: "Org 1", slug: "org-1" }] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            { headers: { Authorization: `Bearer ${token}` } },
+            env as any
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as any;
+        expect(body.organizations).toEqual([{ id: "org-1", name: "Org 1", slug: "org-1" }]);
     });
 
     it("POST /api/papers rejects a non-boolean showViewCount", async () => {
@@ -300,6 +473,7 @@ describe("papers routes", () => {
             .fn()
             .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "public", showViewCount: false } }))
             .mockImplementationOnce(() => makeQuery({ allResult: [] }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [] }))
             .mockImplementationOnce(() => makeQuery({ allResult: [] }));
 
         const app = await createTestApp();
@@ -379,7 +553,7 @@ describe("papers routes", () => {
         expect(res.status).toBe(403);
     });
 
-    it("PATCH /api/papers/:id rejects changing a non-org_only paper to org_only", async () => {
+    it("PATCH /api/papers/:id requires orgIds when changing visibility to org_only", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi
             .fn()
@@ -403,7 +577,102 @@ describe("papers routes", () => {
 
         expect(res.status).toBe(400);
         const body = (await res.json()) as any;
-        expect(body.error).toContain("org_only");
+        expect(body.error).toContain("orgIds");
+        expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it("PATCH /api/papers/:id updates paperOrgs when changing visibility to org_only", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const where = vi.fn(async () => undefined);
+        const set = vi.fn(() => ({ where }));
+        const deleteWhere = vi.fn(async () => undefined);
+        const insertValues = vi.fn(async () => undefined);
+
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ orgId: "org-1" }] }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [] })); // existing paperOrgs (none)
+        mockDb.update = vi.fn(() => ({ set }));
+        mockDb.delete = vi.fn(() => ({ where: deleteWhere }));
+        mockDb.insert = vi.fn(() => ({ values: insertValues }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ visibility: "org_only", orgIds: ["org-1"] }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({ visibility: "org_only" }),
+        );
+        expect(deleteWhere).toHaveBeenCalledTimes(1);
+        expect(insertValues).toHaveBeenCalledWith([{ paperId: "paper-1", orgId: "org-1" }]);
+    });
+
+    it("PATCH /api/papers/:id rejects orgIds for non-org visibility with explicit empty array", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ visibility: "private", orgIds: [] }),
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({
+            error: "orgIds can only be specified when visibility is org_only",
+        });
+    });
+
+    it("PATCH /api/papers/:id rejects orgIds when user is not a member", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ visibility: "org_only", orgIds: ["org-1"] }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(403);
         expect(mockDb.update).not.toHaveBeenCalled();
     });
 
@@ -499,6 +768,45 @@ describe("papers routes", () => {
         expect(where).toHaveBeenCalledTimes(1);
     });
 
+    it("PATCH /api/papers/:id clears paperOrgs when leaving org_only", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const updateWhere = vi.fn();
+        const updateSet = vi.fn(() => ({ where: updateWhere }));
+        const deleteWhere = vi.fn();
+        
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "org_only" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        
+        mockDb.update = vi.fn(() => ({ set: updateSet }));
+        mockDb.delete = vi.fn(() => ({ where: deleteWhere }));
+        mockDb.insert = vi.fn();
+        mockDb.batch = vi.fn(async () => undefined);
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ visibility: "private" }),
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(200);
+        expect(mockDb.batch).toHaveBeenCalledTimes(1);
+        expect(mockDb.update).toHaveBeenCalledTimes(1);
+        expect(mockDb.delete).toHaveBeenCalledTimes(1);
+        expect(deleteWhere).toHaveBeenCalledTimes(1);
+        expect(mockDb.insert).not.toHaveBeenCalled();
+    });
+
     it("PATCH /api/papers/:id rejects a primitive JSON body", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
 
@@ -521,6 +829,71 @@ describe("papers routes", () => {
         const body = (await res.json()) as any;
         expect(body.error).toContain("Invalid JSON body");
         expect(mockDb.select).not.toHaveBeenCalled();
+    });
+
+    it("PATCH /api/papers/:id rejects overlong orgIds", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "org_only" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ orgIds: ["o".repeat(65)], visibility: "org_only" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toContain("each orgId");
+    });
+
+    it("PATCH /api/papers/:id batches paper and paperOrgs updates when orgIds change", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const deleteWhere = vi.fn(async () => undefined);
+        const insertValues = vi.fn(async () => undefined);
+
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "org_only" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ orgId: "org-1" }] }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [] })); // existing paperOrgs (none)
+        mockDb.delete = vi.fn(() => ({ where: deleteWhere }));
+        mockDb.insert = vi.fn(() => ({ values: insertValues }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ visibility: "org_only", orgIds: ["org-1"], title: "Updated title" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(mockDb.batch).toHaveBeenCalledTimes(1);
+        expect(mockDb.update).toHaveBeenCalledTimes(1);
+        expect(deleteWhere).toHaveBeenCalledTimes(1);
+        expect(insertValues).toHaveBeenCalledTimes(1);
+        const batchedOps = mockDb.batch.mock.calls[0][0] as unknown[];
+        expect(batchedOps).toHaveLength(3);
     });
 
     it("PATCH /api/papers/:id rejects requests without valid updatable fields", async () => {
@@ -749,7 +1122,14 @@ describe("papers routes", () => {
 
     it("PATCH /api/papers/:id handles valid tags update including empty strings mapping to null", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
-        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { id: "paper-1", visibility: "private", paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
         mockDb.update = vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) }));
 
         const app = await createTestApp();
