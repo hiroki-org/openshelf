@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     createExpiredJWT,
     createTestApp,
@@ -8,7 +8,6 @@ import {
 } from "../../test/helpers";
 
 let mockDb: any;
-const originalNodeEnv = process.env.NODE_ENV;
 
 type OAuthStateEntry = {
     createdAt: string;
@@ -87,7 +86,6 @@ vi.mock("drizzle-orm/d1", () => ({
 
 describe("auth routes", () => {
     beforeEach(() => {
-        process.env.NODE_ENV = "test";
         vi.restoreAllMocks();
         vi.resetModules();
         mockDb = {
@@ -99,10 +97,6 @@ describe("auth routes", () => {
                 }))
             })),
         };
-    });
-
-    afterEach(() => {
-        process.env.NODE_ENV = originalNodeEnv;
     });
 
     it("GET /api/auth/github persists state in D1 and redirects with client_id", async () => {
