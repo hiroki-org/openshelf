@@ -13,7 +13,7 @@ const handleApiAction = async (
   onSuccess: (res: Response) => Promise<void> | void,
   defaultErrorMsg: string,
   onFinally?: () => void
-): Promise<void> => {
+) => {
   try {
     const res = await requestPromise;
     if (res.ok) {
@@ -102,7 +102,7 @@ export default function OrgSettingsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [deleting, setDeleting] = useState(false);
 
-  const fetchData = useCallback(async (): Promise<boolean> => {
+  const fetchData = useCallback(async () => {
     try {
       const [orgRes, membersRes, papersRes] = await Promise.all([
         apiFetch(`/api/orgs/${encodeURIComponent(slug)}`),
@@ -112,7 +112,7 @@ export default function OrgSettingsPage() {
 
       if (!orgRes.ok) {
         setError("組織が見つかりません");
-        return false;
+        return;
       }
 
       const orgData = await orgRes.json();
@@ -126,18 +126,15 @@ export default function OrgSettingsPage() {
         setMembers(membersData.members);
       } else {
         setError("メンバー情報の取得に失敗しました");
-        return false;
+        return;
       }
 
       if (papersRes.ok) {
         const papersData = await papersRes.json();
         setOrgPapers(papersData.papers);
       }
-
-      return true;
     } catch {
       setError("取得に失敗しました");
-      return false;
     } finally {
       setLoading(false);
     }
@@ -248,8 +245,7 @@ const handleDelete = async () => {
       async () => {
         setSearchQuery("");
         setSearchResults([]);
-        const refreshed = await fetchData();
-        if (!refreshed) return;
+        await fetchData();
         toast.success("メンバーを追加しました");
       },
       "追加に失敗しました",
@@ -267,8 +263,7 @@ const handleChangeRole = async (userId: string, newRole: string) => {
         }
       ),
       async () => {
-        const refreshed = await fetchData();
-        if (!refreshed) return;
+        await fetchData();
         toast.success("権限を変更しました");
       },
       "変更に失敗しました"
@@ -284,8 +279,7 @@ const handleRemoveMember = async (userId: string) => {
         }
       ),
       async () => {
-        const refreshed = await fetchData();
-        if (!refreshed) return;
+        await fetchData();
         toast.success("メンバーを削除しました");
       },
       "削除に失敗しました"
@@ -331,8 +325,7 @@ const handleRemoveMember = async (userId: string) => {
       async () => {
         setPaperSearch("");
         setPaperSearchResults([]);
-        const refreshed = await fetchData();
-        if (!refreshed) return;
+        await fetchData();
         toast.success("論文を追加しました");
       },
       "追加に失敗しました",
@@ -349,8 +342,7 @@ const handleRemovePaper = async (paperId: string) => {
         }
       ),
       async () => {
-        const refreshed = await fetchData();
-        if (!refreshed) return;
+        await fetchData();
         toast.success("論文の紐づけを解除しました");
       },
       "削除に失敗しました"
@@ -592,22 +584,16 @@ const tabClass = (t: string) =>
                   <span className="text-xs text-gray-400">@{m.githubId}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {m.role === "owner" ? (
-                    <span className="rounded bg-amber-100 px-2 py-1 text-xs text-amber-700">
-                      owner
-                    </span>
-                  ) : (
-                    <select
-                      value={m.role}
-                      onChange={(e) => handleChangeRole(m.userId, e.target.value)}
-                      disabled={m.userId === user?.id}
-                      className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
-                    >
-                      <option value="admin">admin</option>
-                      <option value="member">member</option>
-                    </select>
-                  )}
-                  {m.role !== "owner" && m.userId !== user?.id && (
+                  <select
+                    value={m.role === "owner" ? "admin" : m.role}
+                    onChange={(e) => handleChangeRole(m.userId, e.target.value)}
+                    disabled={m.userId === user?.id}
+                    className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
+                  >
+                    <option value="admin">admin</option>
+                    <option value="member">member</option>
+                  </select>
+                  {m.userId !== user?.id && (
                     <button
                       type="button"
                       onClick={() => handleRemoveMember(m.userId)}
