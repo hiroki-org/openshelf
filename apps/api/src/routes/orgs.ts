@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, sql, inArray, or } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import {
     orgs,
     orgMembers,

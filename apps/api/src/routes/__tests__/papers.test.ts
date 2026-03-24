@@ -28,41 +28,53 @@ describe("papers routes", () => {
 
             mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
             mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
+            mockDb.select.mockReturnValueOnce(makeQuery({
+                getResult: { id: fileId, paperId, r2Key: "papers/test.pdf", filename: "paper.pdf" },
+            }));
 
             let req = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
                 headers: { Authorization: `Bearer ${tokenHit}` },
             });
-            await app.request(req, {}, {
+            const res1 = await app.request(req, {}, {
                 DB: mockDb,
                 JWT_SECRET: "test-jwt-secret",
                 BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
             });
+            expect(res1.status).toBe(200);
 
             // 2. Second call immediately should hit the cache (expiresAt > now)
             mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
             mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
+            mockDb.select.mockReturnValueOnce(makeQuery({
+                getResult: { id: fileId, paperId, r2Key: "papers/test.pdf", filename: "paper.pdf" },
+            }));
             req = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
                 headers: { Authorization: `Bearer ${tokenHit}` },
             });
-            await app.request(req, {}, {
+            const res2 = await app.request(req, {}, {
                 DB: mockDb,
                 JWT_SECRET: "test-jwt-secret",
                 BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
             });
+            expect(res2.status).toBe(200);
 
             // 3. Advance time by 61 seconds (exceeding TOKEN_CACHE_MAX_AGE_MS = 60s)
             vi.setSystemTime(new Date(1000000000000 + 61000));
 
             mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
             mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
+            mockDb.select.mockReturnValueOnce(makeQuery({
+                getResult: { id: fileId, paperId, r2Key: "papers/test.pdf", filename: "paper.pdf" },
+            }));
             req = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
                 headers: { Authorization: `Bearer ${tokenHit}` },
             });
-            await app.request(req, {}, {
+            const res3 = await app.request(req, {}, {
                 DB: mockDb,
                 JWT_SECRET: "test-jwt-secret",
                 BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
             });
+            expect(res3.status).toBe(200);
         } finally {
             vi.useRealTimers();
         }
@@ -99,11 +111,12 @@ describe("papers routes", () => {
             const purgeReq = new Request(`http://localhost/api/papers/dummy/files/dummy/download`, {
                 headers: { Authorization: `Bearer ${tokenPurge}` },
             });
-            await app.request(purgeReq, {}, {
+            const purgeRes = await app.request(purgeReq, {}, {
                 DB: mockDb,
                 JWT_SECRET: "test-jwt-secret",
                 BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
             });
+            expect(purgeRes.status).toBe(200);
         } finally {
             vi.useRealTimers();
         }

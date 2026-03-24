@@ -17,7 +17,6 @@ import { authMiddleware } from "../middleware/auth";
 import type { Env, Variables } from "../types";
 
 const collectionsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
-
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 const VALID_VISIBILITY = ["public", "org_only", "private"] as const;
 
@@ -96,6 +95,25 @@ async function isOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId:
     return !!row && (row.role === "admin" || row.role === "owner");
 }
 
+async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, userId: string) {
+    const author = await db
+        .select()
+        .from(paperAuthors)
+        .where(and(eq(paperAuthors.paperId, paperId), eq(paperAuthors.userId, userId)))
+        .get();
+    return !!author;
+}
+
+async function isMemberOfPaperOrg(db: ReturnType<typeof drizzle>, paperId: string, userId: string) {
+    const isMember = await db
+        .select({ id: orgMembers.userId })
+        .from(orgMembers)
+        .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
+        .where(and(eq(paperOrgs.paperId, paperId), eq(orgMembers.userId, userId)))
+        .get();
+    return !!isMember;
+}
+
 async function canViewCollection(
     db: ReturnType<typeof drizzle>,
     collection: typeof collections.$inferSelect,
@@ -134,23 +152,10 @@ async function canViewPaper(
     if (paper.visibility === "public") return true;
     if (!userId) return false;
 
-    const isAuthor = await db
-        .select({ paperId: paperAuthors.paperId })
-        .from(paperAuthors)
-        .where(and(eq(paperAuthors.paperId, paper.id), eq(paperAuthors.userId, userId)))
-        .get();
-    if (isAuthor) return true;
-
+    if (await isPaperAuthor(db, paper.id, userId)) return true;
     if (paper.visibility === "private") return false;
 
-    // org_only: user must be a member of an org that owns this paper
-    const membership = await db
-        .select({ orgId: orgMembers.orgId })
-        .from(orgMembers)
-        .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
-        .where(and(eq(paperOrgs.paperId, paper.id), eq(orgMembers.userId, userId)))
-        .get();
-    return !!membership;
+    return await isMemberOfPaperOrg(db, paper.id, userId);
 }
 
 collectionsRoute.post("/collections", authMiddleware, async (c) => {
