@@ -490,7 +490,6 @@ describe("orgs routes", () => {
                 { getResult: { id: "org-1", slug: "my-lab" } },
                 { getResult: { id: "paper-1", title: "Paper" } },
                 { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
-                { getResult: null },
                 { getResult: { paperId: "paper-1", orgId: "org-1" } },
             ]);
 
@@ -962,7 +961,6 @@ describe("orgs routes", () => {
             queueSelectResponses([
                 { getResult: { id: "o1", slug: "l" } },
                 { getResult: { role: "admin" } },
-                { getResult: null }, // not author
                 { getResult: { orgId: "o1", paperId: "p1" } } // association exists
             ]);
             mockDb.delete = vi.fn(() => ({ where: vi.fn(async () => ({ meta: { changes: 1 } })) }));
