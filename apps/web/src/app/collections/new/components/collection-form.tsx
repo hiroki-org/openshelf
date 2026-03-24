@@ -67,12 +67,12 @@ export function CollectionForm({ user }: CollectionFormProps) {
       return;
     }
 
+    setSlugStatus("idle");
     const requestId = ++slugCheckRef.current;
     const t = setTimeout(async () => {
       setSlugStatus("checking");
 
       try {
-        if (!user) return;
         if (ownerType === "org" && !orgSlug.trim()) {
           setSlugStatus("idle");
           return;
@@ -118,17 +118,17 @@ export function CollectionForm({ user }: CollectionFormProps) {
         }
 
         if (slug.length < 3) {
-          setError("slug must be at least 3 characters");
+          setError("slug は3文字以上必要です");
           return;
         }
 
-        if (slugStatus === "checking") {
-          setError("please wait for slug validation to complete");
+        if (slugStatus === "checking" || (slugStatus === "idle" && slug.length >= 3)) {
+          setError("slug の確認完了を待ってください");
           return;
         }
 
         if (slugStatus === "invalid" || slugStatus === "taken") {
-          setError("please fix the slug");
+          setError("slug を修正してください");
           return;
         }
 
@@ -290,10 +290,8 @@ export function CollectionForm({ user }: CollectionFormProps) {
         type="submit"
         disabled={
           submitting ||
-          slug.length < 3 ||
-          slugStatus === "checking" ||
-          slugStatus === "taken" ||
-          slugStatus === "invalid"
+          slugStatus !== "available" ||
+          (ownerType === "org" && !orgSlug.trim())
         }
         className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
       >

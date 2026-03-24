@@ -107,13 +107,6 @@ describe("NewCollectionPage", () => {
         );
       }
 
-
-      if (url === "/api/collections" && init?.method === "POST") {
-        return new Response(
-          JSON.stringify({ collection: { slug: "my-collection" } }),
-          { status: 201 }
-        );
-      }
       throw new Error(`Unexpected request: ${String(url)}`);
     });
 
@@ -140,7 +133,42 @@ describe("NewCollectionPage", () => {
     });
   });
 
-  it("requires an org slug for org-owned collections", async () => {
+
+  it("blocks submit while slug availability check is pending", async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Lab Picks" },
+    });
+
+    const button = screen.getByRole("button", { name: "作成" });
+    expect(button).toBeDisabled();
+
+    const form = button.closest("form");
+    expect(form).not.toBeNull();
+    fireEvent.submit(form!);
+
+    expect(screen.getByText("slug の確認完了を待ってください")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("✓ 使用可能")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "作成" })).not.toBeDisabled();
+  });
+
+  it("disables submit for org-owned collections until org slug is entered", async () => {
     vi.useFakeTimers();
     render(<NewCollectionPage />);
 
@@ -154,10 +182,7 @@ describe("NewCollectionPage", () => {
       await Promise.resolve();
     });
 
-    vi.useRealTimers();
-    fireEvent.click(screen.getByRole("button", { name: "作成" }));
-
-    expect(await screen.findByText("org slug is required")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "作成" })).toBeDisabled();
   });
 
   it("handles 400 error response from api", async () => {
