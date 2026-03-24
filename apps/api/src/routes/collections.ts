@@ -54,10 +54,6 @@ async function getCurrentUser(c: any): Promise<CurrentUser> {
     }
 }
 
-
-
-
-
 async function canViewCollection(
     db: ReturnType<typeof drizzle>,
     collection: typeof collections.$inferSelect,
@@ -99,7 +95,7 @@ async function canViewPaper(
     if (await isPaperAuthor(db, paper.id, userId)) return true;
     if (paper.visibility === "private") return false;
 
-    return isMemberOfPaperOrg(db, paper.id, userId);
+    return await isMemberOfPaperOrg(db, paper.id, userId);
 }
 
 collectionsRoute.post("/collections", authMiddleware, async (c) => {
