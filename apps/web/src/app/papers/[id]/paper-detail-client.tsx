@@ -274,6 +274,11 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     () => files.find((f) => isPptMimeType(f.mimeType)) ?? null,
     [files],
   );
+  const maxDailyViewCount = useMemo(() => {
+    if (!stats || stats.dailyViews.length === 0) return 0;
+    return Math.max(...stats.dailyViews.map((entry) => entry.count));
+  }, [stats]);
+
   useEffect(() => {
     const currentPdfFile =
       files.find((f) => f.mimeType === "application/pdf") ?? null;
@@ -536,9 +541,10 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
       {isAuthor && (
         <PaperStats
-          stats={stats}
+          stats={stats as PaperStatsData}
           statsLoading={statsLoading}
           statsError={statsError}
+          maxDailyViewCount={maxDailyViewCount}
         />
       )}
 

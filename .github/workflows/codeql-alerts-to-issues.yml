@@ -19,7 +19,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Sync workflow-permissions alerts
-        uses: actions/github-script@v8
+        uses: actions/github-script@v7
         with:
           script: |
             const owner = context.repo.owner;
@@ -191,6 +191,7 @@ jobs:
             await ensureLabel(scopedLabel, "5319e7", "Workflow permissions alerts from CodeQL");
 
             const openAlerts = await github.paginate(
+              github.request,
               "GET /repos/{owner}/{repo}/code-scanning/alerts",
               {
                 owner,

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import React from 'react';
 
 export type PaperStatsData = {
   totalViews: number;
@@ -11,9 +11,10 @@ export type PaperStatsData = {
 };
 
 type PaperStatsProps = {
-  stats: PaperStatsData | null;
+  stats: PaperStatsData;
   statsLoading: boolean;
   statsError: string;
+  maxDailyViewCount: number;
 };
 
 function formatStatsDateLabel(date: string) {
@@ -21,12 +22,7 @@ function formatStatsDateLabel(date: string) {
   return `${Number(month)}/${Number(day)}`;
 }
 
-export function PaperStats({ stats, statsLoading, statsError }: PaperStatsProps) {
-  const maxDailyViewCount = useMemo(() => {
-    if (!stats || stats.dailyViews.length === 0) return 0;
-    return Math.max(...stats.dailyViews.map((entry) => entry.count));
-  }, [stats]);
-
+export function PaperStats({ stats, statsLoading, statsError, maxDailyViewCount }: PaperStatsProps) {
   return (
     <section className="mb-8 rounded-3xl border border-gray-200 bg-gray-50/70 p-5 dark:border-gray-800 dark:bg-gray-900/40">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
