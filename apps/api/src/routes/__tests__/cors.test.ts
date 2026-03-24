@@ -7,7 +7,7 @@ vi.mock("drizzle-orm/d1", () => ({
     drizzle: vi.fn(() => mockDb)
 }));
 
-vi.mock("../db/schema", () => ({
+vi.mock("../../db/schema", () => ({
     users: { id: "id", githubId: "github_id" },
     orgs: { id: "id" },
     orgMembers: { orgId: "org_id" },
