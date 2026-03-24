@@ -172,31 +172,28 @@ export default function OrgSettingsPage() {
   // ── General handlers ──
   const handleSave = async () => {
     setSaving(true);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              name: editName.trim(),
-              slug: editSlug.trim().toLowerCase(),
-              description: editDescription.trim() || null,
-            }),
+    await executeApiAction(
+      () =>
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: editName.trim(),
+            slug: editSlug.trim().toLowerCase(),
+            description: editDescription.trim() || null,
           }),
-        async (res) => {
-          const data = await res.json();
-          setOrg(data.org);
-          toast.success("保存しました");
-          if (data.org.slug !== slug) {
-            router.replace(`/orgs/${data.org.slug}/settings`);
-          }
-        },
-        "保存に失敗しました"
-      );
-    } finally {
-      setSaving(false);
-    }
+        }),
+      async (res) => {
+        const data = await res.json();
+        setOrg(data.org);
+        toast.success("保存しました");
+        if (data.org.slug !== slug) {
+          router.replace(`/orgs/${data.org.slug}/settings`);
+        }
+      },
+      "保存に失敗しました"
+    );
+    setSaving(false);
   };
 
   const handleDelete = async () => {
@@ -242,24 +239,21 @@ export default function OrgSettingsPage() {
 
   const handleAddMember = async (userId: string, role: string = "member") => {
     setInviting(true);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId, role }),
-          }),
-        async () => {
-          setSearchQuery("");
-          setSearchResults([]);
-          await fetchData();
-        },
-        "追加に失敗しました"
-      );
-    } finally {
-      setInviting(false);
-    }
+    await executeApiAction(
+      () =>
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, role }),
+        }),
+      async () => {
+        setSearchQuery("");
+        setSearchResults([]);
+        await fetchData();
+      },
+      "追加に失敗しました"
+    );
+    setInviting(false);
   };
 
   const handleChangeRole = async (userId: string, newRole: string) => {
@@ -334,24 +328,21 @@ export default function OrgSettingsPage() {
 
   const handleAddPaper = async (paperId: string) => {
     setAddingPaper(true);
-    try {
-      await executeApiAction(
-        () =>
-          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paperId }),
-          }),
-        async () => {
-          setPaperSearch("");
-          setPaperSearchResults([]);
-          await fetchData();
-        },
-        "追加に失敗しました"
-      );
-    } finally {
-      setAddingPaper(false);
-    }
+    await executeApiAction(
+      () =>
+        apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paperId }),
+        }),
+      async () => {
+        setPaperSearch("");
+        setPaperSearchResults([]);
+        await fetchData();
+      },
+      "追加に失敗しました"
+    );
+    setAddingPaper(false);
   };
 
   const handleRemovePaper = async (paperId: string) => {
