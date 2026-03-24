@@ -13,39 +13,14 @@ import {
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { validateSlug, validateName, validateDescription } from "../utils/validation";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
-
-// ─── Validation helpers ─────────────────────────────────────────
-const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
-
-function validateSlug(slug: unknown): string | null {
-    if (typeof slug !== "string") return "slug is required";
-    const s = slug.trim().toLowerCase();
-    if (s.length < 3 || s.length > 40) return "slug must be 3–40 characters";
-    if (!SLUG_RE.test(s)) return "slug must contain only lowercase letters, numbers, and hyphens";
-    if (s.includes("--")) return "slug must not contain consecutive hyphens";
-    return null;
-}
-
-function validateName(name: unknown): string | null {
-    if (typeof name !== "string" || name.trim().length === 0) return "name is required";
-    if (name.trim().length > 100) return "name must be 100 characters or less";
-    return null;
-}
-
-function validateDescription(description: unknown): string | null {
-    if (description === undefined || description === null || description === "") return null;
-    if (typeof description !== "string") return "description must be a string";
-    if (description.trim().length > 500) return "description must be 500 characters or less";
-    return null;
-}
 
 // ─── Permission helpers ─────────────────────────────────────────
 async function getOrgBySlug(db: ReturnType<typeof drizzle>, slug: string) {
     return db.select().from(orgs).where(eq(orgs.slug, slug)).get();
 }
-
 async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
     return db
         .select()
