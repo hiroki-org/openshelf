@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import dynamic from 'next/dynamic';
 
@@ -86,7 +88,7 @@ export function PaperFiles({
           {!previewLoading && preview?.url && (
             <PdfViewer
               fileUrl={preview.url}
-              onDownloadFallback={() => handleDownload(pdfFile)}
+              onDownloadFallback={() => void handleDownload(pdfFile)}
             />
           )}
           {!previewLoading && previewError && (
@@ -95,7 +97,7 @@ export function PaperFiles({
               <button
                 type="button"
                 className="underline"
-                onClick={() => handleDownload(pdfFile)}
+                onClick={() => void handleDownload(pdfFile)}
               >
                 ダウンロードする
               </button>
@@ -135,7 +137,7 @@ export function PaperFiles({
           <h3 className="text-sm font-medium">PPTXプレビュー</h3>
           <PptxViewer
             fileUrl={pptxFile.downloadUrl}
-            onDownloadFallback={() => handleDownload(pptxFile)}
+            onDownloadFallback={() => void handleDownload(pptxFile)}
           />
         </div>
       )}
@@ -159,7 +161,7 @@ export function PaperFiles({
             </div>
             <button
               type="button"
-              onClick={() => handleDownload(f)}
+              onClick={() => void handleDownload(f)}
               className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white hover:bg-blue-500 transition-colors"
             >
               ダウンロード
