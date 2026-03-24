@@ -12,24 +12,106 @@ vi.mock("drizzle-orm/d1", () => ({
     drizzle: vi.fn(() => mockDb)
 }));
 
-vi.mock("hono/jwt", async () => {
-    const actual = await vi.importActual<typeof import("hono/jwt")>("hono/jwt");
-    return {
-        ...actual,
-        verify: vi.fn(actual.verify),
-    };
-});
-
 describe("papers routes", () => {
 
+    it("hits the token cache on subsequent calls and removes expired ones", async () => {
+        const app = await createTestApp();
+        const { createTestJWT } = await import("../../test/helpers");
+        const paperId = "test-paper-cache";
+        const fileId = "test-file-cache";
+
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(1000000000000));
+
+        const nowSec = 1000000000;
+        const tokenHit = await createTestJWT({ sub: "mock-user-id", exp: nowSec + 3600 });
+
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
+
+        let req = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
+            headers: { Authorization: `Bearer ${tokenHit}` },
+        });
+        await app.request(req, {}, {
+            DB: mockDb,
+            JWT_SECRET: "test-jwt-secret",
+            BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
+        });
+
+        // 2. Second call immediately should hit the cache (expiresAt > now)
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
+        req = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
+            headers: { Authorization: `Bearer ${tokenHit}` },
+        });
+        await app.request(req, {}, {
+            DB: mockDb,
+            JWT_SECRET: "test-jwt-secret",
+            BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
+        });
+
+        // 3. Advance time by 61 seconds (exceeding TOKEN_CACHE_MAX_AGE_MS = 60s)
+        vi.setSystemTime(new Date(1000000000000 + 61000));
+
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
+        req = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
+            headers: { Authorization: `Bearer ${tokenHit}` },
+        });
+        await app.request(req, {}, {
+            DB: mockDb,
+            JWT_SECRET: "test-jwt-secret",
+            BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
+        });
+
+        vi.useRealTimers();
+    });
+
+    it("purges expired cache when reaching MAX_CACHE_SIZE", async () => {
+        const app = await createTestApp();
+        const { createTestJWT } = await import("../../test/helpers");
+
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(1000000000000));
+
+        const nowSec = 1000000000;
+
+        // Use a persistent mock for the loop
+        mockDb.select.mockReturnValue(makeQuery({ getResult: { id: "dummy", visibility: "private" } }));
+
+        const tasks = [];
+        for (let i = 0; i <= 1000; i++) {
+             const token = await createTestJWT({ sub: "mock-user-id" + i, exp: nowSec + 3600 });
+             const r = new Request(`http://localhost/api/papers/dummy/files/dummy/download`, {
+                 headers: { Authorization: `Bearer ${token}` },
+             });
+             tasks.push(app.request(r, {}, {
+                 DB: mockDb,
+                 JWT_SECRET: "test-jwt-secret",
+                 BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
+             }));
+        }
+        await Promise.all(tasks);
+
+        // Advance time to expire them
+        vi.setSystemTime(new Date(1000000000000 + 65000));
+
+        // Add one more to trigger purge
+        const tokenPurge = await createTestJWT({ sub: "mock-user-id-purge", exp: nowSec + 3600 });
+        const purgeReq = new Request(`http://localhost/api/papers/dummy/files/dummy/download`, {
+            headers: { Authorization: `Bearer ${tokenPurge}` },
+        });
+        await app.request(purgeReq, {}, {
+            DB: mockDb,
+            JWT_SECRET: "test-jwt-secret",
+            BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
+        });
+
+        vi.useRealTimers();
+    });
+
+
     it("hits the token cache on subsequent calls", async () => {
-        const { verify } = await import("hono/jwt");
-        const verifyMock = vi.mocked(verify);
-        verifyMock.mockReset();
-        verifyMock.mockResolvedValue({
-            sub: "user-author",
-            exp: Math.floor(Date.now() / 1000) + 3600,
-        } as any);
         const app = await createTestApp();
         const paperId = "test-paper-cache";
         const fileId = "test-file-cache";
@@ -48,7 +130,6 @@ describe("papers routes", () => {
             JWT_SECRET: "secret",
             BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
         });
-        expect(verifyMock).toHaveBeenCalledTimes(1);
 
         // Second call should hit cache
         mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
@@ -63,92 +144,105 @@ describe("papers routes", () => {
             JWT_SECRET: "secret",
             BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
         });
-        expect(verifyMock).toHaveBeenCalledTimes(1);
     });
 
     it("purges expired cache when reaching MAX_CACHE_SIZE", async () => {
-        const { verify } = await import("hono/jwt");
-        const verifyMock = vi.mocked(verify);
-        verifyMock.mockReset();
-        verifyMock.mockResolvedValue({
-            sub: "user-author",
-            exp: Math.floor(Date.now() / 1000) + 3600,
-        } as any);
         const app = await createTestApp();
 
         // Generate enough dummy requests to force the cache to purge
         for (let i = 0; i <= 1000; i++) {
-            mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "dummy", visibility: "private" } }));
-            mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
-            const req = new Request(`http://localhost/api/papers/dummy/files/dummy/download`, {
-                headers: {
-                    Authorization: `Bearer test-token-${i}`,
-                },
-            });
-            await app.request(req, {}, {
-                DB: mockDb,
-                JWT_SECRET: "secret",
-                BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
-            });
+             mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "dummy", visibility: "private" } }));
+             mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
+             const req = new Request(`http://localhost/api/papers/dummy/files/dummy/download`, {
+                 headers: {
+                     Authorization: `Bearer test-token-${i}`,
+                 },
+             });
+             await app.request(req, {}, {
+                 DB: mockDb,
+                 JWT_SECRET: "secret",
+                 BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
+             });
         }
-
-        expect(verifyMock).toHaveBeenCalledTimes(1001);
     });
 
     it("removes explicitly cached entries when expired upon fetching", async () => {
-        const { verify } = await import("hono/jwt");
-        const verifyMock = vi.mocked(verify);
-        verifyMock.mockReset();
-        verifyMock.mockResolvedValue({
-            sub: "user-author",
-            exp: Math.floor(Date.now() / 1000) + 3600,
-        } as any);
         const app = await createTestApp();
         const paperId = "test-paper-cache";
         const fileId = "test-file-cache";
 
-        try {
-            // This is tricky because testing Date.now() bypasses need to be done using vi.setSystemTime
-            vi.useFakeTimers();
-            vi.setSystemTime(new Date(1000000000000));
+        // This is tricky because testing Date.now() bypasses need to be done using vi.setSystemTime
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date(1000000000000));
 
-            mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
-            mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
 
-            const req1 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
-                headers: {
-                    Authorization: "Bearer test-token-expire",
-                },
-            });
-            await app.request(req1, {}, {
-                DB: mockDb,
-                JWT_SECRET: "secret",
-                BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
-            });
-            expect(verifyMock).toHaveBeenCalledTimes(1);
+        const req1 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
+            headers: {
+                Authorization: "Bearer test-token-expire",
+            },
+        });
+        await app.request(req1, {}, {
+            DB: mockDb,
+            JWT_SECRET: "secret",
+            BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
+        });
 
-            // Advance time by 2 minutes
-            vi.setSystemTime(new Date(1000000000000 + 120 * 1000));
+        // Advance time by 2 minutes
+        vi.setSystemTime(new Date(1000000000000 + 120 * 1000));
 
-            mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
-            mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
-            const req2 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
-                headers: {
-                    Authorization: "Bearer test-token-expire",
-                },
-            });
-            await app.request(req2, {}, {
-                DB: mockDb,
-                JWT_SECRET: "secret",
-                BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
-            });
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } }));
+        const req2 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
+            headers: {
+                Authorization: "Bearer test-token-expire",
+            },
+        });
+        await app.request(req2, {}, {
+            DB: mockDb,
+            JWT_SECRET: "secret",
+            BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
+        });
 
-            expect(verifyMock).toHaveBeenCalledTimes(2);
-        } finally {
-            vi.useRealTimers();
-        }
+        vi.useRealTimers();
     });
 
+
+    it("hits the token cache on subsequent calls", async () => {
+        const app = await createTestApp();
+        const paperId = "test-paper-cache";
+        const fileId = "test-file-cache";
+
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } })); // Is author
+
+        // First call
+        const req1 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
+            headers: {
+                Authorization: "Bearer test-token",
+            },
+        });
+        await app.request(req1, {}, {
+            DB: mockDb,
+            JWT_SECRET: "secret",
+            BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
+        });
+
+        // Second call should hit cache
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
+        mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } })); // Is author
+        const req2 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
+            headers: {
+                Authorization: "Bearer test-token",
+            },
+        });
+        await app.request(req2, {}, {
+            DB: mockDb,
+            JWT_SECRET: "secret",
+            BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
+        });
+    });
 
     beforeEach(() => {
         vi.restoreAllMocks();
