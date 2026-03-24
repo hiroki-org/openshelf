@@ -142,6 +142,12 @@ function isValidUrlScheme(urlStr: string): boolean {
     }
 }
 
+
+// In-memory token cache to prevent repeated JWT verifications for the same token
+// within the same worker isolate. Maps token -> { payload: { sub: string }, expiresAt: number }
+const tokenCache = new Map<string, { payload: { sub: string }; expiresAt: number }>();
+const MAX_CACHE_SIZE = 1000;
+
 async function authorizePaperAccess(
     c: Context<{ Bindings: Env; Variables: Variables }>,
     db: ReturnType<typeof drizzle>,
@@ -155,12 +161,25 @@ async function authorizePaperAccess(
         return { ok: false, status: 401, error: "Unauthorized" };
     }
 
-    const { verify } = await import("hono/jwt");
-    let user: { sub: string };
-    try {
-        user = (await verify(token, c.env.JWT_SECRET, "HS256")) as { sub: string };
-    } catch {
-        return { ok: false, status: 401, error: "Invalid token" };
+    let user: { sub: string } | undefined;
+    const cached = tokenCache.get(token);
+
+    if (cached && cached.expiresAt > Date.now()) {
+        user = cached.payload;
+    } else {
+        const { verify } = await import("hono/jwt");
+        try {
+            const verified = (await verify(token, c.env.JWT_SECRET, "HS256")) as { sub: string; exp?: number };
+            user = verified;
+
+            if (tokenCache.size >= MAX_CACHE_SIZE) {
+                tokenCache.delete(tokenCache.keys().next().value!);
+            }
+            const expiresAt = verified.exp ? verified.exp * 1000 : Date.now() + 5 * 60 * 1000;
+            tokenCache.set(token, { payload: { sub: verified.sub }, expiresAt });
+        } catch {
+            return { ok: false, status: 401, error: "Invalid token" };
+        }
     }
 
     // Authors always have access
