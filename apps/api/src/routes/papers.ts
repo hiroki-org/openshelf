@@ -146,7 +146,6 @@ function isValidUrlScheme(urlStr: string): boolean {
 // In-memory token cache to prevent repeated JWT verifications for the same token
 // within the same worker isolate. Maps token -> { payload: { sub: string }, expiresAt: number }
 const tokenCache = new Map<string, { payload: { sub: string }; expiresAt: number }>();
-const inflightVerifications = new Map<string, Promise<{ sub: string; exp?: number }>>();
 const MAX_CACHE_SIZE = 1000;
 const TOKEN_CACHE_MAX_AGE_MS = 60 * 1000;
 
@@ -182,34 +181,21 @@ async function authorizePaperAccess(
             tokenCache.delete(token);
         }
         const { verify } = await import("hono/jwt");
-        let verifyPromise = inflightVerifications.get(token);
-        if (!verifyPromise) {
-            verifyPromise = verify(token, c.env.JWT_SECRET, "HS256").then(
-                (result) => result as { sub: string; exp?: number },
-            );
-            inflightVerifications.set(token, verifyPromise);
-        }
-
         try {
-            const verified = await verifyPromise;
+            const verified = (await verify(token, c.env.JWT_SECRET, "HS256")) as { sub: string; exp?: number };
             user = verified;
-            const postVerifyNow = Date.now();
 
             if (tokenCache.size >= MAX_CACHE_SIZE) {
-                purgeExpiredTokenCache(postVerifyNow);
+                purgeExpiredTokenCache(now);
                 if (tokenCache.size >= MAX_CACHE_SIZE) {
                     tokenCache.delete(tokenCache.keys().next().value!);
                 }
             }
-            const jwtExpiresAt = verified.exp ? verified.exp * 1000 : postVerifyNow + TOKEN_CACHE_MAX_AGE_MS;
-            const expiresAt = Math.min(jwtExpiresAt, postVerifyNow + TOKEN_CACHE_MAX_AGE_MS);
+            const jwtExpiresAt = verified.exp ? verified.exp * 1000 : now + TOKEN_CACHE_MAX_AGE_MS;
+            const expiresAt = Math.min(jwtExpiresAt, now + TOKEN_CACHE_MAX_AGE_MS);
             tokenCache.set(token, { payload: { sub: verified.sub }, expiresAt });
         } catch {
             return { ok: false, status: 401, error: "Invalid token" };
-        } finally {
-            if (inflightVerifications.get(token) === verifyPromise) {
-                inflightVerifications.delete(token);
-            }
         }
     }
 

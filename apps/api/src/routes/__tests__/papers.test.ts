@@ -125,6 +125,7 @@ describe("papers routes", () => {
                 Authorization: "Bearer test-token",
             },
         });
+        const viSelectSpy = vi.spyOn(mockDb, 'select');
         await app.request(req1, {}, {
             DB: mockDb,
             JWT_SECRET: "secret",
@@ -144,6 +145,10 @@ describe("papers routes", () => {
             JWT_SECRET: "secret",
             BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
         });
+
+        // Should only be called 2 times (for req1) instead of 4
+        expect(viSelectSpy).toHaveBeenCalledTimes(2);
+        viSelectSpy.mockRestore();
     });
 
     it("purges expired cache when reaching MAX_CACHE_SIZE", async () => {
