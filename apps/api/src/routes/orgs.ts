@@ -504,7 +504,7 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
 
     // Check permission: must be admin OR paper author
     const isAdmin = await requireOrgAdmin(db, org.id, userId);
-    const isAuthor = await isPaperAuthor(db, paperId.trim(), userId);
+    const isAuthor = isAdmin.ok ? true : await isPaperAuthor(db, paperId.trim(), userId);
 
     if (!isAdmin.ok && !isAuthor) {
         return c.json({ error: "Forbidden: must be org admin or paper author" }, 403);
@@ -547,7 +547,7 @@ orgsRoute.delete("/:slug/papers/:paperId", authMiddleware, async (c) => {
 
     // Check permission: must be admin OR paper author
     const isAdmin = await requireOrgAdmin(db, org.id, userId);
-    const isAuthor = await isPaperAuthor(db, paperId, userId);
+    const isAuthor = isAdmin.ok ? true : await isPaperAuthor(db, paperId, userId);
 
     if (!isAdmin.ok && !isAuthor) {
         return c.json({ error: "Forbidden: must be org admin or paper author" }, 403);
