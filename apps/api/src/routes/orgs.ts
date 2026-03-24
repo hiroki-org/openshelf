@@ -15,6 +15,7 @@ import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateSlug, validateName, validateDescription } from "../utils/validation";
 import {
+    getOrgBySlug,
     getOrgMembership,
     isOrgAdmin,
     isOrgMember,
@@ -26,9 +27,6 @@ const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 
 // ─── Permission helpers ─────────────────────────────────────────
-async function getOrgBySlug(db: ReturnType<typeof drizzle>, slug: string) {
-    return db.select().from(orgs).where(eq(orgs.slug, slug)).get();
-}
 
 // ═══════════════════════════════════════════════════════════════
 // 1. Org CRUD

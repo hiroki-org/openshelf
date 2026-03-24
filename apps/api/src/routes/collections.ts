@@ -16,7 +16,7 @@ import {
 import { authMiddleware } from "../middleware/auth";
 import type { Env, Variables } from "../types";
 import { validateSlug, validateName, validateDescription } from "../utils/validation";
-import { getOrgMembership, isOrgAdmin, isOrgMember } from "../utils/db";
+import { getOrgBySlug, getOrgMembership, isOrgAdmin, isOrgMember } from "../utils/db";
 
 
 const collectionsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -55,9 +55,6 @@ async function getCurrentUser(c: any): Promise<CurrentUser> {
     }
 }
 
-async function getOrgBySlug(db: ReturnType<typeof drizzle>, slug: string) {
-    return db.select().from(orgs).where(eq(orgs.slug, slug)).get();
-}
 
 async function canViewCollection(
     db: ReturnType<typeof drizzle>,
