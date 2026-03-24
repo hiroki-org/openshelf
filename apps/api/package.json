@@ -24,7 +24,7 @@
     "@codspeed/vitest-plugin": "^5.2.0",
     "@vitest/coverage-v8": "^4.1.1",
     "drizzle-kit": "^0.31.9",
-    "typescript": "^6.0.2",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.1",
     "wrangler": "^4.75.0"
   },
