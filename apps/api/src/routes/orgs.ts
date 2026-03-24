@@ -35,7 +35,6 @@ async function requireOrgAdmin(
     }
     return { ok: true as const, membership };
 }
-
 // ═══════════════════════════════════════════════════════════════
 // 1. Org CRUD
 // ═══════════════════════════════════════════════════════════════
@@ -484,7 +483,6 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
 
     const isAdmin = await requireOrgAdmin(db, org.id, userId);
     const isAuthor = isAdmin.ok ? true : await isPaperAuthor(db, trimmedPaperId, userId);
-
     if (!isAdmin.ok && !isAuthor) {
         return c.json({ error: "Forbidden: must be org admin or paper author" }, 403);
     }
