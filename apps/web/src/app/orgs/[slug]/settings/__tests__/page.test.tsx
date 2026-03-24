@@ -536,10 +536,7 @@ describe("OrgSettingsPage", () => {
 
     render(<OrgSettingsPage />);
     await screen.findByRole("heading", { name: "Org — 設定" });
-
-    // const alertSpy = vi.mocked(window.alert);
-
-    // Member add fail
+// Member add fail
     fireEvent.click(screen.getByRole("button", { name: "メンバー" }));
     fireEvent.change(screen.getByLabelText("メンバー検索"), { target: { value: "al" } });
     const addBtn = await screen.findByRole("button", { name: "追加" });
@@ -593,8 +590,7 @@ describe("OrgSettingsPage", () => {
     // Fail
     fireEvent.click(screen.getByRole("button", { name: "組織を削除" }));
     fireEvent.change(screen.getByLabelText("削除確認のためスラッグを入力"), { target: { value: "demo-org" } });
-    // const alertSpy = vi.mocked(window.alert);
-    const originalMock = vi.mocked(apiFetch).getMockImplementation();
+const originalMock = vi.mocked(apiFetch).getMockImplementation();
     if (!originalMock) {
       throw new Error("Expected apiFetch mock implementation");
     }
