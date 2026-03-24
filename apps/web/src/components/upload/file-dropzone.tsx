@@ -102,7 +102,7 @@ export function FileDropzone({
         <ul className="mt-6 space-y-3">
           {files.map((entry, i) => (
             <li
-              key={`${entry.file.name}-${entry.file.lastModified}-${entry.file.size}`}
+              key={`${entry.file.name}-${entry.file.lastModified}-${i}`}
               className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:flex-row sm:items-center"
             >
               <div className="min-w-0 flex-1">
