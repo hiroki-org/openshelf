@@ -1,32 +1,143 @@
-"use client";
-
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Member, SearchUser } from "../types";
+import { apiFetch } from "@/lib/api";
+import type { Member, SearchUser } from "./types";
+import type { User } from "@/components/auth-provider";
 
 export function MembersTab({
-  searchQuery,
-  handleUserSearch,
-  searchResults,
-  handleAddMember,
-  inviting,
   members,
+  slug,
+  fetchData,
   user,
-  handleChangeRole,
-  handleRemoveMember,
 }: {
-  searchQuery: string;
-  handleUserSearch: (q: string) => Promise<void>;
-  searchResults: SearchUser[];
-  handleAddMember: (userId: string, role?: string) => Promise<void>;
-  inviting: boolean;
   members: Member[];
-  user: { id: string } | null;
-  handleChangeRole: (userId: string, newRole: string) => Promise<void>;
-  handleRemoveMember: (userId: string) => Promise<void>;
+  slug: string;
+  fetchData: () => Promise<void>;
+  user: User | null;
 }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
+  const [inviting, setInviting] = useState(false);
+  const userSearchRef = useRef(0);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleUserSearch = (q: string) => {
+    setError(null);
+    setSearchQuery(q);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (q.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      const requestId = ++userSearchRef.current;
+      try {
+        const res = await apiFetch(
+          `/api/users/search?q=${encodeURIComponent(q)}`,
+        );
+        if (userSearchRef.current !== requestId) return;
+        if (res.ok) {
+          const data = await res.json();
+          const existingIds = new Set(members.map((m) => m.userId));
+          setSearchResults(
+            data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
+          );
+        }
+      } catch {
+        if (userSearchRef.current !== requestId) return;
+        setSearchResults([]);
+      }
+    }, 300);
+  };
+
+  const handleAddMember = async (userId: string, role: string = "member") => {
+    setError(null);
+    setInviting(true);
+    try {
+      const res = await apiFetch(
+        `/api/orgs/${encodeURIComponent(slug)}/members`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId, role }),
+        },
+      );
+      if (res.ok) {
+        setSearchQuery("");
+        setSearchResults([]);
+        await fetchData();
+      } else {
+        const data = await res.json();
+        setError(data.error ?? "追加に失敗しました");
+      }
+    } catch {
+      setError("ネットワークエラー");
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleChangeRole = async (userId: string, newRole: string) => {
+    setError(null);
+    try {
+      const res = await apiFetch(
+        `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ role: newRole }),
+        },
+      );
+      if (res.ok) {
+        await fetchData();
+      } else {
+        const data = await res.json();
+        setError(data.error ?? "変更に失敗しました");
+      }
+    } catch {
+      setError("ネットワークエラー");
+    }
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!confirm("このメンバーを削除しますか？")) return;
+    setError(null);
+    try {
+      const res = await apiFetch(
+        `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
+        {
+          method: "DELETE",
+        },
+      );
+      if (res.ok) {
+        await fetchData();
+      } else {
+        const data = await res.json();
+        setError(data.error ?? "削除に失敗しました");
+      }
+    } catch {
+      setError("ネットワークエラー");
+    }
+  };
+
   return (
     <div>
       {/* Invite form */}
+      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
       <div className="mb-6">
         <h3 className="text-sm font-medium mb-2">メンバーを追加</h3>
         <input
@@ -92,23 +203,31 @@ export function MembersTab({
               <span className="text-xs text-gray-400">@{m.githubId}</span>
             </div>
             <div className="flex items-center gap-2">
-              <select
-                value={m.role === "owner" ? "admin" : m.role}
-                onChange={(e) => handleChangeRole(m.userId, e.target.value)}
-                disabled={m.userId === user?.id}
-                className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
-              >
-                <option value="admin">admin</option>
-                <option value="member">member</option>
-              </select>
-              {m.userId !== user?.id && (
-                <button
-                  type="button"
-                  onClick={() => handleRemoveMember(m.userId)}
-                  className="text-red-500 hover:text-red-700 text-xs"
-                >
-                  削除
-                </button>
+              {m.role === "owner" ? (
+                <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                  owner
+                </span>
+              ) : (
+                <>
+                  <select
+                    value={m.role}
+                    onChange={(e) => handleChangeRole(m.userId, e.target.value)}
+                    disabled={m.userId === user?.id}
+                    className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
+                  >
+                    <option value="admin">admin</option>
+                    <option value="member">member</option>
+                  </select>
+                  {m.userId !== user?.id && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveMember(m.userId)}
+                      className="text-red-500 hover:text-red-700 text-xs"
+                    >
+                      削除
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </li>

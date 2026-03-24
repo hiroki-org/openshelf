@@ -379,7 +379,8 @@ papersRoute.post("/", authMiddleware, async (c) => {
             const chunk = uploads.slice(i, i + MAX_CONCURRENT_UPLOADS);
             const results = await Promise.allSettled(
                 chunk.map(async (entry) => {
-                    await c.env.BUCKET.put(entry.r2Key, entry.file, {
+                    const fileBuffer = await entry.file.arrayBuffer();
+                    await c.env.BUCKET.put(entry.r2Key, fileBuffer, {
                         httpMetadata: { contentType: entry.file.type },
                     });
                     return entry.r2Key;

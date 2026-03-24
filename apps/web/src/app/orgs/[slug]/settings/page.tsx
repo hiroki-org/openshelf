@@ -3,9 +3,9 @@
 import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Org, Member, SearchUser, OrgPaper } from "./types";
+import type { Org, Member, OrgPaper } from "./components/types";
 import { GeneralTab } from "./components/general-tab";
 import { MembersTab } from "./components/members-tab";
 import { PapersTab } from "./components/papers-tab";
@@ -26,33 +26,6 @@ export default function OrgSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const userSearchRef = useRef(0);
-  const paperSearchRef = useRef(0);
-
-  // General tab
-  const [editName, setEditName] = useState("");
-  const [editSlug, setEditSlug] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState("");
-
-  // Members tab
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
-  const [inviting, setInviting] = useState(false);
-
-  // Papers tab
-  const [paperSearch, setPaperSearch] = useState("");
-  const [paperSearchResults, setPaperSearchResults] = useState<
-    { id: string; title: string }[]
-  >([]);
-  const [addingPaper, setAddingPaper] = useState(false);
-
-  // Delete dialog
-  const [showDelete, setShowDelete] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState("");
-  const [deleting, setDeleting] = useState(false);
-
   const fetchData = useCallback(async () => {
     try {
       const [orgRes, membersRes, papersRes] = await Promise.all([
@@ -68,9 +41,6 @@ export default function OrgSettingsPage() {
 
       const orgData = await orgRes.json();
       setOrg(orgData.org);
-      setEditName(orgData.org.name);
-      setEditSlug(orgData.org.slug);
-      setEditDescription(orgData.org.description ?? "");
 
       if (membersRes.ok) {
         const membersData = await membersRes.json();
@@ -102,7 +72,7 @@ export default function OrgSettingsPage() {
   // Check admin status derived from members list
   const isAdmin = Boolean(
     user &&
-    members.find((m) => m.userId === user.id)?.role.match(/^(admin|owner)$/),
+      members.find((m) => m.userId === user.id)?.role.match(/^(admin|owner)$/),
   );
 
   // Redirect non-admin
@@ -118,317 +88,73 @@ export default function OrgSettingsPage() {
     return <div className="text-center py-20 text-red-600">{error}</div>;
   if (!org || !isAdmin) return null;
 
-  // ── General handlers ──
-  const handleSave = async () => {
-    setSaving(true);
-    setSaveMsg("");
-    try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: editName.trim(),
-          slug: editSlug.trim().toLowerCase(),
-          description: editDescription.trim() || null,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setOrg(data.org);
-        setSaveMsg("保存しました");
-        if (data.org.slug !== slug) {
-          router.replace(`/orgs/${data.org.slug}/settings`);
-        }
-      } else {
-        const data = await res.json();
-        setSaveMsg(data.error ?? "保存に失敗しました");
-      }
-    } catch {
-      setSaveMsg("ネットワークエラー");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    setDeleting(true);
-    try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        router.push("/");
-      } else {
-        const data = await res.json();
-        alert(data.error ?? "削除に失敗しました");
-      }
-    } catch {
-      alert("ネットワークエラー");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // ── Members handlers ──
-  const handleUserSearch = async (q: string) => {
-    setSearchQuery(q);
-    if (q.length < 2) {
-      setSearchResults([]);
-      return;
-    }
-    const requestId = ++userSearchRef.current;
-    try {
-      const res = await apiFetch(
-        `/api/users/search?q=${encodeURIComponent(q)}`,
-      );
-      if (userSearchRef.current !== requestId) return;
-      if (res.ok) {
-        const data = await res.json();
-        const existingIds = new Set(members.map((m) => m.userId));
-        setSearchResults(
-          data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
-        );
-      }
-    } catch {
-      if (userSearchRef.current !== requestId) return;
-      setSearchResults([]);
-    }
-  };
-
-  const handleAddMember = async (userId: string, role: string = "member") => {
-    setInviting(true);
-    try {
-      const res = await apiFetch(
-        `/api/orgs/${encodeURIComponent(slug)}/members`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, role }),
-        },
-      );
-      if (res.ok) {
-        setSearchQuery("");
-        setSearchResults([]);
-        await fetchData();
-      } else {
-        const data = await res.json();
-        alert(data.error ?? "追加に失敗しました");
-      }
-    } catch {
-      alert("ネットワークエラー");
-    } finally {
-      setInviting(false);
-    }
-  };
-
-  const handleChangeRole = async (userId: string, newRole: string) => {
-    try {
-      const res = await apiFetch(
-        `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ role: newRole }),
-        },
-      );
-      if (res.ok) {
-        await fetchData();
-      } else {
-        const data = await res.json();
-        alert(data.error ?? "変更に失敗しました");
-      }
-    } catch {
-      alert("ネットワークエラー");
-    }
-  };
-
-  const handleRemoveMember = async (userId: string) => {
-    if (!confirm("このメンバーを削除しますか？")) return;
-    try {
-      const res = await apiFetch(
-        `/api/orgs/${encodeURIComponent(slug)}/members/${encodeURIComponent(userId)}`,
-        {
-          method: "DELETE",
-        },
-      );
-      if (res.ok) {
-        await fetchData();
-      } else {
-        const data = await res.json();
-        alert(data.error ?? "削除に失敗しました");
-      }
-    } catch {
-      alert("ネットワークエラー");
-    }
-  };
-
-  // ── Papers handlers ──
-  const handlePaperSearch = async (q: string) => {
-    setPaperSearch(q);
-    if (q.length < 2) {
-      setPaperSearchResults([]);
-      return;
-    }
-    const requestId = ++paperSearchRef.current;
-    try {
-      // GET /api/papers returns all papers; filter client-side by title
-      const res = await apiFetch("/api/papers");
-      if (paperSearchRef.current !== requestId) return;
-      if (res.ok) {
-        const data = await res.json();
-        const existingIds = new Set(orgPapers.map((p) => p.id));
-        const lowerQ = q.toLowerCase();
-        setPaperSearchResults(
-          (data.papers || []).filter(
-            (p: { id: string; title: string }) =>
-              !existingIds.has(p.id) && p.title.toLowerCase().includes(lowerQ),
-          ),
-        );
-      }
-    } catch {
-      if (paperSearchRef.current !== requestId) return;
-      setPaperSearchResults([]);
-    }
-  };
-
-  const handleAddPaper = async (paperId: string) => {
-    setAddingPaper(true);
-    try {
-      const res = await apiFetch(
-        `/api/orgs/${encodeURIComponent(slug)}/papers`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paperId }),
-        },
-      );
-      if (res.ok) {
-        setPaperSearch("");
-        setPaperSearchResults([]);
-        await fetchData();
-      } else {
-        const data = await res.json();
-        alert(data.error ?? "追加に失敗しました");
-      }
-    } catch {
-      alert("ネットワークエラー");
-    } finally {
-      setAddingPaper(false);
-    }
-  };
-
-  const handleRemovePaper = async (paperId: string) => {
-    if (!confirm("この論文の紐づけを解除しますか？")) return;
-    try {
-      const res = await apiFetch(
-        `/api/orgs/${encodeURIComponent(slug)}/papers/${encodeURIComponent(paperId)}`,
-        {
-          method: "DELETE",
-        },
-      );
-      if (res.ok) {
-        await fetchData();
-      } else {
-        const data = await res.json();
-        alert(data.error ?? "削除に失敗しました");
-      }
-    } catch {
-      alert("ネットワークエラー");
-    }
-  };
-
-  const tabClass = (t: string) =>
-    `px-4 py-2 text-sm font-medium border-b-2 ${
-      tab === t
-        ? "border-gray-900 text-gray-900 dark:border-white dark:text-white"
-        : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-    }`;
-
   return (
-    <div className="max-w-3xl">
-      <div className="mb-6">
+    <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">{org.name} — 設定</h1>
         <Link
           href={`/orgs/${slug}`}
           className="text-sm text-blue-600 hover:underline dark:text-blue-400"
         >
-          ← 組織ページに戻る
+          組織ページへ戻る
         </Link>
       </div>
-      <div className="flex items-center gap-2 mb-6">
-        <h1 className="text-2xl font-bold">{org.name} — 設定</h1>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex border-b dark:border-gray-700 mb-6">
+      <div className="flex border-b border-gray-200 dark:border-gray-800 mb-8">
         <button
           type="button"
-          className={tabClass("general")}
-          onClick={() => setTab("general")}
+          onClick={() => {
+            setTab("general");
+            router.replace(`?tab=general`, { scroll: false });
+          }}
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            tab === "general"
+              ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+          }`}
         >
-          一般
+          基本設定
         </button>
         <button
           type="button"
-          className={tabClass("members")}
-          onClick={() => setTab("members")}
+          onClick={() => {
+            setTab("members");
+            router.replace(`?tab=members`, { scroll: false });
+          }}
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            tab === "members"
+              ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+          }`}
         >
           メンバー
         </button>
         <button
           type="button"
-          className={tabClass("papers")}
-          onClick={() => setTab("papers")}
+          onClick={() => {
+            setTab("papers");
+            router.replace(`?tab=papers`, { scroll: false });
+          }}
+          className={`px-4 py-2 text-sm font-medium border-b-2 ${
+            tab === "papers"
+              ? "border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400"
+              : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+          }`}
         >
           論文
         </button>
       </div>
 
       {tab === "general" && (
-        <GeneralTab
-          org={org}
-          editName={editName}
-          setEditName={setEditName}
-          editSlug={editSlug}
-          setEditSlug={setEditSlug}
-          editDescription={editDescription}
-          setEditDescription={setEditDescription}
-          saveMsg={saveMsg}
-          saving={saving}
-          handleSave={handleSave}
-          showDelete={showDelete}
-          setShowDelete={setShowDelete}
-          deleteConfirm={deleteConfirm}
-          setDeleteConfirm={setDeleteConfirm}
-          deleting={deleting}
-          handleDelete={handleDelete}
-        />
+        <GeneralTab org={org} slug={slug} setOrg={setOrg} />
       )}
 
       {tab === "members" && (
-        <MembersTab
-          searchQuery={searchQuery}
-          handleUserSearch={handleUserSearch}
-          searchResults={searchResults}
-          handleAddMember={handleAddMember}
-          inviting={inviting}
-          members={members}
-          user={user}
-          handleChangeRole={handleChangeRole}
-          handleRemoveMember={handleRemoveMember}
-        />
+        <MembersTab members={members} slug={slug} fetchData={fetchData} user={user} />
       )}
 
       {tab === "papers" && (
-        <PapersTab
-          paperSearch={paperSearch}
-          handlePaperSearch={handlePaperSearch}
-          paperSearchResults={paperSearchResults}
-          handleAddPaper={handleAddPaper}
-          addingPaper={addingPaper}
-          orgPapers={orgPapers}
-          handleRemovePaper={handleRemovePaper}
-        />
+        <PapersTab orgPapers={orgPapers} slug={slug} fetchData={fetchData} />
       )}
     </div>
   );

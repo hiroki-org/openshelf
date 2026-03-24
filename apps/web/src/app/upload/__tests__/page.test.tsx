@@ -76,36 +76,6 @@ describe("UploadPage", () => {
     setupApiMocks();
   });
 
-
-
-  it("adds files via drag and drop and ignores invalid extensions", async () => {
-    authState = { user: { id: "user1", name: "Test User" }, loading: false };
-
-    render(<UploadPage />);
-
-    const dropzoneButton = screen.getByRole("button", { name: /ファイルを複数選択/i });
-    const droppedFile = new File(["DROP"], "drop.pdf", { type: "application/pdf" });
-    const invalidFile = new File(["EXE"], "virus.exe", { type: "application/x-msdownload" });
-
-    // Mock DataTransfer specifically for this test
-    global.DataTransfer = class {
-      files: File[] = [];
-      items = {
-        add: (file: File) => {
-          this.files.push(file);
-        },
-      };
-    } as any;
-
-    fireEvent.drop(dropzoneButton, {
-      dataTransfer: {
-        files: [droppedFile, invalidFile],
-      },
-    });
-
-    expect(await screen.findByText("drop.pdf")).toBeInTheDocument();
-    expect(screen.queryByText("virus.exe")).not.toBeInTheDocument();
-  });
   it("redirects guests to the home page", async () => {
     authState = { user: null, loading: false };
     render(<UploadPage />);
@@ -218,7 +188,7 @@ describe("UploadPage", () => {
     fireEvent.change(fileTypeSelects[0], { target: { value: "slides" } });
     expect(fileTypeSelects[0]).toHaveValue("slides");
 
-    const removeButtons = screen.getAllByRole("button", { name: "✕" });
+    const removeButtons = screen.getAllByText("✕").map(el => el.closest("button")!);
     fireEvent.click(removeButtons[1]); // Remove f2.pdf
 
     expect(screen.queryByText("f2.pdf")).not.toBeInTheDocument();

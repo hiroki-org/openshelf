@@ -1,47 +1,100 @@
-"use client";
-
-import { Dispatch, SetStateAction } from "react";
-import { Org } from "../types";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api";
+import type { Org } from "./types";
 
 export function GeneralTab({
   org,
-  editName,
-  setEditName,
-  editSlug,
-  setEditSlug,
-  editDescription,
-  setEditDescription,
-  saveMsg,
-  saving,
-  handleSave,
-  showDelete,
-  setShowDelete,
-  deleteConfirm,
-  setDeleteConfirm,
-  deleting,
-  handleDelete,
+  slug,
+  setOrg,
 }: {
   org: Org;
-  editName: string;
-  setEditName: Dispatch<SetStateAction<string>>;
-  editSlug: string;
-  setEditSlug: Dispatch<SetStateAction<string>>;
-  editDescription: string;
-  setEditDescription: Dispatch<SetStateAction<string>>;
-  saveMsg: string;
-  saving: boolean;
-  handleSave: () => Promise<void>;
-  showDelete: boolean;
-  setShowDelete: Dispatch<SetStateAction<boolean>>;
-  deleteConfirm: string;
-  setDeleteConfirm: Dispatch<SetStateAction<string>>;
-  deleting: boolean;
-  handleDelete: () => Promise<void>;
+  slug: string;
+  setOrg: (org: Org) => void;
 }) {
+  const router = useRouter();
+
+  // General tab
+  const [editName, setEditName] = useState(org.name);
+  const [editSlug, setEditSlug] = useState(org.slug);
+  const [editDescription, setEditDescription] = useState(org.description ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
+
+  useEffect(() => {
+    setEditName(org.name);
+    setEditSlug(org.slug);
+    setEditDescription(org.description ?? "");
+  }, [org.name, org.slug, org.description]);
+
+  // Delete dialog
+  const [showDelete, setShowDelete] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMsg("");
+    try {
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editName.trim(),
+          slug: editSlug.trim().toLowerCase(),
+          description: editDescription.trim() || null,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setOrg(data.org);
+        setEditName(data.org.name);
+        setEditSlug(data.org.slug);
+        setEditDescription(data.org.description ?? "");
+        setSaveMsg("保存しました");
+        if (data.org.slug !== slug) {
+          router.replace(`/orgs/${data.org.slug}/settings`);
+        }
+      } else {
+        const data = await res.json();
+        setSaveMsg(data.error ?? "保存に失敗しました");
+      }
+    } catch {
+      setSaveMsg("ネットワークエラー");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleteError(null);
+    setDeleting(true);
+    try {
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        router.push("/");
+      } else {
+        const data = await res.json();
+        setDeleteError(data.error ?? "削除に失敗しました");
+      }
+    } catch {
+      setDeleteError("ネットワークエラー");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="max-w-xl space-y-6">
       <div>
-        <label htmlFor="org-edit-name" className="block text-sm font-medium mb-1">
+        <label
+          htmlFor="org-edit-name"
+          className="block text-sm font-medium mb-1"
+        >
           組織名
         </label>
         <input
@@ -54,7 +107,10 @@ export function GeneralTab({
         />
       </div>
       <div>
-        <label htmlFor="org-edit-slug" className="block text-sm font-medium mb-1">
+        <label
+          htmlFor="org-edit-slug"
+          className="block text-sm font-medium mb-1"
+        >
           スラッグ
         </label>
         <input
@@ -63,13 +119,18 @@ export function GeneralTab({
           maxLength={40}
           value={editSlug}
           onChange={(e) =>
-            setEditSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))
+            setEditSlug(
+              e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+            )
           }
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
         />
       </div>
       <div>
-        <label htmlFor="org-edit-description" className="block text-sm font-medium mb-1">
+        <label
+          htmlFor="org-edit-description"
+          className="block text-sm font-medium mb-1"
+        >
           説明
         </label>
         <textarea
@@ -95,7 +156,9 @@ export function GeneralTab({
 
       {/* Danger zone */}
       <div className="mt-10 rounded-md border border-red-300 p-4 dark:border-red-700">
-        <h3 className="text-sm font-medium text-red-600 mb-2">Danger Zone</h3>
+        <h3 className="text-sm font-medium text-red-600 mb-2">
+          Danger Zone
+        </h3>
         <p className="text-xs text-gray-500 mb-3">
           組織を削除すると、メンバー情報と論文の紐づけが全て削除されます。
         </p>
@@ -109,6 +172,7 @@ export function GeneralTab({
           </button>
         ) : (
           <div className="space-y-2">
+            {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
             <p className="text-xs text-red-600">
               確認のため「<strong>{org.slug}</strong>」を入力してください。
             </p>
@@ -133,6 +197,7 @@ export function GeneralTab({
                 onClick={() => {
                   setShowDelete(false);
                   setDeleteConfirm("");
+                  setDeleteError(null);
                 }}
                 className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
               >

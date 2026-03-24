@@ -19,7 +19,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Sync workflow-permissions alerts
-        uses: actions/github-script@v8
+        uses: actions/github-script@v7
         with:
           script: |
             const owner = context.repo.owner;
