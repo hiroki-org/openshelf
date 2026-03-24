@@ -1,5 +1,3 @@
-"use client";
-
 import { useState, useRef, useEffect } from "react";
 import { apiFetch } from "@/lib/api";
 import type { OrgPaper } from "./types";
@@ -46,17 +44,13 @@ export function PapersTab({
     searchTimeoutRef.current = setTimeout(async () => {
       const requestId = ++paperSearchRef.current;
       try {
-        const res = await apiFetch(`/api/papers`);
+        const res = await apiFetch(`/api/papers?q=${encodeURIComponent(q)}&visibility=public`);
         if (paperSearchRef.current !== requestId) return;
         if (res.ok) {
           const data = await res.json();
           const existingIds = new Set(orgPapers.map((p) => p.id));
-          const lowerQ = q.toLowerCase();
           setPaperSearchResults(
-            (data.papers || []).filter(
-              (p: { id: string; title: string }) =>
-                !existingIds.has(p.id) && p.title.toLowerCase().includes(lowerQ),
-            ),
+            data.papers.filter((p: { id: string }) => !existingIds.has(p.id)),
           );
         }
       } catch {

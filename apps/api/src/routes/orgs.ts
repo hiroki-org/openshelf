@@ -14,25 +14,45 @@ import {
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateSlug, validateName, validateDescription } from "../utils/validation";
-import {
-    getOrgBySlug,
-    getOrgMembership,
-    isOrgAdmin,
-    isOrgMember,
-    isPaperAuthor,
-} from "../utils/db";
-
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 
-
 // ─── Permission helpers ─────────────────────────────────────────
-async function requireOrgAdminOrForbidden(db: ReturnType<typeof drizzle>, orgId: string, userId: string, c: any) {
-    const isAdmin = await isOrgAdmin(db, orgId, userId);
-    if (!isAdmin) return c.json({ error: "Forbidden: admin access required" }, 403);
-    return null;
+async function getOrgBySlug(db: ReturnType<typeof drizzle>, slug: string) {
+    return db.select().from(orgs).where(eq(orgs.slug, slug)).get();
 }
+
+async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
+    return db
+        .select()
+        .from(orgMembers)
+        .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)))
+        .get();
+}
+
+async function requireOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
+    const membership = await getOrgMembership(db, orgId, userId);
+    if (!membership || (membership.role !== "admin" && membership.role !== "owner")) {
+        return { ok: false as const, error: "Forbidden: admin access required" };
+    }
+    return { ok: true as const, membership };
+}
+
+async function isOrgMember(db: ReturnType<typeof drizzle>, orgId: string, userId: string): Promise<boolean> {
+    const membership = await getOrgMembership(db, orgId, userId);
+    return !!membership;
+}
+
+async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, userId: string): Promise<boolean> {
+    const author = await db
+        .select()
+        .from(paperAuthors)
+        .where(and(eq(paperAuthors.paperId, paperId), eq(paperAuthors.userId, userId)))
+        .get();
+    return !!author;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 1. Org CRUD
 // ═══════════════════════════════════════════════════════════════
@@ -125,8 +145,8 @@ orgsRoute.patch("/:slug", authMiddleware, async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const forbiddenResponse = await requireOrgAdminOrForbidden(db, org.id, userId, c);
-    if (forbiddenResponse) return forbiddenResponse;
+    const adminCheck = await requireOrgAdmin(db, org.id, userId);
+    if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
 
     let body: any;
     try {
@@ -179,8 +199,8 @@ orgsRoute.delete("/:slug", authMiddleware, async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const forbiddenResponse = await requireOrgAdminOrForbidden(db, org.id, userId, c);
-    if (forbiddenResponse) return forbiddenResponse;
+    const adminCheck = await requireOrgAdmin(db, org.id, userId);
+    if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
 
     // CASCADE will delete org_members and paper_orgs
     await db.delete(orgs).where(eq(orgs.id, org.id));
@@ -226,8 +246,8 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const forbiddenResponse = await requireOrgAdminOrForbidden(db, org.id, userId, c);
-    if (forbiddenResponse) return forbiddenResponse;
+    const adminCheck = await requireOrgAdmin(db, org.id, userId);
+    if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
 
     let body: any;
     try {
@@ -282,8 +302,8 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const forbiddenResponse = await requireOrgAdminOrForbidden(db, org.id, userId, c);
-    if (forbiddenResponse) return forbiddenResponse;
+    const adminCheck = await requireOrgAdmin(db, org.id, userId);
+    if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
 
     let body: any;
     try {
@@ -338,8 +358,8 @@ orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const forbiddenResponse = await requireOrgAdminOrForbidden(db, org.id, userId, c);
-    if (forbiddenResponse) return forbiddenResponse;
+    const adminCheck = await requireOrgAdmin(db, org.id, userId);
+    if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
 
     const membership = await getOrgMembership(db, org.id, targetUserId);
     if (!membership) return c.json({ error: "Member not found" }, 404);
@@ -483,10 +503,10 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
     if (!paper) return c.json({ error: "Paper not found" }, 404);
 
     // Check permission: must be admin OR paper author
-    const isAdmin = await isOrgAdmin(db, org.id, userId);
-    const isAuthor = isAdmin ? true : await isPaperAuthor(db, paperId.trim(), userId);
+    const isAdmin = await requireOrgAdmin(db, org.id, userId);
+    const isAuthor = await isPaperAuthor(db, paperId.trim(), userId);
 
-    if (!isAdmin && !isAuthor) {
+    if (!isAdmin.ok && !isAuthor) {
         return c.json({ error: "Forbidden: must be org admin or paper author" }, 403);
     }
 
@@ -526,10 +546,10 @@ orgsRoute.delete("/:slug/papers/:paperId", authMiddleware, async (c) => {
     if (!org) return c.json({ error: "Org not found" }, 404);
 
     // Check permission: must be admin OR paper author
-    const isAdmin = await isOrgAdmin(db, org.id, userId);
-    const isAuthor = isAdmin ? true : await isPaperAuthor(db, paperId, userId);
+    const isAdmin = await requireOrgAdmin(db, org.id, userId);
+    const isAuthor = await isPaperAuthor(db, paperId, userId);
 
-    if (!isAdmin && !isAuthor) {
+    if (!isAdmin.ok && !isAuthor) {
         return c.json({ error: "Forbidden: must be org admin or paper author" }, 403);
     }
 

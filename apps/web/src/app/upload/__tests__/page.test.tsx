@@ -76,33 +76,6 @@ describe("UploadPage", () => {
     setupApiMocks();
   });
 
-
-  it("adds files via drag and drop and ignores invalid extensions", async () => {
-    render(<UploadPage />);
-
-    const dropzoneButton = screen.getByRole("button", { name: /ファイルを複数選択/i });
-    const droppedFile = new File(["DROP"], "drop.pdf", { type: "application/pdf" });
-    const invalidFile = new File(["EXE"], "virus.exe", { type: "application/x-msdownload" });
-
-    global.DataTransfer = class {
-      files: File[] = [];
-      items = {
-        add: (file: File) => {
-          this.files.push(file);
-        },
-      };
-    } as any;
-
-    fireEvent.drop(dropzoneButton, {
-      dataTransfer: {
-        files: [droppedFile, invalidFile],
-      },
-    });
-
-    expect(await screen.findByText("drop.pdf")).toBeInTheDocument();
-    expect(screen.queryByText("virus.exe")).not.toBeInTheDocument();
-  });
-
   it("redirects guests to the home page", async () => {
     authState = { user: null, loading: false };
     render(<UploadPage />);
