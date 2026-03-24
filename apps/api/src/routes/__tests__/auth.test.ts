@@ -635,12 +635,12 @@ describe("auth routes", () => {
         await expect(res.json()).resolves.toEqual({ ok: true });
     });
 
-    it("POST /api/auth/test-token returns 404 when test auth is disabled", async () => {
+    it("POST /api/test-auth/test-token returns 404 when test auth is disabled", async () => {
         const app = await createTestApp();
         const env = createTestEnv();
 
         const res = await app.request(
-            "http://localhost/api/auth/test-token",
+            "http://localhost/api/test-auth/test-token",
             {
                 method: "POST",
                 headers: {
@@ -654,7 +654,7 @@ describe("auth routes", () => {
         await expect(res.json()).resolves.toEqual({ error: "Not Found" });
     });
 
-    it("POST /api/auth/test-token validates the shared secret and request body", async () => {
+    it("POST /api/test-auth/test-token validates the shared secret and request body", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
             ENABLE_TEST_AUTH: "true",
@@ -662,7 +662,7 @@ describe("auth routes", () => {
         });
 
         const unauthorized = await app.request(
-            "http://localhost/api/auth/test-token",
+            "http://localhost/api/test-auth/test-token",
             {
                 method: "POST",
                 headers: {
@@ -676,7 +676,7 @@ describe("auth routes", () => {
         expect(unauthorized.status).toBe(401);
 
         const invalidJson = await app.request(
-            "http://localhost/api/auth/test-token",
+            "http://localhost/api/test-auth/test-token",
             {
                 method: "POST",
                 headers: {
@@ -692,7 +692,7 @@ describe("auth routes", () => {
         await expect(invalidJson.json()).resolves.toEqual({ error: "Invalid JSON" });
 
         const invalidBody = await app.request(
-            "http://localhost/api/auth/test-token",
+            "http://localhost/api/test-auth/test-token",
             {
                 method: "POST",
                 headers: {
@@ -708,7 +708,7 @@ describe("auth routes", () => {
         await expect(invalidBody.json()).resolves.toEqual({ error: "Invalid request body" });
     });
 
-    it("POST /api/auth/test-token upserts the user and returns a signed JWT", async () => {
+    it("POST /api/test-auth/test-token upserts the user and returns a signed JWT", async () => {
         mockDb.select = vi.fn(() => makeQuery({ getResult: { id: "persisted-user" } }));
 
         const app = await createTestApp();
@@ -718,7 +718,7 @@ describe("auth routes", () => {
         });
 
         const res = await app.request(
-            "http://localhost/api/auth/test-token",
+            "http://localhost/api/test-auth/test-token",
             {
                 method: "POST",
                 headers: {
@@ -739,7 +739,7 @@ describe("auth routes", () => {
         expect(body.token).toMatch(/\./);
         });
 
-        it("POST /api/auth/test-token returns 500 if user persistence fails", async () => {
+        it("POST /api/test-auth/test-token returns 500 if user persistence fails", async () => {
         mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
 
         const app = await createTestApp();
@@ -749,7 +749,7 @@ describe("auth routes", () => {
         });
 
         const res = await app.request(
-            "http://localhost/api/auth/test-token",
+            "http://localhost/api/test-auth/test-token",
             {
                 method: "POST",
                 headers: {
@@ -781,15 +781,15 @@ describe("auth routes", () => {
         expect(res.status).toBe(302);
         });
 
-        it("POST /api/auth/test-org returns 404 or 401 based on configuration", async () => {
+        it("POST /api/test-auth/test-org returns 404 or 401 based on configuration", async () => {
         const app = await createTestApp();
-        const res404 = await app.request("http://localhost/api/auth/test-org", {
+        const res404 = await app.request("http://localhost/api/test-auth/test-org", {
             method: "POST",
             headers: { Origin: "http://localhost:3000" }
         }, createTestEnv({ ENABLE_TEST_AUTH: "false" }) as any);
         expect(res404.status).toBe(404);
 
-        const res401 = await app.request("http://localhost/api/auth/test-org", {
+        const res401 = await app.request("http://localhost/api/test-auth/test-org", {
             method: "POST",
             headers: {
                 Origin: "http://localhost:3000",
@@ -799,7 +799,7 @@ describe("auth routes", () => {
         expect(res401.status).toBe(401);
     });
 
-    it("POST /api/auth/test-org validates auth and creates membership records", async () => {
+    it("POST /api/test-auth/test-org validates auth and creates membership records", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
             ENABLE_TEST_AUTH: "true",
@@ -807,7 +807,7 @@ describe("auth routes", () => {
         });
 
         const invalidJson = await app.request(
-            "http://localhost/api/auth/test-org",
+            "http://localhost/api/test-auth/test-org",
             {
                 method: "POST",
                 headers: {
@@ -821,7 +821,7 @@ describe("auth routes", () => {
         expect(invalidJson.status).toBe(400);
 
         const invalidBody = await app.request(
-            "http://localhost/api/auth/test-org",
+            "http://localhost/api/test-auth/test-org",
             {
                 method: "POST",
                 headers: {
@@ -845,7 +845,7 @@ describe("auth routes", () => {
         }));
 
         const ok = await app.request(
-            "http://localhost/api/auth/test-org",
+            "http://localhost/api/test-auth/test-org",
             {
                 method: "POST",
                 headers: {

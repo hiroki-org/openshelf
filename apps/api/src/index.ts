@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Env, Variables } from "./types";
 import auth from "./routes/auth";
+import testAuth from "./routes/test-auth";
 import usersRoute from "./routes/users";
 import papersRoute from "./routes/papers";
 import invitesRoute from "./routes/invites";
@@ -73,6 +74,10 @@ app.use("/api/*", async (c, next) => {
 
 // Routes
 app.route("/api/auth", auth);
+
+if (process.env.NODE_ENV !== "production") {
+    app.route("/api/test-auth", testAuth);
+}
 app.route("/api/users", usersRoute);
 app.route("/api/papers", papersRoute);
 app.route("/api/invites", invitesRoute);
