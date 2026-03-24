@@ -13,7 +13,6 @@ export default defineConfig({
         include: ["src/**/__tests__/**/*.test.{ts,tsx}"],
         reporters: ["default", "junit"],
         outputFile: {
-            lcov: "./coverage/lcov.info",
             junit: "./test-report.junit.xml",
         },
         coverage: {

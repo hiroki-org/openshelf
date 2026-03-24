@@ -3,15 +3,14 @@
 import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
+import { FileDropzone, type FileEntry } from "@/components/upload/file-dropzone";
 
-const VALID_FILE_TYPES = [
-  "paper",
-  "slides",
-  "poster",
-  "supplementary",
-] as const;
 const VISIBILITY_OPTIONS = [
   { value: "private", label: "非公開" },
   { value: "org_only", label: "組織内" },
@@ -33,16 +32,17 @@ const VENUE_TYPE_OPTIONS = [
   { value: "other", label: "その他" },
 ] as const;
 
-type FileEntry = {
-  file: File;
-  fileType: (typeof VALID_FILE_TYPES)[number];
+
+type Organization = {
+  id: string;
+  name: string;
+  slug: string;
+  role: string;
 };
 
 export default function UploadPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [title, setTitle] = useState("");
   const [abstract, setAbstract] = useState("");
   const [visibility, setVisibility] =
@@ -56,10 +56,35 @@ export default function UploadPage() {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState("");
+  const [loadingOrgs, setLoadingOrgs] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
   }, [loading, user, router]);
+
+  useEffect(() => {
+    if (!loading && user) {
+      const fetchOrganizations = async () => {
+        setLoadingOrgs(true);
+        try {
+          const res = await apiFetch("/api/users/me/orgs");
+          if (res.ok) {
+            const data = await res.json();
+            setOrganizations(data.organizations);
+          } else {
+            setError("組織情報の取得中にサーバーエラーが発生しました。ページを再読み込みしてください。");
+          }
+        } catch {
+          setError("組織情報の取得中にネットワークまたは予期しないエラーが発生しました。ページを再読み込みしてください。");
+        } finally {
+          setLoadingOrgs(false);
+        }
+      };
+      fetchOrganizations();
+    }
+  }, [loading, user]);
 
   if (loading || !user) return null;
 
@@ -70,13 +95,18 @@ export default function UploadPage() {
       fileType: "paper",
     }));
     setFiles((prev) => [...prev, ...newEntries]);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
   const removeFile = (idx: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateFileType = (idx: number, newType: FileEntry["fileType"]) => {
+    setFiles((prev) => {
+      const updated = [...prev];
+      updated[idx] = { ...updated[idx], fileType: newType };
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,6 +119,20 @@ export default function UploadPage() {
     if (files.length === 0) {
       setError("ファイルを1つ以上添付してください");
       return;
+    }
+    if (visibility === "org_only") {
+      if (loadingOrgs) {
+        setError("組織を読み込み中です。しばらくお待ちください");
+        return;
+      }
+      if (organizations.length === 0) {
+        setError("組織がありません。別の公開範囲を選択してください");
+        return;
+      }
+      if (!selectedOrgId) {
+        setError("組織を選択してください");
+        return;
+      }
     }
 
     setUploading(true);
@@ -109,6 +153,9 @@ export default function UploadPage() {
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean),
+          ...(visibility === "org_only" && selectedOrgId
+            ? { orgId: selectedOrgId }
+            : {}),
         }),
       );
 
@@ -178,81 +225,66 @@ export default function UploadPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label
-            htmlFor="paper-title"
-            className="block text-sm font-medium mb-1"
-          >
+          <Label htmlFor="paper-title">
             タイトル <span className="text-red-500">*</span>
-          </label>
-          <input
-            id="paper-title"
-            type="text"
-            maxLength={300}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            required
-          />
+          </Label>
+          <Input id="paper-title" type="text" maxLength={300} value={title} onChange={(e) => setTitle(e.target.value)} required />
         </div>
 
         <div>
-          <label
-            htmlFor="paper-abstract"
-            className="block text-sm font-medium mb-1"
-          >
+          <Label htmlFor="paper-abstract">
             概要
-          </label>
-          <textarea
-            id="paper-abstract"
-            value={abstract}
-            onChange={(e) => setAbstract(e.target.value)}
-            rows={4}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-          />
+          </Label>
+          <Textarea id="paper-abstract" value={abstract} onChange={(e) => setAbstract(e.target.value)} rows={4} />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label
-              htmlFor="paper-visibility"
-              className="block text-sm font-medium mb-1"
-            >
+            <Label htmlFor="paper-visibility">
               公開範囲
-            </label>
-            <select
-              id="paper-visibility"
-              value={visibility}
-              onChange={(e) =>
+            </Label>
+            <Select id="paper-visibility" value={visibility} onChange={(e) =>
                 setVisibility(
                   e.target
                     .value as (typeof VISIBILITY_OPTIONS)[number]["value"],
                 )
-              }
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            >
+              }>
               {VISIBILITY_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
-            <label
-              htmlFor="paper-year"
-              className="block text-sm font-medium mb-1"
-            >
+            <Label htmlFor="paper-year">
               発表年
-            </label>
-            <input
-              id="paper-year"
-              type="number"
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            />
+            </Label>
+            <Input id="paper-year" type="number" value={year} onChange={(e) => setYear(e.target.value)} />
           </div>
         </div>
+
+        {visibility === "org_only" && (
+          <div>
+            <Label htmlFor="paper-organization">
+              対象組織 <span className="text-red-500">*</span>
+            </Label>
+            <Select id="paper-organization" value={selectedOrgId} onChange={(e) => setSelectedOrgId(e.target.value)} disabled={loadingOrgs || organizations.length === 0}>
+              <option value="">
+                {loadingOrgs
+                  ? "読み込み中..."
+                  : organizations.length === 0
+                    ? "組織がありません"
+                    : "組織を選択してください"}
+              </option>
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+        )}
 
         <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/40">
           <label
@@ -279,165 +311,57 @@ export default function UploadPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label
-              htmlFor="paper-venue"
-              className="block text-sm font-medium mb-1"
-            >
+            <Label htmlFor="paper-venue">
               会場名
-            </label>
-            <input
-              id="paper-venue"
-              type="text"
-              value={venue}
-              onChange={(e) => setVenue(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            />
+            </Label>
+            <Input id="paper-venue" type="text" value={venue} onChange={(e) => setVenue(e.target.value)} />
           </div>
           <div>
-            <label
-              htmlFor="paper-venue-type"
-              className="block text-sm font-medium mb-1"
-            >
+            <Label htmlFor="paper-venue-type">
               会場種別
-            </label>
-            <select
-              id="paper-venue-type"
-              value={venueType}
-              onChange={(e) => setVenueType(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            >
+            </Label>
+            <Select id="paper-venue-type" value={venueType} onChange={(e) => setVenueType(e.target.value)}>
               {VENUE_TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
         <div>
-          <label
-            htmlFor="paper-category"
-            className="block text-sm font-medium mb-1"
-          >
+          <Label htmlFor="paper-category">
             カテゴリ
-          </label>
-          <select
-            id="paper-category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-          >
+          </Label>
+          <Select id="paper-category" value={category} onChange={(e) => setCategory(e.target.value)}>
             {CATEGORY_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div>
-          <label
-            htmlFor="paper-tags"
-            className="block text-sm font-medium mb-1"
-          >
+          <Label htmlFor="paper-tags">
             タグ（カンマ区切り）
-          </label>
-          <input
-            id="paper-tags"
-            type="text"
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
-            placeholder="例: NLP, LLM, attention"
-          />
+          </Label>
+          <Input id="paper-tags" type="text" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="例: NLP, LLM, attention" />
         </div>
 
         {/* File uploads */}
-        <div className="rounded-2xl border border-gray-200 bg-gray-50/50 p-6 dark:border-gray-800 dark:bg-gray-900/50">
-          <p
-            id="upload-files-label"
-            className="mb-4 block text-sm font-semibold text-gray-900 dark:text-gray-100"
-          >
-            添付ファイル <span className="text-red-500">*</span>
-          </p>
-          <input
-            ref={fileInputRef}
-            aria-label="アップロードファイル"
-            type="file"
-            multiple
-            accept=".pdf,.ppt,.pptx,.png,.jpg,.jpeg"
-            onChange={(e) => addFiles(e.target.files)}
-            className="hidden"
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            aria-describedby="upload-files-label"
-            className="group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-white px-5 py-10 transition-all hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors group-hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:group-hover:bg-gray-700">
-              <span className="text-2xl">+</span>
-            </div>
-            <span className="mt-4 block text-sm font-medium text-gray-900 dark:text-gray-100">
-              ファイルを複数選択
-            </span>
-            <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
-              PDF, PPT, 画像 / 1ファイル最大50MB
-            </span>
-          </button>
+        <FileDropzone
+          files={files}
+          onAddFiles={addFiles}
+          onRemoveFile={removeFile}
+          onUpdateFileType={handleUpdateFileType}
+        />
 
-          {files.length > 0 && (
-            <ul className="mt-6 space-y-3">
-              {files.map((entry, i) => (
-                <li
-                  key={i}
-                  className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-950 sm:flex-row sm:items-center"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {entry.file.name}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      {(entry.file.size / (1024 * 1024)).toFixed(1)} MB
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      aria-label="ファイル種別"
-                      value={entry.fileType}
-                      onChange={(e) => {
-                        const updated = [...files];
-                        updated[i] = {
-                          ...entry,
-                          fileType: e.target.value as FileEntry["fileType"],
-                        };
-                        setFiles(updated);
-                      }}
-                      className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 focus:border-gray-900 focus:ring-0 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:focus:border-gray-100"
-                    >
-                      {VALID_FILE_TYPES.map((ft) => (
-                        <option key={ft} value={ft}>
-                          {ft}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => removeFile(i)}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
-                    >
-                      <span>✕</span>
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+
 
         {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+          <div data-testid="org-selection-error" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
             {error}
           </div>
         )}

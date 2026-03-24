@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, sql, inArray, or } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import {
     orgs,
     orgMembers,
@@ -13,69 +13,26 @@ import {
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { validateSlug, validateName, validateDescription } from "../utils/validation";
+import {
+    getOrgBySlug,
+    getOrgMembership,
+    isOrgAdmin,
+    isOrgMember,
+    isPaperAuthor,
+} from "../utils/db";
+
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// ─── Validation helpers ─────────────────────────────────────────
-const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 
-function validateSlug(slug: unknown): string | null {
-    if (typeof slug !== "string") return "slug is required";
-    const s = slug.trim().toLowerCase();
-    if (s.length < 3 || s.length > 40) return "slug must be 3–40 characters";
-    if (!SLUG_RE.test(s)) return "slug must contain only lowercase letters, numbers, and hyphens";
-    if (s.includes("--")) return "slug must not contain consecutive hyphens";
-    return null;
-}
-
-function validateName(name: unknown): string | null {
-    if (typeof name !== "string" || name.trim().length === 0) return "name is required";
-    if (name.trim().length > 100) return "name must be 100 characters or less";
-    return null;
-}
-
-function validateDescription(description: unknown): string | null {
-    if (description === undefined || description === null || description === "") return null;
-    if (typeof description !== "string") return "description must be a string";
-    if (description.trim().length > 500) return "description must be 500 characters or less";
-    return null;
-}
 
 // ─── Permission helpers ─────────────────────────────────────────
-async function getOrgBySlug(db: ReturnType<typeof drizzle>, slug: string) {
-    return db.select().from(orgs).where(eq(orgs.slug, slug)).get();
+async function requireOrgAdminOrForbidden(db: ReturnType<typeof drizzle>, orgId: string, userId: string, c: any) {
+    const isAdmin = await isOrgAdmin(db, orgId, userId);
+    if (!isAdmin) return c.json({ error: "Forbidden: admin access required" }, 403);
+    return null;
 }
-
-async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
-    return db
-        .select()
-        .from(orgMembers)
-        .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.userId, userId)))
-        .get();
-}
-
-async function requireOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
-    const membership = await getOrgMembership(db, orgId, userId);
-    if (!membership || (membership.role !== "admin" && membership.role !== "owner")) {
-        return { ok: false as const, error: "Forbidden: admin access required" };
-    }
-    return { ok: true as const, membership };
-}
-
-async function isOrgMember(db: ReturnType<typeof drizzle>, orgId: string, userId: string): Promise<boolean> {
-    const membership = await getOrgMembership(db, orgId, userId);
-    return !!membership;
-}
-
-async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, userId: string): Promise<boolean> {
-    const author = await db
-        .select()
-        .from(paperAuthors)
-        .where(and(eq(paperAuthors.paperId, paperId), eq(paperAuthors.userId, userId)))
-        .get();
-    return !!author;
-}
-
 // ═══════════════════════════════════════════════════════════════
 // 1. Org CRUD
 // ═══════════════════════════════════════════════════════════════
@@ -168,8 +125,8 @@ orgsRoute.patch("/:slug", authMiddleware, async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const adminCheck = await requireOrgAdmin(db, org.id, userId);
-    if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
+    const forbiddenResponse = await requireOrgAdminOrForbidden(db, org.id, userId, c);
+    if (forbiddenResponse) return forbiddenResponse;
 
     let body: any;
     try {
@@ -222,8 +179,8 @@ orgsRoute.delete("/:slug", authMiddleware, async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const adminCheck = await requireOrgAdmin(db, org.id, userId);
-    if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
+    const forbiddenResponse = await requireOrgAdminOrForbidden(db, org.id, userId, c);
+    if (forbiddenResponse) return forbiddenResponse;
 
     // CASCADE will delete org_members and paper_orgs
     await db.delete(orgs).where(eq(orgs.id, org.id));
@@ -269,8 +226,8 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const adminCheck = await requireOrgAdmin(db, org.id, userId);
-    if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
+    const forbiddenResponse = await requireOrgAdminOrForbidden(db, org.id, userId, c);
+    if (forbiddenResponse) return forbiddenResponse;
 
     let body: any;
     try {
@@ -325,8 +282,8 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const adminCheck = await requireOrgAdmin(db, org.id, userId);
-    if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
+    const forbiddenResponse = await requireOrgAdminOrForbidden(db, org.id, userId, c);
+    if (forbiddenResponse) return forbiddenResponse;
 
     let body: any;
     try {
@@ -381,8 +338,8 @@ orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const adminCheck = await requireOrgAdmin(db, org.id, userId);
-    if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
+    const forbiddenResponse = await requireOrgAdminOrForbidden(db, org.id, userId, c);
+    if (forbiddenResponse) return forbiddenResponse;
 
     const membership = await getOrgMembership(db, org.id, targetUserId);
     if (!membership) return c.json({ error: "Member not found" }, 404);
@@ -470,16 +427,18 @@ orgsRoute.get("/:slug/papers", async (c) => {
     // Check authorship for non-public papers the user might be an author of
     let authoredPaperIds = new Set<string>();
     if (currentUserId) {
-        const nonPublicPapers = allPapers.filter((p) => p.visibility !== "public");
-        if (nonPublicPapers.length > 0) {
+        const nonPublicPaperIds = allPapers
+            .filter((p) => p.visibility !== "public")
+            .map((p) => p.id);
+        if (nonPublicPaperIds.length > 0) {
             const authorships = await db
                 .select({ paperId: paperAuthors.paperId })
                 .from(paperAuthors)
                 .where(
                     and(
-                        inArray(paperAuthors.paperId, nonPublicPapers.map((p) => p.id)),
                         eq(paperAuthors.userId, currentUserId),
-                    ),
+                        inArray(paperAuthors.paperId, nonPublicPaperIds)
+                    )
                 )
                 .all();
             authoredPaperIds = new Set(authorships.map((a) => a.paperId));
@@ -524,10 +483,10 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
     if (!paper) return c.json({ error: "Paper not found" }, 404);
 
     // Check permission: must be admin OR paper author
-    const isAdmin = await requireOrgAdmin(db, org.id, userId);
-    const isAuthor = await isPaperAuthor(db, paperId.trim(), userId);
+    const isAdmin = await isOrgAdmin(db, org.id, userId);
+    const isAuthor = isAdmin ? true : await isPaperAuthor(db, paperId.trim(), userId);
 
-    if (!isAdmin.ok && !isAuthor) {
+    if (!isAdmin && !isAuthor) {
         return c.json({ error: "Forbidden: must be org admin or paper author" }, 403);
     }
 
@@ -567,10 +526,10 @@ orgsRoute.delete("/:slug/papers/:paperId", authMiddleware, async (c) => {
     if (!org) return c.json({ error: "Org not found" }, 404);
 
     // Check permission: must be admin OR paper author
-    const isAdmin = await requireOrgAdmin(db, org.id, userId);
-    const isAuthor = await isPaperAuthor(db, paperId, userId);
+    const isAdmin = await isOrgAdmin(db, org.id, userId);
+    const isAuthor = isAdmin ? true : await isPaperAuthor(db, paperId, userId);
 
-    if (!isAdmin.ok && !isAuthor) {
+    if (!isAdmin && !isAuthor) {
         return c.json({ error: "Forbidden: must be org admin or paper author" }, 403);
     }
 
