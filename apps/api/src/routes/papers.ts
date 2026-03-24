@@ -149,6 +149,15 @@ const tokenCache = new Map<string, { payload: { sub: string }; expiresAt: number
 const inFlightVerifications = new Map<string, Promise<{ sub: string; exp?: number }>>();
 const MAX_CACHE_SIZE = 1000;
 const TOKEN_CACHE_MAX_AGE_MS = 60 * 1000;
+let tokenCacheScopeSecret: string | null = null;
+
+function ensureTokenCacheScope(secret: string): void {
+    if (tokenCacheScopeSecret === secret) return;
+
+    tokenCache.clear();
+    inFlightVerifications.clear();
+    tokenCacheScopeSecret = secret;
+}
 
 function purgeExpiredTokenCache(now: number): void {
     for (const [cachedToken, entry] of tokenCache.entries()) {
@@ -171,7 +180,9 @@ async function authorizePaperAccess(
         return { ok: false, status: 401, error: "Unauthorized" };
     }
 
-    const token = `${c.env.JWT_SECRET}:${rawToken}`;
+    ensureTokenCacheScope(c.env.JWT_SECRET);
+
+    const token = rawToken;
     let user: { sub: string };
     const now = Date.now();
     const cached = tokenCache.get(token);
@@ -213,6 +224,8 @@ async function authorizePaperAccess(
             inFlightVerifications.delete(token);
         }
     }
+
+    c.set("user", { sub: user.sub } as any);
 
     // Authors always have access
     const isAuthor = await db

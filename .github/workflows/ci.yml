@@ -105,7 +105,8 @@ jobs:
 
   upload-coverage:
     name: Upload Coverage
-    needs: [build-web-check, e2e]
+    if: ${{ always() && !cancelled() }}
+    needs: [test-api, test-web]
     runs-on: ubuntu-latest
     env:
       CODECOV_COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}

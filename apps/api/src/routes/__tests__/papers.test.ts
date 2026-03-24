@@ -14,6 +14,58 @@ vi.mock("drizzle-orm/d1", () => ({
 
 describe("papers routes", () => {
 
+    it("deduplicates in-flight verification for concurrent requests with the same token", async () => {
+        vi.resetModules();
+        const actualJwt = await vi.importActual<typeof import("hono/jwt")>("hono/jwt");
+        const verifySpy = vi.fn(
+            async (...args: Parameters<typeof actualJwt.verify>) => actualJwt.verify(...args),
+        );
+        vi.doMock("hono/jwt", () => ({
+            ...actualJwt,
+            verify: verifySpy,
+        }));
+
+        const mod = await import("../../index");
+        const app = mod.default;
+        const token = await createTestJWT({ sub: "user-author" });
+
+        mockDb.select.mockImplementation(() =>
+            makeQuery({
+                getResult: {
+                    id: "paper-1",
+                    visibility: "private",
+                    paperId: "paper-1",
+                    r2Key: "papers/test.pdf",
+                    filename: "paper.pdf",
+                },
+            }),
+        );
+
+        const env = {
+            DB: mockDb,
+            JWT_SECRET: "test-jwt-secret",
+            BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
+        };
+
+        const request = () =>
+            app.request(
+                new Request("http://localhost/api/papers/paper-1/files/file-1/download", {
+                    headers: { Authorization: `Bearer ${token}` },
+                }),
+                {},
+                env,
+            );
+
+        const [res1, res2] = await Promise.all([request(), request()]);
+
+        expect(res1.status).toBe(200);
+        expect(res2.status).toBe(200);
+        expect(verifySpy).toHaveBeenCalledTimes(1);
+
+        vi.doUnmock("hono/jwt");
+        vi.resetModules();
+    });
+
     it("hits the token cache on subsequent calls and removes expired ones", async () => {
         const app = await createTestApp();
         const { createTestJWT } = await import("../../test/helpers");

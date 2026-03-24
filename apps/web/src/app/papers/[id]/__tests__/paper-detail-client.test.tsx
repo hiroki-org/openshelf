@@ -278,10 +278,14 @@ describe("PaperDetailClient", () => {
 
     const slideRow = screen.getByText("deck.pptx").closest("li");
     expect(slideRow).not.toBeNull();
+    const createObjectUrlSpy = vi.mocked(URL.createObjectURL);
+    const callsBeforeSlideDownload = createObjectUrlSpy.mock.calls.length;
     fireEvent.click(within(slideRow!).getByRole("button", { name: "ダウンロード" }));
 
     await waitFor(() => {
-      expect(URL.createObjectURL).toHaveBeenCalled();
+      expect(createObjectUrlSpy).toHaveBeenCalledTimes(
+        callsBeforeSlideDownload + 1,
+      );
     });
 
     fireEvent.click(screen.getByRole("button", { name: "+ 共著者を招待" }));

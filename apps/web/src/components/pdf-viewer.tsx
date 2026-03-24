@@ -19,6 +19,7 @@ const options = {
 };
 
 export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
+  const viewerRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [numPages, setNumPages] = useState(0);
@@ -58,19 +59,24 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   }, []);
 
   const toggleFullScreen = useCallback(async () => {
-    const node = containerRef.current;
+    const node = viewerRef.current;
     if (!node) return;
 
-    if (!document.fullscreenElement) {
-      await node.requestFullscreen();
-      return;
-    }
+    try {
+      if (!document.fullscreenElement) {
+        await node.requestFullscreen();
+        return;
+      }
 
-    await document.exitFullscreen();
+      await document.exitFullscreen();
+    } catch {
+      // Ignore unsupported fullscreen API errors.
+    }
   }, []);
 
   return (
     <div
+      ref={viewerRef}
       data-testid="pdf-viewer"
       className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
     >

@@ -54,7 +54,7 @@ function parseVisibility(value: unknown): Visibility | null {
 
 function isUniqueConstraintError(err: unknown): boolean {
     const message = err instanceof Error ? err.message : String(err);
-    return message.includes("UNIQUE") || message.includes("unique") || message.includes("constraint");
+    return /\bUNIQUE\b/i.test(message) || /unique constraint failed/i.test(message);
 }
 
 async function getCurrentUser(c: any): Promise<CurrentUser> {
