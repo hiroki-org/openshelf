@@ -1,10 +1,11 @@
 import {
+  cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import InvitesPage from "../page";
 import { apiFetch } from "@/lib/api";
 
@@ -37,6 +38,10 @@ vi.mock("next/link", () => ({
 }));
 
 describe("InvitesPage", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     push.mockReset();
@@ -98,6 +103,76 @@ describe("InvitesPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText("承認済み")).toBeInTheDocument();
+    });
+  });
+
+  it("declines a pending invite and updates the status", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/invites/received") {
+        return new Response(
+          JSON.stringify({
+            invites: [
+              {
+                id: "invite-2",
+                paperId: "paper-2",
+                paperTitle: "Declined Paper",
+                inviterId: "user-2",
+                inviterName: "Bob",
+                status: "pending",
+                createdAt: "2026-03-01T00:00:00Z",
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url === "/api/invites/invite-2" && init?.method === "PATCH") {
+        const body = JSON.parse(String(init?.body ?? "{}"));
+        if (body.action !== "decline") {
+          return new Response(JSON.stringify({ error: "Invalid action" }), {
+            status: 400,
+          });
+        }
+        return new Response("{}", { status: 200 });
+      }
+
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<InvitesPage />);
+
+    expect(await screen.findByText("Declined Paper")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "拒否" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("拒否済み")).toBeInTheDocument();
+    });
+  });
+
+  it("handles fetch failure (500)", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response("{}", { status: 500 }));
+
+    render(<InvitesPage />);
+
+    expect(await screen.findByText("招待はありません")).toBeInTheDocument();
+  });
+
+  it("handles fetch network error", async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new Error("Network Error"));
+
+    render(<InvitesPage />);
+
+    expect(await screen.findByText("招待はありません")).toBeInTheDocument();
+  });
+
+  it("redirects guests to home", async () => {
+    authState = { user: null, loading: false };
+
+    render(<InvitesPage />);
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/");
     });
   });
 });

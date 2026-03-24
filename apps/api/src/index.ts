@@ -7,6 +7,7 @@ import papersRoute from "./routes/papers";
 import invitesRoute from "./routes/invites";
 import orgsRoute from "./routes/orgs";
 import collectionsRoute from "./routes/collections";
+import testAuth from "./routes/test-auth";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -70,11 +71,7 @@ app.use("/api/*", async (c, next) => {
 
 // Routes
 app.route("/api/auth", auth);
-
-if (process.env.NODE_ENV !== "production") {
-    const { default: testAuth } = await import("./routes/test-auth");
-    app.route("/api/test-auth", testAuth);
-}
+app.route("/api/test-auth", testAuth);
 app.route("/api/users", usersRoute);
 app.route("/api/papers", papersRoute);
 app.route("/api/invites", invitesRoute);

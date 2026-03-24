@@ -305,6 +305,14 @@ describe("OrgSettingsPage", () => {
     await screen.findByRole("heading", { name: "Demo Org — 設定" });
 
     fireEvent.click(screen.getByRole("button", { name: "メンバー" }));
+    const ownerRow = (await screen.findByText("Owner")).closest("li");
+    expect(ownerRow).not.toBeNull();
+    expect(within(ownerRow!).getByRole("combobox")).toHaveValue("owner");
+    expect(within(ownerRow!).getByRole("combobox")).toBeDisabled();
+    expect(
+      within(ownerRow!).queryByRole("button", { name: "削除" }),
+    ).not.toBeInTheDocument();
+
     fireEvent.change(screen.getByLabelText("メンバー検索"), {
       target: { value: "al" },
     });

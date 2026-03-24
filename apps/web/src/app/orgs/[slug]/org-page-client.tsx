@@ -7,44 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { safePath } from "@/lib/sanitization";
 import { getVisibilityBadge } from "@/lib/presentation";
-
-type Org = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  createdAt: string;
-};
-
-type OrgPaper = {
-  id: string;
-  title: string;
-  abstract: string | null;
-  visibility: string;
-  venue: string | null;
-  venueType: string | null;
-  year: number | null;
-  category: string | null;
-  tags: string | null;
-  createdAt: string;
-};
-
-type Member = {
-  userId: string;
-  role: string;
-  name: string;
-  displayName: string | null;
-  avatarUrl: string | null;
-  githubId: string;
-};
-
-type Collection = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  visibility: string;
-};
+import type { Collection, Member, Org, OrgPaper } from "./types";
 
 type OrgPageClientProps = {
   slug: string;

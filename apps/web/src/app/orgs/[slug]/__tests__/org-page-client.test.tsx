@@ -1,8 +1,9 @@
 import {
+  cleanup,
   render,
   screen,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OrgPageClient from "../org-page-client";
 import { apiFetch } from "@/lib/api";
 
@@ -29,6 +30,10 @@ vi.mock("next/image", () => ({
 }));
 
 describe("OrgPageClient", () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     authState = { user: { id: "user-1" } };

@@ -128,7 +128,7 @@ export default function NewOrgPage() {
       case "invalid":
         return (
           <span className="text-red-600 text-xs">
-            ※ 3〜40文字、英小文字・数字・ハイフンのみ
+            ※ 3〜40文字の英小文字・数字・ハイフンのみ。先頭/末尾のハイフン不可、ハイフン連続不可
           </span>
         );
       default:

@@ -583,46 +583,50 @@ export default function OrgSettingsPage() {
           {/* Member list */}
           <h3 className="text-sm font-medium mb-2">メンバー一覧</h3>
           <ul className="space-y-2">
-            {members.map((m) => (
-              <li
-                key={m.userId}
-                className="flex items-center justify-between text-sm border rounded-md p-3 dark:border-gray-700"
-              >
-                <div className="flex items-center gap-2">
-                  {m.avatarUrl && (
-                    <Image
-                      src={m.avatarUrl}
-                      alt={m.name}
-                      width={24}
-                      height={24}
-                      className="rounded-full"
-                    />
-                  )}
-                  <span>{m.displayName ?? m.name}</span>
-                  <span className="text-xs text-gray-400">@{m.githubId}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={m.role === "owner" ? "admin" : m.role}
-                    onChange={(e) => handleChangeRole(m.userId, e.target.value)}
-                    disabled={m.userId === user?.id}
-                    className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
-                  >
-                    <option value="admin">admin</option>
-                    <option value="member">member</option>
-                  </select>
-                  {m.userId !== user?.id && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveMember(m.userId)}
-                      className="text-red-500 hover:text-red-700 text-xs"
+            {members.map((m) => {
+              const isOwner = m.role === "owner";
+              return (
+                <li
+                  key={m.userId}
+                  className="flex items-center justify-between text-sm border rounded-md p-3 dark:border-gray-700"
+                >
+                  <div className="flex items-center gap-2">
+                    {m.avatarUrl && (
+                      <Image
+                        src={m.avatarUrl}
+                        alt={m.name}
+                        width={24}
+                        height={24}
+                        className="rounded-full"
+                      />
+                    )}
+                    <span>{m.displayName ?? m.name}</span>
+                    <span className="text-xs text-gray-400">@{m.githubId}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={m.role}
+                      onChange={(e) => handleChangeRole(m.userId, e.target.value)}
+                      disabled={isOwner || m.userId === user?.id}
+                      className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
                     >
-                      削除
-                    </button>
-                  )}
-                </div>
-              </li>
-            ))}
+                      <option value="owner">owner</option>
+                      <option value="admin">admin</option>
+                      <option value="member">member</option>
+                    </select>
+                    {!isOwner && m.userId !== user?.id && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMember(m.userId)}
+                        className="text-red-500 hover:text-red-700 text-xs"
+                      >
+                        削除
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
