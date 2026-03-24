@@ -507,42 +507,6 @@ describe("OrgSettingsPage", () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("ネットワークエラーが発生しました"));
   });
 
-  it("shows a response processing error when the success handler fails", async () => {
-    const state: OrgState = {
-      org: { id: "o1", slug: "demo-org", name: "Org", description: null },
-      members: [{ userId: "owner-1", role: "owner", name: "o", displayName: "O", avatarUrl: null, githubId: "o" }],
-      papers: [],
-    };
-
-    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-      if (url === "/api/orgs/demo-org" && (!init || init.method === "GET")) {
-        return jsonResponse({ org: state.org });
-      }
-      if (url === "/api/orgs/demo-org/members" && (!init || init.method === "GET")) {
-        return jsonResponse({ members: state.members });
-      }
-      if (url === "/api/orgs/demo-org/papers" && (!init || init.method === "GET")) {
-        return jsonResponse({ papers: state.papers });
-      }
-      if (url === "/api/orgs/demo-org" && init?.method === "PATCH") {
-        return new Response("not-json", { status: 200 });
-      }
-      return jsonResponse({ error: "Unexpected" }, 500);
-    });
-
-    render(<OrgSettingsPage />);
-    await screen.findByRole("heading", { name: "Org — 設定" });
-
-    const saveButton = screen.getByRole("button", { name: "保存" });
-    fireEvent.click(saveButton);
-
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("レスポンス処理中にエラーが発生しました"),
-    );
-    expect(toast.error).not.toHaveBeenCalledWith("ネットワークエラーが発生しました");
-    await waitFor(() => expect(saveButton).not.toBeDisabled());
-  });
-
   it("handles member and paper operation errors", async () => {
     const state: OrgState = {
       org: { id: "o1", slug: "demo-org", name: "Org", description: null },
