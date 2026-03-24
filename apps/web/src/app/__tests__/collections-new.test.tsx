@@ -59,6 +59,13 @@ describe("NewCollectionPage", () => {
         );
       }
 
+
+      if (url === "/api/collections" && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({ collection: { slug: "my-collection" } }),
+          { status: 201 }
+        );
+      }
       throw new Error(`Unexpected request: ${String(url)}`);
     });
 
@@ -103,5 +110,178 @@ describe("NewCollectionPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "作成" }));
 
     expect(await screen.findByText("org slug is required")).toBeInTheDocument();
+  });
+
+  it("handles 400 error response from api", async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      if (url === "/api/collections" && init?.method === "POST") {
+        return new Response(JSON.stringify({ error: "custom validation error" }), { status: 400 });
+      }
+      return new Response(null, { status: 200 });
+    });
+
+    render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Test Error" },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+
+    vi.useRealTimers();
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+
+    expect(await screen.findByText("custom validation error")).toBeInTheDocument();
+  });
+
+  it("submits description and visibility correctly", async () => {
+    vi.useFakeTimers();
+    let submittedBody = null;
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      if (url === "/api/collections" && init?.method === "POST") {
+        submittedBody = JSON.parse(init?.body as string);
+        return new Response(
+          JSON.stringify({ collection: { slug: "my-collection" } }),
+          { status: 201 }
+        );
+      }
+      return new Response(null, { status: 200 });
+    });
+
+    render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Test Collection" },
+    });
+
+    fireEvent.change(screen.getByLabelText("description"), {
+      target: { value: "A description here" },
+    });
+
+    fireEvent.change(screen.getByLabelText("visibility"), {
+      target: { value: "public" },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+
+    vi.useRealTimers();
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/users/user-1/c/my-collection");
+    });
+
+    expect(submittedBody).toMatchObject({
+      description: "A description here",
+      visibility: "public"
+    });
+  });
+
+  it("creates an org collection successfully", async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/orgs/my-org/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      if (url === "/api/collections" && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({ collection: { slug: "my-collection" } }),
+          { status: 201 }
+        );
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<NewCollectionPage />);
+
+    fireEvent.click(screen.getByLabelText(/^org$/));
+
+    const orgSlugInput = screen.getByLabelText("org slug");
+    fireEvent.change(orgSlugInput, { target: { value: "my-org" } });
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "my collection" },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+
+    vi.useRealTimers();
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/orgs/my-org/c/my-collection");
+    });
+  });
+
+  it("displays network error on API failure during submission", async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      if (url === "/api/collections" && init?.method === "POST") {
+        throw new Error("Network failure");
+      }
+      return new Response(null, { status: 200 });
+    });
+
+    render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Test Error" },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+
+    vi.useRealTimers();
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+
+    expect(await screen.findByText("ネットワークエラー")).toBeInTheDocument();
+  });
+
+  it("handles slug already taken checking error", async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [{slug: "taken-slug"}] }), { status: 200 });
+      }
+      return new Response(null, { status: 200 });
+    });
+
+    render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "taken slug" },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("✗ 使用済み")).toBeInTheDocument();
+
+    // Validate we cannot click the button if it's taken
+    const button = screen.getByRole("button", { name: "作成" });
+    expect(button).toBeDisabled();
   });
 });
