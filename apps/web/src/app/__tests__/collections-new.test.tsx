@@ -45,6 +45,54 @@ describe("NewCollectionPage", () => {
     authState = { user: { id: "user-1" }, loading: false };
   });
 
+  it("allows manual slug override, changes owner type and handles visibility", async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      if (url === "/api/collections" && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({ collection: { slug: "custom-slug-123" } }),
+          { status: 201 }
+        );
+      }
+      return new Response(null, { status: 200 });
+    });
+
+    render(<NewCollectionPage />);
+
+    // Change to org and back to user to cover line 183
+    fireEvent.click(screen.getByLabelText(/^org$/));
+    fireEvent.click(screen.getByLabelText(/^user$/));
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Lab Picks" },
+    });
+
+    // Manually edit the slug to cover line 241-242
+    fireEvent.change(screen.getByLabelText("slug"), {
+      target: { value: "custom-slug-123" },
+    });
+
+    // Change visibility
+    fireEvent.change(screen.getByLabelText("visibility"), {
+      target: { value: "org_only" },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+
+    vi.useRealTimers();
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/users/user-1/c/custom-slug-123");
+    });
+  });
+
   it("slugifies the name, checks availability, and creates a user collection", async () => {
     vi.useFakeTimers();
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
