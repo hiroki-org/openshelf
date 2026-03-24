@@ -155,8 +155,13 @@ function isValidUrlScheme(urlStr: string): boolean {
 // In-memory token cache to prevent repeated JWT verifications for the same token
 // within the same worker isolate. Maps token -> { payload: { sub: string }, expiresAt: number }
 const tokenCache = new Map<string, { payload: { sub: string }; expiresAt: number }>();
+const inFlightVerifications = new Map<string, Promise<{ sub: string; exp?: number }>>();
 const MAX_CACHE_SIZE = 1000;
 const TOKEN_CACHE_MAX_AGE_MS = 60 * 1000;
+
+function buildTokenCacheKey(token: string, secret: string): string {
+    return `${secret}:${token}`;
+}
 
 function purgeExpiredTokenCache(now: number): void {
     for (const [cachedToken, entry] of tokenCache.entries()) {
@@ -180,31 +185,46 @@ async function authorizePaperAccess(
     }
 
     let user: { sub: string };
+    const tokenCacheKey = buildTokenCacheKey(token, c.env.JWT_SECRET);
     const now = Date.now();
-    const cached = tokenCache.get(token);
+    const cached = tokenCache.get(tokenCacheKey);
 
     if (cached && cached.expiresAt > now) {
         user = cached.payload;
     } else {
         if (cached) {
-            tokenCache.delete(token);
+            tokenCache.delete(tokenCacheKey);
         }
-        const { verify } = await import("hono/jwt");
+
+        let verification = inFlightVerifications.get(tokenCacheKey);
+        if (!verification) {
+            verification = (async () => {
+                const { verify } = await import("hono/jwt");
+                return (await verify(token, c.env.JWT_SECRET, "HS256")) as { sub: string; exp?: number };
+            })();
+            inFlightVerifications.set(tokenCacheKey, verification);
+        }
+
         try {
-            const verified = (await verify(token, c.env.JWT_SECRET, "HS256")) as { sub: string; exp?: number };
+            const verified = await verification;
             user = verified;
+            const nowAfterVerify = Date.now();
 
             if (tokenCache.size >= MAX_CACHE_SIZE) {
-                purgeExpiredTokenCache(now);
+                purgeExpiredTokenCache(nowAfterVerify);
                 if (tokenCache.size >= MAX_CACHE_SIZE) {
                     tokenCache.delete(tokenCache.keys().next().value!);
                 }
             }
-            const jwtExpiresAt = verified.exp ? verified.exp * 1000 : now + TOKEN_CACHE_MAX_AGE_MS;
-            const expiresAt = Math.min(jwtExpiresAt, now + TOKEN_CACHE_MAX_AGE_MS);
-            tokenCache.set(token, { payload: { sub: verified.sub }, expiresAt });
+            const jwtExpiresAt = verified.exp
+                ? verified.exp * 1000
+                : nowAfterVerify + TOKEN_CACHE_MAX_AGE_MS;
+            const expiresAt = Math.min(jwtExpiresAt, nowAfterVerify + TOKEN_CACHE_MAX_AGE_MS);
+            tokenCache.set(tokenCacheKey, { payload: { sub: verified.sub }, expiresAt });
         } catch {
             return { ok: false, status: 401, error: "Invalid token" };
+        } finally {
+            inFlightVerifications.delete(tokenCacheKey);
         }
     }
 

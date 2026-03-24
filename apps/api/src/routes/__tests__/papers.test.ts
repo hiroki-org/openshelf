@@ -72,6 +72,7 @@ describe("papers routes", () => {
         const app = await createTestApp();
         const paperId = "test-paper-cache";
         const fileId = "test-file-cache";
+        const token = await createTestJWT({ sub: "mock-user-id" });
 
         mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: paperId, visibility: "private" } }));
         mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } })); // Is author
@@ -79,13 +80,12 @@ describe("papers routes", () => {
         // First call
         const req1 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
             headers: {
-                Authorization: "Bearer test-token",
+                Authorization: `Bearer ${token}`,
             },
         });
-        const viSelectSpy = vi.spyOn(mockDb, "select");
-        await app.request(req1, {}, {
+        const res1 = await app.request(req1, {}, {
             DB: mockDb,
-            JWT_SECRET: "secret",
+            JWT_SECRET: "test-jwt-secret",
             BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
         });
 
@@ -94,18 +94,19 @@ describe("papers routes", () => {
         mockDb.select.mockReturnValueOnce(makeQuery({ getResult: { id: "user-author" } })); // Is author
         const req2 = new Request(`http://localhost/api/papers/${paperId}/files/${fileId}/download`, {
             headers: {
-                Authorization: "Bearer test-token",
+                Authorization: `Bearer ${token}`,
             },
         });
-        await app.request(req2, {}, {
+        const res2 = await app.request(req2, {}, {
             DB: mockDb,
-            JWT_SECRET: "secret",
+            JWT_SECRET: "test-jwt-secret",
             BUCKET: { get: vi.fn().mockResolvedValue({ body: "test" }) },
         });
 
-        // Should only be called 2 times (for req1) instead of 4
-        expect(viSelectSpy).toHaveBeenCalledTimes(2);
-        viSelectSpy.mockRestore();
+        expect(res1.status).toBe(404);
+        expect(res2.status).toBe(404);
+        // JWT cache only skips verify(); DB lookups still happen for each request path.
+        expect(mockDb.select).toHaveBeenCalledTimes(6);
     });
 
     it("purges expired cache when reaching MAX_CACHE_SIZE", async () => {
