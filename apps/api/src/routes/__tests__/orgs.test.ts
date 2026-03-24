@@ -452,9 +452,9 @@ describe("orgs routes", () => {
             const token = await createTestJWT({ sub: "user-2", githubId: "456", name: "Author" });
             queueSelectResponses([
                 { getResult: { id: "org-1", slug: "my-lab" } },
-                { getResult: { id: "paper-1", title: "Paper" } },
                 { getResult: null },
                 { getResult: { paperId: "paper-1", userId: "user-2", role: "uploader" } },
+                { getResult: { id: "paper-1", title: "Paper" } },
                 { getResult: null },
             ]);
 
@@ -488,9 +488,8 @@ describe("orgs routes", () => {
             const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Admin" });
             queueSelectResponses([
                 { getResult: { id: "org-1", slug: "my-lab" } },
-                { getResult: { id: "paper-1", title: "Paper" } },
                 { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
-                { getResult: null },
+                { getResult: { id: "paper-1", title: "Paper" } },
                 { getResult: { paperId: "paper-1", orgId: "org-1" } },
             ]);
 
@@ -901,7 +900,6 @@ describe("orgs routes", () => {
             const token = await createTestJWT({ sub: "user-not-related" });
             queueSelectResponses([
                 { getResult: { id: "org-1", slug: "lab" } },
-                { getResult: { id: "paper-1" } }, // paper exists
                 { getResult: null }, // not org admin
                 { getResult: null }, // not paper author
             ]);
@@ -914,6 +912,25 @@ describe("orgs routes", () => {
             }, createTestEnv() as any);
 
             expect(res.status).toBe(403);
+        });
+
+        it("POST /api/orgs/:slug/papers returns 404 only after an authorized caller passes permission checks", async () => {
+            const token = await createTestJWT({ sub: "user-admin" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "lab" } },
+                { getResult: { role: "admin" } },
+                { getResult: null }, // paper does not exist
+            ]);
+
+            const app = await createTestApp();
+            const res = await app.request("http://localhost/api/orgs/lab/papers", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: JSON.stringify({ paperId: "missing-paper" }),
+            }, createTestEnv() as any);
+
+            expect(res.status).toBe(404);
+            expect(((await res.json()) as any).error).toBe("Paper not found");
         });
 
         it("POST /api/orgs/:slug/members handles race condition on insert (unique constraint)", async () => {
@@ -962,7 +979,6 @@ describe("orgs routes", () => {
             queueSelectResponses([
                 { getResult: { id: "o1", slug: "l" } },
                 { getResult: { role: "admin" } },
-                { getResult: null }, // not author
                 { getResult: { orgId: "o1", paperId: "p1" } } // association exists
             ]);
             mockDb.delete = vi.fn(() => ({ where: vi.fn(async () => ({ meta: { changes: 1 } })) }));
