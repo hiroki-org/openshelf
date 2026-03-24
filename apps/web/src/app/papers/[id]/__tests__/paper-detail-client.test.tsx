@@ -264,7 +264,7 @@ describe("PaperDetailClient", () => {
       "data-url",
       expect.stringMatching(/^blob:mock-/),
     );
-    expect(screen.getByAltText("poster.png")).toHaveAttribute(
+    expect(await screen.findByAltText("poster.png")).toHaveAttribute(
       "src",
       expect.stringMatching(/^blob:mock-/),
     );

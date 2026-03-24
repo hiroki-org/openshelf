@@ -74,11 +74,18 @@ async function getCurrentUser(c: any): Promise<CurrentUser> {
     }
 }
 
-async function getOrgBySlug(db: ReturnType<typeof drizzle>, slug: string) {
+async function getOrgBySlug(
+    db: ReturnType<typeof drizzle>,
+    slug: string,
+): Promise<typeof orgs.$inferSelect | undefined> {
     return db.select().from(orgs).where(eq(orgs.slug, slug)).get();
 }
 
-async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
+async function getOrgMembership(
+    db: ReturnType<typeof drizzle>,
+    orgId: string,
+    userId: string,
+): Promise<typeof orgMembers.$inferSelect | undefined> {
     return db
         .select()
         .from(orgMembers)
@@ -86,16 +93,28 @@ async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: string, u
         .get();
 }
 
-async function isOrgMember(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
+async function isOrgMember(
+    db: ReturnType<typeof drizzle>,
+    orgId: string,
+    userId: string,
+): Promise<boolean> {
     return !!(await getOrgMembership(db, orgId, userId));
 }
 
-async function isOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
+async function isOrgAdmin(
+    db: ReturnType<typeof drizzle>,
+    orgId: string,
+    userId: string,
+): Promise<boolean> {
     const row = await getOrgMembership(db, orgId, userId);
     return !!row && (row.role === "admin" || row.role === "owner");
 }
 
-async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, userId: string) {
+async function isPaperAuthor(
+    db: ReturnType<typeof drizzle>,
+    paperId: string,
+    userId: string,
+): Promise<boolean> {
     const author = await db
         .select()
         .from(paperAuthors)
@@ -104,7 +123,11 @@ async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, us
     return !!author;
 }
 
-async function isMemberOfPaperOrg(db: ReturnType<typeof drizzle>, paperId: string, userId: string) {
+async function isMemberOfPaperOrg(
+    db: ReturnType<typeof drizzle>,
+    paperId: string,
+    userId: string,
+): Promise<boolean> {
     const isMember = await db
         .select({ id: orgMembers.userId })
         .from(orgMembers)

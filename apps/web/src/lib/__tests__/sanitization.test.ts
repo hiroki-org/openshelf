@@ -9,7 +9,9 @@ describe("sanitization", () => {
       expect(sanitizeId("abc")).toBe("abc");
       expect(sanitizeId("123")).toBe("123");
       expect(sanitizeId("paper-123")).toBe("paper-123");
+      expect(sanitizeId("paper--123")).toBe("paper--123");
       expect(sanitizeId("a-b-c")).toBe("a-b-c");
+      expect(sanitizeId("a--b--c")).toBe("a--b--c");
       expect(sanitizeId("user-name-123")).toBe("user-name-123");
     });
 
@@ -28,7 +30,7 @@ describe("sanitization", () => {
       expect(() => sanitizeId("-")).toThrow("Invalid identifier");
     });
 
-    it("handles long numeric-only identifiers according to current rules", () => {
+    it("accepts very long numeric-only identifiers", () => {
       const longId = "123".repeat(80);
       expect(sanitizeId(longId)).toBe(longId);
     });

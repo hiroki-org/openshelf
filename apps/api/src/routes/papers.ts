@@ -474,8 +474,8 @@ papersRoute.post("/", authMiddleware, async (c) => {
             const chunk = uploads.slice(i, i + MAX_CONCURRENT_UPLOADS);
             const results = await Promise.allSettled(
                 chunk.map(async (entry) => {
-                    const fileBuffer = await entry.file.arrayBuffer();
-                    await c.env.BUCKET.put(entry.r2Key, fileBuffer, {
+                    const uploadBody = entry.file.stream() as unknown as Parameters<typeof c.env.BUCKET.put>[1];
+                    await c.env.BUCKET.put(entry.r2Key, uploadBody, {
                         httpMetadata: { contentType: entry.file.type },
                     });
                     return entry.r2Key;
@@ -791,7 +791,7 @@ papersRoute.get("/:id/files/:fileId/download", async (c) => {
         headers["Content-Length"] = object.size.toString();
     }
 
-    return new Response(object.body as ReadableStream, { headers });
+    return new Response(object.body as unknown as BodyInit | null, { headers });
 });
 
 // GET /api/papers/:id/files/:fileId/preview — preview URL metadata for inline rendering
@@ -874,7 +874,7 @@ papersRoute.get("/:id/files/:fileId/stream", async (c) => {
         headers["Content-Length"] = object.size.toString();
     }
 
-    return new Response(object.body as ReadableStream, { headers });
+    return new Response(object.body as unknown as BodyInit | null, { headers });
 });
 
 // POST /api/papers/:id/invites — send coauthor invite
@@ -1213,8 +1213,13 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         hasRealUpdates = true;
     }
     if ("year" in body) {
-        if (!(typeof body.year === "number" || body.year === null) || Number.isNaN(body.year)) {
-            return c.json({ error: "year must be a number or null" }, 400);
+        if (
+            !(body.year === null
+                || (typeof body.year === "number"
+                    && Number.isFinite(body.year)
+                    && Number.isInteger(body.year)))
+        ) {
+            return c.json({ error: "year must be an integer or null" }, 400);
         }
         updates.year = body.year;
         hasRealUpdates = true;

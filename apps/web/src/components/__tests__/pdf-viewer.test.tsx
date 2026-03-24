@@ -158,16 +158,21 @@ describe("PdfViewer", () => {
   });
 
   it("handles fullscreen toggle", async () => {
-    const { getByText } = render(
+    const { getByTestId, getByText } = render(
       <PdfViewer fileUrl="https://example.com/paper.pdf" />,
     );
+
+    const viewer = getByTestId("pdf-viewer");
+    const requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(viewer, "requestFullscreen", {
+      configurable: true,
+      value: requestFullscreen,
+    });
 
     const fullscreenBtn = getByText("全画面");
 
     fireEvent.click(fullscreenBtn);
-    await waitFor(() =>
-      expect(HTMLElement.prototype.requestFullscreen).toHaveBeenCalled(),
-    );
+    await waitFor(() => expect(requestFullscreen).toHaveBeenCalledTimes(1));
 
     Object.defineProperty(document, "fullscreenElement", {
       configurable: true,
