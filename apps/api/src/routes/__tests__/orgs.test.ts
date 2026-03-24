@@ -972,4 +972,27 @@ describe("orgs routes", () => {
             expect(res.status).toBe(200);
         });
     });
+
+
+    describe("Patch Coverage for Org Papers", () => {
+        it("DELETE /api/orgs/:slug/papers/:paperId returns 403 if user is neither admin nor author", async () => {
+            const token = await createTestJWT({ sub: "user-unrelated" });
+            queueSelectResponses([
+                { getResult: { id: "o1", slug: "l" } },
+                { getResult: null }, // not admin
+                { getResult: null }, // not author
+            ]);
+            const app = await createTestApp();
+            const res = await app.request("http://localhost/api/orgs/l/papers/p1", {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+            }, createTestEnv());
+            expect(res.status).toBe(403);
+            const data = await res.json() as any;
+            expect(data.error).toBe("Forbidden: must be org admin or paper author");
+        });
+    });
 });
