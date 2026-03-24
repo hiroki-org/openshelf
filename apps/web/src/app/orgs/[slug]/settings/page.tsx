@@ -45,16 +45,24 @@ const executeApiAction = async (
   onSuccess: (res: Response) => Promise<void> | void,
   defaultErrorMessage: string
 ) => {
+  let res: Response;
   try {
-    const res = await action();
-    if (res.ok) {
-      await onSuccess(res);
-    } else {
-      const data = await res.json().catch(() => ({}));
-      toast.error(data.error ?? defaultErrorMessage);
-    }
+    res = await action();
   } catch {
     toast.error("ネットワークエラーが発生しました");
+    return;
+  }
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    toast.error(data.error ?? defaultErrorMessage);
+    return;
+  }
+
+  try {
+    await onSuccess(res);
+  } catch {
+    toast.error("レスポンス処理中にエラーが発生しました");
   }
 };
 
@@ -172,43 +180,49 @@ export default function OrgSettingsPage() {
   // ── General handlers ──
   const handleSave = async () => {
     setSaving(true);
-    await executeApiAction(
-      () =>
-        apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: editName.trim(),
-            slug: editSlug.trim().toLowerCase(),
-            description: editDescription.trim() || null,
+    try {
+      await executeApiAction(
+        () =>
+          apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: editName.trim(),
+              slug: editSlug.trim().toLowerCase(),
+              description: editDescription.trim() || null,
+            }),
           }),
-        }),
-      async (res) => {
-        const data = await res.json();
-        setOrg(data.org);
-        toast.success("保存しました");
-        if (data.org.slug !== slug) {
-          router.replace(`/orgs/${data.org.slug}/settings`);
-        }
-      },
-      "保存に失敗しました"
-    );
-    setSaving(false);
+        async (res) => {
+          const data = await res.json();
+          setOrg(data.org);
+          toast.success("保存しました");
+          if (data.org.slug !== slug) {
+            router.replace(`/orgs/${data.org.slug}/settings`);
+          }
+        },
+        "保存に失敗しました"
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
     setDeleting(true);
-    await executeApiAction(
-      () =>
-        apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
-          method: "DELETE",
-        }),
-      () => {
-        router.push("/");
-      },
-      "削除に失敗しました"
-    );
-    setDeleting(false);
+    try {
+      await executeApiAction(
+        () =>
+          apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+            method: "DELETE",
+          }),
+        () => {
+          router.push("/");
+        },
+        "削除に失敗しました"
+      );
+    } finally {
+      setDeleting(false);
+    }
   };
 
   // ── Members handlers ──
@@ -239,21 +253,24 @@ export default function OrgSettingsPage() {
 
   const handleAddMember = async (userId: string, role: string = "member") => {
     setInviting(true);
-    await executeApiAction(
-      () =>
-        apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId, role }),
-        }),
-      async () => {
-        setSearchQuery("");
-        setSearchResults([]);
-        await fetchData();
-      },
-      "追加に失敗しました"
-    );
-    setInviting(false);
+    try {
+      await executeApiAction(
+        () =>
+          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/members`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, role }),
+          }),
+        async () => {
+          setSearchQuery("");
+          setSearchResults([]);
+          await fetchData();
+        },
+        "追加に失敗しました"
+      );
+    } finally {
+      setInviting(false);
+    }
   };
 
   const handleChangeRole = async (userId: string, newRole: string) => {
@@ -328,21 +345,24 @@ export default function OrgSettingsPage() {
 
   const handleAddPaper = async (paperId: string) => {
     setAddingPaper(true);
-    await executeApiAction(
-      () =>
-        apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paperId }),
-        }),
-      async () => {
-        setPaperSearch("");
-        setPaperSearchResults([]);
-        await fetchData();
-      },
-      "追加に失敗しました"
-    );
-    setAddingPaper(false);
+    try {
+      await executeApiAction(
+        () =>
+          apiFetch(`/api/orgs/${encodeURIComponent(slug)}/papers`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paperId }),
+          }),
+        async () => {
+          setPaperSearch("");
+          setPaperSearchResults([]);
+          await fetchData();
+        },
+        "追加に失敗しました"
+      );
+    } finally {
+      setAddingPaper(false);
+    }
   };
 
   const handleRemovePaper = async (paperId: string) => {
