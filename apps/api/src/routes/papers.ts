@@ -185,9 +185,11 @@ async function authorizePaperAccess(
             const verified = (await verify(token, c.env.JWT_SECRET, "HS256")) as { sub: string; exp?: number };
             user = verified;
 
-            purgeExpiredTokenCache(now);
             if (tokenCache.size >= MAX_CACHE_SIZE) {
-                tokenCache.delete(tokenCache.keys().next().value!);
+                purgeExpiredTokenCache(now);
+                if (tokenCache.size >= MAX_CACHE_SIZE) {
+                    tokenCache.delete(tokenCache.keys().next().value!);
+                }
             }
             const jwtExpiresAt = verified.exp ? verified.exp * 1000 : now + TOKEN_CACHE_MAX_AGE_MS;
             const expiresAt = Math.min(jwtExpiresAt, now + TOKEN_CACHE_MAX_AGE_MS);
