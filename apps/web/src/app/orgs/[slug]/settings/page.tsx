@@ -4,11 +4,39 @@ import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { Org, Member, SearchUser, OrgPaper } from "./types";
-import { GeneralTab } from "./components/general-tab";
-import { MembersTab } from "./components/members-tab";
-import { PapersTab } from "./components/papers-tab";
+
+type Org = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+};
+
+type Member = {
+  userId: string;
+  role: string;
+  name: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  githubId: string;
+};
+
+type SearchUser = {
+  id: string;
+  name: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+};
+
+type OrgPaper = {
+  id: string;
+  title: string;
+  visibility: string;
+  year: number | null;
+  venue: string | null;
+};
 
 export default function OrgSettingsPage() {
   const params = useParams();
@@ -384,51 +412,281 @@ export default function OrgSettingsPage() {
         </button>
       </div>
 
+      {/* ── General Tab ── */}
       {tab === "general" && (
-        <GeneralTab
-          org={org}
-          editName={editName}
-          setEditName={setEditName}
-          editSlug={editSlug}
-          setEditSlug={setEditSlug}
-          editDescription={editDescription}
-          setEditDescription={setEditDescription}
-          saveMsg={saveMsg}
-          saving={saving}
-          handleSave={handleSave}
-          showDelete={showDelete}
-          setShowDelete={setShowDelete}
-          deleteConfirm={deleteConfirm}
-          setDeleteConfirm={setDeleteConfirm}
-          deleting={deleting}
-          handleDelete={handleDelete}
-        />
+        <div className="space-y-4">
+          <div>
+            <label
+              htmlFor="org-edit-name"
+              className="block text-sm font-medium mb-1"
+            >
+              組織名
+            </label>
+            <input
+              id="org-edit-name"
+              type="text"
+              maxLength={100}
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="org-edit-slug"
+              className="block text-sm font-medium mb-1"
+            >
+              スラッグ
+            </label>
+            <input
+              id="org-edit-slug"
+              type="text"
+              maxLength={40}
+              value={editSlug}
+              onChange={(e) =>
+                setEditSlug(
+                  e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                )
+              }
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="org-edit-description"
+              className="block text-sm font-medium mb-1"
+            >
+              説明
+            </label>
+            <textarea
+              id="org-edit-description"
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              rows={3}
+              maxLength={500}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            />
+          </div>
+
+          {saveMsg && <p className="text-sm text-gray-600">{saveMsg}</p>}
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+          >
+            {saving ? "保存中..." : "保存"}
+          </button>
+
+          {/* Danger zone */}
+          <div className="mt-10 rounded-md border border-red-300 p-4 dark:border-red-700">
+            <h3 className="text-sm font-medium text-red-600 mb-2">
+              Danger Zone
+            </h3>
+            <p className="text-xs text-gray-500 mb-3">
+              組織を削除すると、メンバー情報と論文の紐づけが全て削除されます。
+            </p>
+            {!showDelete ? (
+              <button
+                type="button"
+                onClick={() => setShowDelete(true)}
+                className="rounded-md border border-red-500 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+              >
+                組織を削除
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-red-600">
+                  確認のため「<strong>{org.slug}</strong>」を入力してください。
+                </p>
+                <input
+                  type="text"
+                  value={deleteConfirm}
+                  onChange={(e) => setDeleteConfirm(e.target.value)}
+                  aria-label="削除確認のためスラッグを入力"
+                  className="w-full rounded-md border border-red-300 px-3 py-2 text-sm dark:border-red-700 dark:bg-gray-900"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDelete}
+                    disabled={deleting || deleteConfirm !== org.slug}
+                    className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:opacity-50"
+                  >
+                    {deleting ? "削除中..." : "完全に削除する"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDelete(false);
+                      setDeleteConfirm("");
+                    }}
+                    className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+                  >
+                    キャンセル
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
+      {/* ── Members Tab ── */}
       {tab === "members" && (
-        <MembersTab
-          searchQuery={searchQuery}
-          handleUserSearch={handleUserSearch}
-          searchResults={searchResults}
-          handleAddMember={handleAddMember}
-          inviting={inviting}
-          members={members}
-          user={user}
-          handleChangeRole={handleChangeRole}
-          handleRemoveMember={handleRemoveMember}
-        />
+        <div>
+          {/* Invite form */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium mb-2">メンバーを追加</h3>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => handleUserSearch(e.target.value)}
+              placeholder="ユーザー名またはGitHub IDで検索..."
+              aria-label="メンバー検索"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm mb-2 dark:border-gray-700 dark:bg-gray-900"
+            />
+            {searchResults.length > 0 && (
+              <ul className="space-y-1 max-h-40 overflow-y-auto border rounded-md dark:border-gray-700">
+                {searchResults.map((u) => (
+                  <li
+                    key={u.id}
+                    className="flex items-center justify-between p-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    <div className="flex items-center gap-2">
+                      {u.avatarUrl && (
+                        <Image
+                          src={u.avatarUrl}
+                          alt={u.name}
+                          width={20}
+                          height={20}
+                          className="rounded-full"
+                        />
+                      )}
+                      <span>{u.displayName ?? u.name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddMember(u.id)}
+                      disabled={inviting}
+                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
+                    >
+                      追加
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Member list */}
+          <h3 className="text-sm font-medium mb-2">メンバー一覧</h3>
+          <ul className="space-y-2">
+            {members.map((m) => (
+              <li
+                key={m.userId}
+                className="flex items-center justify-between text-sm border rounded-md p-3 dark:border-gray-700"
+              >
+                <div className="flex items-center gap-2">
+                  {m.avatarUrl && (
+                    <Image
+                      src={m.avatarUrl}
+                      alt={m.name}
+                      width={24}
+                      height={24}
+                      className="rounded-full"
+                    />
+                  )}
+                  <span>{m.displayName ?? m.name}</span>
+                  <span className="text-xs text-gray-400">@{m.githubId}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={m.role === "owner" ? "admin" : m.role}
+                    onChange={(e) => handleChangeRole(m.userId, e.target.value)}
+                    disabled={m.userId === user?.id}
+                    className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
+                  >
+                    <option value="admin">admin</option>
+                    <option value="member">member</option>
+                  </select>
+                  {m.userId !== user?.id && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveMember(m.userId)}
+                      className="text-red-500 hover:text-red-700 text-xs"
+                    >
+                      削除
+                    </button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
+      {/* ── Papers Tab ── */}
       {tab === "papers" && (
-        <PapersTab
-          paperSearch={paperSearch}
-          handlePaperSearch={handlePaperSearch}
-          paperSearchResults={paperSearchResults}
-          handleAddPaper={handleAddPaper}
-          addingPaper={addingPaper}
-          orgPapers={orgPapers}
-          handleRemovePaper={handleRemovePaper}
-        />
+        <div>
+          {/* Add paper form */}
+          <div className="mb-6">
+            <h3 className="text-sm font-medium mb-2">論文を追加</h3>
+            <input
+              type="text"
+              value={paperSearch}
+              onChange={(e) => handlePaperSearch(e.target.value)}
+              placeholder="論文タイトルで検索..."
+              aria-label="論文検索"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm mb-2 dark:border-gray-700 dark:bg-gray-900"
+            />
+            {paperSearchResults.length > 0 && (
+              <ul className="space-y-1 max-h-40 overflow-y-auto border rounded-md dark:border-gray-700">
+                {paperSearchResults.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex items-center justify-between p-2 text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                  >
+                    <span className="truncate">{p.title}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleAddPaper(p.id)}
+                      disabled={addingPaper}
+                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50 shrink-0"
+                    >
+                      追加
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Paper list */}
+          <h3 className="text-sm font-medium mb-2">紐づけ済み論文</h3>
+          {orgPapers.length === 0 ? (
+            <p className="text-sm text-gray-500">まだ論文がありません</p>
+          ) : (
+            <ul className="space-y-2">
+              {orgPapers.map((p) => (
+                <li
+                  key={p.id}
+                  className="flex items-center justify-between text-sm border rounded-md p-3 dark:border-gray-700"
+                >
+                  <span className="truncate flex-1 min-w-0">{p.title}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePaper(p.id)}
+                    className="text-red-500 hover:text-red-700 text-xs shrink-0 ml-2"
+                  >
+                    解除
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );

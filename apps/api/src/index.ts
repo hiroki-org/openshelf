@@ -43,11 +43,8 @@ app.use("/api/*", async (c, next) => {
     const origin = c.req.header("Origin");
     const referer = c.req.header("Referer");
     const authHeader = c.req.header("Authorization");
-    let isTestEnv = false;
-    if (process.env.NODE_ENV !== "production") {
-        const testAuthHeader = c.req.header("x-test-auth-secret");
-        isTestEnv = c.env.ENABLE_TEST_AUTH === "true" && !!c.env.TEST_AUTH_SECRET && testAuthHeader === c.env.TEST_AUTH_SECRET;
-    }
+    const testAuthHeader = c.req.header("x-test-auth-secret");
+    const isTestEnv = c.env.ENABLE_TEST_AUTH === "true" && c.env.TEST_AUTH_SECRET && testAuthHeader === c.env.TEST_AUTH_SECRET;
 
     // Bypass CSRF for requests with Bearer tokens or valid test auth secret in test env
     if (authHeader?.startsWith("Bearer ") || isTestEnv) return await next();

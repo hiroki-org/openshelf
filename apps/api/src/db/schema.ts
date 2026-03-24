@@ -274,31 +274,25 @@ export const coauthorInvites = sqliteTable(
     ],
 );
 
+// ─── helpers ────────────────────────────────────────────────────
 /**
- * Returns an object to update the updatedAt field with the current timestamp.
- * SQLite/D1 does not support ON UPDATE CURRENT_TIMESTAMP, so this helper
- * must be used in all update operations.
+ * SQLite/D1 には ON UPDATE CURRENT_TIMESTAMP がないため，
+ * UPDATE クエリ実行時に必ずこのヘルパーで updatedAt をセットすること．
  *
- * @example
+ * 使用例:
  *   await db.update(papers).set({ title: "new", ...touchUpdatedAt() }).where(...)
- *
- * @returns An object containing the SQL fragment for the current datetime.
  */
 export const touchUpdatedAt = () => ({
     updatedAt: sql`(datetime('now'))`,
 });
 
 /**
- * Enables foreign key constraints for the current D1 database connection.
- * Foreign key constraints are disabled by default in Cloudflare D1.
- * This should be called before any queries that rely on cascading deletes
- * or relational integrity.
+ * D1 はデフォルトで FK 制約が無効．
+ * DB 接続取得後，クエリ実行前に必ず呼ぶこと．
  *
- * @example
+ * 使用例:
  *   const db = drizzle(env.DB);
  *   await enableForeignKeys(db);
- *
- * @param db - The drizzle-orm database instance.
  */
 export const enableForeignKeys = async (db: ReturnType<typeof drizzle>) => {
     await db.run(sql`PRAGMA foreign_keys = ON`);

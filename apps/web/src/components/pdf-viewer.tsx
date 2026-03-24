@@ -9,7 +9,6 @@ type PdfViewerProps = {
 };
 
 const ZOOM_PRESETS = [0.5, 0.75, 1, 1.25, 1.5] as const;
-type ZoomPreset = (typeof ZOOM_PRESETS)[number];
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -19,12 +18,12 @@ const options = {
   standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
 };
 
-function usePdfViewer() {
+export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
   const [numPages, setNumPages] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
-  const [zoom, setZoom] = useState<ZoomPreset>(1);
+  const [zoom, setZoom] = useState<(typeof ZOOM_PRESETS)[number]>(1);
   const [loadingError, setLoadingError] = useState(false);
 
   useEffect(() => {
@@ -58,196 +57,95 @@ function usePdfViewer() {
     setLoadingError(true);
   }, []);
 
-  const goToPrevPage = useCallback(() => {
-    setPageNumber((p) => Math.max(1, p - 1));
-  }, []);
-
-  const goToNextPage = useCallback(() => {
-    setPageNumber((p) => Math.min(numPages, p + 1));
-  }, [numPages]);
-
-  const zoomOut = useCallback(() => {
-    const idx = ZOOM_PRESETS.indexOf(zoom);
-    if (idx > 0) setZoom(ZOOM_PRESETS[idx - 1]);
-  }, [zoom]);
-
-  const zoomIn = useCallback(() => {
-    const idx = ZOOM_PRESETS.indexOf(zoom);
-    if (idx < ZOOM_PRESETS.length - 1) setZoom(ZOOM_PRESETS[idx + 1]);
-  }, [zoom]);
-
-  const changeZoom = useCallback((newZoom: ZoomPreset) => {
-    setZoom(newZoom);
-  }, []);
-
   const toggleFullScreen = useCallback(async () => {
     const node = containerRef.current;
     if (!node) return;
 
-    try {
-      if (!document.fullscreenElement) {
-        await node.requestFullscreen();
-        return;
-      }
-      await document.exitFullscreen();
-    } catch {
-      // Ignore error
+    if (!document.fullscreenElement) {
+      await node.requestFullscreen();
+      return;
     }
+
+    await document.exitFullscreen();
   }, []);
-
-  return {
-    containerRef,
-    numPages,
-    pageNumber,
-    zoom,
-    loadingError,
-    pageWidth,
-    canPrev,
-    canNext,
-    onDocumentLoadSuccess,
-    onDocumentLoadError,
-    goToPrevPage,
-    goToNextPage,
-    zoomOut,
-    zoomIn,
-    changeZoom,
-    toggleFullScreen,
-  };
-}
-
-type PdfToolbarProps = {
-  pageNumber: number;
-  numPages: number;
-  canPrev: boolean;
-  canNext: boolean;
-  zoom: ZoomPreset;
-  goToPrevPage: () => void;
-  goToNextPage: () => void;
-  zoomOut: () => void;
-  zoomIn: () => void;
-  changeZoom: (zoom: ZoomPreset) => void;
-  toggleFullScreen: () => Promise<void>;
-};
-
-function PdfToolbar({
-  pageNumber,
-  numPages,
-  canPrev,
-  canNext,
-  zoom,
-  goToPrevPage,
-  goToNextPage,
-  zoomOut,
-  zoomIn,
-  changeZoom,
-  toggleFullScreen,
-}: PdfToolbarProps) {
-  return (
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={goToPrevPage}
-          disabled={!canPrev}
-          className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
-        >
-          前へ
-        </button>
-        <span className="text-xs text-gray-600 dark:text-gray-300">
-          {pageNumber} / {numPages || "-"}
-        </span>
-        <button
-          type="button"
-          onClick={goToNextPage}
-          disabled={!canNext}
-          className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
-        >
-          次へ
-        </button>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={zoomOut}
-          disabled={zoom === ZOOM_PRESETS[0]}
-          className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
-        >
-          -
-        </button>
-
-        <select
-          aria-label="PDF zoom"
-          value={zoom}
-          onChange={(e) => changeZoom(Number(e.target.value) as ZoomPreset)}
-          className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
-        >
-          {ZOOM_PRESETS.map((preset) => (
-            <option key={preset} value={preset}>
-              {Math.round(preset * 100)}%
-            </option>
-          ))}
-        </select>
-
-        <button
-          type="button"
-          onClick={zoomIn}
-          disabled={zoom === ZOOM_PRESETS[ZOOM_PRESETS.length - 1]}
-          className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
-        >
-          +
-        </button>
-
-        <button
-          type="button"
-          onClick={toggleFullScreen}
-          className="rounded bg-gray-800 px-2 py-1 text-xs text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-900"
-        >
-          全画面
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
-  const {
-    containerRef,
-    numPages,
-    pageNumber,
-    zoom,
-    loadingError,
-    pageWidth,
-    canPrev,
-    canNext,
-    onDocumentLoadSuccess,
-    onDocumentLoadError,
-    goToPrevPage,
-    goToNextPage,
-    zoomOut,
-    zoomIn,
-    changeZoom,
-    toggleFullScreen,
-  } = usePdfViewer();
 
   return (
     <div
       data-testid="pdf-viewer"
       className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
     >
-      <PdfToolbar
-        pageNumber={pageNumber}
-        numPages={numPages}
-        canPrev={canPrev}
-        canNext={canNext}
-        zoom={zoom}
-        goToPrevPage={goToPrevPage}
-        goToNextPage={goToNextPage}
-        zoomOut={zoomOut}
-        zoomIn={zoomIn}
-        changeZoom={changeZoom}
-        toggleFullScreen={toggleFullScreen}
-      />
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
+            disabled={!canPrev}
+            className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+          >
+            前へ
+          </button>
+          <span className="text-xs text-gray-600 dark:text-gray-300">
+            {pageNumber} / {numPages || "-"}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
+            disabled={!canNext}
+            className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+          >
+            次へ
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const idx = ZOOM_PRESETS.indexOf(zoom);
+              if (idx > 0) setZoom(ZOOM_PRESETS[idx - 1]);
+            }}
+            disabled={zoom === ZOOM_PRESETS[0]}
+            className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+          >
+            -
+          </button>
+
+          <select
+            aria-label="PDF zoom"
+            value={zoom}
+            onChange={(e) =>
+              setZoom(Number(e.target.value) as (typeof ZOOM_PRESETS)[number])
+            }
+            className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
+          >
+            {ZOOM_PRESETS.map((preset) => (
+              <option key={preset} value={preset}>
+                {Math.round(preset * 100)}%
+              </option>
+            ))}
+          </select>
+
+          <button
+            type="button"
+            onClick={() => {
+              const idx = ZOOM_PRESETS.indexOf(zoom);
+              if (idx < ZOOM_PRESETS.length - 1) setZoom(ZOOM_PRESETS[idx + 1]);
+            }}
+            disabled={zoom === ZOOM_PRESETS[ZOOM_PRESETS.length - 1]}
+            className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+          >
+            +
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleFullScreen}
+            className="rounded bg-gray-800 px-2 py-1 text-xs text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-900"
+          >
+            全画面
+          </button>
+        </div>
+      </div>
 
       <div
         ref={containerRef}

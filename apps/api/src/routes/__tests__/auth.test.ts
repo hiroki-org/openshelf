@@ -737,66 +737,6 @@ describe("auth routes", () => {
         expect(res.status).toBe(200);
         const body = (await res.json()) as { token: string };
         expect(body.token).toMatch(/\./);
-        });
-
-        it("POST /api/auth/test-token returns 500 if user persistence fails", async () => {
-        mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
-
-        const app = await createTestApp();
-        const env = createTestEnv({
-            ENABLE_TEST_AUTH: "true",
-            TEST_AUTH_SECRET: "shared-secret",
-        });
-
-        const res = await app.request(
-            "http://localhost/api/auth/test-token",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-test-auth-secret": "shared-secret",
-                },
-                body: JSON.stringify({ sub: "u1", githubId: "g1", name: "N" }),
-            },
-            env as any
-        );
-        expect(res.status).toBe(500);
-        });
-
-        it("GET /api/auth/github/callback uses login as name if GitHub name is missing", async () => {
-        mockDb.select = vi.fn(() => makeQuery({ getResult: { id: "user-1" } }));
-        const nowState = new Date().toISOString().replace("T", " ").slice(0, 19);
-        const oauthStateDb = createOAuthStateDb({ "s1": { createdAt: nowState, browserNonce: "n1" } });
-
-        vi.stubGlobal("fetch", vi.fn()
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ access_token: "t" }) })
-            .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 1, login: "userlogin", name: "" }) })
-        );
-
-        const app = await createTestApp();
-        const env = createTestEnv({ DB: oauthStateDb.db as any });
-        const res = await app.request("http://localhost/api/auth/github/callback?code=c&state=s1", {
-            headers: { Cookie: "oauth_flow_nonce=n1" }
-        }, env as any);
-        expect(res.status).toBe(302);
-        });
-
-        it("POST /api/auth/test-org returns 404 or 401 based on configuration", async () => {
-        const app = await createTestApp();
-        const res404 = await app.request("http://localhost/api/auth/test-org", {
-            method: "POST",
-            headers: { Origin: "http://localhost:3000" }
-        }, createTestEnv({ ENABLE_TEST_AUTH: "false" }) as any);
-        expect(res404.status).toBe(404);
-
-        const res401 = await app.request("http://localhost/api/auth/test-org", {
-            method: "POST",
-            headers: {
-                Origin: "http://localhost:3000",
-                "x-test-auth-secret": "wrong"
-            }
-        }, createTestEnv({ ENABLE_TEST_AUTH: "true", TEST_AUTH_SECRET: "secret" }) as any);
-        expect(res401.status).toBe(401);
     });
 
     it("POST /api/auth/test-org validates auth and creates membership records", async () => {

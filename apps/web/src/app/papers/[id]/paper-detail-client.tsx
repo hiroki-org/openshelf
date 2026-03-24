@@ -18,10 +18,6 @@ const PdfViewer = dynamic(
   () => import("@/components/pdf-viewer").then((mod) => mod.PdfViewer),
   { ssr: false },
 );
-const PptxViewer = dynamic(
-  () => import("@/components/pptx-viewer").then((mod) => mod.PptxViewer),
-  { ssr: false },
-);
 
 type Paper = {
   id: string;
@@ -78,14 +74,6 @@ type PreviewResponse = {
   filename: string;
 };
 
-const PPT_MIME_TYPES = [
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-] as const;
-
-const isPptMimeType = (
-  mimeType: string | null,
-): mimeType is (typeof PPT_MIME_TYPES)[number] => mimeType === PPT_MIME_TYPES[0];
-
 type PaperStats = {
   totalViews: number;
   last7DaysViews: number;
@@ -97,8 +85,6 @@ type PaperStats = {
 };
 
 const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url);
-
-const STATS_FETCH_ERROR_MESSAGE = "統計情報の取得に失敗しました";
 
 const isValidExternalUrl = (urlStr: string) => {
   try {
@@ -121,7 +107,6 @@ function formatStatsDateLabel(date: string) {
 export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const { user } = useAuth();
   const trackedViewPaperIdRef = useRef<string | null>(null);
-  const mountedRef = useRef(true);
 
   const [paper, setPaper] = useState<Paper | null>(null);
   const [files, setFiles] = useState<PaperFile[]>([]);
@@ -152,53 +137,18 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   const isAuthor = authors.some((a) => a.userId === user?.id);
 
-  const fetchStats = useCallback(
-    async (options?: { withLoading?: boolean; isCancelled?: () => boolean }) => {
-      if (!paperId || !isAuthor) return;
-
-      const canUpdateState =
-        typeof options?.isCancelled === "function"
-          ? () => mountedRef.current && !options.isCancelled?.()
-          : () => mountedRef.current;
-
-      if (options?.withLoading ?? true) {
-        if (canUpdateState()) setStatsLoading(true);
-      }
-      if (canUpdateState()) setStatsError("");
-
-      try {
-        const res = await apiFetch(`/api/papers/${safePath(paperId)}/stats`);
-
-        if (!res.ok) {
-          if (!canUpdateState()) return;
-          setStats(null);
-          if (res.status === 401) {
-            setStatsError("統計情報を取得するにはログインが必要です");
-          } else if (res.status === 403) {
-            setStatsError("統計情報を閲覧する権限がありません");
-          } else if (res.status === 404) {
-            setStatsError("統計情報が見つかりません");
-          } else {
-            setStatsError(STATS_FETCH_ERROR_MESSAGE);
-          }
-          return;
-        }
-
+  const fetchStats = useCallback(async () => {
+    if (!paperId || !isAuthor) return;
+    try {
+      const res = await apiFetch(`/api/papers/${safePath(paperId)}/stats`);
+      if (res.ok) {
         const data = (await res.json()) as PaperStats;
-        if (!canUpdateState()) return;
-
         setStats(data);
-        setStatsError("");
-      } catch {
-        if (!canUpdateState()) return;
-        setStats(null);
-        setStatsError(STATS_FETCH_ERROR_MESSAGE);
-      } finally {
-        if (canUpdateState()) setStatsLoading(false);
       }
-    },
-    [paperId, isAuthor],
-  );
+    } catch {
+      // Ignore
+    }
+  }, [paperId, isAuthor]);
 
   const applyCountedView = useCallback(() => {
     setPaper((current) => {
@@ -210,7 +160,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     });
 
     // Refresh full stats after a recorded view to ensure consistency
-    void fetchStats({ withLoading: false });
+    void fetchStats();
   }, [fetchStats]);
 
   const fetchPaper = useCallback(async () => {
@@ -263,12 +213,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   }, [isUploader, fetchInvites]);
 
   useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
     if (!paper?.id || trackedViewPaperIdRef.current === paper.id) return;
 
     trackedViewPaperIdRef.current = paper.id;
@@ -307,7 +251,12 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     }
 
     let cancelled = false;
-    void fetchStats({ isCancelled: () => cancelled });
+    setStatsLoading(true);
+    setStatsError("");
+
+    fetchStats();
+    // Also set loading false in fetchStats normally, but here we use useEffect style
+    setStatsLoading(false);
 
     return () => {
       cancelled = true;
@@ -320,10 +269,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   );
   const imageFiles = useMemo(
     () => files.filter((f) => f.mimeType?.startsWith("image/")),
-    [files],
-  );
-  const pptxFile = useMemo(
-    () => files.find((f) => isPptMimeType(f.mimeType)) ?? null,
     [files],
   );
   const maxDailyViewCount = useMemo(() => {
@@ -539,7 +484,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       case "paper":
         return "📄";
       case "slides":
-        return "🎞️";
+        return "📊";
       case "poster":
         return "🖼️";
       case "supplementary":
@@ -785,16 +730,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
                 )}
               </div>
             ))}
-          </div>
-        )}
-
-        {pptxFile && (
-          <div className="mb-4 space-y-2">
-            <h3 className="text-sm font-medium">PPTXプレビュー</h3>
-            <PptxViewer
-              fileUrl={pptxFile.downloadUrl}
-              onDownloadFallback={() => handleDownload(pptxFile)}
-            />
           </div>
         )}
 
