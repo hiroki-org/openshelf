@@ -106,6 +106,9 @@ export default function UploadPage() {
       fileType: "paper",
     }));
     setFiles((prev) => [...prev, ...newEntries]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const removeFile = (idx: number) => {
@@ -367,10 +370,7 @@ export default function UploadPage() {
             type="file"
             multiple
             accept=".pdf,.ppt,.pptx,.png,.jpg,.jpeg"
-            onChange={(e) => {
-              addFiles(e.target.files);
-              e.target.value = "";
-            }}
+            onChange={(e) => addFiles(e.target.files)}
             className="hidden"
           />
           <button

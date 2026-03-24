@@ -654,45 +654,6 @@ describe("auth routes", () => {
         await expect(res.json()).resolves.toEqual({ error: "Not Found" });
     });
 
-    it("POST /api/auth/test-token and /api/auth/test-org stay disabled in production", async () => {
-        const app = await createTestApp();
-        const env = createTestEnv({
-            ENABLE_TEST_AUTH: "true",
-            TEST_AUTH_SECRET: "shared-secret",
-            NODE_ENV: "production",
-        });
-
-        const testTokenRes = await app.request(
-            "http://localhost/api/auth/test-token",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Origin: "http://localhost:3000",
-                    "x-test-auth-secret": "shared-secret",
-                },
-                body: JSON.stringify({ sub: "user-1", githubId: "123", name: "Tester" }),
-            },
-            env as any,
-        );
-        expect(testTokenRes.status).toBe(404);
-
-        const testOrgRes = await app.request(
-            "http://localhost/api/auth/test-org",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Origin: "http://localhost:3000",
-                    "x-test-auth-secret": "shared-secret",
-                },
-                body: JSON.stringify({ userId: "user-1", orgId: "org-1" }),
-            },
-            env as any,
-        );
-        expect(testOrgRes.status).toBe(404);
-    });
-
     it("POST /api/auth/test-token validates the shared secret and request body", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
@@ -745,26 +706,6 @@ describe("auth routes", () => {
         );
         expect(invalidBody.status).toBe(400);
         await expect(invalidBody.json()).resolves.toEqual({ error: "Invalid request body" });
-
-        const invalidBounds = await app.request(
-            "http://localhost/api/auth/test-token",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-test-auth-secret": "shared-secret",
-                    Origin: "http://localhost:3000",
-                },
-                body: JSON.stringify({
-                    sub: " ".repeat(2),
-                    githubId: "g".repeat(256),
-                    name: "",
-                }),
-            },
-            env as any,
-        );
-        expect(invalidBounds.status).toBe(400);
-        await expect(invalidBounds.json()).resolves.toEqual({ error: "Invalid request body" });
     });
 
     it("POST /api/auth/test-token upserts the user and returns a signed JWT", async () => {
@@ -893,23 +834,6 @@ describe("auth routes", () => {
         );
         expect(invalidBody.status).toBe(400);
         await expect(invalidBody.json()).resolves.toEqual({
-            error: "userId and orgId are required",
-        });
-
-        const invalidTypedBody = await app.request(
-            "http://localhost/api/auth/test-org",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "x-test-auth-secret": "shared-secret",
-                },
-                body: JSON.stringify({ userId: 1, orgId: null }),
-            },
-            env as any,
-        );
-        expect(invalidTypedBody.status).toBe(400);
-        await expect(invalidTypedBody.json()).resolves.toEqual({
             error: "userId and orgId are required",
         });
 

@@ -274,7 +274,7 @@ test.describe('論文ダウンロード', () => {
         const userPayload = await loginAsTestUser(page);
         const memberUserId = userPayload.sub;
         const memberToken = await page.evaluate(() => localStorage.getItem('auth_token'));
-        const authSecret = process.env.TEST_AUTH_SECRET || 'test-secret';
+        const authSecret = process.env.TEST_AUTH_SECRET as string;
 
         const apiURL = process.env.E2E_API_URL || 'http://localhost:8787';
         const setupRes = await page.request.post(`${apiURL}/api/auth/test-org`, {
