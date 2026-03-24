@@ -19,15 +19,25 @@
     "@typescript-eslint/eslint-plugin": "^8.44.1",
     "@typescript-eslint/parser": "^8.44.1",
     "@vitest/coverage-v8": "^4.1.0",
+    "drizzle-kit": "^0.31.9",
     "eslint": "^9.36.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   },
   "overrides": {
     "undici": "7.24.4",
-    "flatted": "3.4.1",
+    "flatted": "3.4.2",
     "miniflare": {
       "undici": "7.24.4"
+    },
+    "drizzle-kit": {
+      "esbuild": "0.25.12",
+      "@esbuild-kit/esm-loader": {
+        "esbuild": "0.25.12",
+        "@esbuild-kit/core-utils": {
+          "esbuild": "0.25.12"
+        }
+      }
     },
     "@esbuild-kit/core-utils": {
       "esbuild": "0.25.12"
