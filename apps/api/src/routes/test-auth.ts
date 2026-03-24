@@ -8,7 +8,7 @@ import type { Env, Variables } from "../types";
 const testAuth = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
 
-// POST /api/auth/test-token — only for E2E testing
+// POST /api/test-auth/test-token — only for E2E testing
 testAuth.post("/test-token", async (c) => {
     // Double check: flag must be true AND a secret key must match
     if (c.env.ENABLE_TEST_AUTH !== "true") {
