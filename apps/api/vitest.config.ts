@@ -5,7 +5,6 @@ export default defineConfig({
         environment: "node",
         env: { NODE_ENV: "test" },
         testTimeout: 10000,
-        testTimeout: 10000,
         include: ["src/**/__tests__/**/*.test.ts"],
         reporters: ["default", "junit"],
         outputFile: {
