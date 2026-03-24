@@ -7,6 +7,8 @@ vi.mock("drizzle-orm/d1", () => ({
     drizzle: vi.fn(() => mockDb)
 }));
 
+// test-auth router is loaded via createTestApp() and imports db/schema;
+// we mock schema here so dynamic import paths resolve consistently in this suite.
 vi.mock("../../db/schema", () => ({
     users: { id: "id", githubId: "github_id" },
     orgs: { id: "id" },
