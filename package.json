@@ -26,9 +26,9 @@
   "overrides": {
     "undici": "7.24.4",
     "flatted": "3.4.2",
-    "miniflare": {
-      "undici": "7.24.4"
-    },
+  "overrides": {
+    "undici": "7.24.4",
+    "flatted": "3.4.2",
     "drizzle-kit": {
       "esbuild": "0.25.12",
       "@esbuild-kit/esm-loader": {
