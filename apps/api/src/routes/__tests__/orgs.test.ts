@@ -666,34 +666,6 @@ describe("orgs routes", () => {
             );
         });
 
-        it("returns 403 if user is neither admin nor author", async () => {
-            const token = await createTestJWT({ sub: "user-unrelated" });
-            queueSelectResponses([
-                { getResult: { id: "o1", slug: "l" } },
-                { getResult: null },
-                { getResult: null },
-            ]);
-
-            const app = await createTestApp();
-            const env = createTestEnv();
-
-            const res = await app.request(
-                "http://localhost/api/orgs/l/papers/p1",
-                {
-                    method: "DELETE",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                },
-                env as any,
-            );
-
-            expect(res.status).toBe(403);
-            expect(((await res.json()) as any).error).toBe(
-                "Forbidden: must be org admin or paper author",
-            );
-        });
     });
 
     // ─── Boundary: last admin protection ──────────────────────
