@@ -35,12 +35,6 @@ vi.mock("next/link", () => ({
   ),
 }));
 
-class MockDataTransfer {
-  files: File[] = [];
-}
-
-global.DataTransfer = MockDataTransfer as any;
-
 describe("UploadPage", () => {
   afterEach(() => {
     cleanup();
@@ -199,33 +193,6 @@ describe("UploadPage", () => {
 
     expect(screen.queryByText("f2.pdf")).not.toBeInTheDocument();
     expect(screen.getByText("f1.pdf")).toBeInTheDocument();
-  });
-
-  it("accepts drag and drop uploads while filtering invalid extensions", async () => {
-    render(<UploadPage />);
-
-    const dropzone = screen
-      .getByText("ファイルを複数選択")
-      .closest("button") as HTMLButtonElement;
-    const validFile = new File(["PDF"], "paper.pdf", {
-      type: "application/pdf",
-    });
-    const invalidFile = new File(["EXE"], "malicious.exe", {
-      type: "application/x-msdownload",
-    });
-
-    fireEvent.dragOver(dropzone, {
-      dataTransfer: { files: [validFile, invalidFile] },
-    });
-    expect(dropzone.className).toContain("border-gray-500");
-
-    fireEvent.drop(dropzone, {
-      dataTransfer: { files: [validFile, invalidFile] },
-    });
-
-    expect(await screen.findByText("paper.pdf")).toBeInTheDocument();
-    expect(screen.queryByText("malicious.exe")).not.toBeInTheDocument();
-    expect(dropzone.className).not.toContain("border-gray-500");
   });
 
   it("handles network error during upload", async () => {

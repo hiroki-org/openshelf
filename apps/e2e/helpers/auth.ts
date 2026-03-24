@@ -10,7 +10,7 @@ export async function loginAsTestUser(page: Page, user?: { sub?: string; githubI
         name: user?.name || 'Test User',
     };
 
-    const res = await page.request.post(`${apiURL}/api/test-auth/test-token`, {
+    const res = await page.request.post(`${apiURL}/api/auth/test-token`, {
         data: payload,
         headers: {
             'x-test-auth-secret': process.env.TEST_AUTH_SECRET || 'test-secret',
@@ -25,11 +25,11 @@ export async function loginAsTestUser(page: Page, user?: { sub?: string; githubI
 
     const data = await res.json();
     if (!data || typeof data !== 'object' || typeof (data as { token?: unknown }).token !== 'string') {
-        throw new Error(`Invalid token response from /api/test-auth/test-token: ${JSON.stringify(data)}`);
+        throw new Error(`Invalid token response from /api/auth/test-token: ${JSON.stringify(data)}`);
     }
     const token = (data as { token: string }).token;
     if (token.length === 0) {
-        throw new Error('Invalid token response from /api/test-auth/test-token: empty token');
+        throw new Error('Invalid token response from /api/auth/test-token: empty token');
     }
 
     await page.goto('/');
