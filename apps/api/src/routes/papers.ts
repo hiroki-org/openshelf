@@ -147,6 +147,15 @@ function isValidUrlScheme(urlStr: string): boolean {
 // within the same worker isolate. Maps token -> { payload: { sub: string }, expiresAt: number }
 const tokenCache = new Map<string, { payload: { sub: string }; expiresAt: number }>();
 const MAX_CACHE_SIZE = 1000;
+const TOKEN_CACHE_MAX_AGE_MS = 60 * 1000;
+
+function purgeExpiredTokenCache(now: number): void {
+    for (const [cachedToken, entry] of tokenCache.entries()) {
+        if (entry.expiresAt <= now) {
+            tokenCache.delete(cachedToken);
+        }
+    }
+}
 
 async function authorizePaperAccess(
     c: Context<{ Bindings: Env; Variables: Variables }>,
@@ -161,21 +170,27 @@ async function authorizePaperAccess(
         return { ok: false, status: 401, error: "Unauthorized" };
     }
 
-    let user: { sub: string } | undefined;
+    let user: { sub: string };
+    const now = Date.now();
     const cached = tokenCache.get(token);
 
-    if (cached && cached.expiresAt > Date.now()) {
+    if (cached && cached.expiresAt > now) {
         user = cached.payload;
     } else {
+        if (cached) {
+            tokenCache.delete(token);
+        }
         const { verify } = await import("hono/jwt");
         try {
             const verified = (await verify(token, c.env.JWT_SECRET, "HS256")) as { sub: string; exp?: number };
             user = verified;
 
+            purgeExpiredTokenCache(now);
             if (tokenCache.size >= MAX_CACHE_SIZE) {
                 tokenCache.delete(tokenCache.keys().next().value!);
             }
-            const expiresAt = verified.exp ? verified.exp * 1000 : Date.now() + 5 * 60 * 1000;
+            const jwtExpiresAt = verified.exp ? verified.exp * 1000 : now + TOKEN_CACHE_MAX_AGE_MS;
+            const expiresAt = Math.min(jwtExpiresAt, now + TOKEN_CACHE_MAX_AGE_MS);
             tokenCache.set(token, { payload: { sub: verified.sub }, expiresAt });
         } catch {
             return { ok: false, status: 401, error: "Invalid token" };
