@@ -86,6 +86,7 @@ describe("NewCollectionPage", () => {
   });
 
   it("requires an org slug for org-owned collections", async () => {
+    vi.useFakeTimers();
     render(<NewCollectionPage />);
 
     fireEvent.click(screen.getByLabelText(/^org$/));
@@ -93,6 +94,12 @@ describe("NewCollectionPage", () => {
       target: { value: "Lab Picks" },
     });
 
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+
+    vi.useRealTimers();
     fireEvent.click(screen.getByRole("button", { name: "作成" }));
 
     expect(await screen.findByText("org slug is required")).toBeInTheDocument();
