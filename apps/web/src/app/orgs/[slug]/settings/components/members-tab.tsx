@@ -51,16 +51,20 @@ export function MembersTab({
           `/api/users/search?q=${encodeURIComponent(q)}`,
         );
         if (userSearchRef.current !== requestId) return;
-        if (res.ok) {
-          const data = await res.json();
-          const existingIds = new Set(members.map((m) => m.userId));
-          setSearchResults(
-            data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
-          );
+        if (!res.ok) {
+          setSearchResults([]);
+          setError("ユーザー検索に失敗しました");
+          return;
         }
+        const data = await res.json();
+        const existingIds = new Set(members.map((m) => m.userId));
+        setSearchResults(
+          data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
+        );
       } catch {
         if (userSearchRef.current !== requestId) return;
         setSearchResults([]);
+        setError("ユーザー検索に失敗しました");
       }
     }, 300);
   };
@@ -80,7 +84,11 @@ export function MembersTab({
       if (res.ok) {
         setSearchQuery("");
         setSearchResults([]);
-        await fetchData();
+        try {
+          await fetchData();
+        } catch {
+          setError("追加は成功しましたが、一覧の再取得に失敗しました");
+        }
       } else {
         const data = await res.json();
         setError(data.error ?? "追加に失敗しました");
@@ -104,7 +112,11 @@ export function MembersTab({
         },
       );
       if (res.ok) {
-        await fetchData();
+        try {
+          await fetchData();
+        } catch {
+          setError("権限変更は成功しましたが、一覧の再取得に失敗しました");
+        }
       } else {
         const data = await res.json();
         setError(data.error ?? "変更に失敗しました");
@@ -125,7 +137,11 @@ export function MembersTab({
         },
       );
       if (res.ok) {
-        await fetchData();
+        try {
+          await fetchData();
+        } catch {
+          setError("削除は成功しましたが、一覧の再取得に失敗しました");
+        }
       } else {
         const data = await res.json();
         setError(data.error ?? "削除に失敗しました");

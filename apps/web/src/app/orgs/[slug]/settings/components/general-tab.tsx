@@ -34,7 +34,7 @@ export function GeneralTab({
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const handleSave = async () => {
+  const handleSave = async (): Promise<void> => {
     setSaving(true);
     setSaveMsg("");
     setSaveStatus(null);
@@ -73,11 +73,11 @@ export function GeneralTab({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = async (): Promise<void> => {
     setDeleteError(null);
     setDeleting(true);
     try {
-      const res = await apiFetch(`/api/orgs/${encodeURIComponent(slug)}`, {
+      const res = await apiFetch(`/api/orgs/${encodeURIComponent(org.slug)}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -150,6 +150,8 @@ export function GeneralTab({
 
       {saveMsg && (
         <p
+          role={saveStatus === "error" ? "alert" : "status"}
+          aria-live={saveStatus === "error" ? "assertive" : "polite"}
           className={`text-sm ${saveStatus === "error" ? "text-red-600" : "text-gray-600"}`}
         >
           {saveMsg}
@@ -183,7 +185,11 @@ export function GeneralTab({
           </button>
         ) : (
           <div className="space-y-2">
-            {deleteError && <p className="text-xs text-red-600">{deleteError}</p>}
+            {deleteError && (
+              <p role="alert" aria-live="assertive" className="text-xs text-red-600">
+                {deleteError}
+              </p>
+            )}
             <p className="text-xs text-red-600">
               確認のため「<strong>{org.slug}</strong>」を入力してください。
             </p>

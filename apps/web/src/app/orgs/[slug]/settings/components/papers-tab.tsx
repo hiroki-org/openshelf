@@ -47,16 +47,20 @@ export function PapersTab({
       try {
         const res = await apiFetch(`/api/papers?q=${encodeURIComponent(q)}&visibility=public`);
         if (paperSearchRef.current !== requestId) return;
-        if (res.ok) {
-          const data = await res.json();
-          const existingIds = new Set(orgPapers.map((p) => p.id));
-          setPaperSearchResults(
-            data.papers.filter((p: { id: string }) => !existingIds.has(p.id)),
-          );
+        if (!res.ok) {
+          setPaperSearchResults([]);
+          setError("論文検索に失敗しました");
+          return;
         }
+        const data = await res.json();
+        const existingIds = new Set(orgPapers.map((p) => p.id));
+        setPaperSearchResults(
+          data.papers.filter((p: { id: string }) => !existingIds.has(p.id)),
+        );
       } catch {
         if (paperSearchRef.current !== requestId) return;
         setPaperSearchResults([]);
+        setError("論文検索に失敗しました");
       }
     }, 300);
   };
@@ -76,7 +80,11 @@ export function PapersTab({
       if (res.ok) {
         setPaperSearch("");
         setPaperSearchResults([]);
-        await fetchData();
+        try {
+          await fetchData();
+        } catch {
+          setError("追加は成功しましたが、一覧の再取得に失敗しました");
+        }
       } else {
         const data = await res.json();
         setError(data.error ?? "追加に失敗しました");
@@ -99,7 +107,11 @@ export function PapersTab({
         },
       );
       if (res.ok) {
-        await fetchData();
+        try {
+          await fetchData();
+        } catch {
+          setError("解除は成功しましたが、一覧の再取得に失敗しました");
+        }
       } else {
         const data = await res.json();
         setError(data.error ?? "解除に失敗しました");

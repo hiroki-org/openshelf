@@ -117,9 +117,12 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           <select
             aria-label="PDF zoom"
             value={zoom}
-            onChange={(e) =>
-              setZoom(Number(e.target.value) as (typeof ZOOM_PRESETS)[number])
-            }
+            onChange={(e) => {
+              const nextZoom = Number(e.target.value);
+              if (ZOOM_PRESETS.includes(nextZoom as (typeof ZOOM_PRESETS)[number])) {
+                setZoom(nextZoom as (typeof ZOOM_PRESETS)[number]);
+              }
+            }}
             className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
           >
             {ZOOM_PRESETS.map((preset) => (

@@ -29,6 +29,9 @@ const CATEGORY_OPTIONS = [
   { value: "presentation", label: "プレゼンテーション" },
   { value: "other", label: "その他" },
 ] as const;
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+const ALLOWED_EXTENSIONS = new Set(["pdf", "ppt", "pptx", "png", "jpg", "jpeg"]);
+
 const VENUE_TYPE_OPTIONS = [
   { value: "", label: "（なし）" },
   { value: "conference", label: "学会" },
@@ -102,12 +105,34 @@ export default function UploadPage() {
 
   const addFiles = (selected: FileList | null) => {
     if (!selected) return;
-    const newEntries: FileEntry[] = Array.from(selected).map((f) => ({
-      id: crypto.randomUUID(),
-      file: f,
-      fileType: "paper",
-    }));
-    setFiles((prev) => [...prev, ...newEntries]);
+
+    const validEntries: FileEntry[] = [];
+    const rejectedFiles: string[] = [];
+
+    for (const file of Array.from(selected)) {
+      const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
+      if (!ALLOWED_EXTENSIONS.has(extension) || file.size > MAX_FILE_SIZE_BYTES) {
+        rejectedFiles.push(file.name);
+        continue;
+      }
+      validEntries.push({
+        id: crypto.randomUUID(),
+        file,
+        fileType: "paper",
+      });
+    }
+
+    if (rejectedFiles.length > 0) {
+      setError(
+        `次のファイルは追加できません（拡張子またはサイズ制限超過）: ${rejectedFiles.join(", ")}`,
+      );
+    }
+
+    if (validEntries.length > 0) {
+      setError("");
+      setFiles((prev) => [...prev, ...validEntries]);
+    }
+
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -386,6 +411,11 @@ export default function UploadPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              addFiles(e.dataTransfer.files);
+            }}
             aria-describedby="upload-files-label"
             className="group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-white px-5 py-10 transition-all hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
           >
@@ -436,6 +466,7 @@ export default function UploadPage() {
                     <button
                       type="button"
                       onClick={() => removeFile(entry.id)}
+                      aria-label={`${entry.file.name} を削除`}
                       className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                     >
                       <span>✕</span>
