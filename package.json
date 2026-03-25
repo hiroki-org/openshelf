@@ -15,24 +15,12 @@
     "lint": "eslint apps/*/src --ext .ts,.tsx"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
     "@typescript-eslint/eslint-plugin": "^8.44.1",
     "@typescript-eslint/parser": "^8.44.1",
-    "@vitest/coverage-v8": "^4.1.0",
+    "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.36.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.0"
-  },
-  "overrides": {
-    "undici": "7.24.4",
-    "flatted": "3.4.2",
-    "minimatch@3": "3.1.5",
-    "miniflare": {
-      "undici": "7.24.4"
-    },
-    "@esbuild-kit/core-utils": {
-      "esbuild": "0.25.12"
-    }
+    "vitest": "^3.2.4"
   },
   "license": "MIT"
 }

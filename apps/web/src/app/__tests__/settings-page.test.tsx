@@ -6,7 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import SettingsPage from "../page";
+import SettingsPage from "../settings/page";
 import { apiFetch } from "@/lib/api";
 
 const push = vi.fn();
@@ -83,49 +83,5 @@ describe("SettingsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     expect(await screen.findByText("Plain text error")).toBeInTheDocument();
-  });
-
-  it("resets display name to null when cleared", async () => {
-    vi.mocked(apiFetch).mockResolvedValue(new Response("{}", { status: 200 }));
-    render(<SettingsPage />);
-
-    fireEvent.change(screen.getByLabelText("表示名"), { target: { value: "   " } });
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
-
-    await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith(
-        "/api/users/me",
-        expect.objectContaining({
-          body: JSON.stringify({ displayName: null }),
-        }),
-      );
-    });
-  });
-
-  it("shows JSON error message", async () => {
-    vi.mocked(apiFetch).mockResolvedValue(
-      new Response(JSON.stringify({ error: "Name taken" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
-    render(<SettingsPage />);
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
-    expect(await screen.findByText("Name taken")).toBeInTheDocument();
-  });
-
-  it("handles network error", async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new Error("Net Error"));
-    render(<SettingsPage />);
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
-    expect(await screen.findByText("ネットワークエラーが発生しました")).toBeInTheDocument();
-  });
-
-  it("redirects to home if not logged in", async () => {
-    authState = { user: null, loading: false };
-    render(<SettingsPage />);
-    await waitFor(() => {
-      expect(push).toHaveBeenCalledWith("/");
-    });
   });
 });

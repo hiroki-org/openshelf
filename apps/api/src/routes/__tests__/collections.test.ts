@@ -448,6 +448,92 @@ describe("collections routes", () => {
         });
     });
 
+
+
+    it("POST /api/collections/:id/papers adds a paper the manager can view via org membership", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        const collection = {
+            id: "col-1",
+            ownerType: "user",
+            ownerId: "user-1",
+            visibility: "private",
+        };
+        queueSelectResponses([
+            { getResult: collection }, // Collection query
+            { getResult: { id: "paper-1", visibility: "org_only" } }, // Paper query
+            { getResult: null }, // isPaperAuthor returns false
+            { getResult: { id: "user-1" } }, // isMemberOfPaperOrg returns true
+            { getResult: { maxOrder: 2 } }, // maxOrder query
+        ]);
+
+        const insertValues = vi.fn(async () => undefined);
+        mockDb.insert = vi.fn(() => ({ values: insertValues }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections/col-1/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ paper_id: "paper-1" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(201);
+        expect(insertValues).toHaveBeenCalledWith({
+            collectionId: "col-1",
+            paperId: "paper-1",
+            sortOrder: 3,
+        });
+    });
+
+    it("POST /api/collections/:id/papers adds a public paper without specific membership", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        const collection = {
+            id: "col-1",
+            ownerType: "user",
+            ownerId: "user-1",
+            visibility: "private",
+        };
+        queueSelectResponses([
+            { getResult: collection }, // Collection query
+            { getResult: { id: "paper-1", visibility: "public" } }, // Paper query
+            { getResult: { maxOrder: 2 } }, // maxOrder query
+        ]);
+
+        const insertValues = vi.fn(async () => undefined);
+        mockDb.insert = vi.fn(() => ({ values: insertValues }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections/col-1/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ paper_id: "paper-1" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(201);
+        expect(insertValues).toHaveBeenCalledWith({
+            collectionId: "col-1",
+            paperId: "paper-1",
+            sortOrder: 3,
+        });
+    });
+
     it("POST /api/collections/:id/papers rejects papers the manager cannot view", async () => {
         const token = await createTestJWT({ sub: "user-1" });
         queueSelectResponses([
