@@ -580,6 +580,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       <PaperAuthors
         authors={authors}
         isUploader={isUploader}
+        showInvite={showInvite}
         setShowInvite={setShowInvite}
       />
 

@@ -13,10 +13,11 @@ export type Author = {
 type PaperAuthorsProps = {
   authors: Author[];
   isUploader: boolean;
+  showInvite: boolean;
   setShowInvite: (show: boolean) => void;
 };
 
-export function PaperAuthors({ authors, isUploader, setShowInvite }: PaperAuthorsProps) {
+export function PaperAuthors({ authors, isUploader, showInvite, setShowInvite }: PaperAuthorsProps) {
   if (authors.length === 0) return null;
 
   return (
@@ -56,7 +57,7 @@ export function PaperAuthors({ authors, isUploader, setShowInvite }: PaperAuthor
         ))}
       </ul>
 
-      {isUploader && (
+      {isUploader && !showInvite && (
         <button
           type="button"
           onClick={() => setShowInvite(true)}
