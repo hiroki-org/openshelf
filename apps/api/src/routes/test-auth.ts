@@ -9,9 +9,7 @@ import type { Env, Variables } from "../types";
 const testAuth = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
 
-// POST /api/test-auth/test-token — only for E2E testing
-testAuth.post("/test-token", async (c) => {
-    // Double check: flag must be true AND a secret key must match
+testAuth.use("*", async (c, next) => {
     if (c.env.ENABLE_TEST_AUTH !== "true") {
         return c.json({ error: "Not Found" }, 404);
     }
@@ -21,6 +19,11 @@ testAuth.post("/test-token", async (c) => {
         return c.json({ error: "Unauthorized (E2E)" }, 401);
     }
 
+    await next();
+});
+
+// POST /api/test-auth/test-token — only for E2E testing
+testAuth.post("/test-token", async (c) => {
     let body: { sub: string; githubId: string; name: string };
     try {
         const raw = await c.req.json();
@@ -88,14 +91,6 @@ testAuth.post("/test-token", async (c) => {
 
 // POST /api/test-auth/test-org — only for E2E testing
 testAuth.post("/test-org", async (c) => {
-    if (c.env.ENABLE_TEST_AUTH !== "true") {
-        return c.json({ error: "Not Found" }, 404);
-    }
-    const testSecret = c.req.header("x-test-auth-secret");
-    if (!c.env.TEST_AUTH_SECRET || typeof testSecret !== "string" || !(await timingSafeEqual(testSecret, c.env.TEST_AUTH_SECRET))) {
-        return c.json({ error: "Unauthorized (E2E)" }, 401);
-    }
-
     let body: { userId?: string; orgId?: string };
     try {
         body = await c.req.json();

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { timingSafeEqual } from "hono/utils/buffer";
 import type { Env, Variables } from "./types";
 import auth from "./routes/auth";
 import usersRoute from "./routes/users";
@@ -7,6 +8,8 @@ import papersRoute from "./routes/papers";
 import invitesRoute from "./routes/invites";
 import orgsRoute from "./routes/orgs";
 import collectionsRoute from "./routes/collections";
+
+const DUMMY_TEST_AUTH_SECRET = "__openshelf_test_auth_disabled__";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -44,15 +47,11 @@ app.use("/api/*", async (c, next) => {
     const referer = c.req.header("Referer");
     const authHeader = c.req.header("Authorization");
     const testAuthHeader = c.req.header("x-test-auth-secret");
-    let isTestEnv = false;
-    if (
-        c.env.ENABLE_TEST_AUTH === "true" &&
-        c.env.TEST_AUTH_SECRET &&
-        typeof testAuthHeader === "string"
-    ) {
-        const { timingSafeEqual } = await import("hono/utils/buffer");
-        isTestEnv = await timingSafeEqual(testAuthHeader, c.env.TEST_AUTH_SECRET);
-    }
+    const testAuthEnabled = c.env.ENABLE_TEST_AUTH === "true" && typeof c.env.TEST_AUTH_SECRET === "string" && c.env.TEST_AUTH_SECRET.length > 0;
+    const expectedTestSecret = c.env.TEST_AUTH_SECRET ?? DUMMY_TEST_AUTH_SECRET;
+    const providedTestSecret = typeof testAuthHeader === "string" ? testAuthHeader : "";
+    const isTestSecretMatch = await timingSafeEqual(providedTestSecret, expectedTestSecret);
+    const isTestEnv = testAuthEnabled && isTestSecretMatch;
 
     // Bypass CSRF for requests with Bearer tokens or valid test auth secret in test env
     if (authHeader?.startsWith("Bearer ") || isTestEnv) return await next();
