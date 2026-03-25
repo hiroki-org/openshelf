@@ -541,7 +541,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
       {isAuthor && (
         <PaperStats
-          stats={stats as PaperStatsData}
+          stats={stats}
           statsLoading={statsLoading}
           statsError={statsError}
           maxDailyViewCount={maxDailyViewCount}
