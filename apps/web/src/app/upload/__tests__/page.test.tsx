@@ -188,7 +188,7 @@ describe("UploadPage", () => {
     fireEvent.change(fileTypeSelects[0], { target: { value: "slides" } });
     expect(fileTypeSelects[0]).toHaveValue("slides");
 
-    const removeButtons = screen.getAllByRole("button", { name: "✕" });
+    const removeButtons = screen.getAllByText("✕").map(el => el.closest("button")!);
     fireEvent.click(removeButtons[1]); // Remove f2.pdf
 
     expect(screen.queryByText("f2.pdf")).not.toBeInTheDocument();

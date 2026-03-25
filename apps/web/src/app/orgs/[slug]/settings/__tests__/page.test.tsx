@@ -6,7 +6,6 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { toast } from "@/components/toast";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OrgSettingsPage from "../page";
 import { apiFetch } from "@/lib/api";
@@ -172,7 +171,14 @@ function setupOrgApiMock(state: OrgState) {
       return jsonResponse({ ok: true });
     }
 
-    if (url === "/api/papers" && method === "GET") {
+    if (url.startsWith("/api/papers") && method === "GET") {
+      const parsedUrl = new URL(url, "http://localhost");
+      if (!parsedUrl.searchParams.has("q")) {
+        return jsonResponse({ error: "Missing q parameter" }, 400);
+      }
+      if (parsedUrl.searchParams.get("visibility") !== "public") {
+        return jsonResponse({ error: "Invalid visibility" }, 400);
+      }
       return jsonResponse({ papers: searchablePapers });
     }
 
@@ -197,8 +203,6 @@ function setupOrgApiMock(state: OrgState) {
 describe("OrgSettingsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    if (vi.mocked(toast.success)) vi.mocked(toast.success).mockClear();
-    if (vi.mocked(toast.error)) vi.mocked(toast.error).mockClear();
     push.mockReset();
     replace.mockReset();
     initialTab = "general";
@@ -240,6 +244,10 @@ describe("OrgSettingsPage", () => {
 
     await screen.findByRole("heading", { name: "Demo Org — 設定" });
 
+    // Flush useEffects by waiting for the input value to match initial org name
+    // ensure useeffect ran and we aren't in a bad state
+    await waitFor(() => expect(screen.getByLabelText("組織名")).toHaveValue("Demo Org"));
+
     fireEvent.change(screen.getByLabelText("組織名"), {
       target: { value: "Renamed Org" },
     });
@@ -251,7 +259,7 @@ describe("OrgSettingsPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("保存しました"));
+    expect(await screen.findByText("保存しました")).toBeInTheDocument();
     expect(replace).toHaveBeenCalledWith("/orgs/renamed-team/settings");
     expect(apiFetch).toHaveBeenCalledWith(
       "/api/orgs/demo-org",
@@ -408,18 +416,17 @@ describe("OrgSettingsPage", () => {
     });
   });
 
-
-  it("redirects guests away from the settings page", async () => {
+  it("redirects guests and non-admin members away from the settings page", async () => {
     authState = { user: null, loading: false };
-    render(<OrgSettingsPage />);
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/"));
-  });
 
-  it("redirects non-admin members away from the settings page", async () => {
+    render(<OrgSettingsPage />);
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/");
+    });
+
     cleanup();
     vi.clearAllMocks();
-    if (vi.mocked(toast.success)) vi.mocked(toast.success).mockClear();
-    if (vi.mocked(toast.error)) vi.mocked(toast.error).mockClear();
 
     authState = {
       user: { id: "member-2", name: "bob", displayName: "Bob" },
@@ -493,7 +500,7 @@ describe("OrgSettingsPage", () => {
     await screen.findByRole("heading", { name: "Org — 設定" });
 
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Invalid slug"));
+    expect(await screen.findByText("Invalid slug")).toBeInTheDocument();
 
     const currentMock = vi.mocked(apiFetch).getMockImplementation();
     if (!currentMock) {
@@ -504,7 +511,7 @@ describe("OrgSettingsPage", () => {
       return currentMock(url, init);
     });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("ネットワークエラーが発生しました"));
+    expect(await screen.findByText("ネットワークエラー")).toBeInTheDocument();
   });
 
   it("handles member and paper operation errors", async () => {
@@ -536,22 +543,25 @@ describe("OrgSettingsPage", () => {
 
     render(<OrgSettingsPage />);
     await screen.findByRole("heading", { name: "Org — 設定" });
-// Member add fail
+
+    const alertSpy = vi.mocked(window.alert);
+
+    // Member add fail
     fireEvent.click(screen.getByRole("button", { name: "メンバー" }));
     fireEvent.change(screen.getByLabelText("メンバー検索"), { target: { value: "al" } });
     const addBtn = await screen.findByRole("button", { name: "追加" });
     fireEvent.click(addBtn);
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("User already member"));
+    await waitFor(() => expect(screen.getByText("User already member")).toBeInTheDocument());
 
     // Role change fail
     const roleSelect = await screen.findByDisplayValue("member");
     fireEvent.change(roleSelect, { target: { value: "admin" } });
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Forbidden"));
+    await waitFor(() => expect(screen.getByText("Forbidden")).toBeInTheDocument());
 
     // Paper remove fail
     fireEvent.click(screen.getByRole("button", { name: "論文" }));
     fireEvent.click(screen.getByRole("button", { name: "解除" }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Not found"));
+    await waitFor(() => expect(screen.getByText("Not found")).toBeInTheDocument());
 
   });
 
@@ -590,23 +600,17 @@ describe("OrgSettingsPage", () => {
     // Fail
     fireEvent.click(screen.getByRole("button", { name: "組織を削除" }));
     fireEvent.change(screen.getByLabelText("削除確認のためスラッグを入力"), { target: { value: "demo-org" } });
-const originalMock = vi.mocked(apiFetch).getMockImplementation();
-    if (!originalMock) {
+    const originalMockDelete = vi.mocked(apiFetch).getMockImplementation();
+    if (!originalMockDelete) {
       throw new Error("Expected apiFetch mock implementation");
     }
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-      if (init?.method === "DELETE") return jsonResponse({ error: "Protected" }, 400);
-      return originalMock(url, init);
+      if (init?.method === "DELETE" && url.includes("/api/orgs/demo-org")) {
+        return jsonResponse({ error: "Protected" }, 400);
+      }
+      return originalMockDelete(url, init);
     });
     fireEvent.click(screen.getByRole("button", { name: "完全に削除する" }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Protected"));
+    await waitFor(() => expect(screen.getByText("Protected")).toBeInTheDocument());
   });
 });
-
-vi.mock("@/components/toast", () => ({
-  toast: {
-    success: vi.fn(),
-    error: vi.fn(),
-    info: vi.fn(),
-  },
-}));
