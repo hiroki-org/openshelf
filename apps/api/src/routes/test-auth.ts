@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { sign } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
+import { timingSafeEqual } from "hono/utils/buffer";
 import { users, orgs, orgMembers, enableForeignKeys, touchUpdatedAt } from "../db/schema";
 import type { Env, Variables } from "../types";
 
@@ -16,7 +17,7 @@ testAuth.post("/test-token", async (c) => {
     }
 
     const testSecret = c.req.header("x-test-auth-secret");
-    if (!c.env.TEST_AUTH_SECRET || testSecret !== c.env.TEST_AUTH_SECRET) {
+    if (!c.env.TEST_AUTH_SECRET || typeof testSecret !== "string" || !(await timingSafeEqual(testSecret, c.env.TEST_AUTH_SECRET))) {
         return c.json({ error: "Unauthorized (E2E)" }, 401);
     }
 
@@ -91,7 +92,7 @@ testAuth.post("/test-org", async (c) => {
         return c.json({ error: "Not Found" }, 404);
     }
     const testSecret = c.req.header("x-test-auth-secret");
-    if (!c.env.TEST_AUTH_SECRET || testSecret !== c.env.TEST_AUTH_SECRET) {
+    if (!c.env.TEST_AUTH_SECRET || typeof testSecret !== "string" || !(await timingSafeEqual(testSecret, c.env.TEST_AUTH_SECRET))) {
         return c.json({ error: "Unauthorized (E2E)" }, 401);
     }
 

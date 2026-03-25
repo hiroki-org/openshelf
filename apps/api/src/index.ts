@@ -44,7 +44,15 @@ app.use("/api/*", async (c, next) => {
     const referer = c.req.header("Referer");
     const authHeader = c.req.header("Authorization");
     const testAuthHeader = c.req.header("x-test-auth-secret");
-    const isTestEnv = c.env.ENABLE_TEST_AUTH === "true" && c.env.TEST_AUTH_SECRET && testAuthHeader === c.env.TEST_AUTH_SECRET;
+    let isTestEnv = false;
+    if (
+        c.env.ENABLE_TEST_AUTH === "true" &&
+        c.env.TEST_AUTH_SECRET &&
+        typeof testAuthHeader === "string"
+    ) {
+        const { timingSafeEqual } = await import("hono/utils/buffer");
+        isTestEnv = await timingSafeEqual(testAuthHeader, c.env.TEST_AUTH_SECRET);
+    }
 
     // Bypass CSRF for requests with Bearer tokens or valid test auth secret in test env
     if (authHeader?.startsWith("Bearer ") || isTestEnv) return await next();
