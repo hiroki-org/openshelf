@@ -16,6 +16,7 @@ import { PaperAuthors, type Author } from "@/components/papers/paper-authors";
 import { PaperInvites, type Invite, type SearchUser } from "@/components/papers/paper-invites";
 
 
+
 type Paper = {
   id: string;
   title: string;
@@ -540,7 +541,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
       {isAuthor && (
         <PaperStats
-          stats={stats}
+          stats={stats as PaperStatsData}
           statsLoading={statsLoading}
           statsError={statsError}
           maxDailyViewCount={maxDailyViewCount}
@@ -579,7 +580,6 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       <PaperAuthors
         authors={authors}
         isUploader={isUploader}
-        showInvite={showInvite}
         setShowInvite={setShowInvite}
       />
 

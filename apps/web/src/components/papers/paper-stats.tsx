@@ -1,3 +1,5 @@
+import React from 'react';
+
 export type PaperStatsData = {
   totalViews: number;
   last7DaysViews: number;
@@ -9,21 +11,15 @@ export type PaperStatsData = {
 };
 
 type PaperStatsProps = {
-  stats: PaperStatsData | null;
+  stats: PaperStatsData;
   statsLoading: boolean;
   statsError: string;
   maxDailyViewCount: number;
 };
 
 function formatStatsDateLabel(date: string) {
-  const parts = date.split("-");
-  if (parts.length < 3) return date;
-
-  const month = Number(parts[1]);
-  const day = Number(parts[2]);
-  if (Number.isNaN(month) || Number.isNaN(day)) return date;
-
-  return `${month}/${day}`;
+  const [, month, day] = date.split("-");
+  return `${Number(month)}/${Number(day)}`;
 }
 
 export function PaperStats({ stats, statsLoading, statsError, maxDailyViewCount }: PaperStatsProps) {

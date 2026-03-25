@@ -7,16 +7,6 @@ vi.mock("drizzle-orm/d1", () => ({
     drizzle: vi.fn(() => mockDb)
 }));
 
-// test-auth router is loaded via createTestApp() and imports db/schema;
-// we mock schema here so dynamic import paths resolve consistently in this suite.
-vi.mock("../../db/schema", () => ({
-    users: { id: "id", githubId: "github_id" },
-    orgs: { id: "id" },
-    orgMembers: { orgId: "org_id" },
-    enableForeignKeys: vi.fn(() => Promise.resolve()),
-    touchUpdatedAt: vi.fn(() => ({})),
-}));
-
 describe("CORS configuration", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
@@ -33,7 +23,6 @@ describe("CORS configuration", () => {
     it("uses FRONTEND_URL as fallback when ALLOWED_ORIGINS is not set", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: { prepare: vi.fn(() => ({ run: vi.fn(), bind: vi.fn(() => ({ run: vi.fn(), first: vi.fn(() => null) })) })) },
             FRONTEND_URL: "https://frontend.example.com",
             ALLOWED_ORIGINS: undefined
         });
@@ -54,7 +43,6 @@ describe("CORS configuration", () => {
     it("allows only origins listed in ALLOWED_ORIGINS", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: { prepare: vi.fn(() => ({ run: vi.fn(), bind: vi.fn(() => ({ run: vi.fn(), first: vi.fn(() => null) })) })) },
             FRONTEND_URL: "https://frontend.example.com",
             ALLOWED_ORIGINS: "https://frontend.example.com,http://localhost:3000"
         });
@@ -75,7 +63,6 @@ describe("CORS configuration", () => {
     it("blocks origins not listed in ALLOWED_ORIGINS", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: { prepare: vi.fn(() => ({ run: vi.fn(), bind: vi.fn(() => ({ run: vi.fn(), first: vi.fn(() => null) })) })) },
             FRONTEND_URL: "https://frontend.example.com",
             ALLOWED_ORIGINS: "https://frontend.example.com,http://localhost:3000"
         });
@@ -95,7 +82,6 @@ describe("CORS configuration", () => {
     it("handles OPTIONS preflight with FRONTEND_URL fallback", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: { prepare: vi.fn(() => ({ run: vi.fn(), bind: vi.fn(() => ({ run: vi.fn(), first: vi.fn(() => null) })) })) },
             FRONTEND_URL: "https://frontend.example.com",
             ALLOWED_ORIGINS: undefined
         });
@@ -120,7 +106,6 @@ describe("CORS configuration", () => {
     it("handles OPTIONS preflight for allowed origins in ALLOWED_ORIGINS", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: { prepare: vi.fn(() => ({ run: vi.fn(), bind: vi.fn(() => ({ run: vi.fn(), first: vi.fn(() => null) })) })) },
             FRONTEND_URL: "https://frontend.example.com",
             ALLOWED_ORIGINS: "https://frontend.example.com,http://localhost:3000"
         });
@@ -145,7 +130,6 @@ describe("CORS configuration", () => {
     it("blocks OPTIONS preflight for origins not listed in ALLOWED_ORIGINS", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: { prepare: vi.fn(() => ({ run: vi.fn(), bind: vi.fn(() => ({ run: vi.fn(), first: vi.fn(() => null) })) })) },
             FRONTEND_URL: "https://frontend.example.com",
             ALLOWED_ORIGINS: "https://frontend.example.com,http://localhost:3000"
         });

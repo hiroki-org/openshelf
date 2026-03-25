@@ -1,0 +1,5 @@
+# NOTE: package.json overrides flatted to ^3.4.1 (minimum 3.4.1) as part of the dependency vulnerability remediation sweep.
+[[IgnoredVulns]]
+id = "GHSA-67mh-4wv8-2f99"
+reason = "drizzle-kit 0.31.9 still pulls @esbuild-kit/core-utils with esbuild 0.18.20; package-level overrides do not replace this nested pin in the current lockfile, so we are waiting for an upstream release. Track: https://github.com/drizzle-team/drizzle-orm/issues/5198; Recheck: https://github.com/Hiroki-org/OpenShelf/issues/121"
+ignoreUntil = 2026-04-30

@@ -2,22 +2,24 @@ codecov:
   require_ci_to_pass: false
   notify:
     wait_for_ci: false
-    after_n_builds: 2
 
 coverage:
   status:
     project:
       default:
-        target: 80%
-        threshold: 5%
+        target: 85%
+        threshold: 2%
     patch:
       default:
-        target: 70%
+        target: 75%
 
 comment:
   layout: "reach,diff,flags,files"
   behavior: default
   require_changes: false
+
+ignore:
+  - "**/*.bench.ts"
 
 flags:
   api:

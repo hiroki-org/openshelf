@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   setup:
     name: Setup
@@ -105,45 +109,59 @@ jobs:
 
   upload-coverage:
     name: Upload Coverage
-    needs: [build-web-check, e2e]
+    needs: [test-api, test-web]
+    if: always() && (needs.test-api.result == 'success' || needs.test-api.result == 'failure') && (needs.test-web.result == 'success' || needs.test-web.result == 'failure')
     runs-on: ubuntu-latest
     env:
       CODECOV_COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       CODECOV_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+      CODECOV_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.number || '' }}
     steps:
       - uses: actions/checkout@v4
       - name: Download API coverage artifact
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: coverage-api
           path: ./coverage-artifacts/api
       - name: Download Web coverage artifact
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: coverage-web
           path: ./coverage-artifacts/web
+      - name: Fix coverage paths for monorepo
+        run: |
+          if [[ -f ./coverage-artifacts/api/lcov.info ]]; then
+            sed -i 's|SF:src/|SF:apps/api/src/|g' ./coverage-artifacts/api/lcov.info
+          else
+            echo "::warning::Missing ./coverage-artifacts/api/lcov.info"
+          fi
+          if [[ -f ./coverage-artifacts/web/lcov.info ]]; then
+            sed -i 's|SF:src/|SF:apps/web/src/|g' ./coverage-artifacts/web/lcov.info
+          else
+            echo "::warning::Missing ./coverage-artifacts/web/lcov.info"
+          fi
       - name: Upload API coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          disable_search: true
           flags: api
           files: ./coverage-artifacts/api/lcov.info
           fail_ci_if_error: false
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
-          root_dir: apps/api
+          override_pr: ${{ env.CODECOV_PR }}
       - name: Upload Web coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          disable_search: true
           flags: web
           files: ./coverage-artifacts/web/lcov.info
           fail_ci_if_error: false
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
-          root_dir: apps/web
+          override_pr: ${{ env.CODECOV_PR }}
 
   build-web-check:
     name: Build Web (Preview Check)

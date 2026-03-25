@@ -12,6 +12,7 @@ import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 
 const invitesRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
+const INVITE_ID_MAX_LENGTH = 64;
 
 // GET /api/invites/received — invites sent to the current user
 invitesRoute.get("/received", authMiddleware, async (c) => {
@@ -42,8 +43,19 @@ invitesRoute.get("/received", authMiddleware, async (c) => {
     return c.json({ invites: rows });
 });
 
+/**
+ * Handles responding to a co-author invitation.
+ * Validates the action, invite existence, and ownership.
+ * If accepted, updates status and inserts a co-author record.
+ *
+ * @param c - The Hono context.
+ * @returns A JSON response indicating success or failure.
+ */
 const respondInviteHandler = async (c: any) => {
     const inviteId = c.req.param("inviteId");
+    if (inviteId.length > INVITE_ID_MAX_LENGTH) {
+        return c.json({ error: "Invalid inviteId" }, 400);
+    }
     let body: { action?: unknown };
     try {
         body = await c.req.json();

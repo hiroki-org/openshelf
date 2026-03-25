@@ -4,6 +4,9 @@ on:
     branches: [main]
     paths: ["apps/api/**"]
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     concurrency:
