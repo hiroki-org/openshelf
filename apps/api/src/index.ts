@@ -46,10 +46,12 @@ app.use("/api/*", async (c, next) => {
     const authHeader = c.req.header("Authorization");
     const testAuthHeader = c.req.header("x-test-auth-secret");
     const testAuthEnabled = c.env.ENABLE_TEST_AUTH === "true";
-    const expectedSecret = c.env.TEST_AUTH_SECRET || "DUMMY_SECRET_FOR_TIMING_EQUAL";
+    const configuredTestSecret = c.env.TEST_AUTH_SECRET ?? "";
+    const hasConfiguredTestSecret = configuredTestSecret.length > 0;
+    const expectedSecret = hasConfiguredTestSecret ? configuredTestSecret : "DUMMY_SECRET_FOR_TIMING_EQUAL";
     const providedSecret = typeof testAuthHeader === "string" ? testAuthHeader : "";
-    const isSecretValid = await timingSafeEqual(providedSecret, expectedSecret);
-    const isTestEnv = testAuthEnabled && isSecretValid;
+    const isSecretMatch = await timingSafeEqual(providedSecret, expectedSecret);
+    const isTestEnv = testAuthEnabled && hasConfiguredTestSecret && isSecretMatch;
 
     // Bypass CSRF for requests with Bearer tokens or valid test auth secret in test env
     if (authHeader?.startsWith("Bearer ") || isTestEnv) return await next();
