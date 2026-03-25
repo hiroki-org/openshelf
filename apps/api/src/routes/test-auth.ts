@@ -10,9 +10,10 @@ const testAuth = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
 
 testAuth.use("*", async (c, next) => {
-    if (c.env.ENABLE_TEST_AUTH !== "true") {
+    if (c.env.ENABLE_TEST_AUTH !== "true" || !c.env.TEST_AUTH_SECRET) {
         return c.json({ error: "Not Found" }, 404);
     }
+
 
     const testSecret = c.req.header("x-test-auth-secret");
     const providedTestSecret = typeof testSecret === "string" ? testSecret : "";
@@ -27,7 +28,6 @@ testAuth.use("*", async (c, next) => {
 
 // POST /api/test-auth/test-token — only for E2E testing
 testAuth.post("/test-token", async (c) => {
-    // Double check: flag must be true AND a secret key must match
 
 
     let body: { sub: string; githubId: string; name: string };
