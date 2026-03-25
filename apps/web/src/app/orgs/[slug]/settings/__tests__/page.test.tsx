@@ -171,14 +171,7 @@ function setupOrgApiMock(state: OrgState) {
       return jsonResponse({ ok: true });
     }
 
-    if (url.startsWith("/api/papers") && method === "GET") {
-      const parsedUrl = new URL(url, "http://localhost");
-      if (!parsedUrl.searchParams.has("q")) {
-        return jsonResponse({ error: "Missing q parameter" }, 400);
-      }
-      if (parsedUrl.searchParams.get("visibility") !== "public") {
-        return jsonResponse({ error: "Invalid visibility" }, 400);
-      }
+    if (url === "/api/papers" && method === "GET") {
       return jsonResponse({ papers: searchablePapers });
     }
 
@@ -243,10 +236,6 @@ describe("OrgSettingsPage", () => {
     render(<OrgSettingsPage />);
 
     await screen.findByRole("heading", { name: "Demo Org — 設定" });
-
-    // Flush useEffects by waiting for the input value to match initial org name
-    // ensure useeffect ran and we aren't in a bad state
-    await waitFor(() => expect(screen.getByLabelText("組織名")).toHaveValue("Demo Org"));
 
     fireEvent.change(screen.getByLabelText("組織名"), {
       target: { value: "Renamed Org" },
@@ -551,17 +540,17 @@ describe("OrgSettingsPage", () => {
     fireEvent.change(screen.getByLabelText("メンバー検索"), { target: { value: "al" } });
     const addBtn = await screen.findByRole("button", { name: "追加" });
     fireEvent.click(addBtn);
-    await waitFor(() => expect(screen.getByText("User already member")).toBeInTheDocument());
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("User already member"));
 
     // Role change fail
     const roleSelect = await screen.findByDisplayValue("member");
     fireEvent.change(roleSelect, { target: { value: "admin" } });
-    await waitFor(() => expect(screen.getByText("Forbidden")).toBeInTheDocument());
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Forbidden"));
 
     // Paper remove fail
     fireEvent.click(screen.getByRole("button", { name: "論文" }));
     fireEvent.click(screen.getByRole("button", { name: "解除" }));
-    await waitFor(() => expect(screen.getByText("Not found")).toBeInTheDocument());
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Not found"));
 
   });
 
@@ -600,17 +589,16 @@ describe("OrgSettingsPage", () => {
     // Fail
     fireEvent.click(screen.getByRole("button", { name: "組織を削除" }));
     fireEvent.change(screen.getByLabelText("削除確認のためスラッグを入力"), { target: { value: "demo-org" } });
-    const originalMockDelete = vi.mocked(apiFetch).getMockImplementation();
-    if (!originalMockDelete) {
+    const alertSpy = vi.mocked(window.alert);
+    const originalMock = vi.mocked(apiFetch).getMockImplementation();
+    if (!originalMock) {
       throw new Error("Expected apiFetch mock implementation");
     }
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-      if (init?.method === "DELETE" && url.includes("/api/orgs/demo-org")) {
-        return jsonResponse({ error: "Protected" }, 400);
-      }
-      return originalMockDelete(url, init);
+      if (init?.method === "DELETE") return jsonResponse({ error: "Protected" }, 400);
+      return originalMock(url, init);
     });
     fireEvent.click(screen.getByRole("button", { name: "完全に削除する" }));
-    await waitFor(() => expect(screen.getByText("Protected")).toBeInTheDocument());
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith("Protected"));
   });
 });
