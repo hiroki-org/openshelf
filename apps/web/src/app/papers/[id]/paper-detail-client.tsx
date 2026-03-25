@@ -16,7 +16,6 @@ import { PaperAuthors, type Author } from "@/components/papers/paper-authors";
 import { PaperInvites, type Invite, type SearchUser } from "@/components/papers/paper-invites";
 
 
-
 type Paper = {
   id: string;
   title: string;

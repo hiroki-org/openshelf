@@ -1,4 +1,3 @@
-
 export type PaperStatsData = {
   totalViews: number;
   last7DaysViews: number;
@@ -17,8 +16,14 @@ type PaperStatsProps = {
 };
 
 function formatStatsDateLabel(date: string) {
-  const [, month, day] = date.split("-");
-  return `${Number(month)}/${Number(day)}`;
+  const parts = date.split("-");
+  if (parts.length < 3) return date;
+
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  if (Number.isNaN(month) || Number.isNaN(day)) return date;
+
+  return `${month}/${day}`;
 }
 
 export function PaperStats({ stats, statsLoading, statsError, maxDailyViewCount }: PaperStatsProps) {
