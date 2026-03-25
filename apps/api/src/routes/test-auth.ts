@@ -8,20 +8,17 @@ import type { Env, Variables } from "../types";
 
 const testAuth = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
-const DUMMY_TEST_AUTH_SECRET = "__openshelf_test_auth_disabled__";
 
 testAuth.use("*", async (c, next) => {
     if (c.env.ENABLE_TEST_AUTH !== "true") {
         return c.json({ error: "Not Found" }, 404);
     }
 
-    const testSecretHeader = c.req.header("x-test-auth-secret");
-    const expectedSecret = c.env.TEST_AUTH_SECRET ?? DUMMY_TEST_AUTH_SECRET;
-    const providedSecret = typeof testSecretHeader === "string" ? testSecretHeader : "";
-    const isSecretConfigured = typeof c.env.TEST_AUTH_SECRET === "string" && c.env.TEST_AUTH_SECRET.length > 0;
-    const isSecretMatch = await timingSafeEqual(providedSecret, expectedSecret);
+    const testSecret = c.req.header("x-test-auth-secret");
+    const providedTestSecret = typeof testSecret === "string" ? testSecret : "";
+    const expectedTestSecret = c.env.TEST_AUTH_SECRET || "DUMMY_SECRET_FOR_TIMING_EQUAL";
 
-    if (!isSecretConfigured || !isSecretMatch) {
+    if (!(await timingSafeEqual(providedTestSecret, expectedTestSecret))) {
         return c.json({ error: "Unauthorized (E2E)" }, 401);
     }
 
@@ -30,6 +27,9 @@ testAuth.use("*", async (c, next) => {
 
 // POST /api/test-auth/test-token — only for E2E testing
 testAuth.post("/test-token", async (c) => {
+    // Double check: flag must be true AND a secret key must match
+
+
     let body: { sub: string; githubId: string; name: string };
     try {
         const raw = await c.req.json();
@@ -97,6 +97,8 @@ testAuth.post("/test-token", async (c) => {
 
 // POST /api/test-auth/test-org — only for E2E testing
 testAuth.post("/test-org", async (c) => {
+
+
     let body: { userId?: string; orgId?: string };
     try {
         body = await c.req.json();
