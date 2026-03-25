@@ -8,14 +8,20 @@ import type { Env, Variables } from "../types";
 
 const testAuth = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
+const DUMMY_TEST_AUTH_SECRET = "__openshelf_test_auth_disabled__";
 
 testAuth.use("*", async (c, next) => {
     if (c.env.ENABLE_TEST_AUTH !== "true") {
         return c.json({ error: "Not Found" }, 404);
     }
 
-    const testSecret = c.req.header("x-test-auth-secret");
-    if (!c.env.TEST_AUTH_SECRET || typeof testSecret !== "string" || !(await timingSafeEqual(testSecret, c.env.TEST_AUTH_SECRET))) {
+    const testSecretHeader = c.req.header("x-test-auth-secret");
+    const expectedSecret = c.env.TEST_AUTH_SECRET ?? DUMMY_TEST_AUTH_SECRET;
+    const providedSecret = typeof testSecretHeader === "string" ? testSecretHeader : "";
+    const isSecretConfigured = typeof c.env.TEST_AUTH_SECRET === "string" && c.env.TEST_AUTH_SECRET.length > 0;
+    const isSecretMatch = await timingSafeEqual(providedSecret, expectedSecret);
+
+    if (!isSecretConfigured || !isSecretMatch) {
         return c.json({ error: "Unauthorized (E2E)" }, 401);
     }
 
