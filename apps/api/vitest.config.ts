@@ -3,10 +3,10 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
     test: {
         environment: "node",
-        env: { NODE_ENV: "test" },
         include: ["src/**/__tests__/**/*.test.ts"],
         reporters: ["default", "junit"],
         outputFile: {
+            lcov: "./coverage/lcov.info",
             junit: "./test-report.junit.xml",
         },
         coverage: {

@@ -10,7 +10,6 @@ export type Env = {
     ALLOWED_ORIGINS?: string;
     ENABLE_TEST_AUTH?: string;
     TEST_AUTH_SECRET?: string;
-    MAX_CACHE_SIZE?: string;
 };
 
 export type JwtPayload = {

@@ -2,6 +2,7 @@ const MIME_COMPATIBILITY: Record<string, readonly string[]> = {
     "application/pdf": ["application/pdf"],
     "image/png": ["image/png"],
     "image/jpeg": ["image/jpeg"],
+    // TODO: For deeper inspection of PPT/PPTX, parse OLE2 streams or check for specific ZIP entries like "ppt/presentation.xml"
     "application/vnd.ms-powerpoint": ["application/x-ole-storage"],
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": ["application/zip"],
 };
@@ -14,21 +15,9 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
     ["504B0304", "application/zip"],
 ];
 
-/**
- * Byte chunk size for large file searches.
- */
-export const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
-
-/**
- * Helper function to search for a byte sequence within a file in chunks.
- * Uses a sliding window approach with chunk overlaps to ensure sequences
- * crossing chunk boundaries are correctly detected.
- *
- * @param file - The File object to search within.
- * @param searchBytes - The Uint8Array byte sequence to look for.
- * @returns A promise that resolves to true if the sequence is found, false otherwise.
- */
-export async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promise<boolean> {
+// Helper function to search for a byte sequence within a file in chunks
+async function searchSequenceInFile(file: File, searchBytes: Uint8Array): Promise<boolean> {
+    const CHUNK_SIZE = 1 * 1024 * 1024; // 1MB chunks
     const searchLen = searchBytes.length;
     if (searchLen === 0) return false;
 
@@ -57,14 +46,6 @@ export async function searchSequenceInFile(file: File, searchBytes: Uint8Array):
     return false;
 }
 
-/**
- * Validates a file's content against its declared MIME type using magic numbers.
- * Performs deep inspection for specific formats like PPT and PPTX.
- *
- * @param file - The File object to validate.
- * @param declaredMime - The MIME type string declared by the client.
- * @returns A promise that resolves to true if the file content matches the declared type.
- */
 export async function validateMagicNumbers(file: File, declaredMime: string): Promise<boolean> {
     const buffer = await file.slice(0, 8).arrayBuffer();
     const bytes = new Uint8Array(buffer);

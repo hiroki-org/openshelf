@@ -4,8 +4,8 @@
  * Does not allow starting/ending with a hyphen or consecutive hyphens.
  */
 export function sanitizeId(value: string): string {
-  // Regex: /^[a-z0-9]+(?:-[a-z0-9]+)*$/
-  const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+  // Regex from instruction.md: /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/
+  const slugRegex = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
   if (slugRegex.test(value)) {
     return value;
   }

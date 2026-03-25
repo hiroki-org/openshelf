@@ -16,15 +16,6 @@ function slugify(text: string): string {
     .slice(0, 40);
 }
 
-function isValidSlug(value: string): boolean {
-  return (
-    value.length >= 3 &&
-    value.length <= 40 &&
-    SLUG_RE.test(value) &&
-    !value.includes("--")
-  );
-}
-
 export default function NewOrgPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -53,17 +44,21 @@ export default function NewOrgPage() {
   const slugCheckRef = useRef(0);
 
   // Check slug availability
-  const checkSlug = useCallback(async (s: string, requestId: number) => {
+  const checkSlug = useCallback(async (s: string) => {
+    if (s.length < 3 || s.length > 40 || !SLUG_RE.test(s) || s.includes("--")) {
+      setSlugStatus("invalid");
+      return;
+    }
+    const requestId = ++slugCheckRef.current;
+    setSlugStatus("checking");
     try {
       const res = await apiFetch(`/api/orgs/${encodeURIComponent(s)}`);
       // Ignore stale responses
       if (slugCheckRef.current !== requestId) return;
       if (res.status === 404) {
         setSlugStatus("available");
-      } else if (res.ok) {
-        setSlugStatus("taken");
       } else {
-        setSlugStatus("idle");
+        setSlugStatus("taken");
       }
     } catch {
       if (slugCheckRef.current !== requestId) return;
@@ -72,19 +67,11 @@ export default function NewOrgPage() {
   }, []);
 
   useEffect(() => {
-    const requestId = ++slugCheckRef.current;
-    if (!slug) {
-      setSlugStatus("idle");
+    if (!slug || slug.length < 3) {
+      setSlugStatus(slug.length > 0 ? "invalid" : "idle");
       return;
     }
-    if (!isValidSlug(slug)) {
-      setSlugStatus("invalid");
-      return;
-    }
-    setSlugStatus("checking");
-    const timer = setTimeout(() => {
-      void checkSlug(slug, requestId);
-    }, 400);
+    const timer = setTimeout(() => checkSlug(slug), 400);
     return () => clearTimeout(timer);
   }, [slug, checkSlug]);
 
@@ -141,7 +128,7 @@ export default function NewOrgPage() {
       case "invalid":
         return (
           <span className="text-red-600 text-xs">
-            ※ 3〜40文字、英小文字・数字・ハイフンのみ（先頭/末尾のハイフン、連続ハイフンは不可）
+            ※ 3〜40文字、英小文字・数字・ハイフンのみ
           </span>
         );
       default:

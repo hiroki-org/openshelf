@@ -27,10 +27,10 @@ const SITE_BASE =
   "http://localhost:3000";
 
 async function fetchPaperMetadata(
-  safeId: string,
+  id: string,
 ): Promise<PaperMetadataResponse | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/papers/${safeId}`, {
+    const res = await fetch(`${API_BASE}/api/papers/${safePath(id)}`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -42,7 +42,7 @@ async function fetchPaperMetadata(
 
 function toDescription(value: string | null | undefined): string | undefined {
   if (!value) return undefined;
-  return value.slice(0, 200);
+  return [...value].slice(0, 200).join("");
 }
 
 function buildOgImageUrl(
@@ -64,14 +64,15 @@ export async function generateMetadata(props: {
 }): Promise<Metadata> {
   const { id } = await Promise.resolve(props.params);
 
-  let safeId: string;
+  // Sanitization check
+  let sanitizedId = "";
   try {
-    safeId = safePath(id);
+    sanitizedId = safePath(id);
   } catch {
     return { title: "論文詳細 | OpenShelf" };
   }
 
-  const data = await fetchPaperMetadata(safeId);
+  const data = await fetchPaperMetadata(id);
 
   if (!data || data.paper.visibility !== "public") {
     const genericTitle = "論文詳細 | OpenShelf";
@@ -81,7 +82,7 @@ export async function generateMetadata(props: {
       openGraph: {
         title: genericTitle,
         type: "article",
-        url: `${SITE_BASE}/papers/${safeId}`,
+        url: `${SITE_BASE}/papers/${id}`,
         images: [{ url: ogImage, width: 1200, height: 630 }],
       },
       twitter: {
@@ -113,7 +114,7 @@ export async function generateMetadata(props: {
       title,
       description,
       type: "article",
-      url: `${SITE_BASE}/papers/${safeId}`,
+      url: `${SITE_BASE}/papers/${id}`,
       images: [{ url: ogImage, width: 1200, height: 630 }],
     },
     twitter: {
@@ -129,11 +130,10 @@ export default async function PaperPage(props: {
   params: Params | Promise<Params>;
 }) {
   const { id } = await Promise.resolve(props.params);
-  let safeId: string;
   try {
-    safeId = safePath(id);
+    safePath(id);
   } catch {
     return <div className="text-center py-20">無効な識別子です</div>;
   }
-  return <PaperDetailClient paperId={safeId} />;
+  return <PaperDetailClient paperId={id} />;
 }

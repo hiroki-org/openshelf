@@ -21,7 +21,7 @@ function truncateTitle(value: string, maxLength = 80): string {
   const normalized = value.replace(/\s+/g, " ").trim();
   const chars = [...normalized];
   if (chars.length <= maxLength) return normalized;
-  return `${chars.slice(0, maxLength).join("")}...`;
+  return `${chars.slice(0, maxLength - 1).join("")}…`;
 }
 
 export async function GET(request: Request) {
