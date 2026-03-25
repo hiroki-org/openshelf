@@ -5,10 +5,6 @@ import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select } from "@/components/ui/select";
 
 const VALID_FILE_TYPES = [
   "paper",
@@ -42,13 +38,6 @@ type FileEntry = {
   fileType: (typeof VALID_FILE_TYPES)[number];
 };
 
-type Organization = {
-  id: string;
-  name: string;
-  slug: string;
-  role: string;
-};
-
 export default function UploadPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -67,35 +56,10 @@ export default function UploadPage() {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [selectedOrgId, setSelectedOrgId] = useState("");
-  const [loadingOrgs, setLoadingOrgs] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
   }, [loading, user, router]);
-
-  useEffect(() => {
-    if (!loading && user) {
-      const fetchOrganizations = async () => {
-        setLoadingOrgs(true);
-        try {
-          const res = await apiFetch("/api/users/me/orgs");
-          if (res.ok) {
-            const data = await res.json();
-            setOrganizations(data.organizations);
-          } else {
-            setError("組織情報の取得中にサーバーエラーが発生しました。ページを再読み込みしてください。");
-          }
-        } catch {
-          setError("組織情報の取得中にネットワークまたは予期しないエラーが発生しました。ページを再読み込みしてください。");
-        } finally {
-          setLoadingOrgs(false);
-        }
-      };
-      fetchOrganizations();
-    }
-  }, [loading, user]);
 
   if (loading || !user) return null;
 
@@ -126,20 +90,6 @@ export default function UploadPage() {
       setError("ファイルを1つ以上添付してください");
       return;
     }
-    if (visibility === "org_only") {
-      if (loadingOrgs) {
-        setError("組織を読み込み中です。しばらくお待ちください");
-        return;
-      }
-      if (organizations.length === 0) {
-        setError("組織がありません。別の公開範囲を選択してください");
-        return;
-      }
-      if (!selectedOrgId) {
-        setError("組織を選択してください");
-        return;
-      }
-    }
 
     setUploading(true);
     try {
@@ -159,9 +109,6 @@ export default function UploadPage() {
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean),
-          ...(visibility === "org_only" && selectedOrgId
-            ? { orgId: selectedOrgId }
-            : {}),
         }),
       );
 
@@ -231,66 +178,81 @@ export default function UploadPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <Label htmlFor="paper-title">
+          <label
+            htmlFor="paper-title"
+            className="block text-sm font-medium mb-1"
+          >
             タイトル <span className="text-red-500">*</span>
-          </Label>
-          <Input id="paper-title" type="text" maxLength={300} value={title} onChange={(e) => setTitle(e.target.value)} required />
+          </label>
+          <input
+            id="paper-title"
+            type="text"
+            maxLength={300}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            required
+          />
         </div>
 
         <div>
-          <Label htmlFor="paper-abstract">
+          <label
+            htmlFor="paper-abstract"
+            className="block text-sm font-medium mb-1"
+          >
             概要
-          </Label>
-          <Textarea id="paper-abstract" value={abstract} onChange={(e) => setAbstract(e.target.value)} rows={4} />
+          </label>
+          <textarea
+            id="paper-abstract"
+            value={abstract}
+            onChange={(e) => setAbstract(e.target.value)}
+            rows={4}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="paper-visibility">
+            <label
+              htmlFor="paper-visibility"
+              className="block text-sm font-medium mb-1"
+            >
               公開範囲
-            </Label>
-            <Select id="paper-visibility" value={visibility} onChange={(e) =>
+            </label>
+            <select
+              id="paper-visibility"
+              value={visibility}
+              onChange={(e) =>
                 setVisibility(
                   e.target
                     .value as (typeof VISIBILITY_OPTIONS)[number]["value"],
                 )
-              }>
+              }
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            >
               {VISIBILITY_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
-            </Select>
+            </select>
           </div>
           <div>
-            <Label htmlFor="paper-year">
+            <label
+              htmlFor="paper-year"
+              className="block text-sm font-medium mb-1"
+            >
               発表年
-            </Label>
-            <Input id="paper-year" type="number" value={year} onChange={(e) => setYear(e.target.value)} />
+            </label>
+            <input
+              id="paper-year"
+              type="number"
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            />
           </div>
         </div>
-
-        {visibility === "org_only" && (
-          <div>
-            <Label htmlFor="paper-organization">
-              対象組織 <span className="text-red-500">*</span>
-            </Label>
-            <Select id="paper-organization" value={selectedOrgId} onChange={(e) => setSelectedOrgId(e.target.value)} disabled={loadingOrgs || organizations.length === 0}>
-              <option value="">
-                {loadingOrgs
-                  ? "読み込み中..."
-                  : organizations.length === 0
-                    ? "組織がありません"
-                    : "組織を選択してください"}
-              </option>
-              {organizations.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-        )}
 
         <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/40">
           <label
@@ -317,43 +279,78 @@ export default function UploadPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="paper-venue">
+            <label
+              htmlFor="paper-venue"
+              className="block text-sm font-medium mb-1"
+            >
               会場名
-            </Label>
-            <Input id="paper-venue" type="text" value={venue} onChange={(e) => setVenue(e.target.value)} />
+            </label>
+            <input
+              id="paper-venue"
+              type="text"
+              value={venue}
+              onChange={(e) => setVenue(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            />
           </div>
           <div>
-            <Label htmlFor="paper-venue-type">
+            <label
+              htmlFor="paper-venue-type"
+              className="block text-sm font-medium mb-1"
+            >
               会場種別
-            </Label>
-            <Select id="paper-venue-type" value={venueType} onChange={(e) => setVenueType(e.target.value)}>
+            </label>
+            <select
+              id="paper-venue-type"
+              value={venueType}
+              onChange={(e) => setVenueType(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            >
               {VENUE_TYPE_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
-            </Select>
+            </select>
           </div>
         </div>
 
         <div>
-          <Label htmlFor="paper-category">
+          <label
+            htmlFor="paper-category"
+            className="block text-sm font-medium mb-1"
+          >
             カテゴリ
-          </Label>
-          <Select id="paper-category" value={category} onChange={(e) => setCategory(e.target.value)}>
+          </label>
+          <select
+            id="paper-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+          >
             {CATEGORY_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
-          </Select>
+          </select>
         </div>
 
         <div>
-          <Label htmlFor="paper-tags">
+          <label
+            htmlFor="paper-tags"
+            className="block text-sm font-medium mb-1"
+          >
             タグ（カンマ区切り）
-          </Label>
-          <Input id="paper-tags" type="text" value={tags} onChange={(e) => setTags(e.target.value)} placeholder="例: NLP, LLM, attention" />
+          </label>
+          <input
+            id="paper-tags"
+            type="text"
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            placeholder="例: NLP, LLM, attention"
+          />
         </div>
 
         {/* File uploads */}
@@ -440,7 +437,7 @@ export default function UploadPage() {
         </div>
 
         {error && (
-          <div data-testid="org-selection-error" className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
             {error}
           </div>
         )}

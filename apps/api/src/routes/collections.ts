@@ -15,14 +15,35 @@ import {
 } from "../db/schema";
 import { authMiddleware } from "../middleware/auth";
 import type { Env, Variables } from "../types";
-import { validateSlug, validateName, validateDescription } from "../utils/validation";
 
 const collectionsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
-
+const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 const VALID_VISIBILITY = ["public", "org_only", "private"] as const;
 
 type Visibility = (typeof VALID_VISIBILITY)[number];
 type CurrentUser = { id: string } | null;
+
+function validateSlug(slug: unknown): string | null {
+    if (typeof slug !== "string") return "slug is required";
+    const s = slug.trim().toLowerCase();
+    if (s.length < 3 || s.length > 40) return "slug must be 3-40 characters";
+    if (!SLUG_RE.test(s)) return "slug must contain only lowercase letters, numbers, and hyphens";
+    if (s.includes("--")) return "slug must not contain consecutive hyphens";
+    return null;
+}
+
+function validateName(name: unknown): string | null {
+    if (typeof name !== "string" || name.trim().length === 0) return "name is required";
+    if (name.trim().length > 100) return "name must be 100 characters or less";
+    return null;
+}
+
+function validateDescription(description: unknown): string | null {
+    if (description === undefined || description === null || description === "") return null;
+    if (typeof description !== "string") return "description must be a string";
+    if (description.trim().length > 500) return "description must be 500 characters or less";
+    return null;
+}
 
 function parseVisibility(value: unknown): Visibility | null {
     if (typeof value === "string" && VALID_VISIBILITY.includes(value as Visibility)) {
@@ -32,8 +53,8 @@ function parseVisibility(value: unknown): Visibility | null {
 }
 
 function isUniqueConstraintError(err: unknown): boolean {
-    const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
-    return message.includes("unique") || message.includes("duplicate key");
+    const message = err instanceof Error ? err.message : String(err);
+    return message.includes("UNIQUE") || message.includes("unique") || message.includes("constraint");
 }
 
 async function getCurrentUser(c: any): Promise<CurrentUser> {
@@ -74,6 +95,25 @@ async function isOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId:
     return !!row && (row.role === "admin" || row.role === "owner");
 }
 
+async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, userId: string) {
+    const author = await db
+        .select()
+        .from(paperAuthors)
+        .where(and(eq(paperAuthors.paperId, paperId), eq(paperAuthors.userId, userId)))
+        .get();
+    return !!author;
+}
+
+async function isMemberOfPaperOrg(db: ReturnType<typeof drizzle>, paperId: string, userId: string) {
+    const isMember = await db
+        .select({ id: orgMembers.userId })
+        .from(orgMembers)
+        .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
+        .where(and(eq(paperOrgs.paperId, paperId), eq(orgMembers.userId, userId)))
+        .get();
+    return !!isMember;
+}
+
 async function canViewCollection(
     db: ReturnType<typeof drizzle>,
     collection: typeof collections.$inferSelect,
@@ -112,23 +152,10 @@ async function canViewPaper(
     if (paper.visibility === "public") return true;
     if (!userId) return false;
 
-    const isAuthor = await db
-        .select({ paperId: paperAuthors.paperId })
-        .from(paperAuthors)
-        .where(and(eq(paperAuthors.paperId, paper.id), eq(paperAuthors.userId, userId)))
-        .get();
-    if (isAuthor) return true;
-
+    if (await isPaperAuthor(db, paper.id, userId)) return true;
     if (paper.visibility === "private") return false;
 
-    // org_only: user must be a member of an org that owns this paper
-    const membership = await db
-        .select({ orgId: orgMembers.orgId })
-        .from(orgMembers)
-        .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
-        .where(and(eq(paperOrgs.paperId, paper.id), eq(orgMembers.userId, userId)))
-        .get();
-    return !!membership;
+    return await isMemberOfPaperOrg(db, paper.id, userId);
 }
 
 collectionsRoute.post("/collections", authMiddleware, async (c) => {

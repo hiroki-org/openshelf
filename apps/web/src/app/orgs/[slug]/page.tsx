@@ -47,9 +47,14 @@ export async function generateMetadata(props: {
   params: Params | Promise<Params>;
 }): Promise<Metadata> {
   const { slug } = await Promise.resolve(props.params);
+  // Ensure slug is sanitized before any further processing
+  let safeSlug = "";
   try {
-    safePath(slug);
+    safeSlug = safePath(slug);
+    // safePath returns encoded, but for the rest we want normalized.
+    // Actually safePath(slug) is already safe to pass to fetchOrgMetadata.
   } catch {
+    // Return early or generic if invalid slug
     return { title: "OpenShelf" };
   }
 

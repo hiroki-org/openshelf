@@ -83,7 +83,7 @@ function getCachedResults(key: string): any[] | null {
 }
 
 function setCachedResults(key: string, data: any[]) {
-    // Purge expired entries first, then evict the oldest entry if still full.
+    // cleanup old cache randomly to prevent memory leak
     if (searchCache.size >= MAX_CACHE_SIZE) {
         const now = Date.now();
         for (const [k, v] of searchCache.entries()) {
@@ -92,11 +92,9 @@ function setCachedResults(key: string, data: any[]) {
             }
         }
 
+        // if still too large, clear to prevent memory leak
         if (searchCache.size >= MAX_CACHE_SIZE) {
-            const oldestKey = searchCache.keys().next().value;
-            if (oldestKey !== undefined) {
-                searchCache.delete(oldestKey);
-            }
+            searchCache.clear();
         }
     }
     searchCache.set(key, { data, timestamp: Date.now() });
