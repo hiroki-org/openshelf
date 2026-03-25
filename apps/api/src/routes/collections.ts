@@ -15,35 +15,14 @@ import {
 } from "../db/schema";
 import { authMiddleware } from "../middleware/auth";
 import type { Env, Variables } from "../types";
+import { validateSlug, validateName, validateDescription } from "../utils/validation";
 
 const collectionsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
-const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
+
 const VALID_VISIBILITY = ["public", "org_only", "private"] as const;
 
 type Visibility = (typeof VALID_VISIBILITY)[number];
 type CurrentUser = { id: string } | null;
-
-function validateSlug(slug: unknown): string | null {
-    if (typeof slug !== "string") return "slug is required";
-    const s = slug.trim().toLowerCase();
-    if (s.length < 3 || s.length > 40) return "slug must be 3-40 characters";
-    if (!SLUG_RE.test(s)) return "slug must contain only lowercase letters, numbers, and hyphens";
-    if (s.includes("--")) return "slug must not contain consecutive hyphens";
-    return null;
-}
-
-function validateName(name: unknown): string | null {
-    if (typeof name !== "string" || name.trim().length === 0) return "name is required";
-    if (name.trim().length > 100) return "name must be 100 characters or less";
-    return null;
-}
-
-function validateDescription(description: unknown): string | null {
-    if (description === undefined || description === null || description === "") return null;
-    if (typeof description !== "string") return "description must be a string";
-    if (description.trim().length > 500) return "description must be 500 characters or less";
-    return null;
-}
 
 function parseVisibility(value: unknown): Visibility | null {
     if (typeof value === "string" && VALID_VISIBILITY.includes(value as Visibility)) {
@@ -53,8 +32,8 @@ function parseVisibility(value: unknown): Visibility | null {
 }
 
 function isUniqueConstraintError(err: unknown): boolean {
-    const message = err instanceof Error ? err.message : String(err);
-    return /\bUNIQUE\b/i.test(message) || /unique constraint failed/i.test(message);
+    const message = (err instanceof Error ? err.message : String(err)).toLowerCase();
+    return message.includes("unique") || message.includes("duplicate key");
 }
 
 async function getCurrentUser(c: any): Promise<CurrentUser> {
@@ -74,18 +53,11 @@ async function getCurrentUser(c: any): Promise<CurrentUser> {
     }
 }
 
-async function getOrgBySlug(
-    db: ReturnType<typeof drizzle>,
-    slug: string,
-): Promise<typeof orgs.$inferSelect | undefined> {
+async function getOrgBySlug(db: ReturnType<typeof drizzle>, slug: string) {
     return db.select().from(orgs).where(eq(orgs.slug, slug)).get();
 }
 
-async function getOrgMembership(
-    db: ReturnType<typeof drizzle>,
-    orgId: string,
-    userId: string,
-): Promise<typeof orgMembers.$inferSelect | undefined> {
+async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
     return db
         .select()
         .from(orgMembers)
@@ -93,48 +65,13 @@ async function getOrgMembership(
         .get();
 }
 
-async function isOrgMember(
-    db: ReturnType<typeof drizzle>,
-    orgId: string,
-    userId: string,
-): Promise<boolean> {
+async function isOrgMember(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
     return !!(await getOrgMembership(db, orgId, userId));
 }
 
-async function isOrgAdmin(
-    db: ReturnType<typeof drizzle>,
-    orgId: string,
-    userId: string,
-): Promise<boolean> {
+async function isOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
     const row = await getOrgMembership(db, orgId, userId);
     return !!row && (row.role === "admin" || row.role === "owner");
-}
-
-async function isPaperAuthor(
-    db: ReturnType<typeof drizzle>,
-    paperId: string,
-    userId: string,
-): Promise<boolean> {
-    const author = await db
-        .select()
-        .from(paperAuthors)
-        .where(and(eq(paperAuthors.paperId, paperId), eq(paperAuthors.userId, userId)))
-        .get();
-    return !!author;
-}
-
-async function isMemberOfPaperOrg(
-    db: ReturnType<typeof drizzle>,
-    paperId: string,
-    userId: string,
-): Promise<boolean> {
-    const isMember = await db
-        .select({ id: orgMembers.userId })
-        .from(orgMembers)
-        .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
-        .where(and(eq(paperOrgs.paperId, paperId), eq(orgMembers.userId, userId)))
-        .get();
-    return !!isMember;
 }
 
 async function canViewCollection(
@@ -175,10 +112,23 @@ async function canViewPaper(
     if (paper.visibility === "public") return true;
     if (!userId) return false;
 
-    if (await isPaperAuthor(db, paper.id, userId)) return true;
+    const isAuthor = await db
+        .select({ paperId: paperAuthors.paperId })
+        .from(paperAuthors)
+        .where(and(eq(paperAuthors.paperId, paper.id), eq(paperAuthors.userId, userId)))
+        .get();
+    if (isAuthor) return true;
+
     if (paper.visibility === "private") return false;
 
-    return await isMemberOfPaperOrg(db, paper.id, userId);
+    // org_only: user must be a member of an org that owns this paper
+    const membership = await db
+        .select({ orgId: orgMembers.orgId })
+        .from(orgMembers)
+        .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
+        .where(and(eq(paperOrgs.paperId, paper.id), eq(orgMembers.userId, userId)))
+        .get();
+    return !!membership;
 }
 
 collectionsRoute.post("/collections", authMiddleware, async (c) => {
