@@ -1,0 +1,7 @@
+Lines missing coverage:
+236: `setSearchResults([]);` inside the `catch` block of `handleUserSearch`.
+304-305: `setPaperSearchResults([]); return;` inside `handlePaperSearch` when `q.length < 2`.
+324-325: `if (paperSearchRef.current !== requestId) return; setPaperSearchResults([]);` inside `catch` block of `handlePaperSearch`.
+394: `onClick={() => setTab("general")}` on the General tab button.
+
+We need to add tests for these specific branches to increase the Codecov patch coverage over 75%.
