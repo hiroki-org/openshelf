@@ -2,23 +2,33 @@ import { Hono } from "hono";
 import { sign } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
+import { timingSafeEqual } from "hono/utils/buffer";
 import { users, orgs, orgMembers, enableForeignKeys, touchUpdatedAt } from "../db/schema";
 import type { Env, Variables } from "../types";
 
 const testAuth = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
 
-// POST /api/test-auth/test-token — only for E2E testing
-testAuth.post("/test-token", async (c) => {
-    // Double check: flag must be true AND a secret key must match
-    if (c.env.ENABLE_TEST_AUTH !== "true") {
+testAuth.use("*", async (c, next) => {
+    if (c.env.ENABLE_TEST_AUTH !== "true" || !c.env.TEST_AUTH_SECRET) {
         return c.json({ error: "Not Found" }, 404);
     }
 
+
     const testSecret = c.req.header("x-test-auth-secret");
-    if (!c.env.TEST_AUTH_SECRET || testSecret !== c.env.TEST_AUTH_SECRET) {
+    const providedTestSecret = typeof testSecret === "string" ? testSecret : "";
+    const expectedTestSecret = c.env.TEST_AUTH_SECRET || "DUMMY_SECRET_FOR_TIMING_EQUAL";
+
+    if (!(await timingSafeEqual(providedTestSecret, expectedTestSecret))) {
         return c.json({ error: "Unauthorized (E2E)" }, 401);
     }
+
+    await next();
+});
+
+// POST /api/test-auth/test-token — only for E2E testing
+testAuth.post("/test-token", async (c) => {
+
 
     let body: { sub: string; githubId: string; name: string };
     try {
@@ -87,13 +97,7 @@ testAuth.post("/test-token", async (c) => {
 
 // POST /api/test-auth/test-org — only for E2E testing
 testAuth.post("/test-org", async (c) => {
-    if (c.env.ENABLE_TEST_AUTH !== "true") {
-        return c.json({ error: "Not Found" }, 404);
-    }
-    const testSecret = c.req.header("x-test-auth-secret");
-    if (!c.env.TEST_AUTH_SECRET || testSecret !== c.env.TEST_AUTH_SECRET) {
-        return c.json({ error: "Unauthorized (E2E)" }, 401);
-    }
+
 
     let body: { userId?: string; orgId?: string };
     try {
