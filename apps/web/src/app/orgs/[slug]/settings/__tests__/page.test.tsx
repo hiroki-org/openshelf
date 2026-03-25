@@ -172,8 +172,16 @@ function setupOrgApiMock(state: OrgState) {
       return jsonResponse({ ok: true });
     }
 
-    if (url === "/api/papers" && method === "GET") {
-      return jsonResponse({ papers: searchablePapers });
+    if (url.startsWith("/api/papers?") && method === "GET") {
+      const parsedUrl = new URL(url, "http://localhost");
+      const q = (parsedUrl.searchParams.get("q") ?? "").toLowerCase();
+      const visibility = parsedUrl.searchParams.get("visibility");
+      const papers = searchablePapers.filter((paper) => {
+        const matchesVisibility = visibility ? paper.visibility === visibility : true;
+        const matchesQuery = q ? paper.title.toLowerCase().includes(q) : true;
+        return matchesVisibility && matchesQuery;
+      });
+      return jsonResponse({ papers });
     }
 
     if (url === "/api/orgs/demo-org/papers" && method === "POST") {
@@ -338,6 +346,10 @@ describe("OrgSettingsPage", () => {
         }),
       );
     });
+
+    expect(within(screen.getByText("Owner").closest("li")!).getByText("owner")).toBeInTheDocument();
+    expect(within(screen.getByText("Owner").closest("li")!).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(within(screen.getByText("Owner").closest("li")!).queryByRole("button", { name: "削除" })).not.toBeInTheDocument();
 
     fireEvent.click(within(bobRow!).getByRole("button", { name: "削除" }));
 
@@ -654,67 +666,77 @@ const originalMock = vi.mocked(apiFetch).getMockImplementation();
   });
 
   it("handles paper search network error", async () => {
-    const originalConsoleError = console.error;
-    console.error = vi.fn();
-    setupOrgApiMock({
-      org: { id: "o1", slug: "demo-org", name: "Org", description: null },
-      members: [{ userId: "owner-1", role: "owner", name: "o", displayName: "O", avatarUrl: null, githubId: "o" }],
-      papers: [],
-    });
-    render(<OrgSettingsPage />);
-    await screen.findByRole("heading", { name: "Org — 設定" });
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
-    fireEvent.click(screen.getByRole("button", { name: "論文" }));
-    const searchInput = await screen.findByLabelText("論文検索");
+    try {
+      setupOrgApiMock({
+        org: { id: "o1", slug: "demo-org", name: "Org", description: null },
+        members: [{ userId: "owner-1", role: "owner", name: "o", displayName: "O", avatarUrl: null, githubId: "o" }],
+        papers: [],
+      });
+      render(<OrgSettingsPage />);
+      await screen.findByRole("heading", { name: "Org — 設定" });
 
-    // Trigger an error
-    const originalMock = vi.mocked(apiFetch).getMockImplementation();
-    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-      if (url.includes("/api/papers") && !url.includes("orgs")) {
-         throw new Error("Network error");
-      }
-      if (originalMock) return originalMock(url, init);
-      return jsonResponse({});
-    });
-    fireEvent.change(searchInput, { target: { value: "error" } });
+      fireEvent.click(screen.getByRole("button", { name: "論文" }));
+      const searchInput = await screen.findByLabelText("論文検索");
 
-    // Ensure it doesn't crash
-    await waitFor(() => {
-      expect(screen.getByLabelText("論文検索")).toBeInTheDocument();
-    });
-    console.error = originalConsoleError;
+      // Trigger an error
+      const originalMock = vi.mocked(apiFetch).getMockImplementation();
+      vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+        if (url.includes("/api/papers") && !url.includes("orgs")) {
+           throw new Error("Network error");
+        }
+        if (originalMock) return originalMock(url, init);
+        return jsonResponse({});
+      });
+      fireEvent.change(searchInput, { target: { value: "error" } });
+
+      // Ensure it doesn't crash
+      await waitFor(() => {
+        expect(screen.getByLabelText("論文検索")).toBeInTheDocument();
+      });
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it("handles user search network error", async () => {
-    const originalConsoleError = console.error;
-    console.error = vi.fn();
-    setupOrgApiMock({
-      org: { id: "o1", slug: "demo-org", name: "Org", description: null },
-      members: [{ userId: "owner-1", role: "owner", name: "o", displayName: "O", avatarUrl: null, githubId: "o" }],
-      papers: [],
-    });
-    render(<OrgSettingsPage />);
-    await screen.findByRole("heading", { name: "Org — 設定" });
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
-    fireEvent.click(screen.getByRole("button", { name: "メンバー" }));
-    const searchInput = await screen.findByLabelText("メンバー検索");
+    try {
+      setupOrgApiMock({
+        org: { id: "o1", slug: "demo-org", name: "Org", description: null },
+        members: [{ userId: "owner-1", role: "owner", name: "o", displayName: "O", avatarUrl: null, githubId: "o" }],
+        papers: [],
+      });
+      render(<OrgSettingsPage />);
+      await screen.findByRole("heading", { name: "Org — 設定" });
 
-    // Trigger an error
-    const originalMock = vi.mocked(apiFetch).getMockImplementation();
-    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-      if (url.includes("/api/users/search")) {
-         throw new Error("Network error");
-      }
-      if (originalMock) return originalMock(url, init);
-      return jsonResponse({});
-    });
-    fireEvent.change(searchInput, { target: { value: "error" } });
+      fireEvent.click(screen.getByRole("button", { name: "メンバー" }));
+      const searchInput = await screen.findByLabelText("メンバー検索");
 
-    // Ensure it doesn't crash
-    await waitFor(() => {
-      expect(screen.getByLabelText("メンバー検索")).toBeInTheDocument();
-    });
-    console.error = originalConsoleError;
+      // Trigger an error
+      const originalMock = vi.mocked(apiFetch).getMockImplementation();
+      vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+        if (url.includes("/api/users/search")) {
+           throw new Error("Network error");
+        }
+        if (originalMock) return originalMock(url, init);
+        return jsonResponse({});
+      });
+      fireEvent.change(searchInput, { target: { value: "error" } });
+
+      // Ensure it doesn't crash
+      await waitFor(() => {
+        expect(screen.getByLabelText("メンバー検索")).toBeInTheDocument();
+      });
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
 

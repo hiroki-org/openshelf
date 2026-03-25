@@ -76,6 +76,8 @@ export default function OrgSettingsPage() {
 
   const userSearchRef = useRef(0);
   const paperSearchRef = useRef(0);
+  const userSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const paperSearchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // General tab
   const [editName, setEditName] = useState("");
@@ -149,6 +151,17 @@ export default function OrgSettingsPage() {
     fetchData();
   }, [authLoading, user, fetchData, router]);
 
+  useEffect(() => {
+    return () => {
+      if (userSearchTimeoutRef.current) {
+        clearTimeout(userSearchTimeoutRef.current);
+      }
+      if (paperSearchTimeoutRef.current) {
+        clearTimeout(paperSearchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Check admin status derived from members list
   const isAdmin = Boolean(
     user &&
@@ -186,6 +199,9 @@ export default function OrgSettingsPage() {
       async (res) => {
         const data = await res.json();
         setOrg(data.org);
+        setEditName(data.org.name);
+        setEditSlug(data.org.slug);
+        setEditDescription(data.org.description ?? "");
         toast.success("保存しました");
         if (data.org.slug !== slug) {
           router.replace(`/orgs/${data.org.slug}/settings`);
@@ -214,27 +230,36 @@ export default function OrgSettingsPage() {
   // ── Members handlers ──
   const handleUserSearch = async (q: string) => {
     setSearchQuery(q);
+
+    if (userSearchTimeoutRef.current) {
+      clearTimeout(userSearchTimeoutRef.current);
+      userSearchTimeoutRef.current = null;
+    }
+
     if (q.length < 2) {
       setSearchResults([]);
       return;
     }
-    const requestId = ++userSearchRef.current;
-    try {
-      const res = await apiFetch(
-        `/api/users/search?q=${encodeURIComponent(q)}`,
-      );
-      if (userSearchRef.current !== requestId) return;
-      if (res.ok) {
-        const data = await res.json();
-        const existingIds = new Set(members.map((m) => m.userId));
-        setSearchResults(
-          data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
+
+    userSearchTimeoutRef.current = setTimeout(async () => {
+      const requestId = ++userSearchRef.current;
+      try {
+        const res = await apiFetch(
+          `/api/users/search?q=${encodeURIComponent(q)}`,
         );
+        if (userSearchRef.current !== requestId) return;
+        if (res.ok) {
+          const data = await res.json();
+          const existingIds = new Set(members.map((m) => m.userId));
+          setSearchResults(
+            data.users.filter((u: SearchUser) => !existingIds.has(u.id)),
+          );
+        }
+      } catch {
+        if (userSearchRef.current !== requestId) return;
+        setSearchResults([]);
       }
-    } catch {
-      if (userSearchRef.current !== requestId) return;
-      setSearchResults([]);
-    }
+    }, 300);
   };
 
   const handleAddMember = async (userId: string, role: string = "member") => {
@@ -300,30 +325,38 @@ export default function OrgSettingsPage() {
   // ── Papers handlers ──
   const handlePaperSearch = async (q: string) => {
     setPaperSearch(q);
+
+    if (paperSearchTimeoutRef.current) {
+      clearTimeout(paperSearchTimeoutRef.current);
+      paperSearchTimeoutRef.current = null;
+    }
+
     if (q.length < 2) {
       setPaperSearchResults([]);
       return;
     }
-    const requestId = ++paperSearchRef.current;
-    try {
-      // GET /api/papers returns all papers; filter client-side by title
-      const res = await apiFetch("/api/papers");
-      if (paperSearchRef.current !== requestId) return;
-      if (res.ok) {
-        const data = await res.json();
-        const existingIds = new Set(orgPapers.map((p) => p.id));
-        const lowerQ = q.toLowerCase();
-        setPaperSearchResults(
-          (data.papers || []).filter(
-            (p: { id: string; title: string }) =>
-              !existingIds.has(p.id) && p.title.toLowerCase().includes(lowerQ),
-          ),
+
+    paperSearchTimeoutRef.current = setTimeout(async () => {
+      const requestId = ++paperSearchRef.current;
+      try {
+        const res = await apiFetch(
+          `/api/papers?q=${encodeURIComponent(q)}&visibility=public`,
         );
+        if (paperSearchRef.current !== requestId) return;
+        if (res.ok) {
+          const data = await res.json();
+          const existingIds = new Set(orgPapers.map((p) => p.id));
+          setPaperSearchResults(
+            (data.papers || []).filter(
+              (p: { id: string; title: string }) => !existingIds.has(p.id),
+            ),
+          );
+        }
+      } catch {
+        if (paperSearchRef.current !== requestId) return;
+        setPaperSearchResults([]);
       }
-    } catch {
-      if (paperSearchRef.current !== requestId) return;
-      setPaperSearchResults([]);
-    }
+    }, 300);
   };
 
   const handleAddPaper = async (paperId: string) => {
@@ -599,24 +632,32 @@ export default function OrgSettingsPage() {
                   <span className="text-xs text-gray-400">@{m.githubId}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <select
-                    value={m.role === "owner" ? "admin" : m.role}
-                    onChange={(e) => handleChangeRole(m.userId, e.target.value)}
-                    disabled={m.userId === user?.id || updatingMemberId === m.userId || removingMemberId === m.userId}
-                    className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900 disabled:opacity-50"
-                  >
-                    <option value="admin">admin</option>
-                    <option value="member">member</option>
-                  </select>
-                  {m.userId !== user?.id && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveMember(m.userId)}
-                      disabled={removingMemberId === m.userId || updatingMemberId === m.userId}
-                      className="text-red-500 hover:text-red-700 text-xs disabled:opacity-50"
-                    >
-                      {removingMemberId === m.userId ? "削除中..." : "削除"}
-                    </button>
+                  {m.role === "owner" ? (
+                    <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium dark:bg-gray-800">
+                      owner
+                    </span>
+                  ) : (
+                    <>
+                      <select
+                        value={m.role}
+                        onChange={(e) => handleChangeRole(m.userId, e.target.value)}
+                        disabled={m.userId === user?.id || updatingMemberId === m.userId || removingMemberId === m.userId}
+                        className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900 disabled:opacity-50"
+                      >
+                        <option value="admin">admin</option>
+                        <option value="member">member</option>
+                      </select>
+                      {m.userId !== user?.id && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMember(m.userId)}
+                          disabled={removingMemberId === m.userId || updatingMemberId === m.userId}
+                          className="text-red-500 hover:text-red-700 text-xs disabled:opacity-50"
+                        >
+                          {removingMemberId === m.userId ? "削除中..." : "削除"}
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </li>
