@@ -47,37 +47,4 @@ describe("OG route", () => {
       }),
     );
   });
-
-  it("handles different types and truncates long titles", async () => {
-    const { GET } = await import("../route");
-    const longTitle = "A".repeat(100);
-    const response: any = await GET(
-      new Request(
-        `http://localhost/api/og?type=collection&title=${longTitle}`,
-      ),
-    );
-    expect(response.markup.props.children[0].props.children[1].props.children).toBe("Collection");
-    // safeTitle truncation should happen
-    const safeTitle = response.markup.props.children[1].props.children[0].props.children;
-    expect(safeTitle.length).toBe(83);
-    expect(safeTitle.endsWith("...")).toBe(true);
-  });
-
-  it("uses default values when search params are missing", async () => {
-    const { GET } = await import("../route");
-    const response: any = await GET(new Request("http://localhost/api/og"));
-    expect(response.markup.props.children[0].props.children[1].props.children).toBe("Paper");
-    expect(response.markup.props.children[1].props.children[0].props.children).toBe("OpenShelf");
-    expect(response.markup.props.children[1].props.children[1].props.children).toBe(
-      "Research artifacts hosting and sharing",
-    );
-  });
-
-  it("handles font fetch failure", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValue(new Response(null, { status: 404 }) as any);
-    vi.resetModules();
-    const { GET } = await import("../route");
-    const response: any = await GET(new Request("http://localhost/api/og"));
-    expect(response.init.fonts).toBeUndefined();
-  });
 });

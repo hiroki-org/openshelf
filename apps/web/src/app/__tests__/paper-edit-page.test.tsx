@@ -1,5 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import PaperEditPage from "../papers/[id]/edit/page";
 import { apiFetch } from "@/lib/api";
 
@@ -38,23 +43,8 @@ describe("PaperEditPage", () => {
     authState = { user: { id: "user-1" }, loading: false };
   });
 
-  afterEach(() => {
-    cleanup();
-  });
-
   it("loads paper data and submits updates", async () => {
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-      if (url === "/api/users/me/orgs") {
-        return new Response(
-          JSON.stringify({
-            organizations: [
-              { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
-            ],
-          }),
-          { status: 200 },
-        );
-      }
-
       if (url === "/api/papers/paper-1" && !init?.method) {
         return new Response(
           JSON.stringify({
@@ -73,7 +63,6 @@ describe("PaperEditPage", () => {
               tags: JSON.stringify(["AI"]),
             },
             authors: [{ userId: "user-1" }],
-            organizations: [],
           }),
           { status: 200 },
         );
@@ -114,14 +103,8 @@ describe("PaperEditPage", () => {
   });
 
   it("redirects non-authors back to the paper page", async () => {
-    vi.mocked(apiFetch).mockImplementation(async (url) => {
-      if (url === "/api/users/me/orgs") {
-        return new Response(JSON.stringify({ organizations: [] }), {
-          status: 200,
-        });
-      }
-
-      return new Response(
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(
         JSON.stringify({
           paper: {
             title: "Original title",
@@ -138,273 +121,15 @@ describe("PaperEditPage", () => {
             tags: null,
           },
           authors: [{ userId: "user-2" }],
-          organizations: [],
         }),
         { status: 200 },
-      );
-    });
+      ),
+    );
 
     render(<PaperEditPage />);
 
     await waitFor(() => {
       expect(replace).toHaveBeenCalledWith("/papers/paper-1");
     });
-  });
-
-  it("submits selected orgIds when changing visibility to org_only", async () => {
-    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-      if (url === "/api/users/me/orgs") {
-        return new Response(
-          JSON.stringify({
-            organizations: [
-              { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
-              { id: "org-2", name: "Org 2", slug: "org-2", role: "admin" },
-            ],
-          }),
-          { status: 200 },
-        );
-      }
-
-      if (url === "/api/papers/paper-1" && !init?.method) {
-        return new Response(
-          JSON.stringify({
-            paper: {
-              title: "Original title",
-              abstract: null,
-              visibility: "private",
-              showViewCount: false,
-              language: null,
-              externalUrl: null,
-              doi: null,
-              venue: null,
-              venueType: null,
-              year: null,
-              category: null,
-              tags: null,
-            },
-            authors: [{ userId: "user-1" }],
-            organizations: [],
-          }),
-          { status: 200 },
-        );
-      }
-
-      if (url === "/api/papers/paper-1" && init?.method === "PATCH") {
-        return new Response("{}", { status: 200 });
-      }
-
-      throw new Error(`Unexpected request: ${String(url)}`);
-    });
-
-    render(<PaperEditPage />);
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("Original title")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByLabelText("組織内"));
-    fireEvent.click(screen.getByLabelText(/Org 1/i));
-    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
-
-    await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith(
-        "/api/papers/paper-1",
-        expect.objectContaining({ method: "PATCH" }),
-      );
-    });
-
-    const patchCall = vi
-      .mocked(apiFetch)
-      .mock.calls.find(
-        (call) =>
-          call[0] === "/api/papers/paper-1" && call[1]?.method === "PATCH",
-      );
-    const payload = JSON.parse(String(patchCall?.[1]?.body));
-    expect(payload.visibility).toBe("org_only");
-    expect(payload.orgIds).toEqual(["org-1"]);
-  });
-
-  it("does not send orgIds when org_only selection is unchanged", async () => {
-    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-      if (url === "/api/users/me/orgs") {
-        return new Response(
-          JSON.stringify({
-            organizations: [
-              { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
-            ],
-          }),
-          { status: 200 },
-        );
-      }
-
-      if (url === "/api/papers/paper-1" && !init?.method) {
-        return new Response(
-          JSON.stringify({
-            paper: {
-              title: "Original title",
-              abstract: null,
-              visibility: "org_only",
-              showViewCount: false,
-              language: null,
-              externalUrl: null,
-              doi: null,
-              venue: null,
-              venueType: null,
-              year: null,
-              category: null,
-              tags: null,
-            },
-            authors: [{ userId: "user-1" }],
-            organizations: [{ id: "org-1", name: "Org 1", slug: "org-1" }],
-          }),
-          { status: 200 },
-        );
-      }
-
-      if (url === "/api/papers/paper-1" && init?.method === "PATCH") {
-        return new Response("{}", { status: 200 });
-      }
-
-      throw new Error(`Unexpected request: ${String(url)}`);
-    });
-
-    render(<PaperEditPage />);
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("Original title")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
-
-    await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith(
-        "/api/papers/paper-1",
-        expect.objectContaining({ method: "PATCH" }),
-      );
-    });
-
-    const patchCall = vi
-      .mocked(apiFetch)
-      .mock.calls.find(
-        (call) =>
-          call[0] === "/api/papers/paper-1" && call[1]?.method === "PATCH",
-      );
-    const payload = JSON.parse(String(patchCall?.[1]?.body));
-    expect(payload.visibility).toBe("org_only");
-    expect(payload.orgIds).toBeUndefined();
-  });
-
-  it("shows warning when org list fetch fails", async () => {
-    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-      if (url === "/api/users/me/orgs") {
-        return new Response("error", { status: 500 });
-      }
-
-      if (url === "/api/papers/paper-1" && !init?.method) {
-        return new Response(
-          JSON.stringify({
-            paper: {
-              title: "Original title",
-              abstract: null,
-              visibility: "org_only",
-              showViewCount: false,
-              language: null,
-              externalUrl: null,
-              doi: null,
-              venue: null,
-              venueType: null,
-              year: null,
-              category: null,
-              tags: null,
-            },
-            authors: [{ userId: "user-1" }],
-            organizations: [{ id: "org-1", name: "Org 1", slug: "org-1" }],
-          }),
-          { status: 200 },
-        );
-      }
-
-      if (url === "/api/papers/paper-1" && init?.method === "PATCH") {
-        return new Response("{}", { status: 200 });
-      }
-
-      throw new Error(`Unexpected request: ${String(url)}`);
-    });
-
-    render(<PaperEditPage />);
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("Original title")).toBeInTheDocument();
-    });
-
-    expect(
-      screen.getByText(/組織情報の取得に失敗しました（status: 500）/),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText(/Org 1/i)).toBeChecked();
-    expect(screen.getByText("現在の対象組織")).toBeInTheDocument();
-  });
-
-  it("blocks switching to org_only without selecting a target organization", async () => {
-    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
-      if (url === "/api/users/me/orgs") {
-        return new Response(
-          JSON.stringify({
-            organizations: [
-              { id: "org-1", name: "Org 1", slug: "org-1", role: "member" },
-            ],
-          }),
-          { status: 200 },
-        );
-      }
-
-      if (url === "/api/papers/paper-1" && !init?.method) {
-        return new Response(
-          JSON.stringify({
-            paper: {
-              title: "Original title",
-              abstract: null,
-              visibility: "private",
-              showViewCount: false,
-              language: null,
-              externalUrl: null,
-              doi: null,
-              venue: null,
-              venueType: null,
-              year: null,
-              category: null,
-              tags: null,
-            },
-            authors: [{ userId: "user-1" }],
-            organizations: [],
-          }),
-          { status: 200 },
-        );
-      }
-
-      if (url === "/api/papers/paper-1" && init?.method === "PATCH") {
-        return new Response("{}", { status: 200 });
-      }
-
-      throw new Error(`Unexpected request: ${String(url)}`);
-    });
-
-    render(<PaperEditPage />);
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue("Original title")).toBeInTheDocument();
-    });
-
-    fireEvent.click(screen.getByLabelText("組織内"));
-    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
-
-    expect(
-      await screen.findByText("組織公開にする場合は少なくとも1つの対象組織を選択してください。"),
-    ).toBeInTheDocument();
-    expect(
-      vi.mocked(apiFetch).mock.calls.some(
-        (call) =>
-          call[0] === "/api/papers/paper-1" && call[1]?.method === "PATCH",
-      ),
-    ).toBe(false);
   });
 });

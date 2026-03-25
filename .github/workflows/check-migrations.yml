@@ -5,9 +5,6 @@ on:
       - "apps/api/drizzle/**"
       - "apps/api/migrations/**"
 
-permissions:
-  contents: read
-
 jobs:
   check:
     runs-on: ubuntu-latest

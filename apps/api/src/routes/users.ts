@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, like, or, and, ne } from "drizzle-orm";
-import { users, orgMembers, orgs, enableForeignKeys } from "../db/schema";
+import { users, enableForeignKeys } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 
@@ -37,10 +37,6 @@ const updateMeHandler = async (c: any) => {
         return c.json({ error: "displayName must be a string or null" }, 400);
     }
 
-    if (c.req.method === "PATCH" && !("displayName" in (body as object))) {
-        return c.json({ error: "No valid fields to update" }, 400);
-    }
-
     let trimmed = (rawDisplayName as string | null | undefined)?.trim() ?? null;
     if (trimmed !== null) {
         if (trimmed.length === 0) trimmed = null;
@@ -68,26 +64,8 @@ const updateMeHandler = async (c: any) => {
 usersRoute.patch("/me", authMiddleware, updateMeHandler);
 usersRoute.put("/me", authMiddleware, updateMeHandler);
 
-// GET /api/users/me/orgs — get user's organizations
-usersRoute.get("/me/orgs", authMiddleware, async (c) => {
-    const db = drizzle(c.env.DB);
-    const userId = c.get("user").sub;
 
-    const userOrgs = await db
-        .select({
-            id: orgs.id,
-            name: orgs.name,
-            slug: orgs.slug,
-            role: orgMembers.role,
-        })
-        .from(orgMembers)
-        .innerJoin(orgs, eq(orgMembers.orgId, orgs.id))
-        .where(eq(orgMembers.userId, userId))
-        .all();
-
-    return c.json({ organizations: userOrgs });
-});
-
+// Simple in-memory cache for user search
 type CachedSearchResult = {
     data: any[];
     timestamp: number;
@@ -98,31 +76,25 @@ const MAX_CACHE_SIZE = 1000;
 
 function getCachedResults(key: string): any[] | null {
     const cached = searchCache.get(key);
-    if (cached) {
-        if (Date.now() - cached.timestamp < CACHE_TTL_MS) {
-            // Re-insert to move to the end (MRU)
-            searchCache.delete(key);
-            searchCache.set(key, cached);
-            return cached.data;
-        }
-
-        searchCache.delete(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        return cached.data;
     }
     return null;
 }
 
-function setCachedResults(key: string, data: any[], maxSize?: number) {
-    const effectiveMaxSize =
-        typeof maxSize === "number" && Number.isFinite(maxSize) && maxSize > 0
-            ? maxSize
-            : MAX_CACHE_SIZE;
+function setCachedResults(key: string, data: any[]) {
+    // cleanup old cache randomly to prevent memory leak
+    if (searchCache.size >= MAX_CACHE_SIZE) {
+        const now = Date.now();
+        for (const [k, v] of searchCache.entries()) {
+            if (now - v.timestamp > CACHE_TTL_MS) {
+                searchCache.delete(k);
+            }
+        }
 
-    if (searchCache.has(key)) {
-        searchCache.delete(key);
-    } else if (searchCache.size >= effectiveMaxSize) {
-        const oldestKey = searchCache.keys().next().value;
-        if (oldestKey !== undefined) {
-            searchCache.delete(oldestKey);
+        // if still too large, clear to prevent memory leak
+        if (searchCache.size >= MAX_CACHE_SIZE) {
+            searchCache.clear();
         }
     }
     searchCache.set(key, { data, timestamp: Date.now() });
@@ -164,7 +136,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
         .limit(10)
         .all();
 
-    setCachedResults(cacheKey, results, c.env.MAX_CACHE_SIZE ? Number(c.env.MAX_CACHE_SIZE) : undefined);
+    setCachedResults(cacheKey, results);
 
     return c.json({ users: results });
 });

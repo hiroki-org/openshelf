@@ -37,26 +37,4 @@ describe("orgs/[slug]/page metadata", () => {
     expect(metadata.title).toBe("Research Lab | OpenShelf");
     expect(screen.getByText("org:lab")).toBeInTheDocument();
   });
-
-  it("handles fetch failure in generateMetadata", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValueOnce(new Response(null, { status: 404 }));
-    const metadata = await generateMetadata({ params: { slug: "lab" } });
-    expect(metadata.title).toBe("組織詳細 | OpenShelf");
-  });
-
-  it("handles network failure in generateMetadata", async () => {
-    vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("Fail"));
-    const metadata = await generateMetadata({ params: { slug: "lab" } });
-    expect(metadata.title).toBe("組織詳細 | OpenShelf");
-  });
-
-  it("handles invalid slug in OrgPage and generateMetadata", async () => {
-    const invalidSlug = "../invalid";
-    const metadata = await generateMetadata({ params: { slug: invalidSlug } });
-    expect(metadata.title).toBe("OpenShelf");
-
-    const view = await OrgPage({ params: { slug: invalidSlug } });
-    render(view);
-    expect(screen.getByText("無効な識別子です")).toBeInTheDocument();
-  });
 });

@@ -7,8 +7,7 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "types": ["@cloudflare/workers-types", "vitest/globals", "node"],
-    "lib": ["ESNext"]
+    "types": ["@cloudflare/workers-types", "vitest/globals"]
   },
   "include": ["src/**/*.ts", "vitest.config.ts"]
 }

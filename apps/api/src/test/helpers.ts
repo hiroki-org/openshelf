@@ -1,17 +1,23 @@
 import { sign } from "hono/jwt";
 import { vi } from "vitest";
 import type app from "../index";
-import type { Env } from "../types";
 
 const DEFAULT_SECRET = "test-jwt-secret";
 
-export type TestEnv = Omit<Env, "DB" | "BUCKET"> & {
+export type TestEnv = {
     DB: unknown;
     BUCKET: {
         put: (key: string, value: unknown) => Promise<void>;
         delete: (key: string) => Promise<void>;
         get: (key: string) => Promise<{ key: string; value: unknown } | null>;
     };
+    GITHUB_CLIENT_ID: string;
+    GITHUB_CLIENT_SECRET: string;
+    JWT_SECRET: string;
+    FRONTEND_URL: string;
+    ALLOWED_ORIGINS?: string;
+    ENABLE_TEST_AUTH?: string;
+    TEST_AUTH_SECRET?: string;
 };
 
 export async function createTestApp(): Promise<typeof app> {
