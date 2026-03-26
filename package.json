@@ -24,6 +24,6 @@
   },
   "license": "MIT",
   "overrides": {
-    "devalue": "^5.6.4"
+    "devalue": "5.6.4"
   }
 }
