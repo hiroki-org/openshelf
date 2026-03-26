@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   setup:
     name: Setup
@@ -18,7 +21,6 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-
   lint:
     name: Lint
     needs: setup
@@ -32,7 +34,6 @@ jobs:
       - run: npm ci
       - name: Lint
         run: npm run lint --if-present
-
   typecheck:
     name: Type Check
     needs: setup
@@ -46,7 +47,6 @@ jobs:
       - run: npm ci
       - name: Type Check
         run: npm run typecheck --workspaces --if-present
-
   test-api:
     name: Test API
     needs: [lint, typecheck]
@@ -74,7 +74,6 @@ jobs:
         with:
           name: coverage-api
           path: apps/api/coverage/
-
   test-web:
     name: Test Web
     needs: [lint, typecheck]
@@ -102,7 +101,6 @@ jobs:
         with:
           name: coverage-web
           path: apps/web/coverage/
-
   upload-coverage:
     name: Upload Coverage
     needs: [build-web-check, e2e]
@@ -144,7 +142,6 @@ jobs:
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
           root_dir: apps/web
-
   build-web-check:
     name: Build Web (Preview Check)
     needs: [test-api, test-web]
@@ -158,7 +155,6 @@ jobs:
       - run: npm ci
       - name: Build web app
         run: npm run build -w apps/web
-
   e2e:
     name: E2E Tests
     needs: [test-api, test-web]
@@ -172,11 +168,9 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
         working-directory: apps/e2e
-
       - name: Setup local .dev.vars for Worker
         env:
           E2E_JWT_SECRET: ${{ secrets.E2E_JWT_SECRET }}
@@ -184,13 +178,10 @@ jobs:
           echo "JWT_SECRET=${E2E_JWT_SECRET:-e2e-ci-only-secret}" > apps/api/.dev.vars
           echo "FRONTEND_URL=http://localhost:3000" >> apps/api/.dev.vars
           echo "TEST_AUTH_SECRET=e2e-ci-only-secret" >> apps/api/.dev.vars
-
       - name: Set up local D1 schema
         run: npm run db:migrate:local --workspace apps/api
-
       - name: Build web app for E2E
         run: npm run build -w apps/web
-
       - name: Run Playwright tests
         run: npm run test -w apps/e2e
         env:
@@ -198,7 +189,6 @@ jobs:
           TEST_AUTH_SECRET: ${{ secrets.E2E_JWT_SECRET || 'e2e-ci-only-secret' }}
           E2E_API_URL: http://localhost:8787
           NEXT_PUBLIC_API_URL: http://localhost:8787
-
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
         if: always()
