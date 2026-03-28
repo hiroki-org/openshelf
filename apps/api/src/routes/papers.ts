@@ -1,6 +1,6 @@
 import { Hono, type Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, gte, inArray, sql } from "drizzle-orm";
+import { eq, and, gte,sql } from "drizzle-orm";
 import {
     papers,
     paperFiles,
@@ -989,36 +989,22 @@ papersRoute.get("/:id/invites", authMiddleware, async (c) => {
     if (!isUploader) return c.json({ error: "Forbidden" }, 403);
 
     const inviteRows = await db
-        .select()
-        .from(coauthorInvites)
-        .where(eq(coauthorInvites.paperId, paperId))
-        .all();
-
-    const inviteeIds = [
-        ...inviteRows.reduce((acc, inv) => {
-            if (typeof inv.inviteeId === "string") {
-                acc.add(inv.inviteeId);
-            }
-            return acc;
-        }, new Set<string>()),
-    ];
-
-    const inviteeRows = inviteeIds.length
-        ? await db
-            .select({
+        .select({
+            coauthorInvites: coauthorInvites,
+            users: {
                 id: users.id,
                 name: users.name,
                 displayName: users.displayName,
-            })
-            .from(users)
-            .where(inArray(users.id, inviteeIds))
-            .all()
-        : [];
+            }
+        })
+        .from(coauthorInvites)
+        .leftJoin(users, eq(coauthorInvites.inviteeId, users.id))
+        .where(eq(coauthorInvites.paperId, paperId))
+        .all();
 
-    const inviteeMap = new Map(inviteeRows.map((row) => [row.id, row]));
-
-    const enriched = inviteRows.map((inv) => {
-        const invitee = inv.inviteeId ? inviteeMap.get(inv.inviteeId) : null;
+    const enriched = inviteRows.map((row) => {
+        const inv = row.coauthorInvites;
+        const invitee = row.users && row.users.id ? row.users : null;
         return {
             ...inv,
             inviteeName: invitee
