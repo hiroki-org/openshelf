@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/auth-provider";
+import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { apiFetch } from "@/lib/api";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -413,11 +414,10 @@ export default function PaperEditPage() {
           <label htmlFor="tags" className="mb-1 block text-sm font-medium">
             タグ <span className="text-gray-500 font-normal text-xs">（カンマ区切り）</span>
           </label>
-          <input
+          <TagAutocompleteInput
             id="tags"
-            type="text"
             value={tagsStr}
-            onChange={(e) => setTagsStr(e.target.value)}
+            onChange={setTagsStr}
             placeholder="AI, NLP, Machine Learning"
             className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
           />

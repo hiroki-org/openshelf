@@ -612,6 +612,58 @@ describe("orgs routes", () => {
         });
     });
 
+    describe("GET /api/orgs/:slug/tags", () => {
+        it("returns tags from visible org papers", async () => {
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "member" } },
+                {
+                    allResult: [
+                        { paperId: "paper-public" },
+                        { paperId: "paper-org" },
+                    ],
+                },
+                {
+                    allResult: [
+                        { id: "paper-public", visibility: "public", tags: "[\"AI\",\"NLP\"]" },
+                        { id: "paper-org", visibility: "org_only", tags: "[\"AI\"]" },
+                    ],
+                },
+                { allResult: [{ paperId: "paper-org" }] },
+            ]);
+
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Member" });
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/tags",
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(200);
+            await expect(res.json()).resolves.toEqual({ tags: ["AI", "NLP"] });
+        });
+
+        it("returns 404 when org does not exist", async () => {
+            mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+            const res = await app.request(
+                "http://localhost/api/orgs/missing-org/tags",
+                {},
+                env as any,
+            );
+
+            expect(res.status).toBe(404);
+            await expect(res.json()).resolves.toEqual({ error: "Org not found" });
+        });
+    });
+
     describe("DELETE /api/orgs/:slug/members/:userId", () => {
         it("returns 404 when the target membership does not exist", async () => {
             const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });

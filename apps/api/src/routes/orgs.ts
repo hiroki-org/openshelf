@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import {
@@ -13,8 +13,20 @@ import {
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { parseStoredTags } from "../utils/tags";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
+type JwtPayload = { sub?: string; exp?: number; iat?: number };
+
+function isJwtPayload(value: unknown): value is JwtPayload {
+    if (!value || typeof value !== "object") return false;
+    const payload = value as Record<string, unknown>;
+    return (
+        ("sub" in payload ? typeof payload.sub === "string" || payload.sub === undefined : true)
+        && ("exp" in payload ? typeof payload.exp === "number" || payload.exp === undefined : true)
+        && ("iat" in payload ? typeof payload.iat === "number" || payload.iat === undefined : true)
+    );
+}
 
 // ─── Validation helpers ─────────────────────────────────────────
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
@@ -76,9 +88,100 @@ async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, us
     return !!author;
 }
 
+async function getOptionalUserIdFromAuthHeader(
+    c: Context<{ Bindings: Env; Variables: Variables }>,
+): Promise<string | null> {
+    const authHeader = c.req.header("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) return null;
+
+    try {
+        const { verify } = await import("hono/jwt");
+        const payload = await verify(authHeader.slice(7), c.env.JWT_SECRET, "HS256");
+        if (!isJwtPayload(payload)) return null;
+        const { sub } = payload;
+        return typeof sub === "string" ? sub : null;
+    } catch {
+        return null;
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 1. Org CRUD
 // ═══════════════════════════════════════════════════════════════
+
+// GET /api/orgs/:slug/tags — list tags used in an org
+orgsRoute.get("/:slug/tags", async (c) => {
+    const slug = c.req.param("slug");
+    const db = drizzle(c.env.DB);
+    const query = (c.req.query("q") ?? "").trim().toLowerCase();
+
+    const org = await getOrgBySlug(db, slug);
+    if (!org) return c.json({ error: "Org not found" }, 404);
+
+    // Optional auth to determine whether org_only/private tags should be visible
+    const currentUserId = await getOptionalUserIdFromAuthHeader(c);
+
+    const isMember = currentUserId
+        ? await isOrgMember(db, org.id, currentUserId)
+        : false;
+
+    const paperOrgRows = await db
+        .select({ paperId: paperOrgs.paperId })
+        .from(paperOrgs)
+        .where(eq(paperOrgs.orgId, org.id))
+        .all();
+    if (paperOrgRows.length === 0) return c.json({ tags: [] });
+
+    const orgPapers = await db
+        .select({ id: papers.id, visibility: papers.visibility, tags: papers.tags })
+        .from(papers)
+        .where(inArray(papers.id, paperOrgRows.map((row) => row.paperId)))
+        .all();
+
+    const authoredPaperIds = new Set<string>();
+    if (currentUserId) {
+        const nonPublicPaperIds = orgPapers
+            .filter((paper) => paper.visibility !== "public")
+            .map((paper) => paper.id);
+        if (nonPublicPaperIds.length > 0) {
+            const authorships = await db
+                .select({ paperId: paperAuthors.paperId })
+                .from(paperAuthors)
+                .where(
+                    and(
+                        inArray(paperAuthors.paperId, nonPublicPaperIds),
+                        eq(paperAuthors.userId, currentUserId),
+                    ),
+                )
+                .all();
+            for (const authorship of authorships) {
+                authoredPaperIds.add(authorship.paperId);
+            }
+        }
+    }
+
+    const counts = new Map<string, number>();
+    for (const paper of orgPapers) {
+        const isVisible = paper.visibility === "public"
+            || (paper.visibility === "org_only" && (isMember || authoredPaperIds.has(paper.id)))
+            || (paper.visibility === "private" && authoredPaperIds.has(paper.id));
+        if (!isVisible) continue;
+
+        for (const tag of parseStoredTags(paper.tags)) {
+            if (query && !tag.toLowerCase().startsWith(query)) continue;
+            counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        }
+    }
+
+    const tags = [...counts.entries()]
+        .sort((a, b) => {
+            if (b[1] !== a[1]) return b[1] - a[1];
+            return a[0].localeCompare(b[0]);
+        })
+        .map(([tag]) => tag);
+
+    return c.json({ tags });
+});
 
 // POST /api/orgs — create org
 orgsRoute.post("/", authMiddleware, async (c) => {
@@ -425,17 +528,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
     if (!org) return c.json({ error: "Org not found" }, 404);
 
     // Check auth (optional)
-    let currentUserId: string | null = null;
-    const authHeader = c.req.header("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-        try {
-            const { verify } = await import("hono/jwt");
-            const payload = await verify(authHeader.slice(7), c.env.JWT_SECRET, "HS256") as any;
-            currentUserId = payload.sub ?? null;
-        } catch {
-            // Not authenticated — fine, just show public papers
-        }
-    }
+    const currentUserId = await getOptionalUserIdFromAuthHeader(c);
 
     const isMember = currentUserId ? await isOrgMember(db, org.id, currentUserId) : false;
 
@@ -468,7 +561,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
         .all();
 
     // Check authorship for non-public papers the user might be an author of
-    let authoredPaperIds = new Set<string>();
+    const authoredPaperIds = new Set<string>();
     if (currentUserId) {
         const nonPublicPapers = allPapers.filter((p) => p.visibility !== "public");
         if (nonPublicPapers.length > 0) {
@@ -482,7 +575,9 @@ orgsRoute.get("/:slug/papers", async (c) => {
                     ),
                 )
                 .all();
-            authoredPaperIds = new Set(authorships.map((a) => a.paperId));
+            for (const authorship of authorships) {
+                authoredPaperIds.add(authorship.paperId);
+            }
         }
     }
 
