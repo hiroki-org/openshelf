@@ -135,6 +135,29 @@ describe("orgs routes", () => {
 
             expect(res.status).toBe(400);
         });
+
+        it("returns 400 for invalid JSON bodies", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: "{",
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
+        });
     });
 
     // ─── GET /api/orgs/:slug ──────────────────────────────────
