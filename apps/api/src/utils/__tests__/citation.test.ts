@@ -98,7 +98,7 @@ describe("buildCitation", () => {
         );
 
         expect(result.citation).toContain("@thesis{");
-        expect(result.citation).toContain("type = {Master\'s thesis}");
+        expect(result.citation).toContain("type = {Master's thesis}");
     });
 
     it("formats APA output with surname-initial style", () => {
