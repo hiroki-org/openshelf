@@ -297,19 +297,29 @@ async function generateSignedPreviewUrl(
     return null;
 }
 
-// POST /api/papers — create paper + upload files
-papersRoute.post("/", authMiddleware, async (c) => {
-    const body = await c.req.parseBody({ all: true });
 
-    const metadataStr = body["metadata"];
-    if (typeof metadataStr !== "string")
-        return c.json({ error: "metadata field is required" }, 400);
+type ParsedMetadata = {
+    title: string;
+    abstract: string | null;
+    visibility: "public" | "org_only" | "private";
+    showViewCount: boolean;
+    language: string | null;
+    externalUrl: string | null;
+    doi: string | null;
+    venue: string | null;
+    venueType: VenueType | null;
+    year: number | null;
+    category: CategoryType | null;
+    tags: string | null;
+    orgId?: string;
+};
 
+function parseAndValidateMetadata(c: Context, metadataStr: string): { errorResponse?: Response; data?: ParsedMetadata } {
     let meta: Record<string, unknown>;
     try {
         meta = JSON.parse(metadataStr);
     } catch {
-        return c.json({ error: "Invalid metadata JSON" }, 400);
+        return { errorResponse: c.json({ error: "Invalid metadata JSON" }, 400) };
     }
 
     const title = meta.title as string | undefined;
@@ -319,67 +329,65 @@ papersRoute.post("/", authMiddleware, async (c) => {
         title.trim().length === 0 ||
         title.trim().length > MAX_TITLE_LENGTH
     )
-        return c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400);
+        return { errorResponse: c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400) };
 
     const vis = (meta.visibility as string) || "private";
     if (!VALID_VISIBILITY.includes(vis))
-        return c.json({ error: "Invalid visibility" }, 400);
+        return { errorResponse: c.json({ error: "Invalid visibility" }, 400) };
 
     const venueType = (meta.venueType as string | null | undefined) ?? null;
     if (venueType !== null && !(VALID_VENUE_TYPES as readonly string[]).includes(venueType))
-        return c.json({ error: "Invalid venueType" }, 400);
+        return { errorResponse: c.json({ error: "Invalid venueType" }, 400) };
 
     const category = (meta.category as string | null | undefined) ?? null;
     if (category !== null && !(VALID_CATEGORIES as readonly string[]).includes(category))
-        return c.json({ error: "Invalid category" }, 400);
+        return { errorResponse: c.json({ error: "Invalid category" }, 400) };
 
     const externalUrl = (meta.externalUrl as string) || null;
     if (externalUrl && !isValidUrlScheme(externalUrl)) {
-        return c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400);
+        return { errorResponse: c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400) };
     }
 
     if (
         meta.showViewCount !== undefined
         && typeof meta.showViewCount !== "boolean"
     ) {
-        return c.json({ error: "showViewCount must be a boolean" }, 400);
+        return { errorResponse: c.json({ error: "showViewCount must be a boolean" }, 400) };
     }
 
     const orgId = meta.orgId as string | undefined;
     if (vis === "org_only" && !orgId) {
-        return c.json({ error: "orgId is required for org_only visibility" }, 400);
+        return { errorResponse: c.json({ error: "orgId is required for org_only visibility" }, 400) };
     }
 
-    const paperId = crypto.randomUUID();
-    const userId = c.get("user").sub;
-
-    const db = drizzle(c.env.DB);
-    await enableForeignKeys(db);
-
-    if (vis === "org_only" && orgId) {
-        const membership = await db
-            .select({ orgId: orgMembers.orgId })
-            .from(orgMembers)
-            .where(
-                and(
-                    eq(orgMembers.orgId, orgId),
-                    eq(orgMembers.userId, userId),
-                ),
-            )
-            .get();
-        if (!membership) {
-            console.error(`Membership check failed for userId: ${userId}, orgId: ${orgId}`);
-            return c.json({ error: "Invalid orgId or not a member" }, 403);
+    return {
+        data: {
+            title: title.trim(),
+            abstract: (meta.abstract as string) || null,
+            visibility: vis as "public" | "org_only" | "private",
+            showViewCount: Boolean(meta.showViewCount),
+            language: (meta.language as string) || null,
+            externalUrl,
+            doi: (meta.doi as string) || null,
+            venue: (meta.venue as string) || null,
+            venueType: venueType as VenueType | null,
+            year: meta.year ? Number(meta.year) : null,
+            category: category as CategoryType | null,
+            tags: meta.tags ? JSON.stringify(meta.tags) : null,
+            orgId,
         }
-    }
-
-    type UploadEntry = {
-        file: File;
-        fileType: "paper" | "slides" | "poster" | "supplementary";
-        safeFilename: string;
-        r2Key: string;
     };
+}
 
+
+type UploadEntry = {
+    file: File;
+    fileType: "paper" | "slides" | "poster" | "supplementary";
+    safeFilename: string;
+    r2Key: string;
+};
+
+async function processUploads(c: Context, body: Record<string, string | File | (string | File)[]>, paperId: string): Promise<{ errorResponse?: Response; uploads?: UploadEntry[] }> {
     const uploads: UploadEntry[] = [];
 
     // Validate all file entries before any upload or DB mutation.
@@ -388,40 +396,40 @@ papersRoute.post("/", authMiddleware, async (c) => {
         if (!fileCandidate) break;
         if (typeof fileCandidate === "string" || Array.isArray(fileCandidate)) {
             console.error(`Field files_${i} is not a single file`);
-            return c.json({ error: `Field files_${i} is not a valid file` }, 400);
+            return { errorResponse: c.json({ error: `Field files_${i} is not a valid file` }, 400) };
         }
 
         const file = fileCandidate as File;
         if (!(file instanceof File) && typeof (file as any).slice !== "function") {
             console.error(`Field files_${i} is not a valid File/Blob`);
-            return c.json({ error: `Field files_${i} is not a valid file` }, 400);
+            return { errorResponse: c.json({ error: `Field files_${i} is not a valid file` }, 400) };
         }
 
         if (file.size > MAX_FILE_SIZE)
-            return c.json(
+            return { errorResponse: c.json(
                 { error: `File ${file.name} exceeds 50 MB limit` },
                 400,
-            );
+            ) };
         if (!ALLOWED_MIME_TYPES.includes(file.type))
-            return c.json(
+            return { errorResponse: c.json(
                 {
                     error: `File ${file.name} has unsupported type: ${file.type || "unknown"}`,
                 },
                 400,
-            );
+            ) };
 
         const isValidContent = await validateMagicNumbers(file, file.type);
         if (!isValidContent) {
             console.error(`Magic number validation failed for file ${file.name} (declared: ${file.type})`);
-            return c.json(
+            return { errorResponse: c.json(
                 { error: `File ${file.name} does not match expected format for ${file.type}` },
                 400,
-            );
+            ) };
         }
 
         const ft = (body[`file_types_${i}`] as string) || "paper";
         if (!VALID_FILE_TYPES.includes(ft))
-            return c.json({ error: `Invalid file_type: ${ft}` }, 400);
+            return { errorResponse: c.json({ error: `Invalid file_type: ${ft}` }, 400) };
 
         const safeFilename = sanitizeFilename(file.name);
         const uniqueFilename = `${crypto.randomUUID()}-${safeFilename}`;
@@ -435,23 +443,65 @@ papersRoute.post("/", authMiddleware, async (c) => {
     }
 
     if (uploads.length === 0) {
-        return c.json({ error: "At least one file is required" }, 400);
+        return { errorResponse: c.json({ error: "At least one file is required" }, 400) };
     }
+
+    return { uploads };
+}
+
+// POST /api/papers — create paper + upload files
+papersRoute.post("/", authMiddleware, async (c) => {
+    const body = await c.req.parseBody({ all: true });
+
+    const metadataStr = body["metadata"];
+    if (typeof metadataStr !== "string")
+        return c.json({ error: "metadata field is required" }, 400);
+
+    const { errorResponse, data: meta } = parseAndValidateMetadata(c, metadataStr);
+    if (errorResponse) return errorResponse;
+    if (!meta) return c.json({ error: "Unexpected parsing error" }, 500); // Should not happen based on helper logic
+
+    const paperId = crypto.randomUUID();
+    const userId = c.get("user").sub;
+
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    if (meta.visibility === "org_only" && meta.orgId) {
+        const membership = await db
+            .select({ orgId: orgMembers.orgId })
+            .from(orgMembers)
+            .where(
+                and(
+                    eq(orgMembers.orgId, meta.orgId),
+                    eq(orgMembers.userId, userId),
+                ),
+            )
+            .get();
+        if (!membership) {
+            console.error(`Membership check failed for userId: ${userId}, orgId: ${meta.orgId}`);
+            return c.json({ error: "Invalid orgId or not a member" }, 403);
+        }
+    }
+
+    const { errorResponse: uploadError, uploads } = await processUploads(c, body, paperId);
+    if (uploadError) return uploadError;
+    if (!uploads) return c.json({ error: "Unexpected upload processing error" }, 500); // Should not happen based on helper logic
 
     const paperValues: typeof papers.$inferInsert = {
         id: paperId,
-        title: title.trim(),
-        abstract: (meta.abstract as string) || null,
-        visibility: vis as "public" | "org_only" | "private",
-        showViewCount: Boolean(meta.showViewCount),
-        language: (meta.language as string) || null,
-        externalUrl,
-        doi: (meta.doi as string) || null,
-        venue: (meta.venue as string) || null,
-        venueType: venueType as VenueType | null,
-        year: meta.year ? Number(meta.year) : null,
-        category: category as CategoryType | null,
-        tags: meta.tags ? JSON.stringify(meta.tags) : null,
+        title: meta.title,
+        abstract: meta.abstract,
+        visibility: meta.visibility,
+        showViewCount: meta.showViewCount,
+        language: meta.language,
+        externalUrl: meta.externalUrl,
+        doi: meta.doi,
+        venue: meta.venue,
+        venueType: meta.venueType,
+        year: meta.year,
+        category: meta.category,
+        tags: meta.tags,
     };
 
     const uploadedKeys: string[] = [];
@@ -489,8 +539,8 @@ papersRoute.post("/", authMiddleware, async (c) => {
             .insert(paperAuthors)
             .values({ paperId, userId, role: "uploader" });
 
-        if (vis === "org_only" && orgId) {
-            await db.insert(paperOrgs).values({ paperId, orgId });
+        if (meta.visibility === "org_only" && meta.orgId) {
+            await db.insert(paperOrgs).values({ paperId, orgId: meta.orgId });
         }
 
         await db.insert(paperFiles).values(
