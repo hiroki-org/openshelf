@@ -569,6 +569,47 @@ describe("collections routes", () => {
         expect(((await res.json()) as any).error).toBe("Paper not found");
     });
 
+
+    it("POST /api/collections/:id/papers handles duplicate paper additions gracefully", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        const collection = {
+            id: "col-1",
+            ownerType: "user",
+            ownerId: "user-1",
+            visibility: "private",
+        };
+        queueSelectResponses([
+            { getResult: collection },
+            { getResult: { id: "paper-1", visibility: "private" } },
+            { getResult: { paperId: "paper-1" } },
+            { getResult: { maxOrder: 2 } },
+        ]);
+
+        const insertValues = vi.fn(async () => {
+            throw new Error('UNIQUE constraint failed');
+        });
+        mockDb.insert = vi.fn(() => ({ values: insertValues }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections/col-1/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ paper_id: "paper-1" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(409);
+        expect(((await res.json()) as any).error).toBe("Paper already added");
+    });
+
     it("PATCH /api/collections/:id/papers rejects duplicate paper IDs", async () => {
         const token = await createTestJWT({ sub: "user-1" });
         queueSelectResponses([
