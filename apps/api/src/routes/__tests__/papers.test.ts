@@ -398,6 +398,52 @@ describe("papers routes", () => {
         expect(res.status).toBe(201);
     });
 
+    it("POST /api/papers deletes uploaded files and paper record on database error", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+
+        // Mock db.insert to succeed for papers, but fail for paperFiles
+        const dbError = new Error("Mock DB Error");
+        mockDb.insert
+            .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) })) // papers insert
+            .mockImplementationOnce(() => { throw dbError; }); // paperFiles insert
+
+        const mockDeleteWhere = vi.fn(async () => undefined);
+        mockDb.delete = vi.fn(() => ({ where: mockDeleteWhere }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        // Spy on BUCKET.delete
+        const bucketDeleteSpy = vi.spyOn(env.BUCKET, "delete");
+
+        const form = new FormData();
+        form.set("metadata", JSON.stringify({ title: "Test Paper", visibility: "private" }));
+        form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
+        form.set("file_types_0", "paper");
+
+        const res = await app.request(
+            "http://localhost/api/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000"
+                },
+                body: form
+            },
+            env as any
+        );
+        expect(res.status).toBe(500);
+
+        // BUCKET.delete should be called with the key of the uploaded file
+        expect(bucketDeleteSpy).toHaveBeenCalledTimes(1);
+        expect(bucketDeleteSpy).toHaveBeenCalledWith(expect.stringContaining("papers/"));
+
+        // db.delete should be called for papers
+        expect(mockDb.delete).toHaveBeenCalledTimes(1);
+        expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
+    });
+
     it("POST /api/papers rejects upload when content does not match declared MIME", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
