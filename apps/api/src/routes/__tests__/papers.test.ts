@@ -1005,7 +1005,7 @@ describe("papers routes", () => {
         );
 
         expect(res.status).toBe(409);
-        const data = await res.json();
+        const data = (await res.json()) as any;
         expect(data.error).toBe("Invite already sent");
     });
 
