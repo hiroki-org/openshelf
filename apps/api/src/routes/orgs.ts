@@ -11,10 +11,37 @@ import {
     enableForeignKeys,
     touchUpdatedAt,
 } from "../db/schema";
-import type { Env, Variables } from "../types";
+import type { Env, Variables, JwtPayload } from "../types";
 import { authMiddleware } from "../middleware/auth";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+
+interface CreateOrgBody {
+    slug?: unknown;
+    name?: unknown;
+    description?: unknown;
+}
+
+interface UpdateOrgBody {
+    slug?: unknown;
+    name?: unknown;
+    description?: unknown;
+}
+
+interface AddMemberBody {
+    userId?: unknown;
+    role?: unknown;
+}
+
+interface ChangeRoleBody {
+    role?: unknown;
+}
+
+interface AssociatePaperBody {
+    paperId?: unknown;
+}
+
 
 // ─── Validation helpers ─────────────────────────────────────────
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
@@ -82,7 +109,7 @@ async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, us
 
 // POST /api/orgs — create org
 orgsRoute.post("/", authMiddleware, async (c) => {
-    let body: any;
+    let body: CreateOrgBody;
     try {
         body = await c.req.json();
     } catch {
@@ -171,14 +198,14 @@ orgsRoute.patch("/:slug", authMiddleware, async (c) => {
     const adminCheck = await requireOrgAdmin(db, org.id, userId);
     if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
 
-    let body: any;
+    let body: UpdateOrgBody;
     try {
         body = await c.req.json();
     } catch {
         return c.json({ error: "Invalid JSON body" }, 400);
     }
 
-    const updates: Record<string, any> = {};
+    const updates: Record<string, unknown> = {};
 
     if (body.name !== undefined) {
         const nameErr = validateName(body.name);
@@ -272,7 +299,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     const adminCheck = await requireOrgAdmin(db, org.id, userId);
     if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
 
-    let body: any;
+    let body: AddMemberBody;
     try {
         body = await c.req.json();
     } catch {
@@ -284,8 +311,8 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
         return c.json({ error: "userId is required" }, 400);
     }
 
-    const role = body?.role ?? "member";
-    if (!["admin", "member"].includes(role)) {
+    const role = (body?.role as "admin" | "member" | undefined) ?? "member";
+    if (!role || !["admin", "member"].includes(role)) {
         return c.json({ error: "role must be 'admin' or 'member'" }, 400);
     }
 
@@ -328,15 +355,15 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
     const adminCheck = await requireOrgAdmin(db, org.id, userId);
     if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
 
-    let body: any;
+    let body: ChangeRoleBody;
     try {
         body = await c.req.json();
     } catch {
         return c.json({ error: "Invalid JSON body" }, 400);
     }
 
-    const newRole = body?.role;
-    if (!["admin", "member"].includes(newRole)) {
+    const newRole = body?.role as "admin" | "member" | undefined;
+    if (!newRole || !["admin", "member"].includes(newRole)) {
         return c.json({ error: "role must be 'admin' or 'member'" }, 400);
     }
 
@@ -430,7 +457,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
     if (authHeader?.startsWith("Bearer ")) {
         try {
             const { verify } = await import("hono/jwt");
-            const payload = await verify(authHeader.slice(7), c.env.JWT_SECRET, "HS256") as any;
+            const payload = await verify(authHeader.slice(7), c.env.JWT_SECRET, "HS256") as JwtPayload;
             currentUserId = payload.sub ?? null;
         } catch {
             // Not authenticated — fine, just show public papers
@@ -507,7 +534,7 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    let body: any;
+    let body: AssociatePaperBody;
     try {
         body = await c.req.json();
     } catch {
