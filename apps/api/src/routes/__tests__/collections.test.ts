@@ -51,7 +51,29 @@ describe("collections routes", () => {
         expect(res.status).toBe(401);
     });
 
-    it("GET /api/collections/:id returns 404 when not found", async () => {
+
+    it("POST /api/collections returns 400 for invalid JSON body", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: "invalid json {",
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        expect(((await res.json()) as any).error).toBe("Invalid JSON body");
+    });
+it("GET /api/collections/:id returns 404 when not found", async () => {
         mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
 
         const app = await createTestApp();
