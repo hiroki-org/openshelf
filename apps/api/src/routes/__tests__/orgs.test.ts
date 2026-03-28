@@ -67,6 +67,30 @@ describe("orgs routes", () => {
             expect(body.org.slug).toBe("my-lab");
         });
 
+        it("returns 400 for invalid JSON body", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: "invalid json string",
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            const body = (await res.json()) as any;
+            expect(body.error).toBe("Invalid JSON body");
+        });
+
         it("returns 400 for invalid slug", async () => {
             const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
 
