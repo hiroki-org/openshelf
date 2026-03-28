@@ -13,6 +13,7 @@ import {
   getInviteStatusBadge,
   getRoleBadge,
 } from "@/lib/presentation";
+import { CiteButton } from "./cite-button";
 
 const PdfViewer = dynamic(
   () => import("@/components/pdf-viewer").then((mod) => mod.PdfViewer),
@@ -675,6 +676,8 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
           </a>
         </div>
       )}
+
+      <CiteButton paperId={paperId} />
 
       {/* Files */}
       <div className="mb-6">

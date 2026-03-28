@@ -474,6 +474,76 @@ describe("papers routes", () => {
         expect(mockDb.batch).toHaveBeenCalledTimes(1);
     });
 
+    it("GET /api/papers/:id/cite returns citation in requested format", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({
+                getResult: {
+                    id: "paper-1",
+                    title: "Boundary Explorer",
+                    visibility: "private",
+                    venue: "ASE",
+                    venueType: "conference",
+                    year: 2026,
+                    category: "other",
+                    doi: null,
+                    externalUrl: null,
+                },
+            }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ name: "hiroki", displayName: "Hiroki Mukai" }] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/cite?format=bibtex",
+            { headers: { Authorization: `Bearer ${token}` } },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as any;
+        expect(body.format).toBe("bibtex");
+        expect(body.key).toContain("mukai2026");
+        expect(body.citation).toContain("@inproceedings");
+    });
+
+    it("GET /api/papers/:id/cite supports plain format", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({
+                getResult: {
+                    id: "paper-1",
+                    title: "Boundary Explorer",
+                    visibility: "private",
+                    venue: "ASE",
+                    venueType: "conference",
+                    year: 2026,
+                    category: "other",
+                    doi: null,
+                    externalUrl: null,
+                },
+            }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ name: "hiroki", displayName: "向井 宏樹" }] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/cite?format=plain",
+            { headers: { Authorization: `Bearer ${token}` } },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as any;
+        expect(body.format).toBe("plain");
+        expect(body.key).toBeNull();
+        expect(body.citation).toContain("向井 宏樹");
+    });
+
     it("POST /api/papers rejects a non-boolean showViewCount", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
