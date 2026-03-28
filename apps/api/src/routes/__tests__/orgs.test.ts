@@ -33,6 +33,38 @@ describe("orgs routes", () => {
 
     // ─── POST /api/orgs ────────────────────────────────────────
     describe("POST /api/orgs", () => {
+        it("returns 409 for UNIQUE constraint violation race condition", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+
+            mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+
+            mockDb.insert = vi.fn(() => ({
+                values: vi.fn(async () => {
+                    throw new Error("UNIQUE constraint failed: orgs.slug");
+                })
+            }));
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ name: "Race Condition Lab", slug: "race-lab" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(409);
+            const body = (await res.json()) as any;
+            expect(body.error).toBe("slug already in use");
+        });
+
         it("creates org and returns 201", async () => {
             const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
             const createdOrg = { id: "org-1", slug: "my-lab", name: "My Lab", description: null, createdAt: "2026-01-01" };
