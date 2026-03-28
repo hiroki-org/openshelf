@@ -15,7 +15,7 @@
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
-    "next": "16.1.6",
+    "next": "16.2.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-pdf": "^10.4.1"
@@ -29,17 +29,17 @@
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
+    "eslint-config-next": "16.2.1",
     "jsdom": "^27.0.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.4"
   },
   "optionalDependencies": {
-    "@next/swc-linux-arm64-gnu": "^16.1.6",
-    "@next/swc-linux-arm64-musl": "^16.1.6",
-    "@next/swc-linux-x64-gnu": "^16.1.6",
-    "@next/swc-linux-x64-musl": "^16.1.6",
+    "@next/swc-linux-arm64-gnu": "^16.2.1",
+    "@next/swc-linux-arm64-musl": "^16.2.1",
+    "@next/swc-linux-x64-gnu": "^16.2.1",
+    "@next/swc-linux-x64-musl": "^16.2.1",
     "@tailwindcss/oxide-linux-arm64-gnu": "^4.2.1",
     "@tailwindcss/oxide-linux-arm64-musl": "^4.2.1",
     "@tailwindcss/oxide-linux-x64-gnu": "^4.2.1",
@@ -48,6 +48,13 @@
     "lightningcss-linux-arm64-musl": "^1.31.1",
     "lightningcss-linux-x64-gnu": "^1.31.1",
     "lightningcss-linux-x64-musl": "^1.31.1"
+  },
+  "overrides": {
+    "flatted": "^3.4.2",
+    "micromatch": {
+      "picomatch": "^2.3.2"
+    },
+    "picomatch@^4.0.0": "^4.0.4"
   },
   "license": "MIT"
 }
