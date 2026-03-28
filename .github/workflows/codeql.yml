@@ -30,6 +30,8 @@ jobs:
         with:
           languages: ${{ matrix.language }}
       - name: Autobuild
+      - name: Autobuild
+        # actions 言語はワークフローファイルを静的解析するためビルド不要
         if: matrix.language == 'javascript-typescript'
         uses: github/codeql-action/autobuild@v3
       - name: Perform CodeQL Analysis
