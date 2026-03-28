@@ -54,7 +54,7 @@ describe("CiteButton", () => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
         "@inproceedings{mukai2026boundary,...}",
       );
-      expect(toastSuccess).toHaveBeenCalledWith("Copied!");
+      expect(toastSuccess).toHaveBeenCalledWith("コピーしました");
     });
   });
 
@@ -67,6 +67,24 @@ describe("CiteButton", () => {
 
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith("引用の生成に失敗しました");
+    });
+  });
+
+  it("closes the menu when clicking outside", async () => {
+    render(
+      <div>
+        <CiteButton paperId="paper-1" />
+        <button type="button">outside</button>
+      </div>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /📋 Cite/ }));
+    expect(screen.getByRole("menu")).toBeInTheDocument();
+
+    fireEvent.mouseDown(screen.getByRole("button", { name: "outside" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     });
   });
 });

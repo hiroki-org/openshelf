@@ -3,7 +3,7 @@
 import { toast } from "@/components/toast";
 import { apiFetch } from "@/lib/api";
 import { safePath } from "@/lib/sanitization";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type CitationFormat = "bibtex" | "biblatex" | "apa" | "ieee" | "mla" | "plain";
 
@@ -23,6 +23,35 @@ type CiteButtonProps = {
 export function CiteButton({ paperId }: CiteButtonProps) {
   const [open, setOpen] = useState(false);
   const [loadingFormat, setLoadingFormat] = useState<CitationFormat | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        containerRef.current &&
+        !containerRef.current.contains(target)
+      ) {
+        setOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [open]);
 
   const handleCopy = async (format: CitationFormat) => {
     setLoadingFormat(format);
@@ -39,18 +68,27 @@ export function CiteButton({ paperId }: CiteButtonProps) {
         toast.error("引用の生成に失敗しました");
         return;
       }
-      await navigator.clipboard.writeText(data.citation);
-      toast.success("Copied!");
+      if (!navigator.clipboard?.writeText) {
+        toast.error("このブラウザではクリップボード機能を利用できません");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(data.citation);
+      } catch {
+        toast.error("クリップボードへのコピーに失敗しました");
+        return;
+      }
+      toast.success("コピーしました");
       setOpen(false);
     } catch {
-      toast.error("引用のコピーに失敗しました");
+      toast.error("引用の生成に失敗しました");
     } finally {
       setLoadingFormat(null);
     }
   };
 
   return (
-    <div className="mb-6 relative inline-block">
+    <div className="mb-6 relative inline-block" ref={containerRef}>
       <button
         type="button"
         className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800"
