@@ -82,7 +82,7 @@ async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, us
 
 // POST /api/orgs — create org
 orgsRoute.post("/", authMiddleware, async (c) => {
-    let body: any;
+    let body: { slug?: unknown; name?: unknown; description?: unknown };
     try {
         body = await c.req.json();
     } catch {
@@ -171,7 +171,7 @@ orgsRoute.patch("/:slug", authMiddleware, async (c) => {
     const adminCheck = await requireOrgAdmin(db, org.id, userId);
     if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
 
-    let body: any;
+    let body: { name?: unknown; slug?: unknown; description?: unknown };
     try {
         body = await c.req.json();
     } catch {
@@ -272,7 +272,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     const adminCheck = await requireOrgAdmin(db, org.id, userId);
     if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
 
-    let body: any;
+    let body: { userId?: unknown; role?: unknown };
     try {
         body = await c.req.json();
     } catch {
@@ -328,7 +328,7 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
     const adminCheck = await requireOrgAdmin(db, org.id, userId);
     if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
 
-    let body: any;
+    let body: { role?: unknown };
     try {
         body = await c.req.json();
     } catch {
@@ -507,7 +507,7 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    let body: any;
+    let body: { paperId?: unknown };
     try {
         body = await c.req.json();
     } catch {
