@@ -343,6 +343,10 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
     const membership = await getOrgMembership(db, org.id, targetUserId);
     if (!membership) return c.json({ error: "Member not found" }, 404);
 
+    if (adminCheck.membership.role === "admin" && membership.role === "owner") {
+        return c.json({ error: "Forbidden: admin cannot modify owner role" }, 403);
+    }
+
     // Prevent demoting the last admin purely via atomic update check
     if (newRole === "member" && (membership.role === "admin" || membership.role === "owner")) {
         const result = await db
@@ -386,6 +390,10 @@ orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
 
     const membership = await getOrgMembership(db, org.id, targetUserId);
     if (!membership) return c.json({ error: "Member not found" }, 404);
+
+    if (adminCheck.membership.role === "admin" && membership.role === "owner") {
+        return c.json({ error: "Forbidden: admin cannot remove owner" }, 403);
+    }
 
     // Prevent removing the last admin purely via atomic delete check
     if (membership.role === "admin" || membership.role === "owner") {
