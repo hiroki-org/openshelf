@@ -312,7 +312,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     }
 
     const role = (body?.role as "admin" | "member" | undefined) ?? "member";
-    if (!role || !["admin", "member"].includes(role)) {
+    if (!["admin", "member"].includes(role)) {
         return c.json({ error: "role must be 'admin' or 'member'" }, 400);
     }
 
