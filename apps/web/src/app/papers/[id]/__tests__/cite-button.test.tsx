@@ -81,7 +81,7 @@ describe("CiteButton", () => {
     fireEvent.click(screen.getByRole("button", { name: /📋 Cite/ }));
     expect(screen.getByRole("menu")).toBeInTheDocument();
 
-    fireEvent.mouseDown(screen.getByRole("button", { name: "outside" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: "outside" }));
 
     await waitFor(() => {
       expect(screen.queryByRole("menu")).not.toBeInTheDocument();

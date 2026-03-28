@@ -58,13 +58,13 @@ describe("buildCitation", () => {
     });
 
     it("maps category and venue type to expected bibtex entry type", () => {
-        const master = buildCitation(
+        const bachelor = buildCitation(
             { ...paperBase, category: "thesis_bachelor", venueType: null },
             [{ name: "a", displayName: "Alice" }],
             "bibtex",
             "https://openshelf.example",
         );
-        const phd = buildCitation(
+        const master = buildCitation(
             { ...paperBase, category: "thesis_master", venueType: null },
             [{ name: "a", displayName: "Alice" }],
             "bibtex",
@@ -83,9 +83,38 @@ describe("buildCitation", () => {
             "https://openshelf.example",
         );
 
+        expect(bachelor.citation).toContain("@misc{");
         expect(master.citation).toContain("@mastersthesis{");
-        expect(phd.citation).toContain("@phdthesis{");
         expect(journal.citation).toContain("@article{");
         expect(report.citation).toContain("@techreport{");
     });
+
+    it("emits biblatex-specific thesis entry metadata for thesis_master", () => {
+        const result = buildCitation(
+            { ...paperBase, category: "thesis_master", venueType: null, venue: null },
+            [{ name: "hiroki", displayName: "Hiroki Mukai" }],
+            "biblatex",
+            "https://openshelf.example",
+        );
+
+        expect(result.citation).toContain("@thesis{");
+        expect(result.citation).toContain("type = {Master\'s thesis}");
+    });
+
+    it("formats APA output with surname-initial style", () => {
+        const result = buildCitation(
+            paperBase,
+            [
+                { name: "hiroki", displayName: "Hiroki Mukai" },
+                { name: "kato", displayName: "Yusaku Kato" },
+            ],
+            "apa",
+            "https://openshelf.example",
+        );
+
+        expect(result.citation).toContain("Mukai, H.");
+        expect(result.citation).toContain("Kato, Y.");
+        expect(result.citation).toContain("(2026).");
+    });
+
 });

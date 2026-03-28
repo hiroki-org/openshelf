@@ -69,9 +69,9 @@ function pickTitleKeyWord(title: string): string {
     return tokens.find((token) => !STOP_WORDS.has(token)) || tokens[0] || "paper";
 }
 
-function pickEntryType(paper: CitationPaper): "mastersthesis" | "phdthesis" | "inproceedings" | "article" | "techreport" | "misc" {
-    if (paper.category === "thesis_bachelor") return "mastersthesis";
-    if (paper.category === "thesis_master") return "phdthesis";
+function pickEntryType(paper: CitationPaper): "mastersthesis" | "inproceedings" | "article" | "techreport" | "misc" {
+    if (paper.category === "thesis_bachelor") return "misc";
+    if (paper.category === "thesis_master") return "mastersthesis";
     if (paper.category === "report") return "techreport";
     if (paper.venueType === "conference" || paper.venueType === "workshop") return "inproceedings";
     if (paper.venueType === "journal") return "article";
@@ -86,12 +86,42 @@ function buildPaperUrl(frontendUrl: string, paper: CitationPaper): string {
     return `${base}/papers/${paper.id}`;
 }
 
+
+function toApaAuthorName(author: CitationAuthor): string {
+    const label = pickAuthorLabel(author).trim();
+    const parts = label.split(/\s+/).filter(Boolean);
+    if (parts.length <= 1) return label;
+
+    const familyName = parts[parts.length - 1];
+    const initials = parts
+        .slice(0, -1)
+        .map((part) => part.charAt(0).toUpperCase())
+        .filter(Boolean)
+        .join(". ");
+
+    return initials ? `${familyName}, ${initials}.` : familyName;
+}
+
+function toBibLaTeXEntryTypeAndFields(
+    entryType: ReturnType<typeof pickEntryType>,
+): { entryType: string; extraFields: Array<[string, string]> } {
+    if (entryType === "mastersthesis") {
+        return {
+            entryType: "thesis",
+            extraFields: [["type", "Master's thesis"]],
+        };
+    }
+
+    return { entryType, extraFields: [] };
+}
+
 function buildBibTexBody(
     entryType: string,
     key: string,
     paper: CitationPaper,
     authors: CitationAuthor[],
     frontendUrl: string,
+    extraFields: Array<[string, string]> = [],
 ): string {
     const fields: Array<[string, string]> = [
         ["author", authors.map((author) => pickAuthorLabel(author)).join(" and ")],
@@ -112,6 +142,8 @@ function buildBibTexBody(
     } else {
         fields.push(["url", buildPaperUrl(frontendUrl, paper)]);
     }
+
+    fields.push(...extraFields);
 
     const body = fields
         .map(([name, value]) => `  ${name} = {${escapeBibValue(value)}}`)
@@ -137,7 +169,13 @@ function buildApaText(
     authors: CitationAuthor[],
     frontendUrl: string,
 ): string {
-    return buildPlainText(paper, authors, frontendUrl);
+    const authorText = authors.map((author) => toApaAuthorName(author)).join(", ");
+    const yearText = paper.year ? `(${paper.year}).` : "(n.d.).";
+    const venueText = paper.venue ? ` ${paper.venue}.` : "";
+    const locator = paper.doi
+        ? ` https://doi.org/${paper.doi}`
+        : ` ${buildPaperUrl(frontendUrl, paper)}`;
+    return `${authorText} ${yearText} ${paper.title}.${venueText}${locator}`;
 }
 
 function buildIeeeText(
@@ -183,9 +221,17 @@ export function buildCitation(
     }
 
     if (format === "biblatex") {
+        const { entryType: bibLatexType, extraFields } = toBibLaTeXEntryTypeAndFields(entryType);
         return {
             format,
-            citation: buildBibTexBody(entryType, key, paper, authors, frontendUrl),
+            citation: buildBibTexBody(
+                bibLatexType,
+                key,
+                paper,
+                authors,
+                frontendUrl,
+                extraFields,
+            ),
             key,
         };
     }
