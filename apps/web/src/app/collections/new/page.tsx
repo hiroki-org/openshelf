@@ -55,6 +55,11 @@ export default function NewCollectionPage() {
   }, [ownerType, orgSlug]);
 
   useEffect(() => {
+    slugCheckRef.current += 1;
+    setSlugStatus("idle");
+  }, [ownerType]);
+
+  useEffect(() => {
     if (!slug) {
       setSlugStatus("idle");
       return;
