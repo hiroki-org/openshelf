@@ -33,4 +33,14 @@ describe("toast", () => {
     expect(screen.queryByText("failed")).not.toBeInTheDocument();
     expect(screen.queryByText("fyi")).not.toBeInTheDocument();
   });
+
+  it("removes listener on unmount", () => {
+    const { unmount } = render(<ToastContainer />);
+    unmount();
+
+    act(() => {
+      toast.success("should not error");
+    });
+  });
+
 });
