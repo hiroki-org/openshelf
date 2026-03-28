@@ -284,7 +284,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
         return c.json({ error: "userId is required" }, 400);
     }
 
-    const role = body?.role ?? "member";
+    const role = (body?.role as string) ?? "member";
     if (!["admin", "member"].includes(role)) {
         return c.json({ error: "role must be 'admin' or 'member'" }, 400);
     }
@@ -301,7 +301,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
         await db.insert(orgMembers).values({
             orgId: org.id,
             userId: targetUserId.trim(),
-            role,
+            role: role as "admin" | "member",
         });
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -335,7 +335,7 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
         return c.json({ error: "Invalid JSON body" }, 400);
     }
 
-    const newRole = body?.role;
+    const newRole = body?.role as string;
     if (!["admin", "member"].includes(newRole)) {
         return c.json({ error: "role must be 'admin' or 'member'" }, 400);
     }
@@ -347,7 +347,7 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
     if (newRole === "member" && (membership.role === "admin" || membership.role === "owner")) {
         const result = await db
             .update(orgMembers)
-            .set({ role: newRole })
+            .set({ role: newRole as "admin" | "member" })
             .where(
                 and(
                     eq(orgMembers.orgId, org.id),
@@ -364,7 +364,7 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
 
     await db
         .update(orgMembers)
-        .set({ role: newRole })
+        .set({ role: newRole as "admin" | "member" })
         .where(and(eq(orgMembers.orgId, org.id), eq(orgMembers.userId, targetUserId)));
 
     return c.json({ ok: true });
@@ -514,7 +514,7 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
         return c.json({ error: "Invalid JSON body" }, 400);
     }
 
-    const paperId = body?.paperId;
+    const paperId = body?.paperId as string;
     if (typeof paperId !== "string" || !paperId.trim()) {
         return c.json({ error: "paperId is required" }, 400);
     }
