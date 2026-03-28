@@ -506,7 +506,9 @@ papersRoute.post("/", authMiddleware, async (c) => {
             })),
         );
     } catch (error) {
-        await Promise.all(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
+        for (let i = 0; i < uploadedKeys.length; i += 1000) {
+            await c.env.BUCKET.delete(uploadedKeys.slice(i, i + 1000));
+        }
         await db.delete(papers).where(eq(papers.id, paperId));
         throw error;
     }
@@ -1056,7 +1058,10 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
         .where(eq(paperFiles.paperId, paperId))
         .all();
 
-    await Promise.all(files.map((f) => c.env.BUCKET.delete(f.r2Key)));
+    const keys = files.map((f) => f.r2Key);
+    for (let i = 0; i < keys.length; i += 1000) {
+        await c.env.BUCKET.delete(keys.slice(i, i + 1000));
+    }
     await db.delete(papers).where(eq(papers.id, paperId));
 
     return c.json({ ok: true });
