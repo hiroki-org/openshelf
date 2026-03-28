@@ -96,4 +96,34 @@ describe("tags routes", () => {
         expect(res.status).toBe(403);
         await expect(res.json()).resolves.toEqual({ error: "Forbidden" });
     });
+
+    it("GET /api/tags/suggest excludes private org paper tags for non-authors", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        queueSelectResponses([
+            { getResult: { id: "org-1" } },
+            { getResult: { userId: "user-1" } },
+            {
+                allResult: [
+                    { tags: "[\"Secret Project\"]", visibility: "private", authorUserId: null },
+                    { tags: "[\"Secret Notes\"]", visibility: "private", authorUserId: "user-1" },
+                    { tags: "[\"Search\"]", visibility: "org_only", authorUserId: null },
+                ],
+            },
+        ]);
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/tags/suggest?q=Se&orgSlug=my-lab",
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        await expect(res.json()).resolves.toEqual({
+            tags: ["Search", "Secret Notes"],
+        });
+    });
 });

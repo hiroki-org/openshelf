@@ -16,13 +16,6 @@ type TagAutocompleteInputProps = {
   className?: string;
 };
 
-function parseTags(value: string): string[] {
-  return value
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-}
-
 function splitEditingState(value: string): {
   committed: string[];
   currentRaw: string;
@@ -51,6 +44,7 @@ export function TagAutocompleteInput({
   const [loading, setLoading] = useState(false);
   const cacheRef = useRef(new Map<string, string[]>());
   const blurTimeoutRef = useRef<number | null>(null);
+  const requestIdRef = useRef(0);
 
   const { committed, currentTrimmed } = useMemo(
     () => splitEditingState(value),
@@ -58,7 +52,9 @@ export function TagAutocompleteInput({
   );
 
   useEffect(() => {
+    const requestId = ++requestIdRef.current;
     if (currentTrimmed.length < MIN_QUERY_LENGTH) {
+      setLoading(false);
       setSuggestions([]);
       setHighlightedIndex(-1);
       setOpen(false);
@@ -69,6 +65,7 @@ export function TagAutocompleteInput({
     const cacheKey = `${orgSlug ?? ""}::${normalizedQuery}`;
     const cached = cacheRef.current.get(cacheKey);
     if (cached) {
+      setLoading(false);
       setSuggestions(cached);
       setHighlightedIndex(cached.length > 0 ? 0 : -1);
       setOpen(cached.length > 0);
@@ -81,6 +78,7 @@ export function TagAutocompleteInput({
         const params = new URLSearchParams({ q: currentTrimmed });
         if (orgSlug) params.set("orgSlug", orgSlug);
         const response = await apiFetch(`/api/tags/suggest?${params.toString()}`);
+        if (requestIdRef.current !== requestId) return;
         if (!response.ok) {
           setSuggestions([]);
           setHighlightedIndex(-1);
@@ -91,16 +89,20 @@ export function TagAutocompleteInput({
         const nextSuggestions = Array.isArray(body.tags)
           ? body.tags.filter((tag): tag is string => typeof tag === "string")
           : [];
+        if (requestIdRef.current !== requestId) return;
         cacheRef.current.set(cacheKey, nextSuggestions);
         setSuggestions(nextSuggestions);
         setHighlightedIndex(nextSuggestions.length > 0 ? 0 : -1);
         setOpen(nextSuggestions.length > 0);
       } catch {
+        if (requestIdRef.current !== requestId) return;
         setSuggestions([]);
         setHighlightedIndex(-1);
         setOpen(false);
       } finally {
-        setLoading(false);
+        if (requestIdRef.current === requestId) {
+          setLoading(false);
+        }
       }
     }, DEBOUNCE_MS);
 
@@ -123,6 +125,10 @@ export function TagAutocompleteInput({
   };
 
   const listId = `${id}-suggestions`;
+  const activeDescendantId =
+    open && highlightedIndex >= 0 && highlightedIndex < suggestions.length
+      ? `${listId}-option-${highlightedIndex}`
+      : undefined;
 
   return (
     <div className="relative">
@@ -160,6 +166,12 @@ export function TagAutocompleteInput({
             );
             return;
           }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            setOpen(false);
+            setHighlightedIndex(-1);
+            return;
+          }
           if (
             event.key === "Enter" &&
             highlightedIndex >= 0 &&
@@ -174,6 +186,7 @@ export function TagAutocompleteInput({
         aria-autocomplete="list"
         aria-expanded={open}
         aria-controls={listId}
+        aria-activedescendant={activeDescendantId}
         className={className}
         placeholder={placeholder}
       />
@@ -187,6 +200,7 @@ export function TagAutocompleteInput({
           {suggestions.map((suggestion, index) => (
             <li
               key={`${suggestion}-${index}`}
+              id={`${listId}-option-${index}`}
               role="option"
               aria-selected={index === highlightedIndex}
               onMouseDown={(event) => event.preventDefault()}
@@ -205,7 +219,7 @@ export function TagAutocompleteInput({
 
       {committed.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
-          {parseTags(value).map((tag) => (
+          {committed.map((tag) => (
             <span
               key={tag}
               className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200"

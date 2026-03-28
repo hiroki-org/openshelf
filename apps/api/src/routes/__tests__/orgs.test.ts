@@ -619,17 +619,20 @@ describe("orgs routes", () => {
                 { getResult: { orgId: "org-1", userId: "user-1", role: "member" } },
                 {
                     allResult: [
-                        { paperId: "paper-public" },
-                        { paperId: "paper-org" },
+                        {
+                            id: "paper-public",
+                            visibility: "public",
+                            tags: "[\"AI\",\"NLP\"]",
+                            authorUserId: null,
+                        },
+                        {
+                            id: "paper-org",
+                            visibility: "org_only",
+                            tags: "[\"AI\"]",
+                            authorUserId: "user-1",
+                        },
                     ],
                 },
-                {
-                    allResult: [
-                        { id: "paper-public", visibility: "public", tags: "[\"AI\",\"NLP\"]" },
-                        { id: "paper-org", visibility: "org_only", tags: "[\"AI\"]" },
-                    ],
-                },
-                { allResult: [{ paperId: "paper-org" }] },
             ]);
 
             const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Member" });
@@ -646,6 +649,37 @@ describe("orgs routes", () => {
 
             expect(res.status).toBe(200);
             await expect(res.json()).resolves.toEqual({ tags: ["AI", "NLP"] });
+        });
+
+        it("limits public org tag responses to 100 items", async () => {
+            const manyTags = Array.from(
+                { length: 105 },
+                (_, index) => `tag-${String(index).padStart(3, "0")}`,
+            );
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                {
+                    allResult: manyTags.map((tag, index) => ({
+                        id: `paper-${index}`,
+                        visibility: "public",
+                        tags: JSON.stringify([tag]),
+                        authorUserId: null,
+                    })),
+                },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/tags",
+                {},
+                env as any,
+            );
+
+            expect(res.status).toBe(200);
+            const body = (await res.json()) as { tags: string[] };
+            expect(body.tags).toHaveLength(100);
+            expect(body.tags).toEqual(manyTags.slice(0, 100));
         });
 
         it("returns 404 when org does not exist", async () => {

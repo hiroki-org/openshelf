@@ -1,4 +1,5 @@
 import { Hono, type Context } from "hono";
+import { verify } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import {
@@ -11,21 +12,17 @@ import {
     enableForeignKeys,
     touchUpdatedAt,
 } from "../db/schema";
-import type { Env, Variables } from "../types";
+import type { Env, JwtPayload, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { parseStoredTags } from "../utils/tags";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
-type JwtPayload = { sub?: string; exp?: number; iat?: number };
+const ORG_TAGS_LIMIT = 100;
 
-function isJwtPayload(value: unknown): value is JwtPayload {
-    if (!value || typeof value !== "object") return false;
-    const payload = value as Record<string, unknown>;
-    return (
-        ("sub" in payload ? typeof payload.sub === "string" || payload.sub === undefined : true)
-        && ("exp" in payload ? typeof payload.exp === "number" || payload.exp === undefined : true)
-        && ("iat" in payload ? typeof payload.iat === "number" || payload.iat === undefined : true)
-    );
+function hasJwtSub(value: unknown): value is Pick<JwtPayload, "sub"> {
+    return !!value
+        && typeof value === "object"
+        && typeof (value as { sub?: unknown }).sub === "string";
 }
 
 // ─── Validation helpers ─────────────────────────────────────────
@@ -95,11 +92,8 @@ async function getOptionalUserIdFromAuthHeader(
     if (!authHeader?.startsWith("Bearer ")) return null;
 
     try {
-        const { verify } = await import("hono/jwt");
         const payload = await verify(authHeader.slice(7), c.env.JWT_SECRET, "HS256");
-        if (!isJwtPayload(payload)) return null;
-        const { sub } = payload;
-        return typeof sub === "string" ? sub : null;
+        return hasJwtSub(payload) ? payload.sub : null;
     } catch {
         return null;
     }
@@ -125,46 +119,44 @@ orgsRoute.get("/:slug/tags", async (c) => {
         ? await isOrgMember(db, org.id, currentUserId)
         : false;
 
-    const paperOrgRows = await db
-        .select({ paperId: paperOrgs.paperId })
-        .from(paperOrgs)
-        .where(eq(paperOrgs.orgId, org.id))
-        .all();
-    if (paperOrgRows.length === 0) return c.json({ tags: [] });
-
-    const orgPapers = await db
-        .select({ id: papers.id, visibility: papers.visibility, tags: papers.tags })
-        .from(papers)
-        .where(inArray(papers.id, paperOrgRows.map((row) => row.paperId)))
-        .all();
-
-    const authoredPaperIds = new Set<string>();
-    if (currentUserId) {
-        const nonPublicPaperIds = orgPapers
-            .filter((paper) => paper.visibility !== "public")
-            .map((paper) => paper.id);
-        if (nonPublicPaperIds.length > 0) {
-            const authorships = await db
-                .select({ paperId: paperAuthors.paperId })
-                .from(paperAuthors)
-                .where(
-                    and(
-                        inArray(paperAuthors.paperId, nonPublicPaperIds),
-                        eq(paperAuthors.userId, currentUserId),
-                    ),
-                )
-                .all();
-            for (const authorship of authorships) {
-                authoredPaperIds.add(authorship.paperId);
-            }
-        }
-    }
+    const orgPapers = currentUserId
+        ? await db
+            .select({
+                id: papers.id,
+                visibility: papers.visibility,
+                tags: papers.tags,
+                authorUserId: paperAuthors.userId,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .leftJoin(
+                paperAuthors,
+                and(
+                    eq(paperAuthors.paperId, papers.id),
+                    eq(paperAuthors.userId, currentUserId),
+                ),
+            )
+            .where(eq(paperOrgs.orgId, org.id))
+            .all()
+        : await db
+            .select({
+                id: papers.id,
+                visibility: papers.visibility,
+                tags: papers.tags,
+                authorUserId: sql<string | null>`null`,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(eq(paperOrgs.orgId, org.id))
+            .all();
+    if (orgPapers.length === 0) return c.json({ tags: [] });
 
     const counts = new Map<string, number>();
     for (const paper of orgPapers) {
+        const isAuthor = paper.authorUserId === currentUserId;
         const isVisible = paper.visibility === "public"
-            || (paper.visibility === "org_only" && (isMember || authoredPaperIds.has(paper.id)))
-            || (paper.visibility === "private" && authoredPaperIds.has(paper.id));
+            || (paper.visibility === "org_only" && (isMember || isAuthor))
+            || (paper.visibility === "private" && isAuthor);
         if (!isVisible) continue;
 
         for (const tag of parseStoredTags(paper.tags)) {
@@ -178,6 +170,7 @@ orgsRoute.get("/:slug/tags", async (c) => {
             if (b[1] !== a[1]) return b[1] - a[1];
             return a[0].localeCompare(b[0]);
         })
+        .slice(0, ORG_TAGS_LIMIT)
         .map(([tag]) => tag);
 
     return c.json({ tags });

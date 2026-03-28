@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import {
     orgMembers,
     orgs,
@@ -29,12 +29,20 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
     const userId = c.get("user").sub;
     const query = (c.req.query("q") ?? "").trim();
     const orgSlug = (c.req.query("orgSlug") ?? "").trim().toLowerCase();
+    const normalizedQuery = query.toLowerCase();
 
     if (query.length < TAG_SUGGEST_MIN_QUERY_LENGTH) {
         return c.json({ tags: [] });
     }
 
-    let rows: Array<{ tags: string | null }> = [];
+    const counts = new Map<string, number>();
+    const addTags = (storedTags: string | null) => {
+        for (const tag of parseStoredTags(storedTags)) {
+            if (!tag.toLowerCase().startsWith(normalizedQuery)) continue;
+            counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        }
+    };
+
     if (orgSlug) {
         const org = await db
             .select({ id: orgs.id })
@@ -50,20 +58,32 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
             .get();
         if (!membership) return c.json({ error: "Forbidden" }, 403);
 
-        const orgPaperRows = await db
-            .select({ paperId: paperOrgs.paperId })
+        const rows = await db
+            .select({
+                tags: papers.tags,
+                visibility: papers.visibility,
+                authorUserId: paperAuthors.userId,
+            })
             .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .leftJoin(
+                paperAuthors,
+                and(
+                    eq(paperAuthors.paperId, papers.id),
+                    eq(paperAuthors.userId, userId),
+                ),
+            )
             .where(eq(paperOrgs.orgId, org.id))
             .all();
-        if (orgPaperRows.length === 0) return c.json({ tags: [] });
-
-        rows = await db
-            .select({ tags: papers.tags })
-            .from(papers)
-            .where(inArray(papers.id, orgPaperRows.map((row) => row.paperId)))
-            .all();
+        for (const row of rows) {
+            const canAccess = row.visibility === "public"
+                || row.visibility === "org_only"
+                || (row.visibility === "private" && row.authorUserId === userId);
+            if (!canAccess) continue;
+            addTags(row.tags);
+        }
     } else {
-        rows = await db
+        const rows = await db
             .select({ tags: papers.tags })
             .from(papers)
             .innerJoin(
@@ -74,14 +94,8 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
                 ),
             )
             .all();
-    }
-
-    const normalizedQuery = query.toLowerCase();
-    const counts = new Map<string, number>();
-    for (const row of rows) {
-        for (const tag of parseStoredTags(row.tags)) {
-            if (!tag.toLowerCase().startsWith(normalizedQuery)) continue;
-            counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        for (const row of rows) {
+            addTags(row.tags);
         }
     }
 

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TagAutocompleteInput } from "../tag-autocomplete-input";
 import { apiFetch } from "@/lib/api";
@@ -68,6 +68,7 @@ describe("TagAutocompleteInput", () => {
 
     const input = screen.getByRole("textbox");
     fireEvent.focus(input);
+    expect(await screen.findByRole("option", { name: "Machine Learning" })).toBeInTheDocument();
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(onChange).toHaveBeenCalledWith("Machine Learning, ");
@@ -77,5 +78,95 @@ describe("TagAutocompleteInput", () => {
     expect(apiFetch).toHaveBeenCalledTimes(1);
     fireEvent.focus(screen.getByRole("textbox"));
     expect(screen.getByRole("option", { name: "Machine Learning" })).toBeInTheDocument();
+  });
+
+  it("closes the dropdown with Escape and exposes the active descendant", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ tags: ["Machine Learning", "Math"] }), {
+        status: 200,
+      }),
+    );
+
+    render(<TagAutocompleteInput id="paper-tags" value="Ma" onChange={vi.fn()} />);
+
+    const input = screen.getByRole("textbox");
+    expect(await screen.findByRole("option", { name: "Machine Learning" })).toBeInTheDocument();
+    expect(input).toHaveAttribute(
+      "aria-activedescendant",
+      "paper-tags-suggestions-option-0",
+    );
+
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    });
+    expect(input).not.toHaveAttribute("aria-activedescendant");
+  });
+
+  it("ignores stale suggestion responses for older queries", async () => {
+    vi.useFakeTimers();
+    let resolveFirst: ((value: Response) => void) | undefined;
+    let resolveSecond: ((value: Response) => void) | undefined;
+
+    vi.mocked(apiFetch)
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveSecond = resolve;
+          }),
+      );
+
+    const { rerender } = render(
+      <TagAutocompleteInput id="paper-tags" value="Ma" onChange={vi.fn()} />,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(DEBOUNCE_WAIT_MS);
+    });
+    expect(apiFetch).toHaveBeenNthCalledWith(1, "/api/tags/suggest?q=Ma");
+
+    rerender(<TagAutocompleteInput id="paper-tags" value="Mat" onChange={vi.fn()} />);
+
+    await act(async () => {
+      vi.advanceTimersByTime(DEBOUNCE_WAIT_MS);
+    });
+    expect(apiFetch).toHaveBeenNthCalledWith(2, "/api/tags/suggest?q=Mat");
+
+    await act(async () => {
+      resolveSecond?.(
+        new Response(JSON.stringify({ tags: ["Math"] }), { status: 200 }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(screen.getByRole("option", { name: "Math" })).toBeInTheDocument();
+
+    await act(async () => {
+      resolveFirst?.(
+        new Response(JSON.stringify({ tags: ["Machine Learning"] }), {
+          status: 200,
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByRole("option", { name: "Machine Learning" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Math" })).toBeInTheDocument();
+  });
+
+  it("renders chips only for committed tags", () => {
+    render(
+      <TagAutocompleteInput id="paper-tags" value="AI, Ma" onChange={vi.fn()} />,
+    );
+
+    expect(screen.getByText("AI")).toBeInTheDocument();
+    expect(screen.queryByText("Ma")).not.toBeInTheDocument();
   });
 });
