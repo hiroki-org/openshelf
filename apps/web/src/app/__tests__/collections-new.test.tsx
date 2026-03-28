@@ -85,7 +85,72 @@ describe("NewCollectionPage", () => {
     });
   });
 
+  it("keeps submit disabled while slug check is still idle (debounce not finished)", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Lab Picks" },
+    });
+
+    const submit = screen.getByRole("button", { name: "作成" });
+    expect(submit).toBeDisabled();
+
+    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
+    expect(submit).not.toBeDisabled();
+  });
+
+  it("resets slug availability when switching from user to org ownership", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+
+      if (url === "/api/orgs/example-org/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Lab Picks" },
+    });
+
+    const submit = screen.getByRole("button", { name: "作成" });
+    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
+    expect(submit).not.toBeDisabled();
+
+    fireEvent.click(screen.getByLabelText(/^org$/));
+
+    expect(submit).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("org slug"), {
+      target: { value: "example-org" },
+    });
+
+    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
+    expect(submit).not.toBeDisabled();
+  });
+
   it("requires an org slug for org-owned collections", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/orgs/example-org/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
     render(<NewCollectionPage />);
 
     fireEvent.click(screen.getByLabelText(/^org$/));
@@ -93,8 +158,14 @@ describe("NewCollectionPage", () => {
       target: { value: "Lab Picks" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+    const submit = screen.getByRole("button", { name: "作成" });
+    expect(submit).toBeDisabled();
 
-    expect(await screen.findByText("org slug is required")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("org slug"), {
+      target: { value: "example-org" },
+    });
+
+    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
+    expect(submit).not.toBeDisabled();
   });
 });

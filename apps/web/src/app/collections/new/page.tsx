@@ -55,6 +55,11 @@ export default function NewCollectionPage() {
   }, [ownerType, orgSlug]);
 
   useEffect(() => {
+    slugCheckRef.current += 1;
+    setSlugStatus("idle");
+  }, [ownerType]);
+
+  useEffect(() => {
     if (!slug) {
       setSlugStatus("idle");
       return;
@@ -74,7 +79,6 @@ export default function NewCollectionPage() {
       setSlugStatus("checking");
 
       try {
-        if (!user) return;
         if (ownerType === "org" && !orgSlug.trim()) {
           setSlugStatus("idle");
           return;
@@ -82,8 +86,14 @@ export default function NewCollectionPage() {
 
         const url =
           ownerType === "user"
-            ? `/api/users/${user.id}/collections`
+            ? user?.id
+              ? `/api/users/${user.id}/collections`
+              : null
             : `/api/orgs/${encodeURIComponent(orgSlug)}/collections`;
+        if (!url) {
+          setSlugStatus("idle");
+          return;
+        }
 
         const res = await apiFetch(url);
         if (slugCheckRef.current !== requestId) return;
@@ -138,7 +148,7 @@ export default function NewCollectionPage() {
             return;
           }
 
-          if (slugStatus === "checking") {
+          if (slugStatus === "checking" || slugStatus === "idle") {
             setError("slug の確認完了を待ってください");
             return;
           }
@@ -317,6 +327,7 @@ export default function NewCollectionPage() {
           disabled={
             submitting ||
             slug.length < 3 ||
+            slugStatus === "idle" ||
             slugStatus === "checking" ||
             slugStatus === "taken" ||
             slugStatus === "invalid"
