@@ -774,4 +774,42 @@ describe("collections routes", () => {
             "paper-org",
         ]);
     });
+
+    it("POST /api/collections/:id/papers returns 409 when paper is already in collection", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        const collection = {
+            id: "col-1",
+            ownerType: "user",
+            ownerId: "user-1",
+            visibility: "private",
+        };
+        queueSelectResponses([
+            { getResult: collection }, // Collection query
+            { getResult: { id: "paper-1", visibility: "public" } }, // Paper query
+            { getResult: { maxOrder: 2 } }, // maxOrder query
+        ]);
+
+        mockDb.insert = vi.fn(() => ({
+            values: vi.fn().mockRejectedValue(new Error("UNIQUE constraint failed: collection_papers.collection_id, collection_papers.paper_id")),
+        }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections/col-1/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ paper_id: "paper-1" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(409);
+        expect(((await res.json()) as any).error).toBe("Paper already added");
+    });
 });
