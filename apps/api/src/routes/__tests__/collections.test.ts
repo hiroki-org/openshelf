@@ -735,9 +735,9 @@ describe("collections routes", () => {
         ]);
 
         mockDb.insert = vi.fn(() => ({
-            values: vi.fn(async () => {
-                throw new Error("UNIQUE constraint failed: collection_papers.collection_id, collection_papers.paper_id");
-            }),
+            values: vi.fn().mockRejectedValue(
+                new Error("UNIQUE constraint failed: collection_papers.collection_id, collection_papers.paper_id"),
+            ),
         }));
 
         const app = await createTestApp();
