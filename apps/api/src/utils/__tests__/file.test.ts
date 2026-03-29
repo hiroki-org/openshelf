@@ -153,12 +153,14 @@ describe("validateMagicNumbers", () => {
   });
 
   it("accepts legacy PowerPoint files when the OLE payload contains the document marker", async () => {
+    const header = new Uint8Array([
+      0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1,
+    ]);
     const ppt = createFile(
       "slides.ppt",
       "application/vnd.ms-powerpoint",
       createMockOle2(["PowerPoint Document"]),
     );
-
 
     await expect(
       validateMagicNumbers(ppt, "application/vnd.ms-powerpoint"),
