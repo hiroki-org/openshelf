@@ -432,9 +432,13 @@ describe("papers routes", () => {
         );
         expect(res.status).toBe(500);
 
-        // BUCKET.delete should be called with the key of the uploaded file
+        // BUCKET.delete should be called with a batch including uploaded paper keys
         expect(bucketDeleteSpy).toHaveBeenCalledTimes(1);
-        expect(bucketDeleteSpy).toHaveBeenCalledWith(expect.stringContaining("papers/"));
+        const firstDeleteCall = bucketDeleteSpy.mock.calls[0];
+        const deletedKeys = firstDeleteCall?.[0];
+        expect(deletedKeys).toEqual(
+            expect.arrayContaining([expect.stringContaining("papers/")]),
+        );
 
         // db.delete should be called for papers
         expect(mockDb.delete).toHaveBeenCalledTimes(1);
