@@ -16,10 +16,6 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
   ["504B0304", "application/zip"],
 ];
 
-const OLE2_MAGIC_PART_1 = 0xe011cfd0;
-const OLE2_MAGIC_PART_2 = 0xe11ab1a1;
-
-
 // Helper function to efficiently parse ZIP Central Directory to find a specific entry
 async function hasZipEntry(file: File, targetEntry: string): Promise<boolean> {
   const CHUNK_SIZE = 65536 + 22; // Max comment size + EOCD size
@@ -83,8 +79,8 @@ async function hasOleStream(
 
   // OLE2 magic number check
   if (
-    headerView.getUint32(0, true) !== OLE2_MAGIC_PART_1 ||
-    headerView.getUint32(4, true) !== OLE2_MAGIC_PART_2
+    headerView.getUint32(0, true) !== 0xe011cfd0 ||
+    headerView.getUint32(4, true) !== 0xe11ab1a1
   ) {
     return false;
   }
