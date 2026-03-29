@@ -38,11 +38,13 @@ describe("orgs routes", () => {
 
             mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
 
-            mockDb.insert = vi.fn(() => ({
-                values: vi.fn(async () => {
-                    throw new Error("UNIQUE constraint failed: orgs.slug");
-                })
-            }));
+            mockDb.insert = vi.fn()
+                .mockImplementationOnce(() => ({
+                    values: vi.fn().mockRejectedValue(new Error("UNIQUE constraint failed: orgs.slug")),
+                }))
+                .mockImplementation(() => ({
+                    values: vi.fn(async () => undefined),
+                }));
 
             const app = await createTestApp();
             const env = createTestEnv();
