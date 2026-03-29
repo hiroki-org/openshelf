@@ -87,8 +87,7 @@ describe("orgs routes", () => {
             );
 
             expect(res.status).toBe(400);
-            const body = (await res.json()) as any;
-            expect(body.error).toBe("Invalid JSON body");
+            await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
         });
 
         it("returns 400 for invalid slug", async () => {
