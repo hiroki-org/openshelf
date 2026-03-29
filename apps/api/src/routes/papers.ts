@@ -373,33 +373,10 @@ function parseAndValidateMetadata(c: Context, metadataStr: string): { errorRespo
             venueType: venueType as VenueType | null,
             year: meta.year ? Number(meta.year) : null,
             category: category as CategoryType | null,
-            tags: null,
+            tags: meta.tags ? JSON.stringify(meta.tags) : null,
             orgId,
         }
     };
-
-    if (meta.tags !== undefined && meta.tags !== null) {
-        if (!Array.isArray(meta.tags)) {
-            return { errorResponse: c.json({ error: "tags must be an array of strings" }, 400) };
-        }
-
-        const normalizedTags: string[] = [];
-        for (const tag of meta.tags as unknown[]) {
-            if (typeof tag !== "string") {
-                return { errorResponse: c.json({ error: "each tag must be a string" }, 400) };
-            }
-            const normalizedTag = tag.trim();
-            if (normalizedTag.length === 0) continue;
-            if (normalizedTag.length > MAX_TAG_LENGTH) {
-                return { errorResponse: c.json({ error: `each tag must be ${MAX_TAG_LENGTH} chars or less` }, 400) };
-            }
-            normalizedTags.push(normalizedTag);
-        }
-
-        result.data!.tags = normalizedTags.length > 0 ? JSON.stringify(normalizedTags) : null;
-    }
-
-    return result;
 }
 
 
