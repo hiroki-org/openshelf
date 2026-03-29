@@ -976,67 +976,61 @@ describe("papers routes", () => {
         expect(res.status).toBe(404);
     });
 
-    it("POST /api/papers/:id/invites returns 409 when invite already exists", async () => {
-        const token = await createTestJWT({ sub: "user-uploader", githubId: "123", name: "Uploader" });
+    describe("POST /api/papers/:id/invites database error handling", () => {
+        const UNIQUE_INVITE_ERROR = "UNIQUE constraint failed: coauthor_invites.paperId_inviteeId";
 
-        mockDb.select = vi
-            .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-uploader", role: "uploader" } })) // isUploader check
-            .mockImplementationOnce(() => makeQuery({ getResult: null })) // alreadyAuthor check
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-invitee" } })); // invitee exists check
+        const setupInviteChecks = () => {
+            mockDb.select = vi
+                .fn()
+                .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-uploader", role: "uploader" } })) // isUploader check
+                .mockImplementationOnce(() => makeQuery({ getResult: null })) // alreadyAuthor check
+                .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-invitee" } })); // invitee exists check
+        };
 
-        mockDb.insert = vi.fn().mockReturnValue({
-            values: vi.fn().mockRejectedValue(new Error("UNIQUE constraint failed: coauthor_invites.paperId_inviteeId"))
+        const sendInviteRequest = async (token: string, env: ReturnType<typeof createTestEnv>, app: Awaited<ReturnType<typeof createTestApp>>) =>
+            app.request(
+                "http://localhost/api/papers/paper-1/invites",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ inviteeId: "user-invitee" }),
+                },
+                env as any,
+            );
+
+        it("POST /api/papers/:id/invites returns 409 when invite already exists", async () => {
+            const token = await createTestJWT({ sub: "user-uploader", githubId: "123", name: "Uploader" });
+            setupInviteChecks();
+
+            mockDb.insert = vi.fn().mockReturnValue({
+                values: vi.fn().mockRejectedValue(new Error(UNIQUE_INVITE_ERROR)),
+            });
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+            const res = await sendInviteRequest(token, env, app);
+
+            expect(res.status).toBe(409);
+            const data = (await res.json()) as any;
+            expect(data.error).toBe("Invite already sent");
         });
 
-        const app = await createTestApp();
-        const env = createTestEnv();
-        const res = await app.request(
-            "http://localhost/api/papers/paper-1/invites",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({ inviteeId: "user-invitee" })
-            },
-            env as any
-        );
+        it("POST /api/papers/:id/invites returns 500 for non-UNIQUE database errors", async () => {
+            const token = await createTestJWT({ sub: "user-uploader", githubId: "123", name: "Uploader" });
+            setupInviteChecks();
 
-        expect(res.status).toBe(409);
-        const data = (await res.json()) as any;
-        expect(data.error).toBe("Invite already sent");
-    });
+            mockDb.insert = vi.fn().mockReturnValue({
+                values: vi.fn().mockRejectedValue(new Error("Some other DB Error")),
+            });
 
-    it("POST /api/papers/:id/invites throws non-UNIQUE errors", async () => {
-        const token = await createTestJWT({ sub: "user-uploader", githubId: "123", name: "Uploader" });
+            const app = await createTestApp();
+            const env = createTestEnv();
+            const res = await sendInviteRequest(token, env, app);
 
-        mockDb.select = vi
-            .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-uploader", role: "uploader" } })) // isUploader check
-            .mockImplementationOnce(() => makeQuery({ getResult: null })) // alreadyAuthor check
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-invitee" } })); // invitee exists check
-
-        mockDb.insert = vi.fn().mockReturnValue({
-            values: vi.fn().mockRejectedValue(new Error("Some other DB Error"))
+            expect(res.status).toBe(500);
         });
-
-        const app = await createTestApp();
-        const env = createTestEnv();
-        const res = await app.request(
-            "http://localhost/api/papers/paper-1/invites",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify({ inviteeId: "user-invitee" })
-            },
-            env as any
-        );
-
-        expect(res.status).toBe(500); // Because we re-throw the error, Hono's default error handler catches it and returns 500
     });
 });
