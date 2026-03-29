@@ -25,6 +25,9 @@ function hasJwtSub(value: unknown): value is Pick<JwtPayload, "sub"> {
         && typeof (value as { sub?: unknown }).sub === "string";
 }
 
+const MEMBER_ROLES = ["admin", "member"] as const;
+const ADMIN_LIKE_ROLES = ["admin", "owner"] as const;
+
 // ─── Validation helpers ─────────────────────────────────────────
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 
@@ -65,7 +68,7 @@ async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: string, u
 
 async function requireOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
     const membership = await getOrgMembership(db, orgId, userId);
-    if (!membership || (membership.role !== "admin" && membership.role !== "owner")) {
+    if (!membership || !ADMIN_LIKE_ROLES.includes(membership.role as any)) {
         return { ok: false as const, error: "Forbidden: admin access required" };
     }
     return { ok: true as const, membership };
@@ -431,16 +434,20 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
         return c.json({ error: "Invalid JSON body" }, 400);
     }
 
-    const newRole = body?.role;
-    if (!["admin", "member"].includes(newRole)) {
-        return c.json({ error: "role must be 'admin' or 'member'" }, 400);
-    }
-
     const membership = await getOrgMembership(db, org.id, targetUserId);
     if (!membership) return c.json({ error: "Member not found" }, 404);
 
+    if (adminCheck.membership.role === "admin" && membership.role === "owner") {
+        return c.json({ error: "Forbidden: admin cannot modify owner role" }, 403);
+    }
+
+    const newRole = body?.role;
+    if (!MEMBER_ROLES.includes(newRole)) {
+        return c.json({ error: "role must be 'admin' or 'member'" }, 400);
+    }
+
     // Prevent demoting the last admin purely via atomic update check
-    if (newRole === "member" && (membership.role === "admin" || membership.role === "owner")) {
+    if (newRole === "member" && ADMIN_LIKE_ROLES.includes(membership.role as any)) {
         const result = await db
             .update(orgMembers)
             .set({ role: newRole })
@@ -483,8 +490,12 @@ orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
     const membership = await getOrgMembership(db, org.id, targetUserId);
     if (!membership) return c.json({ error: "Member not found" }, 404);
 
+    if (adminCheck.membership.role === "admin" && membership.role === "owner") {
+        return c.json({ error: "Forbidden: admin cannot remove owner" }, 403);
+    }
+
     // Prevent removing the last admin purely via atomic delete check
-    if (membership.role === "admin" || membership.role === "owner") {
+    if (ADMIN_LIKE_ROLES.includes(membership.role as any)) {
         const result = await db
             .delete(orgMembers)
             .where(
