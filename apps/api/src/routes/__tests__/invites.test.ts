@@ -102,20 +102,20 @@ describe("invites routes", () => {
             expect(body.invites[0].inviteeName).toBe("external@example.com");
         });
 
-        it("falls back to invitee name when displayName is empty", async () => {
+        it("returns invites with inviteeName resolving from leftJoin matched user when displayName is falsy", async () => {
             const token = await createTestJWT({ sub: "uploader-1", githubId: "123", name: "Uploader" });
             const mockInviteRow = {
                 invite: {
-                    id: "inv-3",
+                    id: "inv-1",
                     paperId: "paper-1",
-                    inviteeId: "user-3",
+                    inviteeId: "user-2",
                     inviteeEmail: null,
                     status: "pending"
                 },
                 invitee: {
-                    id: "user-3",
-                    name: "User Three Name",
-                    displayName: ""
+                    id: "user-2",
+                    name: "User Two",
+                    displayName: "" // Empty string should fallback to name
                 }
             };
 
@@ -137,7 +137,9 @@ describe("invites routes", () => {
 
             expect(res.status).toBe(200);
             const body = (await res.json()) as any;
-            expect(body.invites[0].inviteeName).toBe("User Three Name");
+            expect(body.invites).toHaveLength(1);
+            expect(body.invites[0].id).toBe("inv-1");
+            expect(body.invites[0].inviteeName).toBe("User Two");
         });
 
         it("returns empty array when there are 0 invites", async () => {
