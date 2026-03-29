@@ -212,5 +212,5 @@ jobs:
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v3
         with:
-          run: npx vitest run --bench --workspaces
+          run: npx vitest bench --run --workspaces
           token: ${{ secrets.CODSPEED_TOKEN }}
