@@ -1,4 +1,6 @@
-import { bench, describe } from 'vitest';
+const fs = require('fs');
+
+const benchContent = `import { bench, describe } from 'vitest';
 import { validateMagicNumbers } from '../file';
 
 describe('file extensions benchmark', () => {
@@ -15,4 +17,6 @@ describe('file extensions benchmark', () => {
         const file = new File([pngMagic], 'image.png', { type: 'image/png' });
         await validateMagicNumbers(file, 'image/png');
     });
-});
+});`;
+
+fs.writeFileSync('apps/api/src/utils/__tests__/file.bench.ts', benchContent);
