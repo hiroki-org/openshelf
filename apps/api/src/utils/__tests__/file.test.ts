@@ -105,7 +105,7 @@ describe("validateMagicNumbers", () => {
         await expect(validateMagicNumbers(fakePdf, "application/pdf")).resolves.toBe(false);
     });
 
-    it("accepts PPTX files only when the presentation entry exists", async () => {
+        it("accepts PPTX files only when the presentation entry exists", async () => {
         const pptx = createFile(
             "slides.pptx",
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -120,7 +120,7 @@ describe("validateMagicNumbers", () => {
         ).resolves.toBe(true);
     });
 
-    it("rejects PPTX files that do not contain the presentation entry", async () => {
+        it("rejects PPTX files that do not contain the presentation entry", async () => {
         const pptx = createFile(
             "slides.pptx",
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
@@ -135,7 +135,7 @@ describe("validateMagicNumbers", () => {
         ).resolves.toBe(false);
     });
 
-    it("accepts legacy PowerPoint files when the OLE payload contains the document marker", async () => {
+        it("accepts legacy PowerPoint files when the OLE payload contains the document marker", async () => {
         const ppt = createFile(
             "slides.ppt",
             "application/vnd.ms-powerpoint",

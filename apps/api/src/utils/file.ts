@@ -97,7 +97,7 @@ async function checkOle2Stream(file: File, searchStreamName: string): Promise<bo
     for (let i = 0; i < Math.min(numFatSectors, 109); i++) {
         const fatSectorIdx = difat[i];
         if (fatSectorIdx === 0xFFFFFFFF) break;
-        const fatSectorOffset = 512 + fatSectorIdx * sectorSize;
+        const fatSectorOffset = (fatSectorIdx + 1) * sectorSize;
         if (fatSectorOffset + sectorSize > file.size) return false;
 
         const fatBuffer = await file.slice(fatSectorOffset, fatSectorOffset + sectorSize).arrayBuffer();
@@ -115,7 +115,7 @@ async function checkOle2Stream(file: File, searchStreamName: string): Promise<bo
             break;
         }
 
-        const dirOffset = 512 + dirSector * sectorSize;
+        const dirOffset = (dirSector + 1) * sectorSize;
         if (dirOffset + sectorSize > file.size) return false;
 
         const dirBuffer = await file.slice(dirOffset, dirOffset + sectorSize).arrayBuffer();
@@ -128,7 +128,8 @@ async function checkOle2Stream(file: File, searchStreamName: string): Promise<bo
             // Name length is in bytes including null terminator (UTF-16LE)
             if (nameLength > 0 && nameLength <= 64) {
                 const nameBytes = dirBytes.slice(entryOffset, entryOffset + nameLength - 2);
-                const name = new TextDecoder("utf-16le").decode(nameBytes);
+                const textDecoder16 = new TextDecoder('utf-16le');
+                const name = textDecoder16.decode(nameBytes);
 
                 if (name === searchStreamName) {
                     return true;
