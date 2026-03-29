@@ -122,7 +122,6 @@ describe("papers routes", () => {
         }
     });
 
-
     it("hits the token cache on subsequent calls and removes expired ones", async () => {
         const app = await createTestApp();
         const { createTestJWT } = await import("../../test/helpers");
@@ -218,7 +217,6 @@ describe("papers routes", () => {
 
         vi.useRealTimers();
     });
-
 
     it("hits the token cache on subsequent calls", async () => {
         const app = await createTestApp();
@@ -322,7 +320,6 @@ describe("papers routes", () => {
         vi.useRealTimers();
     });
 
-
     it("hits the token cache on subsequent calls", async () => {
         const app = await createTestApp();
         const paperId = "test-paper-cache";
@@ -393,7 +390,6 @@ describe("papers routes", () => {
             },
             env as any
         );
-
 
         expect(res.status).toBe(201);
     });
@@ -962,7 +958,6 @@ describe("papers routes", () => {
             env as any
         );
 
-
         expect(res.status).toBe(200);
     });
 
@@ -987,31 +982,32 @@ describe("papers routes", () => {
                 .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-invitee" } })); // invitee exists check
         };
 
-        const sendInviteRequest = async (token: string, env: ReturnType<typeof createTestEnv>, app: Awaited<ReturnType<typeof createTestApp>>) =>
-            app.request(
+        const sendInviteRequest = async (token: string, app: any, env: any) => {
+            return await app.request(
                 "http://localhost/api/papers/paper-1/invites",
                 {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        Authorization: `Bearer ${token}`,
+                        Authorization: `Bearer ${token}`
                     },
-                    body: JSON.stringify({ inviteeId: "user-invitee" }),
+                    body: JSON.stringify({ inviteeId: "user-invitee" })
                 },
-                env as any,
+                env as any
             );
+        };
 
         it("POST /api/papers/:id/invites returns 409 when invite already exists", async () => {
             const token = await createTestJWT({ sub: "user-uploader", githubId: "123", name: "Uploader" });
             setupInviteChecks();
 
             mockDb.insert = vi.fn().mockReturnValue({
-                values: vi.fn().mockRejectedValue(new Error(UNIQUE_INVITE_ERROR)),
+                values: vi.fn().mockRejectedValue(new Error(UNIQUE_INVITE_ERROR))
             });
 
             const app = await createTestApp();
             const env = createTestEnv();
-            const res = await sendInviteRequest(token, env, app);
+            const res = await sendInviteRequest(token, app, env);
 
             expect(res.status).toBe(409);
             const data = (await res.json()) as any;
@@ -1023,12 +1019,12 @@ describe("papers routes", () => {
             setupInviteChecks();
 
             mockDb.insert = vi.fn().mockReturnValue({
-                values: vi.fn().mockRejectedValue(new Error("Some other DB Error")),
+                values: vi.fn().mockRejectedValue(new Error("Some other DB Error"))
             });
 
             const app = await createTestApp();
             const env = createTestEnv();
-            const res = await sendInviteRequest(token, env, app);
+            const res = await sendInviteRequest(token, app, env);
 
             expect(res.status).toBe(500);
         });
