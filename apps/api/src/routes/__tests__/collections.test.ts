@@ -436,7 +436,7 @@ describe("collections routes", () => {
         );
 
         expect(res.status).toBe(400);
-        expect(((await res.json()) as any).error).toBe("Invalid JSON body");
+        await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
     });
 
     it("POST /api/collections/:id/papers adds a visible paper with the next sort order", async () => {
