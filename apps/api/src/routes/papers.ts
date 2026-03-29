@@ -373,10 +373,33 @@ function parseAndValidateMetadata(c: Context, metadataStr: string): { errorRespo
             venueType: venueType as VenueType | null,
             year: meta.year ? Number(meta.year) : null,
             category: category as CategoryType | null,
-            tags: meta.tags ? JSON.stringify(meta.tags) : null,
+            tags: null,
             orgId,
         }
     };
+
+    if (meta.tags !== undefined && meta.tags !== null) {
+        if (!Array.isArray(meta.tags)) {
+            return { errorResponse: c.json({ error: "tags must be an array of strings" }, 400) };
+        }
+
+        const normalizedTags: string[] = [];
+        for (const tag of meta.tags as unknown[]) {
+            if (typeof tag !== "string") {
+                return { errorResponse: c.json({ error: "each tag must be a string" }, 400) };
+            }
+            const normalizedTag = tag.trim();
+            if (normalizedTag.length === 0) continue;
+            if (normalizedTag.length > MAX_TAG_LENGTH) {
+                return { errorResponse: c.json({ error: `each tag must be ${MAX_TAG_LENGTH} chars or less` }, 400) };
+            }
+            normalizedTags.push(normalizedTag);
+        }
+
+        result.data!.tags = normalizedTags.length > 0 ? JSON.stringify(normalizedTags) : null;
+    }
+
+    return result;
 }
 
 
@@ -387,7 +410,7 @@ type UploadEntry = {
     r2Key: string;
 };
 
-async function processUploads(c: Context, body: Record<string, string | File | (string | File)[]>, paperId: string): Promise<{ errorResponse?: Response; uploads?: UploadEntry[] }> {
+async function prepareUploadEntries(c: Context, body: Record<string, string | File | (string | File)[]>, paperId: string): Promise<{ errorResponse?: Response; uploads?: UploadEntry[] }> {
     const uploads: UploadEntry[] = [];
 
     // Validate all file entries before any upload or DB mutation.
@@ -484,7 +507,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
         }
     }
 
-    const { errorResponse: uploadError, uploads } = await processUploads(c, body, paperId);
+    const { errorResponse: uploadError, uploads } = await prepareUploadEntries(c, body, paperId);
     if (uploadError) return uploadError;
     if (!uploads) return c.json({ error: "Unexpected upload processing error" }, 500); // Should not happen based on helper logic
 
