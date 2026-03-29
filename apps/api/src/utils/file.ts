@@ -17,9 +17,15 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
   ["504B0304", "application/zip"],
 ];
 
+const MAX_ZIP_EOCD_SEARCH_WINDOW = 65535 + 22;
+const MAX_ZIP_CENTRAL_DIRECTORY_SIZE = 8 * 1024 * 1024;
+const MIN_OLE_SECTOR_SHIFT = 9;
+const MAX_OLE_SECTOR_SHIFT = 12;
+
+
 // Helper function to check for a specific entry in a ZIP file (Central Directory parsing)
 async function hasZipEntry(file: File, entryName: string): Promise<boolean> {
-  const CHUNK_SIZE = 64 * 1024; // EOCD is usually within the last 64KB
+  const CHUNK_SIZE = MAX_ZIP_EOCD_SEARCH_WINDOW; // max EOCD comment (65535) + EOCD header (22)
   const fileSize = file.size;
   const searchEnd = Math.max(0, fileSize - CHUNK_SIZE);
 
@@ -40,10 +46,11 @@ async function hasZipEntry(file: File, entryName: string): Promise<boolean> {
   if (eocdOffset === -1) return false;
 
   // Read Central Directory offset and size
-  const cdSize = view.getUint32(eocdOffset + 12, true);
+  const requestedCdSize = view.getUint32(eocdOffset + 12, true);
+  const cdSize = Math.min(requestedCdSize, MAX_ZIP_CENTRAL_DIRECTORY_SIZE);
   const cdOffset = view.getUint32(eocdOffset + 16, true);
 
-  if (cdOffset >= fileSize) return false;
+  if (cdOffset >= fileSize || cdOffset + cdSize > fileSize) return false;
 
   // Read Central Directory
   const cdBuffer = await file
@@ -92,13 +99,14 @@ async function hasOleStream(file: File, streamName: string): Promise<boolean> {
   }
 
   const sectorShift = headerView.getUint16(30, true);
-  const sectorSize = 1 << sectorShift; // usually 512
+  if (sectorShift < MIN_OLE_SECTOR_SHIFT || sectorShift > MAX_OLE_SECTOR_SHIFT) return false;
+  const sectorSize = 2 ** sectorShift; // usually 512 or 4096
   const firstDirSector = headerView.getUint32(48, true);
 
   // Simple traversal: assume directory is contiguous or search within first few directory sectors
   // To avoid complex FAT parsing, we just read the first few directory sectors.
   // Each directory sector has (sectorSize / 128) entries.
-  const dirOffset = (firstDirSector + 1) * sectorSize;
+  const dirOffset = 512 + firstDirSector * sectorSize;
   if (dirOffset >= file.size) return false;
 
   // Read up to 4 directory sectors (usually enough for simple PPT files)

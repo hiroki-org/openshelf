@@ -136,6 +136,19 @@ describe("validateMagicNumbers", () => {
     ).resolves.toBe(true);
   });
 
+  it("rejects legacy PPT files that do not contain the PowerPoint Document stream", async () => {
+    const ppt = createFile(
+      "slides.ppt",
+      "application/vnd.ms-powerpoint",
+      createOleWithStream("Word Document"),
+    );
+
+    await expect(
+      validateMagicNumbers(ppt, "application/vnd.ms-powerpoint"),
+    ).resolves.toBe(false);
+  });
+
+
   it("rejects files with unknown signatures", async () => {
     const file = createFile(
       "notes.bin",
