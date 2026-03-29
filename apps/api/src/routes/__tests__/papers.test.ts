@@ -405,6 +405,7 @@ describe("papers routes", () => {
         const dbError = new Error("Mock DB Error");
         mockDb.insert
             .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) })) // papers insert
+            .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) })) // paperAuthors insert
             .mockImplementationOnce(() => { throw dbError; }); // paperFiles insert
 
         const mockDeleteWhere = vi.fn(async () => undefined);
