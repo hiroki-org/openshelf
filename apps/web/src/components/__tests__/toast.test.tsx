@@ -35,17 +35,17 @@ describe("toast", () => {
   });
 
   it("removes listener on unmount", () => {
-    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const { container, unmount } = render(<ToastContainer />);
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { unmount, container } = render(<ToastContainer />);
     unmount();
 
     act(() => {
       toast.success("should not error");
     });
 
+    expect(consoleSpy).not.toHaveBeenCalled();
     expect(container.innerHTML).toBe("");
-    expect(consoleErrorSpy).not.toHaveBeenCalled();
-    consoleErrorSpy.mockRestore();
-  });
 
+    consoleSpy.mockRestore();
+  });
 });
