@@ -108,6 +108,7 @@ jobs:
     env:
       CODECOV_COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       CODECOV_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - name: Download API coverage artifact
@@ -196,3 +197,20 @@ jobs:
           name: playwright-report
           path: apps/e2e/playwright-report/
           retention-days: 30
+
+  codspeed:
+    name: CodSpeed
+    needs: [lint, typecheck]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v3
+        with:
+          run: npx vitest bench --run --passWithNoTests
+          token: ${{ secrets.CODSPEED_TOKEN }}
