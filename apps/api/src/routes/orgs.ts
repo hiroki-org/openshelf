@@ -23,9 +23,6 @@ interface OrgBody {
     description?: unknown;
 }
 
-type CreateOrgBody = OrgBody;
-type UpdateOrgBody = OrgBody;
-
 interface AddMemberBody {
     userId?: unknown;
     role?: unknown;
@@ -41,6 +38,21 @@ interface AssociatePaperBody {
 
 
 // ─── Validation helpers ─────────────────────────────────────────
+
+function parseMemberRole(role: unknown): "admin" | "member" | null {
+    if (role === undefined || role === null) return "member";
+    if (typeof role === "string" && (role === "admin" || role === "member")) {
+        return role;
+    }
+    return null;
+}
+
+function parseRequiredMemberRole(role: unknown): "admin" | "member" | null {
+    if (typeof role === "string" && (role === "admin" || role === "member")) {
+        return role;
+    }
+    return null;
+}
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 
 function validateSlug(slug: unknown): string | null {
@@ -63,17 +75,6 @@ function validateDescription(description: unknown): string | null {
     if (typeof description !== "string") return "description must be a string";
     if (description.trim().length > 500) return "description must be 500 characters or less";
     return null;
-}
-
-function parseMemberRole(rawRole: unknown): "admin" | "member" | null {
-    if (rawRole === undefined || rawRole === null) return "member";
-    if (typeof rawRole !== "string") return null;
-    return rawRole === "admin" || rawRole === "member" ? rawRole : null;
-}
-
-function parseRequiredMemberRole(rawRole: unknown): "admin" | "member" | null {
-    if (typeof rawRole !== "string") return null;
-    return rawRole === "admin" || rawRole === "member" ? rawRole : null;
 }
 
 // ─── Permission helpers ─────────────────────────────────────────
@@ -117,7 +118,7 @@ async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, us
 
 // POST /api/orgs — create org
 orgsRoute.post("/", authMiddleware, async (c) => {
-    let body: CreateOrgBody;
+    let body: OrgBody;
     try {
         body = await c.req.json();
     } catch {
@@ -206,7 +207,7 @@ orgsRoute.patch("/:slug", authMiddleware, async (c) => {
     const adminCheck = await requireOrgAdmin(db, org.id, userId);
     if (!adminCheck.ok) return c.json({ error: adminCheck.error }, 403);
 
-    let body: UpdateOrgBody;
+    let body: OrgBody;
     try {
         body = await c.req.json();
     } catch {
