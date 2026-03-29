@@ -16,6 +16,10 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
   ["504B0304", "application/zip"],
 ];
 
+const OLE2_MAGIC_PART_1 = 0xe011cfd0;
+const OLE2_MAGIC_PART_2 = 0xe11ab1a1;
+
+
 // Helper function to efficiently parse ZIP Central Directory to find a specific entry
 async function hasZipEntry(file: File, targetEntry: string): Promise<boolean> {
   const CHUNK_SIZE = 65536 + 22; // Max comment size + EOCD size
@@ -79,8 +83,8 @@ async function hasOleStream(
 
   // OLE2 magic number check
   if (
-    headerView.getUint32(0, false) !== 0xd0cf11e0 ||
-    headerView.getUint32(4, false) !== 0xa1b11ae1
+    headerView.getUint32(0, true) !== OLE2_MAGIC_PART_1 ||
+    headerView.getUint32(4, true) !== OLE2_MAGIC_PART_2
   ) {
     return false;
   }
@@ -94,7 +98,7 @@ async function hasOleStream(
   // Read MSAT/FAT
   const fatSectors: number[] = [];
   for (let i = 0; i < 109; i++) {
-    const sec = headerView.getUint32(116 + i * 4, true);
+    const sec = headerView.getUint32(76 + i * 4, true);
     if (sec === 0xffffffff || sec === 0xfffffffe) break; // End of chain or free
     fatSectors.push(sec);
   }

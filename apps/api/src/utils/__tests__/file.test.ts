@@ -54,9 +54,9 @@ function createMockOle2(streams: string[]) {
     view.setUint32(44, 1, true);
     view.setUint32(48, 1, true);
 
-    view.setUint32(116, 0, true);
+    view.setUint32(76, 0, true);
     for (let i = 1; i < 109; i++) {
-        view.setUint32(116 + i * 4, 0xFFFFFFFF, true);
+        view.setUint32(76 + i * 4, 0xFFFFFFFF, true);
     }
 
     view.setUint32(512 + 0, 0xFFFFFFFF, true);
