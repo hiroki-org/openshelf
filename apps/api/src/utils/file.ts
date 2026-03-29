@@ -61,7 +61,7 @@ async function checkZipEntry(file: File, searchFilename: string): Promise<boolea
         const fileNameBytes = cdBytes.slice(offset + 46, offset + 46 + fileNameLength);
         const fileName = textDecoder.decode(fileNameBytes);
 
-        if (fileName === searchFilename || fileName.startsWith(searchFilename)) {
+        if (fileName === searchFilename) {
             return true;
         }
 
@@ -97,7 +97,7 @@ async function checkOle2Stream(file: File, searchStreamName: string): Promise<bo
     for (let i = 0; i < Math.min(numFatSectors, 109); i++) {
         const fatSectorIdx = difat[i];
         if (fatSectorIdx === 0xFFFFFFFF) break;
-        const fatSectorOffset = (fatSectorIdx + 1) * sectorSize;
+        const fatSectorOffset = 512 + fatSectorIdx * sectorSize;
         if (fatSectorOffset + sectorSize > file.size) return false;
 
         const fatBuffer = await file.slice(fatSectorOffset, fatSectorOffset + sectorSize).arrayBuffer();
@@ -115,7 +115,7 @@ async function checkOle2Stream(file: File, searchStreamName: string): Promise<bo
             break;
         }
 
-        const dirOffset = (dirSector + 1) * sectorSize;
+        const dirOffset = 512 + dirSector * sectorSize;
         if (dirOffset + sectorSize > file.size) return false;
 
         const dirBuffer = await file.slice(dirOffset, dirOffset + sectorSize).arrayBuffer();
@@ -128,10 +128,7 @@ async function checkOle2Stream(file: File, searchStreamName: string): Promise<bo
             // Name length is in bytes including null terminator (UTF-16LE)
             if (nameLength > 0 && nameLength <= 64) {
                 const nameBytes = dirBytes.slice(entryOffset, entryOffset + nameLength - 2);
-                let name = '';
-                for (let j = 0; j < nameBytes.length; j += 2) {
-                    name += String.fromCharCode(nameBytes[j] | (nameBytes[j+1] << 8));
-                }
+                const name = new TextDecoder("utf-16le").decode(nameBytes);
 
                 if (name === searchStreamName) {
                     return true;
