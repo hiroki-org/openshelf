@@ -17,17 +17,14 @@ import { authMiddleware } from "../middleware/auth";
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 
-interface CreateOrgBody {
+interface OrgBody {
     slug?: unknown;
     name?: unknown;
     description?: unknown;
 }
 
-interface UpdateOrgBody {
-    slug?: unknown;
-    name?: unknown;
-    description?: unknown;
-}
+type CreateOrgBody = OrgBody;
+type UpdateOrgBody = OrgBody;
 
 interface AddMemberBody {
     userId?: unknown;
@@ -66,6 +63,17 @@ function validateDescription(description: unknown): string | null {
     if (typeof description !== "string") return "description must be a string";
     if (description.trim().length > 500) return "description must be 500 characters or less";
     return null;
+}
+
+function parseMemberRole(rawRole: unknown): "admin" | "member" | null {
+    if (rawRole === undefined || rawRole === null) return "member";
+    if (typeof rawRole !== "string") return null;
+    return rawRole === "admin" || rawRole === "member" ? rawRole : null;
+}
+
+function parseRequiredMemberRole(rawRole: unknown): "admin" | "member" | null {
+    if (typeof rawRole !== "string") return null;
+    return rawRole === "admin" || rawRole === "member" ? rawRole : null;
 }
 
 // ─── Permission helpers ─────────────────────────────────────────
@@ -311,8 +319,8 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
         return c.json({ error: "userId is required" }, 400);
     }
 
-    const role = (body?.role as "admin" | "member" | undefined) ?? "member";
-    if (!["admin", "member"].includes(role)) {
+    const role = parseMemberRole(body?.role);
+    if (!role) {
         return c.json({ error: "role must be 'admin' or 'member'" }, 400);
     }
 
@@ -362,8 +370,8 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
         return c.json({ error: "Invalid JSON body" }, 400);
     }
 
-    const newRole = body?.role as "admin" | "member" | undefined;
-    if (!newRole || !["admin", "member"].includes(newRole)) {
+    const newRole = parseRequiredMemberRole(body?.role);
+    if (!newRole) {
         return c.json({ error: "role must be 'admin' or 'member'" }, 400);
     }
 
