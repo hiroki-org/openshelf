@@ -67,6 +67,9 @@ async function isOrgMember(db: ReturnType<typeof drizzle>, orgId: string, userId
     return !!membership;
 }
 
+const MEMBER_ROLES = ["admin", "member"] as const;
+const ADMIN_LIKE_ROLES = ["admin", "owner"] as const;
+
 async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, userId: string): Promise<boolean> {
     const author = await db
         .select()
@@ -285,7 +288,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     }
 
     const role = body?.role ?? "member";
-    if (!["admin", "member"].includes(role)) {
+    if (!MEMBER_ROLES.includes(role as (typeof MEMBER_ROLES)[number])) {
         return c.json({ error: "role must be 'admin' or 'member'" }, 400);
     }
 
@@ -336,10 +339,6 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
     }
 
     const newRole = body?.role;
-    if (!["admin", "member"].includes(newRole)) {
-        return c.json({ error: "role must be 'admin' or 'member'" }, 400);
-    }
-
     const membership = await getOrgMembership(db, org.id, targetUserId);
     if (!membership) return c.json({ error: "Member not found" }, 404);
 
@@ -347,11 +346,15 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
         return c.json({ error: "Forbidden: admin cannot modify owner role" }, 403);
     }
 
+    if (!MEMBER_ROLES.includes(newRole as (typeof MEMBER_ROLES)[number])) {
+        return c.json({ error: "role must be 'admin' or 'member'" }, 400);
+    }
+
     // Prevent demoting the last admin purely via atomic update check
-    if (newRole === "member" && (membership.role === "admin" || membership.role === "owner")) {
+    if (newRole === "member" && ADMIN_LIKE_ROLES.includes(membership.role as (typeof ADMIN_LIKE_ROLES)[number])) {
         const result = await db
             .update(orgMembers)
-            .set({ role: newRole })
+            .set({ role: newRole as (typeof MEMBER_ROLES)[number] })
             .where(
                 and(
                     eq(orgMembers.orgId, org.id),
@@ -368,7 +371,7 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
 
     await db
         .update(orgMembers)
-        .set({ role: newRole })
+        .set({ role: newRole as (typeof MEMBER_ROLES)[number] })
         .where(and(eq(orgMembers.orgId, org.id), eq(orgMembers.userId, targetUserId)));
 
     return c.json({ ok: true });
