@@ -102,6 +102,44 @@ describe("invites routes", () => {
             expect(body.invites[0].inviteeName).toBe("external@example.com");
         });
 
+        it("falls back to invitee name when displayName is empty", async () => {
+            const token = await createTestJWT({ sub: "uploader-1", githubId: "123", name: "Uploader" });
+            const mockInviteRow = {
+                invite: {
+                    id: "inv-3",
+                    paperId: "paper-1",
+                    inviteeId: "user-3",
+                    inviteeEmail: null,
+                    status: "pending"
+                },
+                invitee: {
+                    id: "user-3",
+                    name: "User Three Name",
+                    displayName: ""
+                }
+            };
+
+            mockDb.select = vi
+                .fn()
+                .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "uploader-1", role: "uploader" } }))
+                .mockImplementationOnce(() => makeQuery({ allResult: [mockInviteRow] }));
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/papers/paper-1/invites",
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                },
+                env as any
+            );
+
+            expect(res.status).toBe(200);
+            const body = (await res.json()) as any;
+            expect(body.invites[0].inviteeName).toBe("User Three Name");
+        });
+
         it("returns empty array when there are 0 invites", async () => {
             const token = await createTestJWT({ sub: "uploader-1", githubId: "123", name: "Uploader" });
             mockDb.select = vi
