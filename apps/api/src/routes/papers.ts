@@ -20,6 +20,7 @@ import {
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
+import { buildCitation, isCitationFormat } from "../utils/citation";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -602,6 +603,54 @@ papersRoute.get("/:id", async (c) => {
         files,
         authors,
     });
+});
+
+// GET /api/papers/:id/cite — generate citation text
+papersRoute.get("/:id/cite", async (c) => {
+    const paperId = c.req.param("id");
+    const formatRaw = c.req.query("format") ?? "bibtex";
+    const format = isCitationFormat(formatRaw) ? formatRaw : "bibtex";
+    const db = drizzle(c.env.DB);
+
+    const paper = await db
+        .select()
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!paper) return c.json({ error: "Not found" }, 404);
+
+    const access = await authorizePaperAccess(c, db, paper);
+    if (!access.ok) {
+        return c.json({ error: access.error }, access.status as any);
+    }
+
+    const authors = await db
+        .select({
+            name: users.name,
+            displayName: users.displayName,
+        })
+        .from(paperAuthors)
+        .innerJoin(users, eq(paperAuthors.userId, users.id))
+        .where(eq(paperAuthors.paperId, paperId))
+        .all();
+
+    const citation = buildCitation(
+        {
+            id: paper.id,
+            title: paper.title,
+            venue: paper.venue,
+            venueType: paper.venueType,
+            year: paper.year,
+            category: paper.category,
+            doi: paper.doi,
+            externalUrl: paper.externalUrl,
+        },
+        authors,
+        format,
+        c.env.FRONTEND_URL,
+    );
+
+    return c.json(citation);
 });
 
 // POST /api/papers/:id/view — record a deduplicated paper view
