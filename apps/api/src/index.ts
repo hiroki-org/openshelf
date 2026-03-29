@@ -7,6 +7,7 @@ import usersRoute from "./routes/users";
 import papersRoute from "./routes/papers";
 import invitesRoute from "./routes/invites";
 import orgsRoute from "./routes/orgs";
+import tagsRoute from "./routes/tags";
 import collectionsRoute from "./routes/collections";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -84,6 +85,7 @@ app.route("/api/users", usersRoute);
 app.route("/api/papers", papersRoute);
 app.route("/api/invites", invitesRoute);
 app.route("/api/orgs", orgsRoute);
+app.route("/api/tags", tagsRoute);
 app.route("/api", collectionsRoute);
 
 // Health

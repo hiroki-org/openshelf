@@ -635,6 +635,92 @@ describe("orgs routes", () => {
         });
     });
 
+    describe("GET /api/orgs/:slug/tags", () => {
+        it("returns tags from visible org papers", async () => {
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "member" } },
+                {
+                    allResult: [
+                        {
+                            id: "paper-public",
+                            visibility: "public",
+                            tags: "[\"AI\",\"NLP\"]",
+                            authorUserId: null,
+                        },
+                        {
+                            id: "paper-org",
+                            visibility: "org_only",
+                            tags: "[\"AI\"]",
+                            authorUserId: "user-1",
+                        },
+                    ],
+                },
+            ]);
+
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Member" });
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/tags",
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(200);
+            await expect(res.json()).resolves.toEqual({ tags: ["AI", "NLP"] });
+        });
+
+        it("limits public org tag responses to 100 items", async () => {
+            const manyTags = Array.from(
+                { length: 105 },
+                (_, index) => `tag-${String(index).padStart(3, "0")}`,
+            );
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                {
+                    allResult: manyTags.map((tag, index) => ({
+                        id: `paper-${index}`,
+                        visibility: "public",
+                        tags: JSON.stringify([tag]),
+                        authorUserId: null,
+                    })),
+                },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/tags",
+                {},
+                env as any,
+            );
+
+            expect(res.status).toBe(200);
+            const body = (await res.json()) as { tags: string[] };
+            expect(body.tags).toHaveLength(100);
+            expect(body.tags).toEqual(manyTags.slice(0, 100));
+        });
+
+        it("returns 404 when org does not exist", async () => {
+            mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+            const res = await app.request(
+                "http://localhost/api/orgs/missing-org/tags",
+                {},
+                env as any,
+            );
+
+            expect(res.status).toBe(404);
+            await expect(res.json()).resolves.toEqual({ error: "Org not found" });
+        });
+    });
+
     describe("DELETE /api/orgs/:slug/members/:userId", () => {
         it("returns 404 when the target membership does not exist", async () => {
             const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });

@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { verify } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, sql, inArray } from "drizzle-orm";
 import {
@@ -11,10 +12,18 @@ import {
     enableForeignKeys,
     touchUpdatedAt,
 } from "../db/schema";
-import type { Env, Variables } from "../types";
+import type { Env, JwtPayload, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { parseStoredTags } from "../utils/tags";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
+const ORG_TAGS_LIMIT = 100;
+
+function hasJwtSub(value: unknown): value is Pick<JwtPayload, "sub"> {
+    return !!value
+        && typeof value === "object"
+        && typeof (value as { sub?: unknown }).sub === "string";
+}
 
 // ─── Validation helpers ─────────────────────────────────────────
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
@@ -76,9 +85,96 @@ async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, us
     return !!author;
 }
 
+async function getOptionalUserIdFromAuthHeader(
+    c: Context<{ Bindings: Env; Variables: Variables }>,
+): Promise<string | null> {
+    const authHeader = c.req.header("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) return null;
+
+    try {
+        const payload = await verify(authHeader.slice(7), c.env.JWT_SECRET, "HS256");
+        return hasJwtSub(payload) ? payload.sub : null;
+    } catch {
+        return null;
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 1. Org CRUD
 // ═══════════════════════════════════════════════════════════════
+
+// GET /api/orgs/:slug/tags — list tags used in an org
+orgsRoute.get("/:slug/tags", async (c) => {
+    const slug = c.req.param("slug");
+    const db = drizzle(c.env.DB);
+    const query = (c.req.query("q") ?? "").trim().toLowerCase();
+
+    const org = await getOrgBySlug(db, slug);
+    if (!org) return c.json({ error: "Org not found" }, 404);
+
+    // Optional auth to determine whether org_only/private tags should be visible
+    const currentUserId = await getOptionalUserIdFromAuthHeader(c);
+
+    const isMember = currentUserId
+        ? await isOrgMember(db, org.id, currentUserId)
+        : false;
+
+    const orgPapers = currentUserId
+        ? await db
+            .select({
+                id: papers.id,
+                visibility: papers.visibility,
+                tags: papers.tags,
+                authorUserId: paperAuthors.userId,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .leftJoin(
+                paperAuthors,
+                and(
+                    eq(paperAuthors.paperId, papers.id),
+                    eq(paperAuthors.userId, currentUserId),
+                ),
+            )
+            .where(eq(paperOrgs.orgId, org.id))
+            .all()
+        : await db
+            .select({
+                id: papers.id,
+                visibility: papers.visibility,
+                tags: papers.tags,
+                authorUserId: sql<string | null>`null`,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(eq(paperOrgs.orgId, org.id))
+            .all();
+    if (orgPapers.length === 0) return c.json({ tags: [] });
+
+    const counts = new Map<string, number>();
+    for (const paper of orgPapers) {
+        const isAuthor = paper.authorUserId === currentUserId;
+        const isVisible = paper.visibility === "public"
+            || (paper.visibility === "org_only" && (isMember || isAuthor))
+            || (paper.visibility === "private" && isAuthor);
+        if (!isVisible) continue;
+
+        for (const tag of parseStoredTags(paper.tags)) {
+            if (query && !tag.toLowerCase().startsWith(query)) continue;
+            counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        }
+    }
+
+    const tags = [...counts.entries()]
+        .sort((a, b) => {
+            if (b[1] !== a[1]) return b[1] - a[1];
+            return a[0].localeCompare(b[0]);
+        })
+        .slice(0, ORG_TAGS_LIMIT)
+        .map(([tag]) => tag);
+
+    return c.json({ tags });
+});
 
 // POST /api/orgs — create org
 orgsRoute.post("/", authMiddleware, async (c) => {
@@ -425,17 +521,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
     if (!org) return c.json({ error: "Org not found" }, 404);
 
     // Check auth (optional)
-    let currentUserId: string | null = null;
-    const authHeader = c.req.header("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-        try {
-            const { verify } = await import("hono/jwt");
-            const payload = await verify(authHeader.slice(7), c.env.JWT_SECRET, "HS256") as any;
-            currentUserId = payload.sub ?? null;
-        } catch {
-            // Not authenticated — fine, just show public papers
-        }
-    }
+    const currentUserId = await getOptionalUserIdFromAuthHeader(c);
 
     const isMember = currentUserId ? await isOrgMember(db, org.id, currentUserId) : false;
 
@@ -468,7 +554,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
         .all();
 
     // Check authorship for non-public papers the user might be an author of
-    let authoredPaperIds = new Set<string>();
+    const authoredPaperIds = new Set<string>();
     if (currentUserId) {
         const nonPublicPapers = allPapers.filter((p) => p.visibility !== "public");
         if (nonPublicPapers.length > 0) {
@@ -482,7 +568,9 @@ orgsRoute.get("/:slug/papers", async (c) => {
                     ),
                 )
                 .all();
-            authoredPaperIds = new Set(authorships.map((a) => a.paperId));
+            for (const authorship of authorships) {
+                authoredPaperIds.add(authorship.paperId);
+            }
         }
     }
 
