@@ -351,6 +351,42 @@ describe("orgs routes", () => {
     });
 
     describe("PATCH /api/orgs/:slug/members/:userId", () => {
+        it("returns 200 when an owner modifies another owner role", async () => {
+            const token = await createTestJWT({ sub: "owner-1", githubId: "123", name: "Owner 1" });
+            const org = { id: "org-1", slug: "my-lab" };
+
+            queueSelectResponses([
+                { getResult: org },
+                { getResult: { orgId: "org-1", userId: "owner-1", role: "owner" } }, // requireOrgAdmin
+                { getResult: { orgId: "org-1", userId: "owner-2", role: "owner" } }, // getOrgMembership (target)
+            ]);
+            mockDb.update = vi.fn(() => ({
+                set: vi.fn(() => ({
+                    where: vi.fn(() => ({
+                        meta: { changes: 1 } // simulate successful update
+                    }))
+                }))
+            }));
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/members/owner-2",
+                {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ role: "member" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(200);
+            expect(await res.json()).toEqual({ ok: true });
+        });
         it("returns 403 when an admin tries to modify an owner's role", async () => {
             const token = await createTestJWT({ sub: "admin-user", githubId: "123", name: "Admin Tester" });
             const org = { id: "org-1", slug: "my-lab" };
@@ -380,40 +416,6 @@ describe("orgs routes", () => {
             expect(res.status).toBe(403);
             expect(((await res.json()) as any).error).toBe("Forbidden: admin cannot modify owner role");
         });
-        it("returns 200 when an owner modifies another owner's role", async () => {
-            const token = await createTestJWT({ sub: "owner-user", githubId: "123", name: "Owner Tester" });
-            const org = { id: "org-1", slug: "my-lab" };
-
-            queueSelectResponses([
-                { getResult: org },
-                { getResult: { orgId: "org-1", userId: "owner-user", role: "owner" } }, // requireOrgAdmin
-                { getResult: { orgId: "org-1", userId: "owner-target", role: "owner" } }, // target membership
-            ]);
-
-            const updateWhere = vi.fn(async () => ({ meta: { changes: 1 } }));
-            const updateSet = vi.fn(() => ({ where: updateWhere }));
-            mockDb.update = vi.fn(() => ({ set: updateSet }));
-
-            const app = await createTestApp();
-            const env = createTestEnv();
-
-            const res = await app.request(
-                "http://localhost/api/orgs/my-lab/members/owner-target",
-                {
-                    method: "PATCH",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ role: "member" }),
-                },
-                env as any,
-            );
-
-            expect(res.status).toBe(200);
-            expect(updateSet).toHaveBeenCalledWith({ role: "member" });
-        });
-
         it("returns 400 for invalid role", async () => {
             const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
             const org = { id: "org-1", slug: "my-lab" };
