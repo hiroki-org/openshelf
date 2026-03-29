@@ -73,7 +73,7 @@ describe("collections routes", () => {
         expect(res.status).toBe(400);
         expect(((await res.json()) as any).error).toBe("Invalid JSON body");
     });
-it("GET /api/collections/:id returns 404 when not found", async () => {
+    it("GET /api/collections/:id returns 404 when not found", async () => {
         mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
 
         const app = await createTestApp();
