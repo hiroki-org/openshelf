@@ -1,6 +1,9 @@
 import { defineConfig } from "vitest/config";
 
-export default defineConfig({
+export default defineConfig(async () => {
+    const { default: codspeedPlugin } = await import("@codspeed/vitest-plugin");
+    return {
+    plugins: [codspeedPlugin()],
     test: {
         environment: "node",
         include: ["src/**/__tests__/**/*.test.ts"],
@@ -17,4 +20,5 @@ export default defineConfig({
             exclude: ["src/types.ts", "**/coverage/**"],
         }
     }
+    };
 });

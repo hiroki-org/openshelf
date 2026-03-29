@@ -1,7 +1,10 @@
 import { defineConfig } from "vitest/config";
 import path from "node:path";
 
-export default defineConfig({
+export default defineConfig(async () => {
+    const { default: codspeedPlugin } = await import("@codspeed/vitest-plugin");
+    return {
+    plugins: [codspeedPlugin()],
     resolve: {
         alias: {
             "@": path.resolve(__dirname, "./src")
@@ -22,4 +25,5 @@ export default defineConfig({
             reportsDirectory: "./coverage"
         }
     }
+    };
 });
