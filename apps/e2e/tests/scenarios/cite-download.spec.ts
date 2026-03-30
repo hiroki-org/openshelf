@@ -9,14 +9,17 @@ test.describe('Cite & Download', () => {
     const title = `Cite Target ${randomUUID().slice(0, 8)}`;
     const paperId = await uploadPublicPaper(page, title);
 
-    await page.goto(`/papers/${paperId}`);
-
-    await page.evaluate(() => {
+    await page.addInitScript(() => {
+      const clipboardMock = {
+        writeText: async (_text: string): Promise<void> => {},
+      };
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
-        value: { writeText: async () => undefined },
+        get: () => clipboardMock,
       });
     });
+
+    await page.goto(`/papers/${paperId}`);
 
     await page.getByRole('button', { name: /Cite/ }).click();
     await page.getByRole('menuitem', { name: 'BibTeX' }).click();

@@ -26,6 +26,9 @@ test.describe('Upload Validation', () => {
   test('ファイル未添付でアップロード時にバリデーションエラーを表示すること', async ({ page }) => {
     await loginAsTestUser(page, { name: `uploader-${randomUUID().slice(0, 6)}` });
     await page.goto('/upload');
+    await page.locator('form').evaluate((form) => {
+      form.setAttribute('novalidate', 'true');
+    });
 
     await page.getByLabel(/タイトル/).fill(`Validation ${randomUUID().slice(0, 8)}`);
     await page.getByRole('button', { name: '論文をアップロードする' }).click();

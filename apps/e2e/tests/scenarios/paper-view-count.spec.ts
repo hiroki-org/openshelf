@@ -4,7 +4,7 @@ import { loginAsTestUser } from '../../helpers/auth';
 import { uploadPublicPaper } from '../../helpers/paper';
 
 test.describe('Paper View Count', () => {
-  test('showViewCount有効の論文で公開閲覧数が表示されること', async ({ page }) => {
+  test('showViewCount有効の論文で公開閲覧数が表示されること', async ({ page, browser }) => {
     await loginAsTestUser(page, { name: `viewer-owner-${randomUUID().slice(0, 6)}` });
     const title = `View Count ${randomUUID().slice(0, 8)}`;
     const paperId = await uploadPublicPaper(page, title);
@@ -15,7 +15,7 @@ test.describe('Paper View Count', () => {
     await expect(page).toHaveURL(new RegExp(`/papers/${paperId}$`));
     await expect(page.getByText('公開表示中の総閲覧数')).toBeVisible();
 
-    const guestContext = await page.context().browser()!.newContext();
+    const guestContext = await browser.newContext();
     const guestPage = await guestContext.newPage();
     try {
       await loginAsTestUser(guestPage, { name: `viewer-guest-${randomUUID().slice(0, 6)}` });

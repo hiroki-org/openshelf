@@ -8,9 +8,7 @@ test.describe('Coauthor Invite Flow', () => {
     page,
     browser,
   }) => {
-    const inviterGithubId = randomUUID();
     await loginAsTestUser(page, {
-      githubId: inviterGithubId,
       name: `inviter-${randomUUID().slice(0, 6)}`,
     });
 
