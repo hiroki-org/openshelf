@@ -184,6 +184,8 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps chromium
         working-directory: apps/e2e
@@ -236,5 +238,5 @@ jobs:
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v3
         with:
-          run: npx vitest bench --run --passWithNoTests
+          run: npx vitest bench --run --config apps/api/vitest.config.ts --passWithNoTests
           token: ${{ secrets.CODSPEED_TOKEN }}

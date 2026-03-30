@@ -20,12 +20,12 @@ export default defineConfig({
         ['html', { open: 'never' }],
         ['junit', { outputFile: path.resolve(__dirname, 'test-results/junit.xml') }],
       ]
-    : [['html', { open: 'never' }]],
+    : [['html', { open: 'on-failure' }]],
   use: {
     baseURL,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: isCI ? 'retain-on-failure' : 'off',
   },
   projects: [
     {
