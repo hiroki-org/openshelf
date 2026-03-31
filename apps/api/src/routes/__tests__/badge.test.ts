@@ -232,5 +232,7 @@ describe("badge routes", () => {
             env as any,
         );
         expect(second.status).toBe(304);
+        expect(second.headers.get("etag")).toBe(etag);
+        expect(await second.text()).toBe("");
     });
 });

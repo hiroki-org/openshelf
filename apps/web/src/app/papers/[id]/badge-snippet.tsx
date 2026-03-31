@@ -39,7 +39,7 @@ function urlEncode(value: string): string {
 }
 
 export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
-  const snippets = useMemo<SnippetItem[]>(() => {
+  const { snippets, badgePreviewUrl } = useMemo(() => {
     const normalizedSiteBase =
       siteBase.trim() || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const badgeSvgUrl = toAbsoluteUrl(
@@ -55,7 +55,7 @@ export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
       shieldsEndpointUrl,
     )}`;
 
-    return [
+    const items: SnippetItem[] = [
       {
         key: "markdown",
         label: "Markdown",
@@ -72,12 +72,8 @@ export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
         value: `[![OpenShelf Badge](${shieldsImageUrl})](${paperUrl})`,
       },
     ];
+    return { snippets: items, badgePreviewUrl: badgeSvgUrl };
   }, [paperId, title, siteBase]);
-
-  const badgePreviewUrl = toAbsoluteUrl(
-    API_BASE,
-    `/badge/${urlEncode(paperId)}?style=default&label=OpenShelf`,
-  );
 
   const copySnippet = async (value: string) => {
     if (!navigator.clipboard?.writeText) {

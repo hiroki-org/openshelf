@@ -21,20 +21,16 @@ const badgeRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 type BadgeContext = Context<{ Bindings: Env; Variables: Variables }>;
 
-function setCacheHeaders(c: BadgeContext, payload: string): void {
-    const etag = createEtag(payload);
+function setCacheHeaders(c: BadgeContext, etag: string): void {
     c.header("Cache-Control", BADGE_CACHE_CONTROL);
     c.header("ETag", etag);
     c.header("Vary", "Accept-Encoding");
 }
 
-function applyConditionalResponse(c: BadgeContext, payload: string): boolean {
-    const etag = createEtag(payload);
+function applyConditionalResponse(c: BadgeContext, etag: string): boolean {
     const ifNoneMatch = c.req.header("If-None-Match");
     if (ifNoneMatch && ifNoneMatch === etag) {
-        c.header("Cache-Control", BADGE_CACHE_CONTROL);
-        c.header("ETag", etag);
-        c.header("Vary", "Accept-Encoding");
+        setCacheHeaders(c, etag);
         c.status(304);
         return true;
     }
@@ -75,10 +71,11 @@ badgeRoute.get("/:paperId", async (c) => {
 
     if (!paper) {
         const notFound = buildNotFoundBadge(options);
-        if (applyConditionalResponse(c, notFound.svg)) {
+        const etag = createEtag(notFound.svg);
+        if (applyConditionalResponse(c, etag)) {
             return c.body(null);
         }
-        setCacheHeaders(c, notFound.svg);
+        setCacheHeaders(c, etag);
         c.header("Content-Type", "image/svg+xml; charset=utf-8");
         return c.body(notFound.svg, 404);
     }
@@ -86,11 +83,12 @@ badgeRoute.get("/:paperId", async (c) => {
     const leftText = buildLeftText(options.label);
     const message = buildBadgeMessage(paper.title, paper.year, options.style);
     const svg = buildBadgeSvg(leftText, message, options.color);
+    const etag = createEtag(svg);
 
-    if (applyConditionalResponse(c, svg)) {
+    if (applyConditionalResponse(c, etag)) {
         return c.body(null);
     }
-    setCacheHeaders(c, svg);
+    setCacheHeaders(c, etag);
     c.header("Content-Type", "image/svg+xml; charset=utf-8");
     return c.body(svg);
 });
@@ -103,10 +101,11 @@ badgeRoute.get("/api/:paperId", async (c) => {
     if (!paper) {
         const notFound = buildNotFoundBadge(options);
         const payload = JSON.stringify(notFound.json);
-        if (applyConditionalResponse(c, payload)) {
+        const etag = createEtag(payload);
+        if (applyConditionalResponse(c, etag)) {
             return c.body(null);
         }
-        setCacheHeaders(c, payload);
+        setCacheHeaders(c, etag);
         return c.json(notFound.json, 404);
     }
 
@@ -114,10 +113,11 @@ badgeRoute.get("/api/:paperId", async (c) => {
     const message = buildBadgeMessage(paper.title, paper.year, options.style);
     const json = buildShieldsEndpointPayload(leftText, message, options.color);
     const payload = JSON.stringify(json);
-    if (applyConditionalResponse(c, payload)) {
+    const etag = createEtag(payload);
+    if (applyConditionalResponse(c, etag)) {
         return c.body(null);
     }
-    setCacheHeaders(c, payload);
+    setCacheHeaders(c, etag);
     return c.json(json);
 });
 
