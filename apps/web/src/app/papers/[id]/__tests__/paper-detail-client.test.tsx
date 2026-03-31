@@ -75,6 +75,11 @@ describe("PaperDetailClient", () => {
     vi.clearAllMocks();
     objectUrlCount = 0;
     authState = { user: { id: "author-1" } };
+    vi.stubGlobal("navigator", {
+      clipboard: {
+        writeText: vi.fn(async () => undefined),
+      },
+    });
     vi.spyOn(console, "error").mockImplementation(() => {});
     const UrlMock = Object.assign(
       class extends URL {},
@@ -272,6 +277,16 @@ describe("PaperDetailClient", () => {
       "href",
       "https://example.com/paper",
     );
+    expect(screen.getByText("Badge")).toBeInTheDocument();
+    expect(
+      screen.getByAltText("OpenShelf badge preview for Transformer Tricks"),
+    ).toHaveAttribute(
+      "src",
+      expect.stringContaining("/badge/paper-1?style=default&label=OpenShelf"),
+    );
+    expect(screen.getByText("Markdown")).toBeInTheDocument();
+    expect(screen.getByText("HTML")).toBeInTheDocument();
+    expect(screen.getByText("shields.io")).toBeInTheDocument();
     expect(screen.getByText("閲覧統計")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("3/2")).toBeInTheDocument();
@@ -371,6 +386,7 @@ describe("PaperDetailClient", () => {
 
     await screen.findByRole("heading", { name: "Fallback Preview" });
     expect(await screen.findByText("プレビューを読み込めません")).toBeInTheDocument();
+    expect(screen.queryByText("Badge")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "ダウンロードする" }));
 
