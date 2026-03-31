@@ -118,6 +118,7 @@ function formatCount(value: number | null | undefined): string {
 export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const { user } = useAuth();
   const trackedViewPaperIdRef = useRef<string | null>(null);
+  const trackedPreviewPaperIdRef = useRef<string | null>(null);
 
   const [paper, setPaper] = useState<Paper | null>(null);
   const [files, setFiles] = useState<PaperFile[]>([]);
@@ -223,32 +224,46 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     if (isUploader) fetchInvites();
   }, [isUploader, fetchInvites]);
 
+  const trackEvent = useCallback(
+    (event: "view" | "download" | "preview") => {
+      if (!paper?.id) return;
+
+      const body = JSON.stringify({
+        event,
+        referrer:
+          typeof document !== "undefined" ? document.referrer || null : null,
+      });
+
+      const trackPath = `/api/papers/${safePath(paper.id)}/track`;
+      const canUseBeacon =
+        paper.visibility === "public" &&
+        typeof navigator !== "undefined" &&
+        typeof navigator.sendBeacon === "function";
+
+      if (canUseBeacon) {
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+        const endpoint = `${API_BASE}${trackPath}`;
+        const blob = new Blob([body], { type: "application/json" });
+        navigator.sendBeacon(endpoint, blob);
+        return;
+      }
+
+      void apiFetch(trackPath, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      }).catch(() => {
+        // Silent by design for analytics failures
+      });
+    },
+    [paper?.id, paper?.visibility],
+  );
+
   useEffect(() => {
     if (!paper?.id || trackedViewPaperIdRef.current === paper.id) return;
     trackedViewPaperIdRef.current = paper.id;
-
-    const body = JSON.stringify({
-      event: "view",
-      referrer:
-        typeof document !== "undefined" ? document.referrer || null : null,
-    });
-
-    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-      const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
-      const endpoint = `${API_BASE}/api/papers/${safePath(paper.id)}/track`;
-      const blob = new Blob([body], { type: "application/json" });
-      navigator.sendBeacon(endpoint, blob);
-      return;
-    }
-
-    void apiFetch(`/api/papers/${safePath(paper.id)}/track`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-    }).catch(() => {
-      // Silent by design for analytics failures
-    });
-  }, [paper?.id]);
+    trackEvent("view");
+  }, [paper?.id, trackEvent]);
 
   useEffect(() => {
     if (!paper?.id || !isAuthor) {
@@ -310,6 +325,10 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
         if (cancelled) return;
         setPreview({ ...data, url: resolvedUrl });
+        if (trackedPreviewPaperIdRef.current !== paperId) {
+          trackedPreviewPaperIdRef.current = paperId;
+          trackEvent("preview");
+        }
       } catch (err) {
         if (cancelled) return;
         console.error("プレビューURLの取得に失敗しました:", err);
@@ -327,7 +346,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         URL.revokeObjectURL(createdObjectUrl);
       }
     };
-  }, [paperId, pdfFile]);
+  }, [paperId, pdfFile, trackEvent]);
 
   useEffect(() => {
     if (imageFiles.length === 0) {
@@ -368,6 +387,14 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
       setImagePreviewUrls(Object.fromEntries(entries.filter(([, url]) => url)));
       setFailedImageIds(currentFailedIds);
+
+      if (
+        entries.some(([, url]) => Boolean(url)) &&
+        trackedPreviewPaperIdRef.current !== paperId
+      ) {
+        trackedPreviewPaperIdRef.current = paperId;
+        trackEvent("preview");
+      }
     };
 
     loadImages().catch((err) => {
@@ -384,7 +411,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         URL.revokeObjectURL(url);
       }
     };
-  }, [paperId, imageFiles]);
+  }, [paperId, imageFiles, trackEvent]);
 
   const handleSearch = async (q: string) => {
     setSearchQuery(q);
@@ -436,31 +463,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   };
 
   const handleDownload = async (f: PaperFile) => {
-    const trackPayload = JSON.stringify({
-      event: "download",
-      referrer:
-        typeof document !== "undefined" ? document.referrer || null : null,
-    });
-
-    if (paper?.id) {
-      const trackPath = `/api/papers/${safePath(paper.id)}/track`;
-      if (
-        typeof navigator !== "undefined" &&
-        typeof navigator.sendBeacon === "function"
-      ) {
-        const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
-        const trackUrl = `${API_BASE}${trackPath}`;
-        navigator.sendBeacon(trackUrl, new Blob([trackPayload], { type: "application/json" }));
-      } else {
-        void apiFetch(trackPath, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: trackPayload,
-        }).catch(() => {
-          // Silent by design for analytics failures
-        });
-      }
-    }
+    trackEvent("download");
 
     try {
       const res = await apiFetch(f.downloadUrl);
@@ -519,6 +522,12 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   const showExternalLink =
     paper.externalUrl && isValidExternalUrl(paper.externalUrl);
+  const summaryViews =
+    paper.showViewCount || !isAuthor ? paper.publicViewCount : stats?.total.views ?? null;
+  const summaryDownloads =
+    paper.showViewCount || !isAuthor
+      ? paper.publicDownloadCount
+      : stats?.total.downloads ?? null;
 
   return (
     <div className="max-w-3xl">
@@ -570,9 +579,9 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
             </p>
           </div>
           <p className="text-lg font-semibold tabular-nums">
-            👁️ {formatCount(paper.publicViewCount)} views
+            👁️ {summaryViews === null ? "..." : formatCount(summaryViews)} views
             {" · "}
-            📥 {formatCount(paper.publicDownloadCount)} downloads
+            📥 {summaryDownloads === null ? "..." : formatCount(summaryDownloads)} downloads
           </p>
         </div>
       )}

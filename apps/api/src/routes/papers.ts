@@ -1,13 +1,12 @@
 import { Hono, type Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, gte, sql } from "drizzle-orm";
+import { eq, and, gte } from "drizzle-orm";
 import {
     papers,
     paperFiles,
     paperAuthors,
     paperStatsDaily,
     paperStatsTotal,
-    paperStatsDedup,
     users,
     coauthorInvites,
     orgMembers,
@@ -45,6 +44,7 @@ const MAX_DOI_LENGTH = 255;
 const MAX_VENUE_LENGTH = 255;
 const MAX_TAG_LENGTH = 64;
 const MAX_REFERRER_LENGTH = 2048;
+const TRACK_DEDUP_RETENTION_DAYS = 90;
 const TRACKABLE_EVENTS = ["view", "download", "preview"] as const;
 const TRACK_STATS_ALLOWED_DAYS = [7, 30, 90, 365] as const;
 const BOT_USER_AGENT_KEYWORDS = [
@@ -99,11 +99,6 @@ function normalizeReferrer(value: unknown): string | null {
     return trimmed.slice(0, MAX_REFERRER_LENGTH);
 }
 
-function isUniqueConstraintError(error: unknown): boolean {
-    const message = error instanceof Error ? error.message : String(error);
-    return message.includes("UNIQUE") || message.includes("unique");
-}
-
 function isBotUserAgent(userAgent: string | undefined): boolean {
     if (!userAgent) return false;
     const normalized = userAgent.toLowerCase();
@@ -138,9 +133,10 @@ async function runInBackground(
 async function buildTrackSessionHash(
     c: Context<{ Bindings: Env; Variables: Variables }>,
     date: string,
+    paperId: string,
 ): Promise<string> {
     const ip = getClientIp(c);
-    return hashString(`${c.env.JWT_SECRET}:track:${ip}:${date}`);
+    return hashString(`${c.env.JWT_SECRET}:track:${paperId}:${ip}:${date}`);
 }
 
 function eventIncrements(event: TrackEvent) {
@@ -152,7 +148,7 @@ function eventIncrements(event: TrackEvent) {
 }
 
 type RecordTrackEventInput = {
-    db: ReturnType<typeof drizzle>;
+    db: Env["DB"];
     paperId: string;
     event: TrackEvent;
     date: string;
@@ -168,59 +164,61 @@ async function recordTrackEvent({
     sessionHash,
     referrer,
 }: RecordTrackEventInput): Promise<boolean> {
-    try {
-        await db.insert(paperStatsDedup).values({
-            paperId,
-            event,
-            date,
-            sessionHash,
-            referrer,
-        });
-    } catch (error) {
-        if (isUniqueConstraintError(error)) {
-            return false;
-        }
-        throw error;
-    }
-
     const increments = eventIncrements(event);
-    await db
-        .insert(paperStatsDaily)
-        .values({
+    const dedupStmt = db
+        .prepare(`
+            INSERT INTO paper_stats_dedup (paper_id, event, date, session_hash, referrer)
+            VALUES (?1, ?2, ?3, ?4, ?5)
+            ON CONFLICT(paper_id, event, date, session_hash) DO NOTHING
+        `)
+        .bind(paperId, event, date, sessionHash, referrer);
+
+    const dailyStmt = db
+        .prepare(`
+            INSERT INTO paper_stats_daily (paper_id, date, views, downloads, previews)
+            SELECT ?1, ?2, ?3, ?4, ?5
+            WHERE changes() > 0
+            ON CONFLICT(paper_id, date) DO UPDATE SET
+                views = views + excluded.views,
+                downloads = downloads + excluded.downloads,
+                previews = previews + excluded.previews
+        `)
+        .bind(
             paperId,
             date,
-            views: increments.views,
-            downloads: increments.downloads,
-            previews: increments.previews,
-        })
-        .onConflictDoUpdate({
-            target: [paperStatsDaily.paperId, paperStatsDaily.date],
-            set: {
-                views: sql`${paperStatsDaily.views} + ${increments.views}`,
-                downloads: sql`${paperStatsDaily.downloads} + ${increments.downloads}`,
-                previews: sql`${paperStatsDaily.previews} + ${increments.previews}`,
-            },
-        });
+            increments.views,
+            increments.downloads,
+            increments.previews,
+        );
 
-    await db
-        .insert(paperStatsTotal)
-        .values({
+    const totalStmt = db
+        .prepare(`
+            INSERT INTO paper_stats_total (paper_id, total_views, total_downloads, total_previews)
+            SELECT ?1, ?2, ?3, ?4
+            WHERE changes() > 0
+            ON CONFLICT(paper_id) DO UPDATE SET
+                total_views = total_views + excluded.total_views,
+                total_downloads = total_downloads + excluded.total_downloads,
+                total_previews = total_previews + excluded.total_previews,
+                last_updated = datetime('now')
+        `)
+        .bind(
             paperId,
-            totalViews: increments.views,
-            totalDownloads: increments.downloads,
-            totalPreviews: increments.previews,
-        })
-        .onConflictDoUpdate({
-            target: paperStatsTotal.paperId,
-            set: {
-                totalViews: sql`${paperStatsTotal.totalViews} + ${increments.views}`,
-                totalDownloads: sql`${paperStatsTotal.totalDownloads} + ${increments.downloads}`,
-                totalPreviews: sql`${paperStatsTotal.totalPreviews} + ${increments.previews}`,
-                lastUpdated: sql`(datetime('now'))`,
-            },
-        });
+            increments.views,
+            increments.downloads,
+            increments.previews,
+        );
 
-    return true;
+    const cleanupStmt = db
+        .prepare(`
+            DELETE FROM paper_stats_dedup
+            WHERE date < date(?1, ?2)
+        `)
+        .bind(date, `-${TRACK_DEDUP_RETENTION_DAYS} days`);
+
+    const [dedupResult] = await db.batch([dedupStmt, dailyStmt, totalStmt, cleanupStmt]);
+    const changes = dedupResult?.meta?.changes;
+    return typeof changes === "number" ? changes > 0 : true;
 }
 
 async function hashString(value: string): Promise<string> {
@@ -871,12 +869,12 @@ papersRoute.post("/:id/track", async (c) => {
 
     const referrer = normalizeReferrer(payload.referrer);
     const date = formatDateKey(new Date());
-    const sessionHash = await buildTrackSessionHash(c, date);
+    const sessionHash = await buildTrackSessionHash(c, date, paperId);
 
     await runInBackground(
         c,
         recordTrackEvent({
-            db,
+            db: c.env.DB,
             paperId,
             event: payload.event,
             date,

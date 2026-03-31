@@ -307,6 +307,161 @@ describe("PaperDetailClient", () => {
     expect(await screen.findByText("Bob Candidate")).toBeInTheDocument();
   });
 
+  it("uses author stats in analytics summary when showViewCount is disabled", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/papers/paper-1" && method === "GET") {
+        return jsonResponse({
+          paper: {
+            id: "paper-1",
+            title: "Author Hidden Stats",
+            abstract: null,
+            visibility: "private",
+            showViewCount: false,
+            publicViewCount: null,
+            publicDownloadCount: null,
+            externalUrl: null,
+            venue: null,
+            venueType: null,
+            year: null,
+            category: null,
+            tags: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+          },
+          files: [],
+          authors: [
+            {
+              userId: "author-1",
+              role: "uploader",
+              name: "alice",
+              displayName: "Alice",
+              avatarUrl: null,
+            },
+          ],
+        });
+      }
+
+      if (url === "/api/papers/paper-1/track" && method === "POST") {
+        return new Response(null, { status: 204 });
+      }
+
+      if (url === "/api/papers/paper-1/stats?days=30" && method === "GET") {
+        return jsonResponse({
+          total: {
+            views: 42,
+            downloads: 11,
+            previews: 3,
+          },
+          daily: [],
+          days: 30,
+        });
+      }
+
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    render(<PaperDetailClient paperId="paper-1" />);
+
+    await screen.findByRole("heading", { name: "Author Hidden Stats" });
+    expect(await screen.findByText("著者向けの閲覧・ダウンロード数")).toBeInTheDocument();
+    expect(await screen.findByText("👁️ 42 views · 📥 11 downloads")).toBeInTheDocument();
+  });
+
+  it("uses apiFetch for private paper tracking even when sendBeacon exists", async () => {
+    const sendBeacon = vi.fn(() => true);
+    vi.stubGlobal("navigator", { sendBeacon } as unknown as Navigator);
+
+    vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/papers/paper-1" && method === "GET") {
+        return jsonResponse({
+          paper: {
+            id: "paper-1",
+            title: "Private Tracking",
+            abstract: null,
+            visibility: "private",
+            showViewCount: false,
+            publicViewCount: null,
+            publicDownloadCount: null,
+            externalUrl: null,
+            venue: null,
+            venueType: null,
+            year: null,
+            category: null,
+            tags: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+          },
+          files: [
+            {
+              id: "file-pdf",
+              filename: "restricted.pdf",
+              fileType: "paper",
+              sizeBytes: 1024,
+              mimeType: "application/pdf",
+              downloadUrl: "/api/downloads/restricted.pdf",
+            },
+          ],
+          authors: [
+            {
+              userId: "author-1",
+              role: "uploader",
+              name: "alice",
+              displayName: "Alice",
+              avatarUrl: null,
+            },
+          ],
+        });
+      }
+
+      if (url === "/api/papers/paper-1/stats?days=30" && method === "GET") {
+        return jsonResponse({
+          total: { views: 1, downloads: 1, previews: 1 },
+          daily: [],
+          days: 30,
+        });
+      }
+
+      if (url === "/api/papers/paper-1/files/file-pdf/preview" && method === "GET") {
+        return jsonResponse({
+          url: "/api/previews/restricted.pdf",
+          mimeType: "application/pdf",
+          filename: "restricted.pdf",
+        });
+      }
+
+      if (url === "/api/previews/restricted.pdf" && method === "GET") {
+        return blobResponse("preview", "application/pdf");
+      }
+
+      if (url === "/api/downloads/restricted.pdf" && method === "GET") {
+        return blobResponse("download", "application/pdf");
+      }
+
+      if (url === "/api/papers/paper-1/track" && method === "POST") {
+        return new Response(null, { status: 204 });
+      }
+
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    render(<PaperDetailClient paperId="paper-1" />);
+
+    await screen.findByRole("heading", { name: "Private Tracking" });
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        "/api/papers/paper-1/track",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    expect(sendBeacon).not.toHaveBeenCalled();
+  });
+
   it("shows the preview fallback UI and download permission errors", async () => {
     vi.mocked(apiFetch).mockImplementation(async (input, init) => {
       const url = String(input);
