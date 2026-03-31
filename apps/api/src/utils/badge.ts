@@ -66,7 +66,7 @@ export function normalizeBadgeColor(value: string | null | undefined): string {
 }
 
 export function truncateBadgeText(value: string, maxLength: number): string {
-    const chars = Array.from(toSafeText(value));
+    const chars = [...toSafeText(value)];
     if (chars.length <= maxLength) return chars.join("");
     if (maxLength <= 1) return "…";
     return `${chars.slice(0, maxLength - 1).join("")}…`;
@@ -74,7 +74,7 @@ export function truncateBadgeText(value: string, maxLength: number): string {
 
 export function estimateTextWidth(text: string): number {
     let width = 0;
-    for (const ch of Array.from(text)) {
+    for (const ch of text) {
         if (EMOJI_REGEX.test(ch)) {
             width += 12;
             continue;
@@ -172,10 +172,12 @@ export function buildNotFoundBadge(options: BadgeOptions): {
 }
 
 export function createEtag(value: string): string {
-    let hash = 2166136261;
-    for (const ch of Array.from(value)) {
-        hash ^= ch.codePointAt(0) ?? 0;
-        hash = Math.imul(hash, 16777619);
+    let hash = 0xcbf29ce484222325n;
+    const fnvPrime = 0x100000001b3n;
+    const mask64 = 0xffffffffffffffffn;
+    for (const ch of value) {
+        hash ^= BigInt(ch.codePointAt(0) ?? 0);
+        hash = (hash * fnvPrime) & mask64;
     }
-    return `"${(hash >>> 0).toString(16)}"`;
+    return `"${hash.toString(16).padStart(16, "0")}"`;
 }

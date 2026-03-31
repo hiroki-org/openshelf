@@ -253,7 +253,12 @@ describe("PaperDetailClient", () => {
       throw new Error(`Unexpected request: ${method} ${url}`);
     });
 
-    render(<PaperDetailClient paperId="paper-1" />);
+    render(
+      <PaperDetailClient
+        paperId="paper-1"
+        siteBase="https://openshelf.example"
+      />,
+    );
 
     await screen.findByRole("heading", { name: "Transformer Tricks" });
     expect(await screen.findByText("公開表示中の総閲覧数")).toBeInTheDocument();
@@ -382,7 +387,12 @@ describe("PaperDetailClient", () => {
       throw new Error(`Unexpected request: ${method} ${url}`);
     });
 
-    render(<PaperDetailClient paperId="paper-1" />);
+    render(
+      <PaperDetailClient
+        paperId="paper-1"
+        siteBase="https://openshelf.example"
+      />,
+    );
 
     await screen.findByRole("heading", { name: "Fallback Preview" });
     expect(await screen.findByText("プレビューを読み込めません")).toBeInTheDocument();
@@ -400,7 +410,12 @@ describe("PaperDetailClient", () => {
   it("maps paper fetch errors to user-facing messages", async () => {
     vi.mocked(apiFetch).mockResolvedValue(new Response("forbidden", { status: 403 }));
 
-    render(<PaperDetailClient paperId="paper-1" />);
+    render(
+      <PaperDetailClient
+        paperId="paper-1"
+        siteBase="https://openshelf.example"
+      />,
+    );
 
     expect(
       await screen.findByText("この論文を閲覧する権限がありません"),

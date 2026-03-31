@@ -6,6 +6,7 @@ import { useMemo } from "react";
 type BadgeSnippetProps = {
   paperId: string;
   title: string;
+  siteBase: string;
 };
 
 type SnippetItem = {
@@ -16,12 +17,16 @@ type SnippetItem = {
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ??
-  process.env.API_URL ??
   "http://localhost:8787";
-const SITE_BASE =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  process.env.SITE_URL ??
-  "http://localhost:3000";
+
+function escapeHtmlAttribute(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 function toAbsoluteUrl(base: string, path: string): string {
   const normalizedBase = base.replace(/\/+$/, "");
@@ -33,13 +38,15 @@ function urlEncode(value: string): string {
   return encodeURIComponent(value);
 }
 
-export function BadgeSnippet({ paperId, title }: BadgeSnippetProps) {
+export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
   const snippets = useMemo<SnippetItem[]>(() => {
+    const normalizedSiteBase =
+      siteBase.trim() || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const badgeSvgUrl = toAbsoluteUrl(
       API_BASE,
       `/badge/${urlEncode(paperId)}?style=default&label=OpenShelf`,
     );
-    const paperUrl = toAbsoluteUrl(SITE_BASE, `/papers/${urlEncode(paperId)}`);
+    const paperUrl = toAbsoluteUrl(normalizedSiteBase, `/papers/${urlEncode(paperId)}`);
     const shieldsEndpointUrl = toAbsoluteUrl(
       API_BASE,
       `/badge/api/${urlEncode(paperId)}`,
@@ -57,7 +64,7 @@ export function BadgeSnippet({ paperId, title }: BadgeSnippetProps) {
       {
         key: "html",
         label: "HTML",
-        value: `<a href="${paperUrl}"><img src="${badgeSvgUrl}" alt="OpenShelf badge for ${title}" /></a>`,
+        value: `<a href="${paperUrl}"><img src="${badgeSvgUrl}" alt="OpenShelf badge for ${escapeHtmlAttribute(title)}" /></a>`,
       },
       {
         key: "shields",
@@ -65,7 +72,7 @@ export function BadgeSnippet({ paperId, title }: BadgeSnippetProps) {
         value: `[![OpenShelf Badge](${shieldsImageUrl})](${paperUrl})`,
       },
     ];
-  }, [paperId, title]);
+  }, [paperId, title, siteBase]);
 
   const badgePreviewUrl = toAbsoluteUrl(
     API_BASE,

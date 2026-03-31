@@ -130,10 +130,13 @@ export default async function PaperPage(props: {
   params: Params | Promise<Params>;
 }) {
   const { id } = await Promise.resolve(props.params);
+  const siteBase = process.env.SITE_URL ??
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    "http://localhost:3000";
   try {
     safePath(id);
   } catch {
     return <div className="text-center py-20">無効な識別子です</div>;
   }
-  return <PaperDetailClient paperId={id} />;
+  return <PaperDetailClient paperId={id} siteBase={siteBase} />;
 }

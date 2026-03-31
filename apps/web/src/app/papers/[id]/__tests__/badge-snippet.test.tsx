@@ -29,7 +29,13 @@ describe("BadgeSnippet", () => {
   });
 
   it("renders preview and all snippet formats", () => {
-    render(<BadgeSnippet paperId="paper-1" title="Paper Title" />);
+    render(
+      <BadgeSnippet
+        paperId="paper-1"
+        title="Paper Title"
+        siteBase="https://openshelf.example"
+      />,
+    );
 
     expect(screen.getByText("Markdown")).toBeInTheDocument();
     expect(screen.getByText("HTML")).toBeInTheDocument();
@@ -42,7 +48,13 @@ describe("BadgeSnippet", () => {
   });
 
   it("copies selected snippet via clipboard", async () => {
-    render(<BadgeSnippet paperId="paper-1" title="Paper Title" />);
+    render(
+      <BadgeSnippet
+        paperId="paper-1"
+        title="Paper Title"
+        siteBase="https://openshelf.example"
+      />,
+    );
 
     const markdownPanel = screen.getByText("Markdown").closest("div");
     expect(markdownPanel).not.toBeNull();
@@ -54,5 +66,23 @@ describe("BadgeSnippet", () => {
       expect(navigator.clipboard.writeText).toHaveBeenCalled();
       expect(toastSuccess).toHaveBeenCalledWith("コピーしました");
     });
+  });
+
+  it("escapes title content in HTML snippet", () => {
+    render(
+      <BadgeSnippet
+        paperId="paper-1"
+        title={'My "Quoted" <Paper> & more'}
+        siteBase="https://openshelf.example"
+      />,
+    );
+
+    expect(
+      screen.getByText((text) =>
+        text.includes(
+          'alt="OpenShelf badge for My &quot;Quoted&quot; &lt;Paper&gt; &amp; more"',
+        ),
+      ),
+    ).toBeInTheDocument();
   });
 });
