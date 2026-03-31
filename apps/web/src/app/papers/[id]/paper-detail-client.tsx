@@ -27,6 +27,7 @@ type Paper = {
   visibility: string;
   showViewCount: boolean;
   publicViewCount: number | null;
+  publicDownloadCount: number | null;
   externalUrl: string | null;
   venue: string | null;
   venueType: string | null;
@@ -76,13 +77,18 @@ type PreviewResponse = {
 };
 
 type PaperStats = {
-  totalViews: number;
-  last7DaysViews: number;
-  last30DaysViews: number;
-  dailyViews: Array<{
+  total: {
+    views: number;
+    downloads: number;
+    previews: number;
+  };
+  daily: Array<{
     date: string;
-    count: number;
+    views: number;
+    downloads: number;
+    previews: number;
   }>;
+  days: 7 | 30 | 90 | 365;
 };
 
 const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url);
@@ -103,6 +109,10 @@ type PaperDetailClientProps = {
 function formatStatsDateLabel(date: string) {
   const [, month, day] = date.split("-");
   return `${Number(month)}/${Number(day)}`;
+}
+
+function formatCount(value: number | null | undefined): string {
+  return new Intl.NumberFormat().format(value ?? 0);
 }
 
 export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
@@ -131,6 +141,9 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
   const [inviting, setInviting] = useState(false);
+  const [selectedStatsDays, setSelectedStatsDays] = useState<7 | 30 | 90 | 365>(
+    30,
+  );
 
   const isUploader = authors.some(
     (a) => a.userId === user?.id && a.role === "uploader",
@@ -140,29 +153,26 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   const fetchStats = useCallback(async () => {
     if (!paperId || !isAuthor) return;
+    setStatsLoading(true);
+    setStatsError("");
     try {
-      const res = await apiFetch(`/api/papers/${safePath(paperId)}/stats`);
+      const res = await apiFetch(
+        `/api/papers/${safePath(paperId)}/stats?days=${selectedStatsDays}`,
+      );
       if (res.ok) {
         const data = (await res.json()) as PaperStats;
         setStats(data);
+      } else {
+        setStats(null);
+        setStatsError("統計情報の取得に失敗しました");
       }
     } catch {
-      // Ignore
+      setStats(null);
+      setStatsError("統計情報の取得に失敗しました");
+    } finally {
+      setStatsLoading(false);
     }
-  }, [paperId, isAuthor]);
-
-  const applyCountedView = useCallback(() => {
-    setPaper((current) => {
-      if (!current || !current.showViewCount) return current;
-      return {
-        ...current,
-        publicViewCount: (current.publicViewCount ?? 0) + 1,
-      };
-    });
-
-    // Refresh full stats after a recorded view to ensure consistency
-    void fetchStats();
-  }, [fetchStats]);
+  }, [paperId, isAuthor, selectedStatsDays]);
 
   const fetchPaper = useCallback(async () => {
     try {
@@ -215,33 +225,30 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
   useEffect(() => {
     if (!paper?.id || trackedViewPaperIdRef.current === paper.id) return;
-
     trackedViewPaperIdRef.current = paper.id;
-    let cancelled = false;
 
-    const recordView = async () => {
-      try {
-        const res = await apiFetch(`/api/papers/${safePath(paper.id)}/view`, {
-          method: "POST",
-        });
+    const body = JSON.stringify({
+      event: "view",
+      referrer:
+        typeof document !== "undefined" ? document.referrer || null : null,
+    });
 
-        if (!res.ok || cancelled) return;
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+      const endpoint = `${API_BASE}/api/papers/${safePath(paper.id)}/track`;
+      const blob = new Blob([body], { type: "application/json" });
+      navigator.sendBeacon(endpoint, blob);
+      return;
+    }
 
-        const data = (await res.json()) as { counted?: boolean };
-        if (data.counted) {
-          applyCountedView();
-        }
-      } catch {
-        // Viewing the paper should still succeed even if analytics fails.
-      }
-    };
-
-    void recordView();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [paper?.id, applyCountedView]);
+    void apiFetch(`/api/papers/${safePath(paper.id)}/track`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+    }).catch(() => {
+      // Silent by design for analytics failures
+    });
+  }, [paper?.id]);
 
   useEffect(() => {
     if (!paper?.id || !isAuthor) {
@@ -250,18 +257,7 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
       setStatsLoading(false);
       return;
     }
-
-    let cancelled = false;
-    setStatsLoading(true);
-    setStatsError("");
-
-    fetchStats();
-    // Also set loading false in fetchStats normally, but here we use useEffect style
-    setStatsLoading(false);
-
-    return () => {
-      cancelled = true;
-    };
+    void fetchStats();
   }, [paper?.id, isAuthor, fetchStats]);
 
   const pdfFile = useMemo(
@@ -273,8 +269,8 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
     [files],
   );
   const maxDailyViewCount = useMemo(() => {
-    if (!stats || stats.dailyViews.length === 0) return 0;
-    return Math.max(...stats.dailyViews.map((entry) => entry.count));
+    if (!stats || stats.daily.length === 0) return 0;
+    return Math.max(...stats.daily.map((entry) => entry.views));
   }, [stats]);
 
   useEffect(() => {
@@ -440,6 +436,32 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
   };
 
   const handleDownload = async (f: PaperFile) => {
+    const trackPayload = JSON.stringify({
+      event: "download",
+      referrer:
+        typeof document !== "undefined" ? document.referrer || null : null,
+    });
+
+    if (paper?.id) {
+      const trackPath = `/api/papers/${safePath(paper.id)}/track`;
+      if (
+        typeof navigator !== "undefined" &&
+        typeof navigator.sendBeacon === "function"
+      ) {
+        const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+        const trackUrl = `${API_BASE}${trackPath}`;
+        navigator.sendBeacon(trackUrl, new Blob([trackPayload], { type: "application/json" }));
+      } else {
+        void apiFetch(trackPath, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: trackPayload,
+        }).catch(() => {
+          // Silent by design for analytics failures
+        });
+      }
+    }
+
     try {
       const res = await apiFetch(f.downloadUrl);
       if (!res.ok) {
@@ -535,18 +557,22 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         )}
       </div>
 
-      {paper.showViewCount && (
-        <div className="mb-6 inline-flex items-end gap-3 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
+      {(paper.showViewCount || isAuthor) && (
+        <div className="mb-6 inline-flex items-end gap-4 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-blue-700 dark:text-blue-300">
-              Views
+              Analytics
             </p>
             <p className="mt-1 text-sm text-blue-800/80 dark:text-blue-200/80">
-              公開表示中の総閲覧数
+              {paper.showViewCount
+                ? "公開表示中の閲覧・ダウンロード数"
+                : "著者向けの閲覧・ダウンロード数"}
             </p>
           </div>
-          <p className="text-3xl font-semibold tabular-nums">
-            {paper.publicViewCount ?? 0}
+          <p className="text-lg font-semibold tabular-nums">
+            👁️ {formatCount(paper.publicViewCount)} views
+            {" · "}
+            📥 {formatCount(paper.publicDownloadCount)} downloads
           </p>
         </div>
       )}
@@ -588,29 +614,46 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
 
           {!statsLoading && stats && (
             <>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {([7, 30, 90, 365] as const).map((days) => (
+                  <button
+                    key={days}
+                    type="button"
+                    onClick={() => setSelectedStatsDays(days)}
+                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                      selectedStatsDays === days
+                        ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
+                        : "bg-white text-gray-600 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    {days}日
+                  </button>
+                ))}
+              </div>
+
               <div className="mt-4 grid gap-3 sm:grid-cols-3">
                 <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
                   <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
-                    Total
+                    Total Views
                   </p>
                   <p className="mt-3 text-3xl font-semibold tabular-nums text-gray-950 dark:text-gray-50">
-                    {stats.totalViews}
+                    {formatCount(stats.total.views)}
                   </p>
                 </div>
                 <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
                   <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
-                    Last 7 Days
+                    Total Downloads
                   </p>
                   <p className="mt-3 text-3xl font-semibold tabular-nums text-gray-950 dark:text-gray-50">
-                    {stats.last7DaysViews}
+                    {formatCount(stats.total.downloads)}
                   </p>
                 </div>
                 <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
                   <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
-                    Last 30 Days
+                    Total Previews
                   </p>
                   <p className="mt-3 text-3xl font-semibold tabular-nums text-gray-950 dark:text-gray-50">
-                    {stats.last30DaysViews}
+                    {formatCount(stats.total.previews)}
                   </p>
                 </div>
               </div>
@@ -620,18 +663,18 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
                   <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     日別推移
                   </h3>
-                  <p className="text-xs text-gray-500">直近30日</p>
+                  <p className="text-xs text-gray-500">直近{stats.days}日</p>
                 </div>
 
                 <div className="mt-4 overflow-x-auto">
                   <div className="flex min-w-[720px] items-end gap-2">
-                    {stats.dailyViews.map((entry) => {
+                    {stats.daily.map((entry) => {
                       const barHeight =
                         maxDailyViewCount === 0
                           ? 4
                           : Math.max(
                               4,
-                              Math.round((entry.count / maxDailyViewCount) * 120),
+                              Math.round((entry.views / maxDailyViewCount) * 120),
                             );
 
                       return (
@@ -643,11 +686,11 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
                             <div
                               className="w-full rounded-t-xl bg-gray-900/85 dark:bg-gray-100/85"
                               style={{ height: `${barHeight}px` }}
-                              title={`${entry.date}: ${entry.count}`}
+                              title={`${entry.date}: ${entry.views} views / ${entry.downloads} downloads`}
                             />
                           </div>
                           <span className="text-[10px] font-medium text-gray-500">
-                            {entry.count}
+                            {entry.views}
                           </span>
                           <span className="text-[10px] text-gray-400">
                             {formatStatsDateLabel(entry.date)}
