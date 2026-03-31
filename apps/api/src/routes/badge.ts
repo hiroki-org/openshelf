@@ -98,6 +98,8 @@ badgeRoute.get("/api/:paperId", async (c) => {
     const options = readBadgeOptions(c);
     const paper = await fetchPublicPaper(c, paperId);
 
+    // This endpoint intentionally keeps shields.io-compatible JSON for both 200 and
+    // 404 responses so external badge consumers can use the same contract.
     if (!paper) {
         const notFound = buildNotFoundBadge(options);
         const payload = JSON.stringify(notFound.json);
