@@ -13,20 +13,20 @@ test.describe('Paper View Count', () => {
     await page.getByLabel('公開ページに閲覧数を表示する').check();
     await page.getByRole('button', { name: '保存する' }).click();
     await expect(page).toHaveURL(new RegExp(`/papers/${paperId}$`));
-    await expect(page.getByText('公開表示中の総閲覧数')).toBeVisible();
+    await expect(page.getByText('公開表示中の閲覧・ダウンロード数')).toBeVisible();
 
     const guestContext = await browser.newContext();
     const guestPage = await guestContext.newPage();
     try {
       await loginAsTestUser(guestPage, { name: `viewer-guest-${randomUUID().slice(0, 6)}` });
       await guestPage.goto(`/papers/${paperId}`);
-      await expect(guestPage.getByText('公開表示中の総閲覧数')).toBeVisible();
+      await expect(guestPage.getByText('公開表示中の閲覧・ダウンロード数')).toBeVisible();
     } finally {
       await guestContext.close();
     }
 
     await page.goto(`/papers/${paperId}`);
-    await expect(page.getByText('公開表示中の総閲覧数')).toBeVisible();
+    await expect(page.getByText('公開表示中の閲覧・ダウンロード数')).toBeVisible();
     await expect(page.locator('section').filter({ hasText: '閲覧統計' })).toBeVisible();
   });
 });
