@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCitation } from "../citation";
+import { buildCitation, isCitationFormat } from "../citation";
 
 describe("buildCitation", () => {
     const paperBase = {
@@ -117,4 +117,66 @@ describe("buildCitation", () => {
         expect(result.citation).toContain("(2026).");
     });
 
+    it("uses externalUrl in plain output when DOI is absent", () => {
+        const result = buildCitation(
+            { ...paperBase, externalUrl: "https://example.org/paper", doi: null },
+            [{ name: "hiroki", displayName: "Hiroki Mukai" }],
+            "plain",
+            "https://openshelf.example",
+        );
+
+        expect(result.citation).toContain("https://example.org/paper");
+        expect(result.citation).not.toContain("https://openshelf.example/papers/paper-1");
+    });
+
+    it("formats IEEE and MLA outputs", () => {
+        const ieee = buildCitation(
+            { ...paperBase, doi: "10.1000/xyz123" },
+            [{ name: "hiroki", displayName: "Hiroki Mukai" }],
+            "ieee",
+            "https://openshelf.example",
+        );
+        const mla = buildCitation(
+            { ...paperBase, doi: null, externalUrl: null },
+            [{ name: "hiroki", displayName: "Hiroki Mukai" }],
+            "mla",
+            "https://openshelf.example",
+        );
+
+        expect(ieee.citation).toContain('"Balance Boundary Explorer"');
+        expect(ieee.citation).toContain("doi: 10.1000/xyz123");
+        expect(mla.citation).toContain('"Balance Boundary Explorer"');
+        expect(mla.citation).toContain("ASE");
+    });
+
+    it("keeps stable key fragments when authors are missing", () => {
+        const result = buildCitation(
+            {
+                ...paperBase,
+                title: "The Of And",
+                year: null,
+                venue: null,
+                venueType: null,
+            },
+            [],
+            "bibtex",
+            "https://openshelf.example",
+        );
+
+        expect(result.key).toBe("authornoyearthe");
+        expect(result.citation).toContain("author = {}");
+    });
+});
+
+describe("isCitationFormat", () => {
+    it("returns true only for supported formats", () => {
+        expect(isCitationFormat("bibtex")).toBe(true);
+        expect(isCitationFormat("biblatex")).toBe(true);
+        expect(isCitationFormat("apa")).toBe(true);
+        expect(isCitationFormat("ieee")).toBe(true);
+        expect(isCitationFormat("mla")).toBe(true);
+        expect(isCitationFormat("plain")).toBe(true);
+        expect(isCitationFormat("chicago")).toBe(false);
+        expect(isCitationFormat("")).toBe(false);
+    });
 });
