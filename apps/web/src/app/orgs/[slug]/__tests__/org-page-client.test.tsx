@@ -1,4 +1,5 @@
 import {
+  fireEvent,
   render,
   screen,
 } from "@testing-library/react";
@@ -7,6 +8,8 @@ import OrgPageClient from "../org-page-client";
 import { apiFetch } from "@/lib/api";
 
 let authState: any;
+const replaceMock = vi.fn();
+let params = new URLSearchParams();
 
 vi.mock("@/components/auth-provider", () => ({
   useAuth: () => authState,
@@ -28,10 +31,17 @@ vi.mock("next/image", () => ({
   default: ({ alt = "image", ...props }: any) => <img alt={alt} {...props} />,
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: replaceMock }),
+  usePathname: () => "/orgs/lab",
+  useSearchParams: () => params,
+}));
+
 describe("OrgPageClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authState = { user: { id: "user-1" } };
+    params = new URLSearchParams();
   });
 
   it("renders org details for admins", async () => {
@@ -52,7 +62,7 @@ describe("OrgPageClient", () => {
         );
       }
 
-      if (url === "/api/orgs/lab/papers") {
+      if (url === "/api/orgs/lab/papers?paginate=1&autoYear=1&page=1") {
         return new Response(
           JSON.stringify({
             papers: [
@@ -69,6 +79,16 @@ describe("OrgPageClient", () => {
                 createdAt: "2026-01-01T00:00:00Z",
               },
             ],
+            total: 1,
+            page: 1,
+            pageSize: 20,
+            totalPages: 1,
+            appliedFilters: { year: null, venue: null, category: null },
+            filterOptions: {
+              years: [{ value: 2025, count: 1 }],
+              venues: [{ value: "Conf", count: 1 }],
+              categories: [{ value: "report", count: 1 }],
+            },
           }),
           { status: 200 },
         );
@@ -121,6 +141,57 @@ describe("OrgPageClient", () => {
     );
     expect(await screen.findByText("Featured")).toBeInTheDocument();
     expect(await screen.findByText("Paper One")).toBeInTheDocument();
+  });
+
+  it("updates query params when filter changes", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/orgs/lab") {
+        return new Response(
+          JSON.stringify({
+            org: {
+              id: "org-1",
+              slug: "lab",
+              name: "Research Lab",
+              description: "Lab description",
+              createdAt: "2026-01-01T00:00:00Z",
+            },
+            memberCount: 1,
+          }),
+          { status: 200 },
+        );
+      }
+      if (url === "/api/orgs/lab/papers?paginate=1&autoYear=1&page=1") {
+        return new Response(
+          JSON.stringify({
+            papers: [],
+            total: 0,
+            page: 1,
+            pageSize: 20,
+            totalPages: 1,
+            appliedFilters: { year: null, venue: null, category: null },
+            filterOptions: {
+              years: [{ value: 2025, count: 2 }],
+              venues: [{ value: "ASE", count: 1 }],
+              categories: [{ value: "report", count: 1 }],
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url === "/api/orgs/lab/members") {
+        return new Response(JSON.stringify({ members: [] }), { status: 200 });
+      }
+      if (url === "/api/orgs/lab/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<OrgPageClient slug="lab" />);
+    expect(await screen.findByText("Research Lab")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("年度"), { target: { value: "2025" } });
+    expect(replaceMock).toHaveBeenCalledWith("/orgs/lab?year=2025");
   });
 
   it("shows a not found error", async () => {

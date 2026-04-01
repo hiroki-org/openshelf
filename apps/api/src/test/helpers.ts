@@ -76,6 +76,9 @@ export function makeQuery(
         orderBy() {
             return this;
         },
+        offset() {
+            return this;
+        },
         get: async () => getResult,
         all: async () => allResult,
     };

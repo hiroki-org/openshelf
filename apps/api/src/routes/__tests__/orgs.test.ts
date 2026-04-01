@@ -686,27 +686,30 @@ describe("orgs routes", () => {
                 { getResult: { id: "org-1", slug: "my-lab" } },
                 { getResult: { orgId: "org-1", userId: "user-1", role: "member" } },
                 {
-                    allResult: [
-                        { paperId: "paper-public" },
-                        { paperId: "paper-org" },
-                        { paperId: "paper-private" },
-                    ],
+                    allResult: [],
+                },
+                {
+                    getResult: { maxYear: 2025 },
+                },
+                {
+                    getResult: { count: 2 },
                 },
                 {
                     allResult: [
-                        { id: "paper-public", title: "Public", visibility: "public" },
-                        { id: "paper-org", title: "Org", visibility: "org_only" },
-                        { id: "paper-private", title: "Private", visibility: "private" },
+                        { id: "paper-public", title: "Public", visibility: "public", year: 2025 },
+                        { id: "paper-org", title: "Org", visibility: "org_only", year: 2025 },
                     ],
                 },
-                { allResult: [] },
+                { allResult: [{ value: 2025, count: 2 }] },
+                { allResult: [{ value: "ASE", count: 1 }] },
+                { allResult: [{ value: "report", count: 2 }] },
             ]);
 
             const app = await createTestApp();
             const env = createTestEnv();
 
             const res = await app.request(
-                "http://localhost/api/orgs/my-lab/papers",
+                "http://localhost/api/orgs/my-lab/papers?paginate=1&autoYear=1",
                 {
                     headers: { Authorization: `Bearer ${token}` },
                 },
@@ -714,10 +717,13 @@ describe("orgs routes", () => {
             );
 
             expect(res.status).toBe(200);
-            expect(((await res.json()) as any).papers.map((paper: any) => paper.id)).toEqual([
+            const body = (await res.json()) as any;
+            expect(body.papers.map((paper: any) => paper.id)).toEqual([
                 "paper-public",
                 "paper-org",
             ]);
+            expect(body.total).toBe(2);
+            expect(body.appliedFilters.year).toBe(2025);
         });
 
         it("returns authored private papers even when the requester is not an org member", async () => {
@@ -726,25 +732,30 @@ describe("orgs routes", () => {
                 { getResult: { id: "org-1", slug: "my-lab" } },
                 { getResult: null },
                 {
-                    allResult: [
-                        { paperId: "paper-public" },
-                        { paperId: "paper-private" },
-                    ],
+                    allResult: [{ paperId: "paper-private" }],
+                },
+                {
+                    getResult: { maxYear: 2024 },
+                },
+                {
+                    getResult: { count: 2 },
                 },
                 {
                     allResult: [
-                        { id: "paper-public", title: "Public", visibility: "public" },
-                        { id: "paper-private", title: "Private", visibility: "private" },
+                        { id: "paper-public", title: "Public", visibility: "public", year: 2024 },
+                        { id: "paper-private", title: "Private", visibility: "private", year: 2024 },
                     ],
                 },
-                { allResult: [{ paperId: "paper-private" }] },
+                { allResult: [{ value: 2024, count: 2 }] },
+                { allResult: [] },
+                { allResult: [] },
             ]);
 
             const app = await createTestApp();
             const env = createTestEnv();
 
             const res = await app.request(
-                "http://localhost/api/orgs/my-lab/papers",
+                "http://localhost/api/orgs/my-lab/papers?paginate=1&autoYear=1",
                 {
                     headers: { Authorization: `Bearer ${token}` },
                 },
@@ -752,10 +763,49 @@ describe("orgs routes", () => {
             );
 
             expect(res.status).toBe(200);
-            expect(((await res.json()) as any).papers.map((paper: any) => paper.id)).toEqual([
+            const body = (await res.json()) as any;
+            expect(body.papers.map((paper: any) => paper.id)).toEqual([
                 "paper-public",
                 "paper-private",
             ]);
+            expect(body.appliedFilters.year).toBe(2024);
+        });
+
+        it("applies year, venue, category and page query parameters", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Member" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "member" } },
+                { allResult: [] },
+                { getResult: { count: 1 } },
+                {
+                    allResult: [
+                        { id: "paper-1", title: "Filtered", visibility: "public", year: 2023, venue: "ASE", category: "report" },
+                    ],
+                },
+                { allResult: [{ value: 2023, count: 1 }] },
+                { allResult: [{ value: "ASE", count: 1 }] },
+                { allResult: [{ value: "report", count: 1 }] },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers?paginate=1&autoYear=1&year=2023&venue=ASE&category=report&page=2",
+                { headers: { Authorization: `Bearer ${token}` } },
+                env as any,
+            );
+
+            expect(res.status).toBe(200);
+            const body = (await res.json()) as any;
+            expect(body.page).toBe(2);
+            expect(body.appliedFilters).toEqual({
+                year: 2023,
+                venue: "ASE",
+                category: "report",
+            });
+            expect(body.filterOptions.years).toEqual([{ value: 2023, count: 1 }]);
         });
     });
 
