@@ -9,6 +9,7 @@ type PaperMetadataResponse = {
     id: string;
     title: string;
     abstract: string | null;
+    description: string | null;
     visibility: "public" | "org_only" | "private";
   };
   authors: Array<{
@@ -42,7 +43,8 @@ async function fetchPaperMetadata(
 
 function toDescription(value: string | null | undefined): string | undefined {
   if (!value) return undefined;
-  return [...value].slice(0, 200).join("");
+  const plainText = value.replace(/[`*_#[\]()~>|-]/g, " ").replace(/\s+/g, " ").trim();
+  return [...plainText].slice(0, 160).join("");
 }
 
 function buildOgImageUrl(
@@ -95,7 +97,9 @@ export async function generateMetadata(props: {
 
   const title = `${data.paper.title} | OpenShelf`;
   const description =
-    toDescription(data.paper.abstract) ?? "OpenShelf の論文詳細ページ";
+    toDescription(data.paper.description) ??
+    toDescription(data.paper.abstract) ??
+    "OpenShelf の論文詳細ページ";
   const authors = data.authors
     .map((author) => author.displayName ?? author.name)
     .filter(Boolean)
