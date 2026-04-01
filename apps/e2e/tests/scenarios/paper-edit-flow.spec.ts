@@ -25,9 +25,9 @@ test.describe('Paper Edit Flow', () => {
     await page.getByLabel(/外部リンク/).fill(updatedExternalUrl);
     await page.getByLabel(/タグ/).fill('ml, e2e');
     await page.getByLabel(/Description/).fill(updatedDescription);
-    await page.getByRole('button', { name: 'Preview' }).click();
+    await page.getByRole('tab', { name: 'Preview' }).click();
     await expect(page.getByText('実行手順')).toBeVisible();
-    await page.getByRole('button', { name: 'Write' }).click();
+    await page.getByRole('tab', { name: 'Write' }).click();
     await page.getByRole('button', { name: '保存する' }).click();
 
     await expect(page).toHaveURL(new RegExp(`/papers/${paperId}$`));
