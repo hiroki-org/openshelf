@@ -190,7 +190,8 @@ describe("OrgPageClient", () => {
     render(<OrgPageClient slug="lab" />);
     expect(await screen.findByText("Research Lab")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("年度"), { target: { value: "2025" } });
+    const [yearSelect] = screen.getAllByRole("combobox");
+    fireEvent.change(yearSelect, { target: { value: "2025" } });
     expect(replaceMock).toHaveBeenCalledWith("/orgs/lab?year=2025");
   });
 

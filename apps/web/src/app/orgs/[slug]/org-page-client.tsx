@@ -74,6 +74,17 @@ type PapersResponse = {
   };
 };
 
+function isPaginatedPapersResponse(value: unknown): value is PapersResponse {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    Array.isArray(record.papers) &&
+    typeof record.total === "number" &&
+    typeof record.page === "number" &&
+    typeof record.totalPages === "number"
+  );
+}
+
 export default function OrgPageClient({ slug }: OrgPageClientProps) {
   const { user } = useAuth();
   const searchParams = useSearchParams();
@@ -86,7 +97,6 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
   const [papersTotal, setPapersTotal] = useState(0);
   const [papersPage, setPapersPage] = useState(1);
   const [papersTotalPages, setPapersTotalPages] = useState(1);
-  const [appliedYear, setAppliedYear] = useState<number | null>(null);
   const [yearOptions, setYearOptions] = useState<SelectOption[]>([]);
   const [venueOptions, setVenueOptions] = useState<SelectOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<SelectOption[]>([]);
@@ -114,7 +124,7 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
           params.set(key, value);
         }
       }
-      if (!Object.prototype.hasOwnProperty.call(changes, "page")) {
+      if (!Object.hasOwn(changes, "page")) {
         params.delete("page");
       }
       const query = params.toString();
@@ -153,30 +163,44 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
       setMemberCount(orgData.memberCount);
 
       if (papersRes.ok) {
-        const papersData = (await papersRes.json()) as PapersResponse;
-        setOrgPapers(papersData.papers);
-        setPapersTotal(papersData.total ?? papersData.papers.length);
-        setPapersPage(papersData.page ?? 1);
-        setPapersTotalPages(papersData.totalPages ?? 1);
-        setAppliedYear(papersData.appliedFilters?.year ?? null);
-        setYearOptions(
-          (papersData.filterOptions?.years ?? []).map((option) => ({
-            value: option.value,
-            count: option.count,
-          })),
-        );
-        setVenueOptions(
-          (papersData.filterOptions?.venues ?? []).map((option) => ({
-            value: option.value,
-            count: option.count,
-          })),
-        );
-        setCategoryOptions(
-          (papersData.filterOptions?.categories ?? []).map((option) => ({
-            value: option.value,
-            count: option.count,
-          })),
-        );
+        const papersData = await papersRes.json();
+        if (isPaginatedPapersResponse(papersData)) {
+          setOrgPapers(papersData.papers);
+          setPapersTotal(papersData.total);
+          setPapersPage(papersData.page);
+          setPapersTotalPages(papersData.totalPages);
+          setYearOptions(
+            (papersData.filterOptions?.years ?? []).map((option) => ({
+              value: option.value,
+              count: option.count,
+            })),
+          );
+          setVenueOptions(
+            (papersData.filterOptions?.venues ?? []).map((option) => ({
+              value: option.value,
+              count: option.count,
+            })),
+          );
+          setCategoryOptions(
+            (papersData.filterOptions?.categories ?? []).map((option) => ({
+              value: option.value,
+              count: option.count,
+            })),
+          );
+        } else if (
+          papersData &&
+          typeof papersData === "object" &&
+          Array.isArray((papersData as { papers?: unknown }).papers)
+        ) {
+          const papers = (papersData as { papers: OrgPaper[] }).papers;
+          setOrgPapers(papers);
+          setPapersTotal(papers.length);
+          setPapersPage(1);
+          setPapersTotalPages(1);
+          setYearOptions([]);
+          setVenueOptions([]);
+          setCategoryOptions([]);
+        }
       }
 
       if (membersRes.ok) {
@@ -193,7 +217,7 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, selectedPage, selectedVenue, selectedYear, slug, updateFilters]);
+  }, [selectedCategory, selectedPage, selectedVenue, selectedYear, slug]);
 
   useEffect(() => {
     fetchOrg();
@@ -323,7 +347,7 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
               <span className="mb-1 block text-gray-600 dark:text-gray-400">年度</span>
               <select
                 className="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900"
-                value={selectedYear || (appliedYear !== null ? String(appliedYear) : "")}
+                value={selectedYear}
                 onChange={(e) => updateFilters({ year: e.target.value || null })}
               >
                 <option value="">全て</option>
@@ -332,7 +356,6 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
                     {option.value} ({option.count})
                   </option>
                 ))}
-                {selectedYear === "all" && <option value="all">全て（年度指定なし）</option>}
               </select>
             </label>
             <label className="text-sm">

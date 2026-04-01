@@ -12,6 +12,7 @@ import {
     enableForeignKeys,
     touchUpdatedAt,
     VALID_CATEGORIES,
+    type CategoryType,
 } from "../db/schema";
 import type { Env, JwtPayload, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -26,6 +27,36 @@ function normalizeFilterValue(value: string | undefined): string | null {
     const trimmed = value.trim();
     if (!trimmed) return null;
     return trimmed;
+}
+
+function isValidCategory(value: string): value is CategoryType {
+    return VALID_CATEGORIES.includes(value as CategoryType);
+}
+
+function buildOrgPapersVisibilityCondition(
+    isMember: boolean,
+    authoredIds: string[],
+) {
+    if (isMember) {
+        if (authoredIds.length > 0) {
+            return or(
+                eq(papers.visibility, "public"),
+                eq(papers.visibility, "org_only"),
+                and(eq(papers.visibility, "private"), inArray(papers.id, authoredIds)),
+            );
+        }
+        return or(eq(papers.visibility, "public"), eq(papers.visibility, "org_only"));
+    }
+
+    if (authoredIds.length > 0) {
+        return or(
+            eq(papers.visibility, "public"),
+            and(eq(papers.visibility, "org_only"), inArray(papers.id, authoredIds)),
+            and(eq(papers.visibility, "private"), inArray(papers.id, authoredIds)),
+        );
+    }
+
+    return eq(papers.visibility, "public");
 }
 
 function hasJwtSub(value: unknown): value is Pick<JwtPayload, "sub"> {
@@ -540,6 +571,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
     const venueQuery = normalizeFilterValue(c.req.query("venue"));
     const categoryQuery = normalizeFilterValue(c.req.query("category"));
     const pageQuery = c.req.query("page");
+    // year=all は autoYear(最新年度自動選択) を明示的に無効化して全年度表示するために使う
     const paginate = c.req.query("paginate") === "1";
     const autoYear = c.req.query("autoYear") === "1";
 
@@ -553,9 +585,10 @@ orgsRoute.get("/:slug/papers", async (c) => {
         return c.json({ error: "venue must be 100 characters or less" }, 400);
     }
 
-    if (categoryQuery && !VALID_CATEGORIES.includes(categoryQuery as any)) {
+    if (categoryQuery && !isValidCategory(categoryQuery)) {
         return c.json({ error: "Invalid category" }, 400);
     }
+    const categoryFilter = categoryQuery as CategoryType | null;
 
     let requestedYear: number | null = null;
     const wantsAllYears = yearQuery === "all";
@@ -588,35 +621,16 @@ orgsRoute.get("/:slug/papers", async (c) => {
         }
     }
 
-    const visibilityCondition = (() => {
-        if (isMember) {
-            if (authoredPaperIds.size > 0) {
-                return or(
-                    eq(papers.visibility, "public"),
-                    eq(papers.visibility, "org_only"),
-                    and(eq(papers.visibility, "private"), inArray(papers.id, Array.from(authoredPaperIds))),
-                );
-            }
-            return or(eq(papers.visibility, "public"), eq(papers.visibility, "org_only"));
-        }
-
-        if (authoredPaperIds.size > 0) {
-            return or(
-                eq(papers.visibility, "public"),
-                and(eq(papers.visibility, "org_only"), inArray(papers.id, Array.from(authoredPaperIds))),
-                and(eq(papers.visibility, "private"), inArray(papers.id, Array.from(authoredPaperIds))),
-            );
-        }
-
-        return eq(papers.visibility, "public");
-    })();
+    const authoredIds = Array.from(authoredPaperIds);
+    const visibilityCondition = buildOrgPapersVisibilityCondition(isMember, authoredIds);
 
     const commonFilters = [eq(paperOrgs.orgId, org.id), visibilityCondition];
     if (venueQuery) {
+        // venue は部分一致で絞り込み（例: "ASE" で "ASE 2026" を含む）
         commonFilters.push(sql`${papers.venue} LIKE ${`%${venueQuery}%`}`);
     }
-    if (categoryQuery) {
-        commonFilters.push(eq(papers.category, categoryQuery as any));
+    if (categoryFilter) {
+        commonFilters.push(eq(papers.category, categoryFilter));
     }
 
     let effectiveYear = requestedYear;
