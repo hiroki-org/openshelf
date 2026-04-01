@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { MarkdownRenderer } from "./markdown-renderer";
 
 type MarkdownEditorProps = {
@@ -21,6 +21,8 @@ export function MarkdownEditor({
   placeholder,
 }: MarkdownEditorProps) {
   const previewText = useMemo(() => value.trim(), [value]);
+  const writeTabRef = useRef<HTMLButtonElement>(null);
+  const previewTabRef = useRef<HTMLButtonElement>(null);
 
   return (
     <div className="rounded-md border border-gray-300 dark:border-gray-700">
@@ -28,8 +30,37 @@ export function MarkdownEditor({
         className="flex border-b border-gray-300 dark:border-gray-700"
         role="tablist"
         aria-label="Markdown editor mode"
+        onKeyDown={(e) => {
+          if (
+            e.key !== "ArrowLeft" &&
+            e.key !== "ArrowRight" &&
+            e.key !== "Home" &&
+            e.key !== "End"
+          ) {
+            return;
+          }
+
+          e.preventDefault();
+
+          let nextMode: "write" | "preview";
+          if (e.key === "Home") {
+            nextMode = "write";
+          } else if (e.key === "End") {
+            nextMode = "preview";
+          } else {
+            nextMode = mode === "write" ? "preview" : "write";
+          }
+
+          onModeChange(nextMode);
+          if (nextMode === "write") {
+            writeTabRef.current?.focus();
+          } else {
+            previewTabRef.current?.focus();
+          }
+        }}
       >
         <button
+          ref={writeTabRef}
           id={`${id}-tab-write`}
           type="button"
           role="tab"
@@ -42,6 +73,7 @@ export function MarkdownEditor({
           Write
         </button>
         <button
+          ref={previewTabRef}
           id={`${id}-tab-preview`}
           type="button"
           role="tab"
