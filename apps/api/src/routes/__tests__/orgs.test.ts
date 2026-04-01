@@ -226,6 +226,7 @@ describe("orgs routes", () => {
             queueSelectResponses([
                 { getResult: org },
                 { getResult: { count: 3 } },
+                { getResult: { count: 7 } },
             ]);
 
             const app = await createTestApp();
@@ -241,6 +242,7 @@ describe("orgs routes", () => {
             const body = (await res.json()) as any;
             expect(body.org.slug).toBe("my-lab");
             expect(body.memberCount).toBe(3);
+            expect(body.paperCount).toBe(7);
         });
 
         it("returns 404 for non-existent org", async () => {
@@ -771,22 +773,61 @@ describe("orgs routes", () => {
             expect(body.appliedFilters.year).toBe(2024);
         });
 
-        it("applies year, venue, category and page query parameters", async () => {
+        it("returns all visible papers in non-paginated mode", async () => {
             const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Member" });
             queueSelectResponses([
                 { getResult: { id: "org-1", slug: "my-lab" } },
                 { getResult: { orgId: "org-1", userId: "user-1", role: "member" } },
                 { allResult: [] },
-                { getResult: { count: 1 } },
                 {
                     allResult: [
-                        { id: "paper-1", title: "Filtered", visibility: "public", year: 2023, venue: "ASE", category: "report" },
+                        { id: "paper-public", title: "Public", visibility: "public", year: 2025 },
+                        { id: "paper-org", title: "Org", visibility: "org_only", year: 2025 },
                     ],
                 },
-                { allResult: [{ value: 2023, count: 1 }] },
-                { allResult: [{ value: "ASE", count: 1 }] },
-                { allResult: [{ value: "report", count: 1 }] },
             ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers",
+                { headers: { Authorization: `Bearer ${token}` } },
+                env as any,
+            );
+
+            expect(res.status).toBe(200);
+            const body = (await res.json()) as any;
+            expect(body.papers.map((paper: any) => paper.id)).toEqual([
+                "paper-public",
+                "paper-org",
+            ]);
+        });
+
+        it("applies year, venue, category and page query parameters", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Member" });
+            const offsetSpy = vi.fn(function () { return this; });
+            let callIndex = 0;
+            mockDb.select = vi.fn(() => {
+                callIndex += 1;
+                if (callIndex === 1) return makeQuery({ getResult: { id: "org-1", slug: "my-lab" } });
+                if (callIndex === 2) return makeQuery({ getResult: { orgId: "org-1", userId: "user-1", role: "member" } });
+                if (callIndex === 3) return makeQuery({ allResult: [] });
+                if (callIndex === 4) return makeQuery({ getResult: { count: 1 } });
+                if (callIndex === 5) {
+                    const query = makeQuery({
+                        allResult: [
+                            { id: "paper-1", title: "Filtered", visibility: "public", year: 2023, venue: "ASE", category: "report" },
+                        ],
+                    });
+                    query.offset = offsetSpy;
+                    return query;
+                }
+                if (callIndex === 6) return makeQuery({ allResult: [{ value: 2023, count: 1 }] });
+                if (callIndex === 7) return makeQuery({ allResult: [{ value: "ASE", count: 1 }] });
+                if (callIndex === 8) return makeQuery({ allResult: [{ value: "report", count: 1 }] });
+                throw new Error(`unexpected select call #${callIndex}`);
+            });
 
             const app = await createTestApp();
             const env = createTestEnv();
@@ -800,6 +841,7 @@ describe("orgs routes", () => {
             expect(res.status).toBe(200);
             const body = (await res.json()) as any;
             expect(body.page).toBe(2);
+            expect(offsetSpy).toHaveBeenCalledWith(20);
             expect(body.appliedFilters).toEqual({
                 year: 2023,
                 venue: "ASE",
@@ -808,6 +850,43 @@ describe("orgs routes", () => {
             expect(body.filterOptions.years).toEqual([{ value: 2023, count: 1 }]);
         });
     });
+
+
+        it("returns 400 for invalid page query", async () => {
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers?paginate=1&page=2foo",
+                {},
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "Invalid page" });
+        });
+
+        it("returns 400 for invalid year query", async () => {
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers?paginate=1&year=2025abc",
+                {},
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "Invalid year" });
+        });
 
     describe("GET /api/orgs/:slug/tags", () => {
         it("returns tags from visible org papers", async () => {

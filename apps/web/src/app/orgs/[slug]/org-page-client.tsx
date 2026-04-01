@@ -95,11 +95,13 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
   const [memberCount, setMemberCount] = useState(0);
   const [orgPapers, setOrgPapers] = useState<OrgPaper[]>([]);
   const [papersTotal, setPapersTotal] = useState(0);
+  const [orgPaperCount, setOrgPaperCount] = useState(0);
   const [papersPage, setPapersPage] = useState(1);
   const [papersTotalPages, setPapersTotalPages] = useState(1);
   const [yearOptions, setYearOptions] = useState<SelectOption[]>([]);
   const [venueOptions, setVenueOptions] = useState<SelectOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<SelectOption[]>([]);
+  const [appliedYear, setAppliedYear] = useState<number | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,10 +111,13 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
     (m) => m.userId === user?.id && (m.role === "admin" || m.role === "owner"),
   );
 
-  const selectedYear = searchParams.get("year") ?? "";
+  const selectedYearParam = searchParams.get("year");
+  const selectedYear = selectedYearParam === "all" ? "" : (selectedYearParam ?? "");
   const selectedVenue = searchParams.get("venue") ?? "";
   const selectedCategory = searchParams.get("category") ?? "";
   const selectedPage = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const autoYearEnabled = selectedYearParam === null;
+  const displayedYear = autoYearEnabled ? (appliedYear ? String(appliedYear) : "") : selectedYear;
 
   const updateFilters = useCallback(
     (changes: Record<string, string | null>) => {
@@ -124,7 +129,7 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
           params.set(key, value);
         }
       }
-      if (!Object.hasOwn(changes, "page")) {
+      if (!Object.prototype.hasOwnProperty.call(changes, "page")) {
         params.delete("page");
       }
       const query = params.toString();
@@ -133,20 +138,10 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
     [pathname, router, searchParams],
   );
 
-  const fetchOrg = useCallback(async () => {
+  const fetchOrgMeta = useCallback(async () => {
     try {
-      const papersParams = new URLSearchParams();
-      papersParams.set("paginate", "1");
-      papersParams.set("autoYear", "1");
-      if (selectedYear) papersParams.set("year", selectedYear);
-      if (selectedVenue) papersParams.set("venue", selectedVenue);
-      if (selectedCategory) papersParams.set("category", selectedCategory);
-      papersParams.set("page", String(selectedPage));
-      const papersUrl = `/api/orgs/${safePath(slug)}/papers${papersParams.toString() ? `?${papersParams.toString()}` : ""}`;
-
-      const [orgRes, papersRes, membersRes, collectionsRes] = await Promise.all([
+      const [orgRes, membersRes, collectionsRes] = await Promise.all([
         apiFetch(`/api/orgs/${safePath(slug)}`),
-        apiFetch(papersUrl),
         apiFetch(`/api/orgs/${safePath(slug)}/members`),
         apiFetch(`/api/orgs/${safePath(slug)}/collections`),
       ]);
@@ -160,48 +155,8 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
 
       const orgData = await orgRes.json();
       setOrg(orgData.org);
-      setMemberCount(orgData.memberCount);
-
-      if (papersRes.ok) {
-        const papersData = await papersRes.json();
-        if (isPaginatedPapersResponse(papersData)) {
-          setOrgPapers(papersData.papers);
-          setPapersTotal(papersData.total);
-          setPapersPage(papersData.page);
-          setPapersTotalPages(papersData.totalPages);
-          setYearOptions(
-            (papersData.filterOptions?.years ?? []).map((option) => ({
-              value: option.value,
-              count: option.count,
-            })),
-          );
-          setVenueOptions(
-            (papersData.filterOptions?.venues ?? []).map((option) => ({
-              value: option.value,
-              count: option.count,
-            })),
-          );
-          setCategoryOptions(
-            (papersData.filterOptions?.categories ?? []).map((option) => ({
-              value: option.value,
-              count: option.count,
-            })),
-          );
-        } else if (
-          papersData &&
-          typeof papersData === "object" &&
-          Array.isArray((papersData as { papers?: unknown }).papers)
-        ) {
-          const papers = (papersData as { papers: OrgPaper[] }).papers;
-          setOrgPapers(papers);
-          setPapersTotal(papers.length);
-          setPapersPage(1);
-          setPapersTotalPages(1);
-          setYearOptions([]);
-          setVenueOptions([]);
-          setCategoryOptions([]);
-        }
-      }
+      setMemberCount(orgData.memberCount ?? 0);
+      setOrgPaperCount(orgData.paperCount ?? 0);
 
       if (membersRes.ok) {
         const membersData = await membersRes.json();
@@ -214,14 +169,67 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
       }
     } catch {
       setError("取得に失敗しました");
+    }
+  }, [slug]);
+
+  const fetchPapers = useCallback(async () => {
+    try {
+      const papersParams = new URLSearchParams();
+      papersParams.set("paginate", "1");
+      if (autoYearEnabled) papersParams.set("autoYear", "1");
+      if (selectedYearParam === "all") {
+        papersParams.set("year", "all");
+      } else if (selectedYear) {
+        papersParams.set("year", selectedYear);
+      }
+      if (selectedVenue) papersParams.set("venue", selectedVenue);
+      if (selectedCategory) papersParams.set("category", selectedCategory);
+      papersParams.set("page", String(selectedPage));
+      const papersUrl = `/api/orgs/${safePath(slug)}/papers?${papersParams.toString()}`;
+
+      const papersRes = await apiFetch(papersUrl);
+      if (!papersRes.ok) return;
+
+      const papersData = await papersRes.json();
+      if (isPaginatedPapersResponse(papersData)) {
+        setOrgPapers(papersData.papers);
+        setPapersTotal(papersData.total);
+        setPapersPage(papersData.page);
+        setPapersTotalPages(papersData.totalPages);
+        setAppliedYear(papersData.appliedFilters?.year ?? null);
+        setYearOptions(
+          (papersData.filterOptions?.years ?? []).map((option) => ({
+            value: option.value,
+            count: option.count,
+          })),
+        );
+        setVenueOptions(
+          (papersData.filterOptions?.venues ?? []).map((option) => ({
+            value: option.value,
+            count: option.count,
+          })),
+        );
+        setCategoryOptions(
+          (papersData.filterOptions?.categories ?? []).map((option) => ({
+            value: option.value,
+            count: option.count,
+          })),
+        );
+      }
+    } catch {
+      setError("取得に失敗しました");
     } finally {
       setLoading(false);
     }
-  }, [selectedCategory, selectedPage, selectedVenue, selectedYear, slug]);
+  }, [autoYearEnabled, selectedCategory, selectedPage, selectedVenue, selectedYear, selectedYearParam, slug]);
 
   useEffect(() => {
-    fetchOrg();
-  }, [fetchOrg]);
+    fetchOrgMeta();
+  }, [fetchOrgMeta]);
+
+  useEffect(() => {
+    fetchPapers();
+  }, [fetchPapers]);
 
   if (loading) return <div className="text-center py-20">読み込み中...</div>;
   if (error)
@@ -253,7 +261,7 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
         </div>
         <div className="flex gap-4 mt-4 text-sm text-gray-500">
           <span>👥 {memberCount} メンバー</span>
-          <span>📄 {papersTotal} 論文</span>
+          <span>📄 {orgPaperCount} 論文</span>
           <span>📚 {collections.length} コレクション</span>
         </div>
       </div>
@@ -347,8 +355,8 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
               <span className="mb-1 block text-gray-600 dark:text-gray-400">年度</span>
               <select
                 className="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900"
-                value={selectedYear}
-                onChange={(e) => updateFilters({ year: e.target.value || null })}
+                value={displayedYear}
+                onChange={(e) => updateFilters({ year: e.target.value ? e.target.value : "all" })}
               >
                 <option value="">全て</option>
                 {yearOptions.map((option) => (

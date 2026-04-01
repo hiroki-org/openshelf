@@ -285,15 +285,23 @@ orgsRoute.get("/:slug", async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const memberCount = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(orgMembers)
-        .where(eq(orgMembers.orgId, org.id))
-        .get();
+    const [memberCount, paperCount] = await Promise.all([
+        db
+            .select({ count: sql<number>`count(*)` })
+            .from(orgMembers)
+            .where(eq(orgMembers.orgId, org.id))
+            .get(),
+        db
+            .select({ count: sql<number>`count(*)` })
+            .from(paperOrgs)
+            .where(eq(paperOrgs.orgId, org.id))
+            .get(),
+    ]);
 
     return c.json({
         org,
         memberCount: memberCount?.count ?? 0,
+        paperCount: paperCount?.count ?? 0,
     });
 });
 
@@ -578,8 +586,16 @@ orgsRoute.get("/:slug/papers", async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const pageNumber = Number.parseInt(pageQuery ?? "1", 10);
-    const page = Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1;
+    let page = 1;
+    if (pageQuery !== undefined) {
+        if (!/^\d+$/.test(pageQuery)) {
+            return c.json({ error: "Invalid page" }, 400);
+        }
+        page = Number.parseInt(pageQuery, 10);
+        if (!Number.isFinite(page) || page <= 0) {
+            return c.json({ error: "Invalid page" }, 400);
+        }
+    }
 
     if (venueQuery && venueQuery.length > 100) {
         return c.json({ error: "venue must be 100 characters or less" }, 400);
@@ -593,6 +609,9 @@ orgsRoute.get("/:slug/papers", async (c) => {
     let requestedYear: number | null = null;
     const wantsAllYears = yearQuery === "all";
     if (yearQuery && !wantsAllYears) {
+        if (!/^\d{4}$/.test(yearQuery)) {
+            return c.json({ error: "Invalid year" }, 400);
+        }
         const parsedYear = Number.parseInt(yearQuery, 10);
         if (!Number.isFinite(parsedYear) || parsedYear < 1900 || parsedYear > 2100) {
             return c.json({ error: "Invalid year" }, 400);
@@ -624,27 +643,34 @@ orgsRoute.get("/:slug/papers", async (c) => {
     const authoredIds = Array.from(authoredPaperIds);
     const visibilityCondition = buildOrgPapersVisibilityCondition(isMember, authoredIds);
 
-    const commonFilters = [eq(paperOrgs.orgId, org.id), visibilityCondition];
-    if (venueQuery) {
-        // venue は部分一致で絞り込み（例: "ASE" で "ASE 2026" を含む）
-        commonFilters.push(sql`${papers.venue} LIKE ${`%${venueQuery}%`}`);
-    }
-    if (categoryFilter) {
-        commonFilters.push(eq(papers.category, categoryFilter));
-    }
+    const baseFilters = [eq(paperOrgs.orgId, org.id), visibilityCondition];
 
     let effectiveYear = requestedYear;
+    const latestYearFilters = [...baseFilters];
+    if (venueQuery) {
+        latestYearFilters.push(sql`${papers.venue} LIKE ${`%${venueQuery}%`}`);
+    }
+    if (categoryFilter) {
+        latestYearFilters.push(eq(papers.category, categoryFilter));
+    }
+
     if (autoYear && !wantsAllYears && requestedYear === null) {
         const latestYearRow = await db
             .select({ maxYear: sql<number | null>`MAX(${papers.year})` })
             .from(paperOrgs)
             .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
-            .where(and(...commonFilters))
+            .where(and(...latestYearFilters))
             .get();
         effectiveYear = latestYearRow?.maxYear ?? null;
     }
 
-    const finalFilters = [...commonFilters];
+    const finalFilters = [...baseFilters];
+    if (venueQuery) {
+        finalFilters.push(sql`${papers.venue} LIKE ${`%${venueQuery}%`}`);
+    }
+    if (categoryFilter) {
+        finalFilters.push(eq(papers.category, categoryFilter));
+    }
     if (effectiveYear !== null) {
         finalFilters.push(eq(papers.year, effectiveYear));
     }
@@ -705,7 +731,14 @@ orgsRoute.get("/:slug/papers", async (c) => {
             })
             .from(paperOrgs)
             .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
-            .where(and(...commonFilters, sql`${papers.year} IS NOT NULL`))
+            .where(
+                and(
+                    ...baseFilters,
+                    venueQuery ? sql`${papers.venue} LIKE ${`%${venueQuery}%`}` : undefined,
+                    categoryFilter ? eq(papers.category, categoryFilter) : undefined,
+                    sql`${papers.year} IS NOT NULL`,
+                ),
+            )
             .groupBy(papers.year)
             .orderBy(desc(papers.year))
             .all(),
@@ -718,7 +751,9 @@ orgsRoute.get("/:slug/papers", async (c) => {
             .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
             .where(
                 and(
-                    ...commonFilters,
+                    ...baseFilters,
+                    effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
+                    categoryFilter ? eq(papers.category, categoryFilter) : undefined,
                     sql`${papers.venue} IS NOT NULL`,
                     sql`TRIM(${papers.venue}) != ''`,
                 ),
@@ -733,7 +768,14 @@ orgsRoute.get("/:slug/papers", async (c) => {
             })
             .from(paperOrgs)
             .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
-            .where(and(...commonFilters, sql`${papers.category} IS NOT NULL`))
+            .where(
+                and(
+                    ...baseFilters,
+                    effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
+                    venueQuery ? sql`${papers.venue} LIKE ${`%${venueQuery}%`}` : undefined,
+                    sql`${papers.category} IS NOT NULL`,
+                ),
+            )
             .groupBy(papers.category)
             .orderBy(desc(sql<number>`COUNT(*)`), papers.category)
             .all(),
