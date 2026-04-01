@@ -1181,7 +1181,7 @@ papersRoute.put("/:id/description", authMiddleware, async (c) => {
     }
 
     const normalizedDescription = typeof body.description === "string"
-        ? body.description.split("\0").join("")
+        ? body.description.split("\0").join("").trim()
         : null;
     if (normalizedDescription && normalizedDescription.length > MAX_DESCRIPTION_LENGTH) {
         return c.json({ error: `description must be ${MAX_DESCRIPTION_LENGTH} chars or less` }, 400);
