@@ -517,7 +517,7 @@ describe("papers routes", () => {
         expect(body.paper.language).toBe("ja");
         expect(body.paper.doi).toBe("10.1234/example");
         expect(body.paper.description).toBe("## notes");
-        expect(body.paper.descriptionUpdatedAt).toBe("2026-04-01 12:00:00");
+        expect(body.paper.descriptionUpdatedAt).toBe("2026-04-01T12:00:00.000Z");
         expect(body.paper.showViewCount).toBe(true);
         expect(body.paper.publicViewCount).toBe(4);
         expect(mockDb.batch).toHaveBeenCalledTimes(1);
@@ -871,6 +871,7 @@ describe("papers routes", () => {
         const body = (await res.json()) as any;
         expect(body.id).toBe("paper-1");
         expect(body.description).toBe("## Updated");
+        expect(body.descriptionUpdatedAt).toBe("2026-04-01T12:00:00.000Z");
         expect(body.description_updated_at).toBe("2026-04-01T12:00:00.000Z");
     });
 

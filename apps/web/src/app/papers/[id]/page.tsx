@@ -67,9 +67,8 @@ export async function generateMetadata(props: {
   const { id } = await Promise.resolve(props.params);
 
   // Sanitization check
-  let sanitizedId = "";
   try {
-    sanitizedId = safePath(id);
+    safePath(id);
   } catch {
     return { title: "論文詳細 | OpenShelf" };
   }
@@ -97,8 +96,8 @@ export async function generateMetadata(props: {
 
   const title = `${data.paper.title} | OpenShelf`;
   const description =
-    toDescription(data.paper.description) ??
-    toDescription(data.paper.abstract) ??
+    toDescription(data.paper.description) ||
+    toDescription(data.paper.abstract) ||
     "OpenShelf の論文詳細ページ";
   const authors = data.authors
     .map((author) => author.displayName ?? author.name)

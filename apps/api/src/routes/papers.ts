@@ -54,6 +54,11 @@ function formatDbDateTime(date: Date): string {
     return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
+function toIsoUtc(value: string | null | undefined): string | null {
+    if (!value) return null;
+    return new Date(value.replace(" ", "T") + "Z").toISOString();
+}
+
 function getDateRange(days: number, now = new Date()): string[] {
     const start = new Date(Date.UTC(
         now.getUTCFullYear(),
@@ -641,7 +646,7 @@ papersRoute.get("/:id", async (c) => {
             title: paper.title,
             abstract: paper.abstract,
             description: paper.description,
-            descriptionUpdatedAt: paper.descriptionUpdatedAt,
+            descriptionUpdatedAt: toIsoUtc(paper.descriptionUpdatedAt),
             visibility: paper.visibility,
             showViewCount: paper.showViewCount,
             publicViewCount,
@@ -1227,12 +1232,14 @@ papersRoute.put("/:id/description", authMiddleware, async (c) => {
         .get();
     if (!updatedPaper) return c.json({ error: "Not found" }, 404);
 
+    const normalizedDescriptionUpdatedAt = toIsoUtc(updatedPaper.descriptionUpdatedAt);
+
     return c.json({
         id: updatedPaper.id,
         description: updatedPaper.description,
-        description_updated_at: updatedPaper.descriptionUpdatedAt
-            ? new Date(updatedPaper.descriptionUpdatedAt.replace(" ", "T") + "Z").toISOString()
-            : null,
+        descriptionUpdatedAt: normalizedDescriptionUpdatedAt,
+        // Backward compatibility for existing clients expecting snake_case.
+        description_updated_at: normalizedDescriptionUpdatedAt,
     });
 });
 

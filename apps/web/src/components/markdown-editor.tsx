@@ -24,16 +24,30 @@ export function MarkdownEditor({
 
   return (
     <div className="rounded-md border border-gray-300 dark:border-gray-700">
-      <div className="flex border-b border-gray-300 dark:border-gray-700">
+      <div
+        className="flex border-b border-gray-300 dark:border-gray-700"
+        role="tablist"
+        aria-label="Markdown editor mode"
+      >
         <button
+          id={`${id}-tab-write`}
           type="button"
+          role="tab"
+          aria-selected={mode === "write"}
+          aria-controls={`${id}-panel-write`}
+          tabIndex={mode === "write" ? 0 : -1}
           onClick={() => onModeChange("write")}
           className={`px-3 py-2 text-sm ${mode === "write" ? "bg-gray-100 font-medium dark:bg-gray-800" : ""}`}
         >
           Write
         </button>
         <button
+          id={`${id}-tab-preview`}
           type="button"
+          role="tab"
+          aria-selected={mode === "preview"}
+          aria-controls={`${id}-panel-preview`}
+          tabIndex={mode === "preview" ? 0 : -1}
           onClick={() => onModeChange("preview")}
           className={`px-3 py-2 text-sm ${mode === "preview" ? "bg-gray-100 font-medium dark:bg-gray-800" : ""}`}
         >
@@ -42,7 +56,9 @@ export function MarkdownEditor({
       </div>
       {mode === "write" ? (
         <textarea
-          id={id}
+          role="tabpanel"
+          id={`${id}-panel-write`}
+          aria-labelledby={`${id}-tab-write`}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           rows={12}
@@ -50,7 +66,12 @@ export function MarkdownEditor({
           placeholder={placeholder}
         />
       ) : (
-        <div className="min-h-[12rem] p-3">
+        <div
+          className="min-h-[12rem] p-3"
+          role="tabpanel"
+          id={`${id}-panel-preview`}
+          aria-labelledby={`${id}-tab-preview`}
+        >
           {previewText ? (
             <MarkdownRenderer
               markdown={previewText}

@@ -206,7 +206,10 @@ export default function PaperEditPage() {
       );
       if (!descriptionRes.ok) {
         const d = await descriptionRes.json().catch(() => ({}));
-        throw new Error(d.error || "Description の更新に失敗しました");
+        const reason = d.error || "Description の更新に失敗しました";
+        throw new Error(
+          `メタデータは保存されましたが、Description の保存に失敗しました。再度お試しください。（詳細: ${reason}）`,
+        );
       }
 
       router.push(`/papers/${paperId}`);
