@@ -55,16 +55,20 @@ export function MarkdownEditor({
         </button>
       </div>
       {mode === "write" ? (
-        <textarea
+        <div
           role="tabpanel"
           id={`${id}-panel-write`}
           aria-labelledby={`${id}-tab-write`}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          rows={12}
-          className="w-full resize-y border-0 bg-transparent p-3 font-mono text-sm focus:outline-none"
-          placeholder={placeholder}
-        />
+        >
+          <textarea
+            id={id}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            rows={12}
+            className="w-full resize-y border-0 bg-transparent p-3 font-mono text-sm focus:outline-none"
+            placeholder={placeholder}
+          />
+        </div>
       ) : (
         <div
           className="min-h-[12rem] p-3"
