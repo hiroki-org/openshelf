@@ -40,7 +40,12 @@ function applyConditionalResponse(c: BadgeContext, etag: string): boolean {
 async function fetchPublicPaper(
     c: BadgeContext,
     paperId: string,
-) {
+): Promise<{
+    id: string;
+    title: string;
+    year: number | null;
+    visibility: string;
+} | null> {
     const db = drizzle(c.env.DB);
     const paper = await db
         .select({
