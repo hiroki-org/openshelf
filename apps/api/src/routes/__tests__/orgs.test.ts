@@ -806,8 +806,9 @@ describe("orgs routes", () => {
 
         it("applies year, venue, category and page query parameters", async () => {
             const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Member" });
-            const offsetSpy = vi.fn(function () { return this; });
+            const offsetSpy = vi.fn(() => queryWithOffset);
             let callIndex = 0;
+            let queryWithOffset: ReturnType<typeof makeQuery>;
             mockDb.select = vi.fn(() => {
                 callIndex += 1;
                 if (callIndex === 1) return makeQuery({ getResult: { id: "org-1", slug: "my-lab" } });
@@ -815,13 +816,13 @@ describe("orgs routes", () => {
                 if (callIndex === 3) return makeQuery({ allResult: [] });
                 if (callIndex === 4) return makeQuery({ getResult: { count: 1 } });
                 if (callIndex === 5) {
-                    const query = makeQuery({
+                    queryWithOffset = makeQuery({
                         allResult: [
                             { id: "paper-1", title: "Filtered", visibility: "public", year: 2023, venue: "ASE", category: "report" },
                         ],
                     });
-                    query.offset = offsetSpy;
-                    return query;
+                    queryWithOffset.offset = offsetSpy;
+                    return queryWithOffset;
                 }
                 if (callIndex === 6) return makeQuery({ allResult: [{ value: 2023, count: 1 }] });
                 if (callIndex === 7) return makeQuery({ allResult: [{ value: "ASE", count: 1 }] });
