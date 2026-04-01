@@ -200,6 +200,76 @@ describe("badge routes", () => {
         });
     });
 
+
+    it("returns 304 for weak If-None-Match values", async () => {
+        queueSelectResponses([
+            {
+                getResult: {
+                    id: "paper-1",
+                    title: "ETag paper",
+                    year: 2023,
+                    visibility: "public",
+                },
+            },
+            {
+                getResult: {
+                    id: "paper-1",
+                    title: "ETag paper",
+                    year: 2023,
+                    visibility: "public",
+                },
+            },
+        ]);
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const first = await app.request("http://localhost/badge/paper-1", {}, env as any);
+        const etag = first.headers.get("etag");
+        expect(etag).toBeTruthy();
+
+        const second = await app.request(
+            "http://localhost/badge/paper-1",
+            { headers: { "If-None-Match": `W/${etag}` } },
+            env as any,
+        );
+        expect(second.status).toBe(304);
+        expect(second.headers.get("etag")).toBe(etag);
+    });
+
+    it("returns 304 when If-None-Match includes multiple values", async () => {
+        queueSelectResponses([
+            {
+                getResult: {
+                    id: "paper-1",
+                    title: "ETag paper",
+                    year: 2023,
+                    visibility: "public",
+                },
+            },
+            {
+                getResult: {
+                    id: "paper-1",
+                    title: "ETag paper",
+                    year: 2023,
+                    visibility: "public",
+                },
+            },
+        ]);
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const first = await app.request("http://localhost/badge/paper-1", {}, env as any);
+        const etag = first.headers.get("etag");
+        expect(etag).toBeTruthy();
+
+        const second = await app.request(
+            "http://localhost/badge/paper-1",
+            { headers: { "If-None-Match": `"other", ${etag}` } },
+            env as any,
+        );
+        expect(second.status).toBe(304);
+        expect(second.headers.get("etag")).toBe(etag);
+    });
     it("returns 304 when If-None-Match matches ETag", async () => {
         queueSelectResponses([
             {

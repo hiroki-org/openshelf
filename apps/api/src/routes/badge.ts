@@ -27,9 +27,21 @@ function setCacheHeaders(c: BadgeContext, etag: string): void {
     c.header("Vary", "Accept-Encoding");
 }
 
+function normalizeEtagValue(value: string): string {
+    const trimmed = value.trim();
+    return trimmed.startsWith("W/") ? trimmed.slice(2).trim() : trimmed;
+}
+
 function applyConditionalResponse(c: BadgeContext, etag: string): boolean {
     const ifNoneMatch = c.req.header("If-None-Match");
-    if (ifNoneMatch && ifNoneMatch === etag) {
+    if (!ifNoneMatch) return false;
+
+    const candidates = ifNoneMatch
+        .split(",")
+        .map((value) => normalizeEtagValue(value))
+        .filter((value) => value.length > 0);
+
+    if (candidates.includes("*") || candidates.includes(etag)) {
         setCacheHeaders(c, etag);
         c.status(304);
         return true;
