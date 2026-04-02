@@ -38,6 +38,7 @@ const VALID_FILE_TYPES = ["paper", "slides", "poster", "supplementary"];
 const VALID_VISIBILITY = ["public", "org_only", "private"];
 const MAX_TITLE_LENGTH = 300;
 const MAX_ABSTRACT_LENGTH = 5000;
+const MAX_DESCRIPTION_LENGTH = 50000;
 const MAX_LANGUAGE_LENGTH = 32;
 const MAX_EXTERNAL_URL_LENGTH = 2048;
 const MAX_DOI_LENGTH = 255;
@@ -63,6 +64,14 @@ function formatDateKey(date: Date): string {
     return date.toISOString().slice(0, 10);
 }
 
+function formatDbDateTime(date: Date): string {
+    return date.toISOString().slice(0, 19).replace("T", " ");
+}
+
+function toIsoUtc(value: string | null | undefined): string | null {
+    if (!value) return null;
+    return new Date(value.replace(" ", "T") + "Z").toISOString();
+}
 function getDateRange(days: number, now = new Date()): string[] {
     const start = new Date(Date.UTC(
         now.getUTCFullYear(),
@@ -763,6 +772,8 @@ papersRoute.get("/:id", async (c) => {
             id: paper.id,
             title: paper.title,
             abstract: paper.abstract,
+            description: paper.description,
+            descriptionUpdatedAt: toIsoUtc(paper.descriptionUpdatedAt),
             visibility: paper.visibility,
             showViewCount: paper.showViewCount,
             publicViewCount: publicStats?.views ?? null,
@@ -1282,6 +1293,86 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
     await db.delete(papers).where(eq(papers.id, paperId));
 
     return c.json({ ok: true });
+});
+
+// PUT /api/papers/:id/description — update paper description
+papersRoute.put("/:id/description", authMiddleware, async (c) => {
+    const paperId = c.req.param("id");
+    const userId = c.get("user").sub;
+    let parsedBody: unknown;
+    try {
+        parsedBody = await c.req.json();
+    } catch {
+        return c.json({ error: "Invalid JSON body" }, 400);
+    }
+    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+        return c.json({ error: "Invalid JSON body" }, 400);
+    }
+    const body = parsedBody as Record<string, unknown>;
+
+    if (!("description" in body)) {
+        return c.json({ error: "description is required" }, 400);
+    }
+    if (!(typeof body.description === "string" || body.description === null)) {
+        return c.json({ error: "description must be a string or null" }, 400);
+    }
+
+    const normalizedDescription = typeof body.description === "string"
+        ? body.description.split("\0").join("").trim()
+        : null;
+    if (normalizedDescription && normalizedDescription.length > MAX_DESCRIPTION_LENGTH) {
+        return c.json({ error: `description must be ${MAX_DESCRIPTION_LENGTH} chars or less` }, 400);
+    }
+
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    const paper = await db
+        .select({ id: papers.id })
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!paper) return c.json({ error: "Not found" }, 404);
+
+    const author = await db
+        .select({ userId: paperAuthors.userId })
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paperId),
+                eq(paperAuthors.userId, userId),
+            ),
+        )
+        .get();
+    if (!author) return c.json({ error: "Forbidden" }, 403);
+
+    const descriptionUpdatedAt = normalizedDescription ? sql`(datetime('now'))` : null;
+    await db.update(papers).set({
+        description: normalizedDescription,
+        descriptionUpdatedAt,
+        ...touchUpdatedAt(),
+    }).where(eq(papers.id, paperId));
+
+    const updatedPaper = await db
+        .select({
+            id: papers.id,
+            description: papers.description,
+            descriptionUpdatedAt: papers.descriptionUpdatedAt,
+        })
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!updatedPaper) return c.json({ error: "Not found" }, 404);
+
+    const normalizedDescriptionUpdatedAt = toIsoUtc(updatedPaper.descriptionUpdatedAt);
+
+    return c.json({
+        id: updatedPaper.id,
+        description: updatedPaper.description,
+        descriptionUpdatedAt: normalizedDescriptionUpdatedAt,
+        // Backward compatibility for existing clients expecting snake_case.
+        description_updated_at: normalizedDescriptionUpdatedAt,
+    });
 });
 
 // PATCH /api/papers/:id — edit paper metadata

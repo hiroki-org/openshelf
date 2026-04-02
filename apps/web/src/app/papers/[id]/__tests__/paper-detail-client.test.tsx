@@ -122,6 +122,9 @@ describe("PaperDetailClient", () => {
             id: "paper-1",
             title: "Transformer Tricks",
             abstract: "Paper abstract",
+            description:
+              "## 再現手順\n\n```bash\nnpm run test\n```\n\n<script>alert('xss')</script>",
+            descriptionUpdatedAt: "2026-03-01T00:00:00.000Z",
             visibility: "public",
             showViewCount: true,
             publicViewCount: 10,
@@ -307,6 +310,10 @@ describe("PaperDetailClient", () => {
     expect(statsSection).not.toBeNull();
     expect(within(statsSection!).getByText("12")).toBeInTheDocument();
     expect(within(statsSection!).getByText("5")).toBeInTheDocument();
+    expect(screen.getByText("3/2")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Description" })).toBeInTheDocument();
+    expect(screen.getByText("再現手順")).toBeInTheDocument();
+    expect(screen.queryByText("alert('xss')")).not.toBeInTheDocument();
 
     const slideRow = screen.getByText("deck.pptx").closest("li");
     expect(slideRow).not.toBeNull();
@@ -506,6 +513,8 @@ describe("PaperDetailClient", () => {
             id: "paper-1",
             title: "Fallback Preview",
             abstract: null,
+            description: null,
+            descriptionUpdatedAt: null,
             visibility: "private",
             showViewCount: false,
             publicViewCount: null,

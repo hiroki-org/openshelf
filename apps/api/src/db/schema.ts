@@ -49,6 +49,8 @@ export const papers = sqliteTable(
         id: id(),
         title: text("title").notNull(),
         abstract: text("abstract"),
+        description: text("description"),
+        descriptionUpdatedAt: text("description_updated_at"),
         visibility: text("visibility", { enum: ["public", "org_only", "private"] })
             .notNull()
             .default("private"),

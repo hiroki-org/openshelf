@@ -14,6 +14,7 @@ import {
   getRoleBadge,
 } from "@/lib/presentation";
 import { CiteButton } from "./cite-button";
+import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { BadgeSnippet } from "./badge-snippet";
 
 const PdfViewer = dynamic(
@@ -25,6 +26,8 @@ type Paper = {
   id: string;
   title: string;
   abstract: string | null;
+  description: string | null;
+  descriptionUpdatedAt: string | null;
   visibility: string;
   showViewCount: boolean;
   publicViewCount: number | null;
@@ -596,6 +599,16 @@ export default function PaperDetailClient({
           <h2 className="text-sm font-medium text-gray-500 mb-1">概要</h2>
           <p className="text-sm whitespace-pre-wrap">{paper.abstract}</p>
         </div>
+      )}
+
+      {paper.description && (
+        <section className="mb-6">
+          <h2 className="text-sm font-medium text-gray-500 mb-2">Description</h2>
+          <MarkdownRenderer
+            markdown={paper.description}
+            className="prose prose-sm max-w-none dark:prose-invert"
+          />
+        </section>
       )}
 
       {isAuthor && (
