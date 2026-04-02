@@ -158,23 +158,29 @@ OpenShelf API は staging / production の 2 環境で運用します。
 
 #### 開発フロー
 
-通常の開発フロー:
+通常の開発フロー（staging 先行）:
 
 1. `main` から feature branch を作成
-2. 実装・テスト
-3. PR を作成する（CI で lint / typecheck / test が自動実行）
-4. レビュー後に `main` へマージ
-5. `main` マージで production が自動デプロイ
-6. `main` を `staging` にマージして staging も自動デプロイ
-
-staging 先行テストが必要な場合:
-
-1. feature branch を `staging` にマージ、または `staging` に直接 push
-2. staging 環境で動作確認
-3. 問題なければ `main` へ PR を作成してマージ
+2. 実装・ローカルテスト
+3. `staging` 宛てに PR を作成（CI が自動実行）
+4. レビュー・マージ → staging に自動デプロイ
+5. staging 環境で動作確認
+6. 問題なければ `staging` → `main` へ PR を作成
+7. マージ → production に自動デプロイ
 
 > [!NOTE]
-> rollback / hotfix の詳細フローと E2E テスト戦略は今後整理します。
+> `main` 宛てに PR を作成した場合、source が `staging` でなければ `staging` に自動で retarget されます。
+> Ruleset の bypass 権限を持つ admin は `main` 宛て PR をそのまま維持できます。
+
+緊急 hotfix:
+
+1. `main` から hotfix branch を作成
+2. `staging` 宛てに PR を作成して staging で動作確認
+3. 問題なければ `staging` → `main` の PR を作成
+4. マージ → production に自動デプロイ
+
+> [!NOTE]
+> rollback / E2E テスト戦略の詳細化は今後整理します。
 
 #### D1 マイグレーション運用
 
