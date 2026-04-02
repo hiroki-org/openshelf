@@ -383,7 +383,12 @@ describe("PaperDetailClient", () => {
       throw new Error(`Unexpected request: ${method} ${url}`);
     });
 
-    render(<PaperDetailClient paperId="paper-1" />);
+    render(
+      <PaperDetailClient
+        paperId="paper-1"
+        siteBase="https://openshelf.example"
+      />,
+    );
 
     await screen.findByRole("heading", { name: "Author Hidden Stats" });
     expect(await screen.findByText("著者向けの閲覧・ダウンロード数")).toBeInTheDocument();
@@ -470,7 +475,12 @@ describe("PaperDetailClient", () => {
       throw new Error(`Unexpected request: ${method} ${url}`);
     });
 
-    render(<PaperDetailClient paperId="paper-1" />);
+    render(
+      <PaperDetailClient
+        paperId="paper-1"
+        siteBase="https://openshelf.example"
+      />,
+    );
 
     await screen.findByRole("heading", { name: "Private Tracking" });
     await waitFor(() => {
