@@ -10,7 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  retarget:
+  require-staging-source:
+    name: require-staging-source
     runs-on: ubuntu-latest
     steps:
       - name: Retarget PR to staging
