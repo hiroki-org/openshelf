@@ -108,6 +108,10 @@ function normalizeReferrer(value: unknown): string | null {
     return trimmed.slice(0, MAX_REFERRER_LENGTH);
 }
 
+/**
+ * `isBotUserAgent` treats missing or empty User-Agent values as non-bot.
+ * Requests without a User-Agent header are therefore counted as human traffic.
+ */
 function isBotUserAgent(userAgent: string | undefined): boolean {
     if (!userAgent) return false;
     const normalized = userAgent.toLowerCase();
