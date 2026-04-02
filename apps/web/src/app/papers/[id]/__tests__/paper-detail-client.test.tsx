@@ -128,6 +128,7 @@ describe("PaperDetailClient", () => {
             visibility: "public",
             showViewCount: true,
             publicViewCount: 10,
+            publicDownloadCount: 2,
             externalUrl: "https://example.com/paper",
             venue: "NeurIPS",
             venueType: "conference",
@@ -183,20 +184,23 @@ describe("PaperDetailClient", () => {
         });
       }
 
-      if (url === "/api/papers/paper-1/view" && method === "POST") {
-        return jsonResponse({ counted: true });
+      if (url === "/api/papers/paper-1/track" && method === "POST") {
+        return new Response(null, { status: 204 });
       }
 
-      if (url === "/api/papers/paper-1/stats" && method === "GET") {
+      if (url === "/api/papers/paper-1/stats?days=30" && method === "GET") {
         return jsonResponse({
-          totalViews: 12,
-          last7DaysViews: 4,
-          last30DaysViews: 9,
-          dailyViews: [
-            { date: "2026-03-01", count: 1 },
-            { date: "2026-03-02", count: 3 },
-            { date: "2026-03-03", count: 2 },
+          total: {
+            views: 12,
+            downloads: 5,
+            previews: 2,
+          },
+          daily: [
+            { date: "2026-03-01", views: 1, downloads: 0, previews: 0 },
+            { date: "2026-03-02", views: 3, downloads: 1, previews: 0 },
+            { date: "2026-03-03", views: 2, downloads: 1, previews: 0 },
           ],
+          days: 30,
         });
       }
 
@@ -264,15 +268,20 @@ describe("PaperDetailClient", () => {
     );
 
     await screen.findByRole("heading", { name: "Transformer Tricks" });
-    expect(await screen.findByText("公開表示中の総閲覧数")).toBeInTheDocument();
+    expect(
+      await screen.findByText("公開表示中の閲覧・ダウンロード数"),
+    ).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith("/api/papers/paper-1/view", {
-        method: "POST",
-      });
+      expect(apiFetch).toHaveBeenCalledWith(
+        "/api/papers/paper-1/track",
+        expect.objectContaining({
+          method: "POST",
+        }),
+      );
     });
 
-    expect(await screen.findByText("11")).toBeInTheDocument();
+    expect(await screen.findByText("👁️ 10 views · 📥 2 downloads")).toBeInTheDocument();
     expect(await screen.findByTestId("pdf-viewer")).toHaveAttribute(
       "data-url",
       expect.stringMatching(/^blob:mock-/),
@@ -295,8 +304,12 @@ describe("PaperDetailClient", () => {
     expect(screen.getByText("Markdown")).toBeInTheDocument();
     expect(screen.getByText("HTML")).toBeInTheDocument();
     expect(screen.getByText("shields.io")).toBeInTheDocument();
-    expect(screen.getByText("閲覧統計")).toBeInTheDocument();
-    expect(screen.getByText("12")).toBeInTheDocument();
+    const statsSection = screen.getByRole("heading", {
+      name: "閲覧統計",
+    }).closest("section");
+    expect(statsSection).not.toBeNull();
+    expect(within(statsSection!).getByText("12")).toBeInTheDocument();
+    expect(within(statsSection!).getByText("5")).toBeInTheDocument();
     expect(screen.getByText("3/2")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Description" })).toBeInTheDocument();
     expect(screen.getByText("再現手順")).toBeInTheDocument();
@@ -324,6 +337,171 @@ describe("PaperDetailClient", () => {
     expect(await screen.findByText("Bob Candidate")).toBeInTheDocument();
   });
 
+  it("uses author stats in analytics summary when showViewCount is disabled", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/papers/paper-1" && method === "GET") {
+        return jsonResponse({
+          paper: {
+            id: "paper-1",
+            title: "Author Hidden Stats",
+            abstract: null,
+            visibility: "private",
+            showViewCount: false,
+            publicViewCount: null,
+            publicDownloadCount: null,
+            externalUrl: null,
+            venue: null,
+            venueType: null,
+            year: null,
+            category: null,
+            tags: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+          },
+          files: [],
+          authors: [
+            {
+              userId: "author-1",
+              role: "uploader",
+              name: "alice",
+              displayName: "Alice",
+              avatarUrl: null,
+            },
+          ],
+        });
+      }
+
+      if (url === "/api/papers/paper-1/track" && method === "POST") {
+        return new Response(null, { status: 204 });
+      }
+
+      if (url === "/api/papers/paper-1/stats?days=30" && method === "GET") {
+        return jsonResponse({
+          total: {
+            views: 42,
+            downloads: 11,
+            previews: 3,
+          },
+          daily: [],
+          days: 30,
+        });
+      }
+
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    render(
+      <PaperDetailClient
+        paperId="paper-1"
+        siteBase="https://openshelf.example"
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "Author Hidden Stats" });
+    expect(await screen.findByText("著者向けの閲覧・ダウンロード数")).toBeInTheDocument();
+    expect(await screen.findByText("👁️ 42 views · 📥 11 downloads")).toBeInTheDocument();
+  });
+
+  it("uses apiFetch for private paper tracking even when sendBeacon exists", async () => {
+    const sendBeacon = vi.fn(() => true);
+    vi.stubGlobal("navigator", { sendBeacon } as unknown as Navigator);
+
+    vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/papers/paper-1" && method === "GET") {
+        return jsonResponse({
+          paper: {
+            id: "paper-1",
+            title: "Private Tracking",
+            abstract: null,
+            visibility: "private",
+            showViewCount: false,
+            publicViewCount: null,
+            publicDownloadCount: null,
+            externalUrl: null,
+            venue: null,
+            venueType: null,
+            year: null,
+            category: null,
+            tags: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+          },
+          files: [
+            {
+              id: "file-pdf",
+              filename: "restricted.pdf",
+              fileType: "paper",
+              sizeBytes: 1024,
+              mimeType: "application/pdf",
+              downloadUrl: "/api/downloads/restricted.pdf",
+            },
+          ],
+          authors: [
+            {
+              userId: "author-1",
+              role: "uploader",
+              name: "alice",
+              displayName: "Alice",
+              avatarUrl: null,
+            },
+          ],
+        });
+      }
+
+      if (url === "/api/papers/paper-1/stats?days=30" && method === "GET") {
+        return jsonResponse({
+          total: { views: 1, downloads: 1, previews: 1 },
+          daily: [],
+          days: 30,
+        });
+      }
+
+      if (url === "/api/papers/paper-1/files/file-pdf/preview" && method === "GET") {
+        return jsonResponse({
+          url: "/api/previews/restricted.pdf",
+          mimeType: "application/pdf",
+          filename: "restricted.pdf",
+        });
+      }
+
+      if (url === "/api/previews/restricted.pdf" && method === "GET") {
+        return blobResponse("preview", "application/pdf");
+      }
+
+      if (url === "/api/downloads/restricted.pdf" && method === "GET") {
+        return blobResponse("download", "application/pdf");
+      }
+
+      if (url === "/api/papers/paper-1/track" && method === "POST") {
+        return new Response(null, { status: 204 });
+      }
+
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    render(
+      <PaperDetailClient
+        paperId="paper-1"
+        siteBase="https://openshelf.example"
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "Private Tracking" });
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        "/api/papers/paper-1/track",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    expect(sendBeacon).not.toHaveBeenCalled();
+  });
+
   it("shows the preview fallback UI and download permission errors", async () => {
     vi.mocked(apiFetch).mockImplementation(async (input, init) => {
       const url = String(input);
@@ -340,6 +518,7 @@ describe("PaperDetailClient", () => {
             visibility: "private",
             showViewCount: false,
             publicViewCount: null,
+            publicDownloadCount: null,
             externalUrl: null,
             venue: null,
             venueType: null,
@@ -371,16 +550,19 @@ describe("PaperDetailClient", () => {
         });
       }
 
-      if (url === "/api/papers/paper-1/view" && method === "POST") {
-        return jsonResponse({ counted: false });
+      if (url === "/api/papers/paper-1/track" && method === "POST") {
+        return new Response(null, { status: 204 });
       }
 
-      if (url === "/api/papers/paper-1/stats" && method === "GET") {
+      if (url === "/api/papers/paper-1/stats?days=30" && method === "GET") {
         return jsonResponse({
-          totalViews: 0,
-          last7DaysViews: 0,
-          last30DaysViews: 0,
-          dailyViews: [],
+          total: {
+            views: 0,
+            downloads: 0,
+            previews: 0,
+          },
+          daily: [],
+          days: 30,
         });
       }
 

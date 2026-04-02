@@ -105,6 +105,64 @@ export const paperViews = sqliteTable(
     ],
 );
 
+// ─── paper_stats_daily ───────────────────────────────────────────
+export const paperStatsDaily = sqliteTable(
+    "paper_stats_daily",
+    {
+        paperId: text("paper_id")
+            .notNull()
+            .references(() => papers.id, { onDelete: "cascade" }),
+        date: text("date").notNull(),
+        views: integer("views").notNull().default(0),
+        downloads: integer("downloads").notNull().default(0),
+        previews: integer("previews").notNull().default(0),
+    },
+    (t) => [
+        primaryKey({ columns: [t.paperId, t.date] }),
+        index("paper_stats_daily_date_idx").on(t.date),
+    ],
+);
+
+// ─── paper_stats_total ───────────────────────────────────────────
+export const paperStatsTotal = sqliteTable(
+    "paper_stats_total",
+    {
+        paperId: text("paper_id")
+            .primaryKey()
+            .references(() => papers.id, { onDelete: "cascade" }),
+        totalViews: integer("total_views").notNull().default(0),
+        totalDownloads: integer("total_downloads").notNull().default(0),
+        totalPreviews: integer("total_previews").notNull().default(0),
+        lastUpdated: text("last_updated")
+            .notNull()
+            .default(sql`(datetime('now'))`),
+    },
+);
+
+// ─── paper_stats_dedup ───────────────────────────────────────────
+export const paperStatsDedup = sqliteTable(
+    "paper_stats_dedup",
+    {
+        paperId: text("paper_id")
+            .notNull()
+            .references(() => papers.id, { onDelete: "cascade" }),
+        event: text("event", { enum: ["view", "download", "preview"] }).notNull(),
+        date: text("date").notNull(),
+        sessionHash: text("session_hash").notNull(),
+        referrer: text("referrer"),
+        createdAt: createdAt(),
+    },
+    (t) => [
+        uniqueIndex("paper_stats_dedup_unique_idx").on(
+            t.paperId,
+            t.event,
+            t.date,
+            t.sessionHash,
+        ),
+        index("paper_stats_dedup_paper_date_idx").on(t.paperId, t.date),
+    ],
+);
+
 // ─── paper_files ────────────────────────────────────────────────
 export const paperFiles = sqliteTable(
     "paper_files",
