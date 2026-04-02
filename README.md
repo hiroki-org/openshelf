@@ -147,25 +147,57 @@ apps/
 
 #### Cloudflare Workers Deployment (API)
 
-1. Cloudflare D1 と R2 のバケットを作成し、`wrangler.toml` に設定。
-2. **環境変数の設定**:
-   機密情報は **Secrets**、それ以外は **Vars** として設定します。
-   - **Secrets (npx wrangler secret put で設定)**:
-     - `GITHUB_CLIENT_SECRET`
-     - `JWT_SECRET`
+OpenShelf API は staging / production の 2 環境で運用します。
 
-   - **Vars (wrangler.toml [vars] またはデプロイ時)**:
-     - `GITHUB_CLIENT_ID`
-     - `FRONTEND_URL`
+- `apps/api/wrangler.toml` では `[env.staging]` と `[env.production]` を定義しています。
+- トップレベルに D1 / R2 の binding は置いていません。`wrangler dev`、`wrangler deploy`、`wrangler d1 migrations apply` などの環境依存コマンドは、必ず `--env staging` または `--env production` を指定してください。
+- デプロイは GitHub Actions 経由で行います。
+  - `staging` ブランチへの push → staging 環境へ自動デプロイ
+  - `main` ブランチへの push → production 環境へ自動デプロイ
+- デプロイ時には `wrangler d1 migrations apply` が各環境に対して自動実行されます。
 
-   **デプロイ時の注入例:**
+#### 開発フロー
 
-   ```bash
-   npx wrangler deploy --var FRONTEND_URL:https://openshelf.vercel.app
-   ```
+通常の開発フロー:
 
-   > [!IMPORTANT]
-   > `process.env` は Worker 環境では `c.env` にマッピングされないため、Wrangler 経由で明示的に注入する必要があります。
+1. `main` から feature branch を作成
+2. 実装・テスト
+3. PR を作成する（CI で lint / typecheck / test が自動実行）
+4. レビュー後に `main` へマージ
+5. `main` マージで production が自動デプロイ
+6. `main` を `staging` にマージして staging も自動デプロイ
+
+staging 先行テストが必要な場合:
+
+1. feature branch を `staging` にマージ、または `staging` に直接 push
+2. staging 環境で動作確認
+3. 問題なければ `main` へ PR を作成してマージ
+
+> [!NOTE]
+> rollback / hotfix の詳細フローと E2E テスト戦略は今後整理します。
+
+#### D1 マイグレーション運用
+
+- マイグレーションファイルは `apps/api/drizzle/` に配置します。
+- 適用済みマイグレーションはイミュータブルです。既存ファイルは変更せず、新しい番号のファイルを追加してください。
+- スキーマ変更があるたびに、新しい番号のマイグレーションファイルを追加します。
+- デプロイ時に `wrangler d1 migrations apply` が staging / production それぞれに対して自動実行されます。
+- ローカルでは `npm run db:migrate:local`、リモートでは `npm run db:migrate:remote` を使います。
+- 既存マイグレーションファイルの変更は CI で検知されます。
+
+#### Secrets 管理
+
+- GitHub Actions Secrets
+  - `CLOUDFLARE_API_TOKEN`
+  - `CLOUDFLARE_ACCOUNT_ID`
+- Workers Secrets (`npx wrangler secret put` で環境ごとに設定)
+  - `GITHUB_CLIENT_ID`
+  - `GITHUB_CLIENT_SECRET`
+  - `JWT_SECRET`
+- `apps/api/wrangler.toml` の `[vars]`
+  - `FRONTEND_URL`
+  - `ALLOWED_ORIGINS`
+  - `NODE_ENV`
 
 #### Docker (Self-Host / VPS)
 
