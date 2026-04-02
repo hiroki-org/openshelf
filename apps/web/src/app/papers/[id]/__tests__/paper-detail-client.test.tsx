@@ -301,9 +301,12 @@ describe("PaperDetailClient", () => {
     expect(screen.getByText("Markdown")).toBeInTheDocument();
     expect(screen.getByText("HTML")).toBeInTheDocument();
     expect(screen.getByText("shields.io")).toBeInTheDocument();
-    expect(screen.getByText("閲覧統計")).toBeInTheDocument();
-    expect(screen.getByText("12")).toBeInTheDocument();
-    expect(screen.getByText("5")).toBeInTheDocument();
+    const statsSection = screen.getByRole("heading", {
+      name: "閲覧統計",
+    }).closest("section");
+    expect(statsSection).not.toBeNull();
+    expect(within(statsSection!).getByText("12")).toBeInTheDocument();
+    expect(within(statsSection!).getByText("5")).toBeInTheDocument();
 
     const slideRow = screen.getByText("deck.pptx").closest("li");
     expect(slideRow).not.toBeNull();
