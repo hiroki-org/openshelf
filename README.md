@@ -151,7 +151,7 @@ OpenShelf API は staging / production の 2 環境で運用します。
 
 - `apps/api/wrangler.toml` では `[env.staging]` と `[env.production]` を定義しています。
 - トップレベルに D1 / R2 の binding は置いていません。`wrangler dev`、`wrangler deploy`、`wrangler d1 migrations apply` などの環境依存コマンドは、必ず `--env staging` または `--env production` を指定してください。
-- デプロイは GitHub Actions 経由で行います。
+- デプロイは GitHub Actions 経由で行います（`apps/api/**` の変更がある push のみトリガー）。
   - `staging` ブランチへの push → staging 環境へ自動デプロイ
   - `main` ブランチへの push → production 環境へ自動デプロイ
 - デプロイ時には `wrangler d1 migrations apply` が各環境に対して自動実行されます。
@@ -171,6 +171,7 @@ OpenShelf API は staging / production の 2 環境で運用します。
 > [!NOTE]
 > `main` 宛てに PR を作成した場合、source が `staging` でなければ `staging` に自動で retarget されます。
 > Ruleset の bypass 権限を持つ admin は `main` 宛て PR をそのまま維持できます。
+> なお、`main` マージ後は production が先にデプロイされ、その後 `main` を `staging` に同期します。
 
 緊急 hotfix:
 

@@ -433,6 +433,7 @@ See `apps/web/README.md` and `apps/api/wrangler.toml` for environment variable r
 - **New features:** Always create a feature branch and open a PR; never commit directly to `main`.
 - **Staging-first deployment:** Treat `staging` as the first merge target for feature work. Verify there, then open a `staging` → `main` PR for production.
 - **PR retargeting:** If a PR to `main` is opened from a non-`staging` source branch, the workflow will retarget it to `staging`.
+- **main sync:** After `main` merges, keep `staging` synchronized by merging `main` back into `staging` when needed.
 - **PR reviews:** Reply to _each_ conversation thread on GitHub; unresolved threads block merging.
 - **CI failures:** Investigate immediately via `gh pr checks <PR#> --watch` and fix before re-requesting review.
 - **Merge readiness checklist:** All conversations resolved + all CI passing + approval received = safe to merge.
