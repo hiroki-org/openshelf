@@ -51,6 +51,7 @@ describe("PaperEditPage", () => {
             paper: {
               title: "Original title",
               abstract: "Original abstract",
+              description: "## Original description",
               visibility: "private",
               showViewCount: false,
               language: "ja",
@@ -72,6 +73,10 @@ describe("PaperEditPage", () => {
         return new Response("{}", { status: 200 });
       }
 
+      if (url === "/api/papers/paper-1/description" && init?.method === "PUT") {
+        return new Response("{}", { status: 200 });
+      }
+
       throw new Error(`Unexpected request: ${String(url)}`);
     });
 
@@ -88,6 +93,9 @@ describe("PaperEditPage", () => {
     fireEvent.change(screen.getByLabelText(/タグ/i), {
       target: { value: "AI, LLM" },
     });
+    fireEvent.change(screen.getByLabelText(/Description/i), {
+      target: { value: "## Updated description" },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "保存する" }));
 
@@ -97,6 +105,10 @@ describe("PaperEditPage", () => {
         expect.objectContaining({ method: "PATCH" }),
       );
     });
+    expect(apiFetch).toHaveBeenCalledWith(
+      "/api/papers/paper-1/description",
+      expect.objectContaining({ method: "PUT" }),
+    );
 
     expect(push).toHaveBeenCalledWith("/papers/paper-1");
     expect(refresh).toHaveBeenCalledTimes(1);
@@ -109,6 +121,7 @@ describe("PaperEditPage", () => {
           paper: {
             title: "Original title",
             abstract: null,
+            description: null,
             visibility: "private",
             showViewCount: false,
             language: null,

@@ -497,7 +497,7 @@ describe("papers routes", () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi
             .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "private", showViewCount: true, language: "ja", doi: "10.1234/example" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", abstract: "A", description: "## notes", descriptionUpdatedAt: "2026-04-01 12:00:00", visibility: "private", showViewCount: true, language: "ja", doi: "10.1234/example" } }))
             .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
             .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "file-1", filename: "paper.pdf" }] }))
             .mockImplementationOnce(() => makeQuery({ allResult: [{ userId: "user-1", role: "uploader", name: "Uploader", displayName: null, avatarUrl: null }] }))
@@ -516,6 +516,8 @@ describe("papers routes", () => {
         expect(body.paper.id).toBe("paper-1");
         expect(body.paper.language).toBe("ja");
         expect(body.paper.doi).toBe("10.1234/example");
+        expect(body.paper.description).toBe("## notes");
+        expect(body.paper.descriptionUpdatedAt).toBe("2026-04-01T12:00:00.000Z");
         expect(body.paper.showViewCount).toBe(true);
         expect(body.paper.publicViewCount).toBe(4);
         expect(mockDb.batch).toHaveBeenCalledTimes(1);
@@ -832,6 +834,93 @@ describe("papers routes", () => {
         const body = (await res.json()) as any;
         expect(body.error).toContain("org_only");
         expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it("PUT /api/papers/:id/description updates description for authors", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const where = vi.fn(async () => undefined);
+        const set = vi.fn(() => ({ where }));
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { userId: "user-1" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", description: "## Updated", descriptionUpdatedAt: "2026-04-01 12:00:00" } }));
+        mockDb.update = vi.fn(() => ({ set }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/description",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ description: "## Updated" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                description: "## Updated",
+            }),
+        );
+        const body = (await res.json()) as any;
+        expect(body.id).toBe("paper-1");
+        expect(body.description).toBe("## Updated");
+        expect(body.descriptionUpdatedAt).toBe("2026-04-01T12:00:00.000Z");
+        expect(body.description_updated_at).toBe("2026-04-01T12:00:00.000Z");
+    });
+
+    it("PUT /api/papers/:id/description rejects non-author", async () => {
+        const token = await createTestJWT({ sub: "user-2", githubId: "456", name: "Other User" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: null }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/description",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ description: "updated" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(403);
+    });
+
+    it("PUT /api/papers/:id/description validates description length", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/description",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ description: "a".repeat(50001) }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toContain("50000");
     });
 
     it("PATCH /api/papers/:id validates externalUrl like POST", async () => {
