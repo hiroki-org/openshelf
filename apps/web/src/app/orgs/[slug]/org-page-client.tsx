@@ -8,6 +8,7 @@ import Image from "next/image";
 import { safePath } from "@/lib/sanitization";
 import { getVisibilityBadge } from "@/lib/presentation";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { FeedButton } from "@/components/feed-button";
 
 type Org = {
   id: string;
@@ -106,6 +107,7 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const feedUrl = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787"}/feed/orgs/${slug}/atom.xml`;
 
   const isAdmin = members.some(
     (m) => m.userId === user?.id && (m.role === "admin" || m.role === "owner"),
@@ -250,14 +252,20 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
               </p>
             )}
           </div>
-          {isAdmin && (
-            <Link
-              href={`/orgs/${slug}/settings`}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-            >
-              ⚙ 設定
-            </Link>
-          )}
+          <div className="flex items-center gap-2">
+            <FeedButton url={feedUrl} />
+          <div className="flex items-center gap-2">
+            <FeedButton url={feedUrl} />
+            {isAdmin && (
+              <Link
+                href={`/orgs/${slug}/settings`}
+                className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+              >
+                ⚙ 設定
+              </Link>
+            )}
+          </div>
+        </div>
         </div>
         <div className="flex gap-4 mt-4 text-sm text-gray-500">
           <span>👥 {memberCount} メンバー</span>

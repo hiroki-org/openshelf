@@ -35,6 +35,9 @@ describe("orgs/[slug]/page metadata", () => {
     render(view);
 
     expect(metadata.title).toBe("Research Lab | OpenShelf");
+    expect(metadata.alternates?.types?.["application/atom+xml"]).toContain(
+      "/feed/orgs/lab/atom.xml",
+    );
     expect(screen.getByText("org:lab")).toBeInTheDocument();
   });
 });
