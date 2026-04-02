@@ -151,9 +151,10 @@ OpenShelf API は staging / production の 2 環境で運用します。
 
 - `apps/api/wrangler.toml` では `[env.staging]` と `[env.production]` を定義しています。
 - トップレベルに D1 / R2 の binding は置いていません。`wrangler dev`、`wrangler deploy`、`wrangler d1 migrations apply` などの環境依存コマンドは、必ず `--env staging` または `--env production` を指定してください。
-- デプロイは GitHub Actions 経由で行います（`apps/api/**` の変更がある push のみトリガー）。
-  - `staging` ブランチへの push → staging 環境へ自動デプロイ
-  - `main` ブランチへの push → production 環境へ自動デプロイ
+- デプロイは GitHub Actions 経由で行います。`apps/api/**` の変更を含む push のみが対象です。
+  - `staging` ブランチへの push かつ `apps/api/**` 変更あり → staging 環境へ自動デプロイ
+  - `main` ブランチへの push かつ `apps/api/**` 変更あり → production 環境へ自動デプロイ
+  - 例: `main` に `apps/api/**` 以外の変更だけを push しても、Deploy API ワークフローは起動しません。
 - デプロイ時には `wrangler d1 migrations apply` が各環境に対して自動実行されます。
 
 #### 開発フロー
@@ -169,7 +170,7 @@ OpenShelf API は staging / production の 2 環境で運用します。
 7. マージ → production に自動デプロイ
 
 > [!NOTE]
-> `main` 宛てに PR を作成した場合、source が `staging` でなければ `staging` に自動で retarget されます。
+> `main` 宛てに PR を作成した場合、source が `staging` でなければ `staging` に自動で retarget されます（`pull_request_target` の `opened` / `reopened` / `edited` で適用）。
 > Ruleset の bypass 権限を持つ admin は `main` 宛て PR をそのまま維持できます。
 > なお、`main` マージ後は production が先にデプロイされ、その後 `main` を `staging` に同期します。
 
@@ -201,10 +202,9 @@ OpenShelf API は staging / production の 2 環境で運用します。
   - `GITHUB_CLIENT_ID`
   - `GITHUB_CLIENT_SECRET`
   - `JWT_SECRET`
-- `apps/api/wrangler.toml` の `[vars]`
-  - `FRONTEND_URL`
-  - `ALLOWED_ORIGINS`
-  - `NODE_ENV`
+- `apps/api/wrangler.toml` の環境別 `[vars]`
+  - `env.production.vars`: `FRONTEND_URL`, `ALLOWED_ORIGINS`, `NODE_ENV`
+  - `env.staging.vars`: `FRONTEND_URL`, `ALLOWED_ORIGINS`, `NODE_ENV`
 
 #### Docker (Self-Host / VPS)
 
