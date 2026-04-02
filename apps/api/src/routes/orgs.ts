@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import { verify } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, sql, inArray } from "drizzle-orm";
+import { eq, and, sql, inArray, desc, or } from "drizzle-orm";
 import {
     orgs,
     orgMembers,
@@ -11,6 +11,8 @@ import {
     users,
     enableForeignKeys,
     touchUpdatedAt,
+    VALID_CATEGORIES,
+    type CategoryType,
 } from "../db/schema";
 import type { Env, JwtPayload, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -18,6 +20,44 @@ import { parseStoredTags } from "../utils/tags";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 const ORG_TAGS_LIMIT = 100;
+const ORG_PAPERS_PAGE_SIZE = 20;
+
+function normalizeFilterValue(value: string | undefined): string | null {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return trimmed;
+}
+
+function isValidCategory(value: string): value is CategoryType {
+    return VALID_CATEGORIES.includes(value as CategoryType);
+}
+
+function buildOrgPapersVisibilityCondition(
+    isMember: boolean,
+    authoredIds: string[],
+) {
+    if (isMember) {
+        if (authoredIds.length > 0) {
+            return or(
+                eq(papers.visibility, "public"),
+                eq(papers.visibility, "org_only"),
+                and(eq(papers.visibility, "private"), inArray(papers.id, authoredIds)),
+            );
+        }
+        return or(eq(papers.visibility, "public"), eq(papers.visibility, "org_only"));
+    }
+
+    if (authoredIds.length > 0) {
+        return or(
+            eq(papers.visibility, "public"),
+            and(eq(papers.visibility, "org_only"), inArray(papers.id, authoredIds)),
+            and(eq(papers.visibility, "private"), inArray(papers.id, authoredIds)),
+        );
+    }
+
+    return eq(papers.visibility, "public");
+}
 
 function hasJwtSub(value: unknown): value is Pick<JwtPayload, "sub"> {
     return !!value
@@ -245,15 +285,23 @@ orgsRoute.get("/:slug", async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const memberCount = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(orgMembers)
-        .where(eq(orgMembers.orgId, org.id))
-        .get();
+    const [memberCount, paperCount] = await Promise.all([
+        db
+            .select({ count: sql<number>`count(*)` })
+            .from(orgMembers)
+            .where(eq(orgMembers.orgId, org.id))
+            .get(),
+        db
+            .select({ count: sql<number>`count(*)` })
+            .from(paperOrgs)
+            .where(eq(paperOrgs.orgId, org.id))
+            .get(),
+    ]);
 
     return c.json({
         org,
         memberCount: memberCount?.count ?? 0,
+        paperCount: paperCount?.count ?? 0,
     });
 });
 
@@ -527,73 +575,238 @@ orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
 orgsRoute.get("/:slug/papers", async (c) => {
     const slug = c.req.param("slug");
     const db = drizzle(c.env.DB);
+    const yearQuery = normalizeFilterValue(c.req.query("year"));
+    const venueQuery = normalizeFilterValue(c.req.query("venue"));
+    const categoryQuery = normalizeFilterValue(c.req.query("category"));
+    const pageQuery = c.req.query("page");
+    // year=all は autoYear(最新年度自動選択) を明示的に無効化して全年度表示するために使う
+    const paginate = c.req.query("paginate") === "1";
+    const autoYear = c.req.query("autoYear") === "1";
 
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
+
+    let page = 1;
+    if (pageQuery !== undefined) {
+        if (!/^\d+$/.test(pageQuery)) {
+            return c.json({ error: "Invalid page" }, 400);
+        }
+        page = Number.parseInt(pageQuery, 10);
+        if (!Number.isFinite(page) || page <= 0) {
+            return c.json({ error: "Invalid page" }, 400);
+        }
+    }
+
+    if (venueQuery && venueQuery.length > 100) {
+        return c.json({ error: "venue must be 100 characters or less" }, 400);
+    }
+
+    if (categoryQuery && !isValidCategory(categoryQuery)) {
+        return c.json({ error: "Invalid category" }, 400);
+    }
+    const categoryFilter = categoryQuery as CategoryType | null;
+
+    let requestedYear: number | null = null;
+    const wantsAllYears = yearQuery === "all";
+    if (yearQuery && !wantsAllYears) {
+        if (!/^\d{4}$/.test(yearQuery)) {
+            return c.json({ error: "Invalid year" }, 400);
+        }
+        const parsedYear = Number.parseInt(yearQuery, 10);
+        if (!Number.isFinite(parsedYear) || parsedYear < 1900 || parsedYear > 2100) {
+            return c.json({ error: "Invalid year" }, 400);
+        }
+        requestedYear = parsedYear;
+    }
 
     // Check auth (optional)
     const currentUserId = await getOptionalUserIdFromAuthHeader(c);
 
     const isMember = currentUserId ? await isOrgMember(db, org.id, currentUserId) : false;
-
-    // Fetch paper IDs from paper_orgs
-    const paperOrgRows = await db
-        .select({ paperId: paperOrgs.paperId })
-        .from(paperOrgs)
-        .where(eq(paperOrgs.orgId, org.id))
-        .all();
-
-    if (paperOrgRows.length === 0) return c.json({ papers: [] });
-
-    const paperIds = paperOrgRows.map((r) => r.paperId);
-
-    const allPapers = await db
-        .select({
-            id: papers.id,
-            title: papers.title,
-            abstract: papers.abstract,
-            visibility: papers.visibility,
-            venue: papers.venue,
-            venueType: papers.venueType,
-            year: papers.year,
-            category: papers.category,
-            tags: papers.tags,
-            createdAt: papers.createdAt,
-        })
-        .from(papers)
-        .where(inArray(papers.id, paperIds))
-        .all();
-
-    // Check authorship for non-public papers the user might be an author of
     const authoredPaperIds = new Set<string>();
     if (currentUserId) {
-        const nonPublicPapers = allPapers.filter((p) => p.visibility !== "public");
-        if (nonPublicPapers.length > 0) {
-            const authorships = await db
-                .select({ paperId: paperAuthors.paperId })
-                .from(paperAuthors)
-                .where(
-                    and(
-                        inArray(paperAuthors.paperId, nonPublicPapers.map((p) => p.id)),
-                        eq(paperAuthors.userId, currentUserId),
-                    ),
-                )
-                .all();
-            for (const authorship of authorships) {
-                authoredPaperIds.add(authorship.paperId);
-            }
+        const authorRows = await db
+            .select({ paperId: paperAuthors.paperId })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .innerJoin(
+                paperAuthors,
+                and(eq(paperAuthors.paperId, papers.id), eq(paperAuthors.userId, currentUserId)),
+            )
+            .where(eq(paperOrgs.orgId, org.id))
+            .all();
+        for (const row of authorRows) {
+            authoredPaperIds.add(row.paperId);
         }
     }
 
-    // Filter by visibility
-    const filtered = allPapers.filter((p) => {
-        if (p.visibility === "public") return true;
-        if (p.visibility === "org_only" && (isMember || authoredPaperIds.has(p.id))) return true;
-        if (p.visibility === "private" && authoredPaperIds.has(p.id)) return true;
-        return false;
-    });
+    const authoredIds = Array.from(authoredPaperIds);
+    const visibilityCondition = buildOrgPapersVisibilityCondition(isMember, authoredIds);
 
-    return c.json({ papers: filtered });
+    const baseFilters = [eq(paperOrgs.orgId, org.id), visibilityCondition];
+
+    let effectiveYear = requestedYear;
+    const latestYearFilters = [...baseFilters];
+    if (venueQuery) {
+        latestYearFilters.push(sql`${papers.venue} LIKE ${`%${venueQuery}%`}`);
+    }
+    if (categoryFilter) {
+        latestYearFilters.push(eq(papers.category, categoryFilter));
+    }
+
+    if (autoYear && !wantsAllYears && requestedYear === null) {
+        const latestYearRow = await db
+            .select({ maxYear: sql<number | null>`MAX(${papers.year})` })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(and(...latestYearFilters))
+            .get();
+        effectiveYear = latestYearRow?.maxYear ?? null;
+    }
+
+    const finalFilters = [...baseFilters];
+    if (venueQuery) {
+        finalFilters.push(sql`${papers.venue} LIKE ${`%${venueQuery}%`}`);
+    }
+    if (categoryFilter) {
+        finalFilters.push(eq(papers.category, categoryFilter));
+    }
+    if (effectiveYear !== null) {
+        finalFilters.push(eq(papers.year, effectiveYear));
+    }
+
+    if (!paginate) {
+        const allPapers = await db
+            .select({
+                id: papers.id,
+                title: papers.title,
+                abstract: papers.abstract,
+                visibility: papers.visibility,
+                venue: papers.venue,
+                venueType: papers.venueType,
+                year: papers.year,
+                category: papers.category,
+                tags: papers.tags,
+                createdAt: papers.createdAt,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(and(...finalFilters))
+            .orderBy(desc(papers.year), desc(papers.createdAt))
+            .all();
+        return c.json({ papers: allPapers });
+    }
+
+    const [totalRow, papersRows, yearOptions, venueOptions, categoryOptions] = await Promise.all([
+        db
+            .select({ count: sql<number>`COUNT(*)` })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(and(...finalFilters))
+            .get(),
+        db
+            .select({
+                id: papers.id,
+                title: papers.title,
+                abstract: papers.abstract,
+                visibility: papers.visibility,
+                venue: papers.venue,
+                venueType: papers.venueType,
+                year: papers.year,
+                category: papers.category,
+                tags: papers.tags,
+                createdAt: papers.createdAt,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(and(...finalFilters))
+            .orderBy(desc(papers.year), desc(papers.createdAt))
+            .limit(ORG_PAPERS_PAGE_SIZE)
+            .offset((page - 1) * ORG_PAPERS_PAGE_SIZE)
+            .all(),
+        db
+            .select({
+                value: papers.year,
+                count: sql<number>`COUNT(*)`,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(
+                and(
+                    ...baseFilters,
+                    venueQuery ? sql`${papers.venue} LIKE ${`%${venueQuery}%`}` : undefined,
+                    categoryFilter ? eq(papers.category, categoryFilter) : undefined,
+                    sql`${papers.year} IS NOT NULL`,
+                ),
+            )
+            .groupBy(papers.year)
+            .orderBy(desc(papers.year))
+            .all(),
+        db
+            .select({
+                value: papers.venue,
+                count: sql<number>`COUNT(*)`,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(
+                and(
+                    ...baseFilters,
+                    effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
+                    categoryFilter ? eq(papers.category, categoryFilter) : undefined,
+                    sql`${papers.venue} IS NOT NULL`,
+                    sql`TRIM(${papers.venue}) != ''`,
+                ),
+            )
+            .groupBy(papers.venue)
+            .orderBy(desc(sql<number>`COUNT(*)`), papers.venue)
+            .all(),
+        db
+            .select({
+                value: papers.category,
+                count: sql<number>`COUNT(*)`,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(
+                and(
+                    ...baseFilters,
+                    effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
+                    venueQuery ? sql`${papers.venue} LIKE ${`%${venueQuery}%`}` : undefined,
+                    sql`${papers.category} IS NOT NULL`,
+                ),
+            )
+            .groupBy(papers.category)
+            .orderBy(desc(sql<number>`COUNT(*)`), papers.category)
+            .all(),
+    ]);
+
+    const total = totalRow?.count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / ORG_PAPERS_PAGE_SIZE));
+
+    return c.json({
+        papers: papersRows,
+        total,
+        page,
+        pageSize: ORG_PAPERS_PAGE_SIZE,
+        totalPages,
+        appliedFilters: {
+            year: effectiveYear,
+            venue: venueQuery,
+            category: categoryQuery,
+        },
+        filterOptions: {
+            years: yearOptions
+                .filter((row) => typeof row.value === "number")
+                .map((row) => ({ value: row.value as number, count: row.count })),
+            venues: venueOptions
+                .filter((row) => typeof row.value === "string" && row.value.trim().length > 0)
+                .map((row) => ({ value: row.value as string, count: row.count })),
+            categories: categoryOptions
+                .filter((row) => typeof row.value === "string" && row.value.length > 0)
+                .map((row) => ({ value: row.value as string, count: row.count })),
+        },
+    });
 });
 
 // POST /api/orgs/:slug/papers — associate paper with org

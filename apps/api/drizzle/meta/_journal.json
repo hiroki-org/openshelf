@@ -29,6 +29,13 @@
       "when": 1773473248762,
       "tag": "0003_next_red_skull",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774939200000,
+      "tag": "0004_paper_stats_tracking",
+      "breakpoints": true
     }
   ]
 }

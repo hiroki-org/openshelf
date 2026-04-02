@@ -2,17 +2,39 @@ name = "openshelf-api"
 main = "src/index.ts"
 compatibility_date = "2026-02-28"
 
-[vars]
-FRONTEND_URL = "https://open-shelf-delta.vercel.app"
-# ALLOWED_ORIGINS should be configured in Cloudflare Dashboard or via secret/vars
-# example: "https://open-shelf-delta.vercel.app,http://localhost:3000"
+# === Production ===
+[env.production]
+name = "openshelf-api"
 
-[[d1_databases]]
+[env.production.vars]
+FRONTEND_URL = "https://open-shelf-delta.vercel.app"
+NODE_ENV = "production"
+
+[[env.production.d1_databases]]
 binding = "DB"
 database_name = "openshelf-db"
 database_id = "652de1e3-ee65-4733-98a7-8f93863e1a02"
 migrations_dir = "drizzle"
 
-[[r2_buckets]]
+[[env.production.r2_buckets]]
 bucket_name = "openshelf-files"
+binding = "BUCKET"
+
+# === Staging ===
+[env.staging]
+name = "openshelf-api-staging"
+
+[env.staging.vars]
+FRONTEND_URL = "http://localhost:3000"
+ALLOWED_ORIGINS = "http://localhost:3000"
+NODE_ENV = "staging"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "openshelf-db-staging"
+database_id = "7fd79260-e1f4-440b-8f04-dd411b0465e8"
+migrations_dir = "drizzle"
+
+[[env.staging.r2_buckets]]
+bucket_name = "openshelf-files-staging"
 binding = "BUCKET"

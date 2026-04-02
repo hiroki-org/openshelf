@@ -52,10 +52,10 @@ npm run typecheck        # tsc --noEmit all apps
 npm run lint             # ESLint on apps/*/src
 
 # API (apps/api)
-npm run dev                    # Start wrangler dev server (port 8787)
+npm run dev                    # Start wrangler dev server (staging env, port 8787)
 npm run db:generate           # Generate Drizzle migration
-npm run db:migrate:local      # Apply migrations to local D1
-npm run db:migrate:remote     # Apply migrations to Cloudflare D1 (production)
+npm run db:migrate:local      # Apply migrations to local D1 (staging env)
+npm run db:migrate:remote     # Apply migrations to Cloudflare D1 (production env)
 
 # Web (apps/web)
 npm run dev       # Start Next.js dev server (port 3000)
@@ -209,6 +209,8 @@ Tests skip real GitHub OAuth by using `/api/auth/test-token` (enabled when `ENAB
 | `ALLOWED_ORIGINS` | Var    | Comma-separated CORS origins |
 
 Defined in `apps/api/wrangler.toml` and accessed in handlers via `c.env.DB`, `c.env.BUCKET`, etc.
+
+`apps/api/wrangler.toml` defines both `[env.staging]` and `[env.production]` bindings. Always pass `--env staging` or `--env production` for Wrangler commands that require bindings (for example, `wrangler dev`, `wrangler deploy`, and `wrangler d1 migrations apply`). Running Wrangler commands without an explicit environment will fail because no top-level bindings are defined.
 
 ---
 
