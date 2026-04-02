@@ -1,0 +1,43 @@
+name: Enforce Staging Flow
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, edited]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  require-staging-source:
+    name: require-staging-source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retarget PR to staging
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+          BASE_BRANCH: ${{ github.event.pull_request.base.ref }}
+        run: |
+          if [ "$HEAD_BRANCH" = "staging" ]; then
+            echo "staging -> main PR detected; no retarget needed."
+            exit 0
+          fi
+
+          permission=$(gh api "repos/$GH_REPO/collaborators/$PR_AUTHOR/permission" --jq .permission 2>/dev/null || true)
+          if [ "$permission" = "admin" ]; then
+            echo "PR author has admin permission; leaving target as main."
+            exit 0
+          fi
+
+          if [ "$BASE_BRANCH" != "main" ]; then
+            echo "Unexpected base branch: $BASE_BRANCH"
+            exit 1
+          fi
+
+          gh pr edit "$PR_NUMBER" --repo "$GH_REPO" --base staging
+          gh pr comment "$PR_NUMBER" --repo "$GH_REPO" --body 'このリポジトリでは staging 先行フローを採用しています。PR のターゲットを `staging` に変更しました。staging で動作確認後、`staging` → `main` の PR を作成してください。'

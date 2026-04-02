@@ -147,25 +147,64 @@ apps/
 
 #### Cloudflare Workers Deployment (API)
 
-1. Cloudflare D1 と R2 のバケットを作成し、`wrangler.toml` に設定。
-2. **環境変数の設定**:
-   機密情報は **Secrets**、それ以外は **Vars** として設定します。
-   - **Secrets (npx wrangler secret put で設定)**:
-     - `GITHUB_CLIENT_SECRET`
-     - `JWT_SECRET`
+OpenShelf API は staging / production の 2 環境で運用します。
 
-   - **Vars (wrangler.toml [vars] またはデプロイ時)**:
-     - `GITHUB_CLIENT_ID`
-     - `FRONTEND_URL`
+- `apps/api/wrangler.toml` では `[env.staging]` と `[env.production]` を定義しています。
+- トップレベルに D1 / R2 の binding は置いていません。`wrangler dev`、`wrangler deploy`、`wrangler d1 migrations apply` などの環境依存コマンドは、必ず `--env staging` または `--env production` を指定してください。
+- デプロイは GitHub Actions 経由で行います。`apps/api/**` の変更を含む push のみが対象です。
+  - `staging` ブランチへの push かつ `apps/api/**` 変更あり → staging 環境へ自動デプロイ
+  - `main` ブランチへの push かつ `apps/api/**` 変更あり → production 環境へ自動デプロイ
+  - 例: `main` に `apps/api/**` 以外の変更だけを push しても、Deploy API ワークフローは起動しません。
+- デプロイ時には `wrangler d1 migrations apply` が各環境に対して自動実行されます。
 
-   **デプロイ時の注入例:**
+#### 開発フロー
 
-   ```bash
-   npx wrangler deploy --var FRONTEND_URL:https://openshelf.vercel.app
-   ```
+通常の開発フロー（staging 先行）:
 
-   > [!IMPORTANT]
-   > `process.env` は Worker 環境では `c.env` にマッピングされないため、Wrangler 経由で明示的に注入する必要があります。
+1. `main` から feature branch を作成
+2. 実装・ローカルテスト
+3. `staging` 宛てに PR を作成（CI が自動実行）
+4. レビュー・マージ → staging に自動デプロイ
+5. staging 環境で動作確認
+6. 問題なければ `staging` → `main` へ PR を作成
+7. マージ → production に自動デプロイ
+
+> [!NOTE]
+> `main` 宛てに PR を作成した場合、source が `staging` でなければ `staging` に自動で retarget されます（`pull_request_target` の `opened` / `reopened` / `edited` で適用）。
+> Ruleset の bypass 権限を持つ admin は `main` 宛て PR をそのまま維持できます。
+> なお、`main` マージ後は production が先にデプロイされ、その後 `main` を `staging` に同期します。
+
+緊急 hotfix:
+
+1. `main` から hotfix branch を作成
+2. `staging` 宛てに PR を作成して staging で動作確認
+3. 問題なければ `staging` → `main` の PR を作成
+4. マージ → production に自動デプロイ
+
+> [!NOTE]
+> rollback / E2E テスト戦略の詳細化は今後整理します。
+
+#### D1 マイグレーション運用
+
+- マイグレーションファイルは `apps/api/drizzle/` に配置します。
+- 適用済みマイグレーションはイミュータブルです。既存ファイルは変更せず、新しい番号のファイルを追加してください。
+- スキーマ変更があるたびに、新しい番号のマイグレーションファイルを追加します。
+- デプロイ時に `wrangler d1 migrations apply` が staging / production それぞれに対して自動実行されます。
+- ローカルでは `npm run db:migrate:local`、リモートでは `npm run db:migrate:remote` を使います。
+- 既存マイグレーションファイルの変更は CI で検知されます。
+
+#### Secrets 管理
+
+- GitHub Actions Secrets
+  - `CLOUDFLARE_API_TOKEN`
+  - `CLOUDFLARE_ACCOUNT_ID`
+- Workers Secrets (`npx wrangler secret put` で環境ごとに設定)
+  - `GITHUB_CLIENT_ID`
+  - `GITHUB_CLIENT_SECRET`
+  - `JWT_SECRET`
+- `apps/api/wrangler.toml` の環境別 `[vars]`
+  - `env.production.vars`: `FRONTEND_URL`, `ALLOWED_ORIGINS`, `NODE_ENV`
+  - `env.staging.vars`: `FRONTEND_URL`, `ALLOWED_ORIGINS`, `NODE_ENV`
 
 #### Docker (Self-Host / VPS)
 
