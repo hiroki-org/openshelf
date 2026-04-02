@@ -9,6 +9,7 @@ import invitesRoute from "./routes/invites";
 import orgsRoute from "./routes/orgs";
 import tagsRoute from "./routes/tags";
 import collectionsRoute from "./routes/collections";
+import badgeRoute from "./routes/badge";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -87,6 +88,7 @@ app.route("/api/invites", invitesRoute);
 app.route("/api/orgs", orgsRoute);
 app.route("/api/tags", tagsRoute);
 app.route("/api", collectionsRoute);
+app.route("/badge", badgeRoute);
 
 // Health
 app.get("/", (c) => c.json({ status: "ok", service: "openshelf-api" }));

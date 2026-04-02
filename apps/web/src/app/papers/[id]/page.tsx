@@ -135,5 +135,5 @@ export default async function PaperPage(props: {
   } catch {
     return <div className="text-center py-20">無効な識別子です</div>;
   }
-  return <PaperDetailClient paperId={id} />;
+  return <PaperDetailClient paperId={id} siteBase={SITE_BASE} />;
 }

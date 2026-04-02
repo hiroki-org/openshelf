@@ -14,6 +14,7 @@ import {
   getRoleBadge,
 } from "@/lib/presentation";
 import { CiteButton } from "./cite-button";
+import { BadgeSnippet } from "./badge-snippet";
 
 const PdfViewer = dynamic(
   () => import("@/components/pdf-viewer").then((mod) => mod.PdfViewer),
@@ -104,6 +105,7 @@ const isValidExternalUrl = (urlStr: string) => {
 
 type PaperDetailClientProps = {
   paperId: string;
+  siteBase: string;
 };
 
 function formatStatsDateLabel(date: string) {
@@ -115,7 +117,10 @@ function formatCount(value: number | null | undefined): string {
   return new Intl.NumberFormat().format(value ?? 0);
 }
 
-export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
+export default function PaperDetailClient({
+  paperId,
+  siteBase,
+}: PaperDetailClientProps) {
   const { user } = useAuth();
   const trackedViewPaperIdRef = useRef<string | null>(null);
   const trackedPreviewPaperIdRef = useRef<string | null>(null);
@@ -729,7 +734,17 @@ export default function PaperDetailClient({ paperId }: PaperDetailClientProps) {
         </div>
       )}
 
-      <CiteButton paperId={paperId} />
+      <div className="mb-6 flex flex-wrap items-start gap-4">
+        <CiteButton paperId={paperId} />
+      </div>
+
+      {paper.visibility === "public" && (
+        <BadgeSnippet
+          paperId={paperId}
+          title={paper.title}
+          siteBase={siteBase}
+        />
+      )}
 
       {/* Files */}
       <div className="mb-6">
