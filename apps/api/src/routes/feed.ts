@@ -15,6 +15,7 @@ import type { Env, Variables } from "../types";
 
 const feedRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 const FEED_LIMIT = 50;
+const SLUG_REGEX = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 
 type FeedContext = Context<{ Bindings: Env; Variables: Variables }>;
 
@@ -93,9 +94,12 @@ function toIsoString(dateStr: string): string {
 
 function latestTimestamp(rows: Array<{ updatedAt: string }>, fallback: string): string {
     let latest = fallback;
+    let latestTime = new Date(toIsoString(fallback)).getTime();
     for (const row of rows) {
-        if (row.updatedAt > latest) {
+        const rowTime = new Date(toIsoString(row.updatedAt)).getTime();
+        if (rowTime > latestTime) {
             latest = row.updatedAt;
+            latestTime = rowTime;
         }
     }
     return latest;
@@ -229,9 +233,11 @@ function buildPaperEntries(
     authorsByPaperId: Map<string, AuthorRow[]>,
     filesByPaperId: Map<string, FileRow[]>,
     frontendBaseUrl: string,
+    apiBaseUrl: string,
     fallbackAuthorName: string,
 ): FeedEntry[] {
-    const base = normalizeBaseUrl(frontendBaseUrl);
+    const frontendBase = normalizeBaseUrl(frontendBaseUrl);
+    const apiBase = normalizeBaseUrl(apiBaseUrl);
     const fallback = fallbackAuthorName.trim() || "OpenShelf";
 
     return papersRows.map((paper) => {
@@ -241,7 +247,7 @@ function buildPaperEntries(
 
         return {
             title: paper.title,
-            link: `${base}/papers/${encodeURIComponent(paper.id)}`,
+            link: `${frontendBase}/papers/${encodeURIComponent(paper.id)}`,
             id: `urn:openshelf:paper:${paper.id}`,
             published: toIsoString(paper.createdAt),
             updated: toIsoString(paper.updatedAt),
@@ -250,7 +256,7 @@ function buildPaperEntries(
             category: paper.category ?? undefined,
             enclosure: enclosure
                 ? {
-                      href: `${base}/api/papers/${encodeURIComponent(paper.id)}/files/${encodeURIComponent(enclosure.id)}/download`,
+                      href: `${apiBase}/api/papers/${encodeURIComponent(paper.id)}/files/${encodeURIComponent(enclosure.id)}/download`,
                       type: enclosure.mimeType ?? "application/pdf",
                       length: enclosure.sizeBytes,
                   }
@@ -275,6 +281,7 @@ async function buildFeedResponse(
         authorsByPaperId,
         filesByPaperId,
         c.env.FRONTEND_URL,
+        new URL(c.req.url).origin,
         meta.authorName,
     );
     const xml = buildAtomFeed(
@@ -299,6 +306,9 @@ async function buildFeedResponse(
 
 feedRoute.get("/orgs/:slug/atom.xml", async (c) => {
     const slug = c.req.param("slug");
+    if (!SLUG_REGEX.test(slug)) {
+        return c.json({ error: "invalid slug" }, 400);
+    }
     const db = drizzle(c.env.DB);
 
     const org = await db.select().from(orgs).where(eq(orgs.slug, slug)).get();
@@ -375,6 +385,9 @@ feedRoute.get("/users/:id/atom.xml", async (c) => {
 feedRoute.get("/orgs/:slug/collections/:cSlug/atom.xml", async (c) => {
     const slug = c.req.param("slug");
     const cSlug = c.req.param("cSlug");
+    if (!SLUG_REGEX.test(slug) || !SLUG_REGEX.test(cSlug)) {
+        return c.json({ error: "invalid slug" }, 400);
+    }
     const db = drizzle(c.env.DB);
 
     const org = await db.select().from(orgs).where(eq(orgs.slug, slug)).get();

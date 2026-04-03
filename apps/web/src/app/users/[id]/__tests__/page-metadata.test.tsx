@@ -5,11 +5,14 @@ vi.mock("../user-page-client", () => ({
   default: ({ id }: { id: string }) => <div>{`user:${id}`}</div>,
 }));
 
-import UserPage, { generateMetadata } from "../page";
-
 describe("users/[id]/page metadata", () => {
+  const originalApiUrl = process.env.API_URL;
+  const originalPublicApiUrl = process.env.NEXT_PUBLIC_API_URL;
+
   afterEach(() => {
     cleanup();
+    process.env.API_URL = originalApiUrl;
+    process.env.NEXT_PUBLIC_API_URL = originalPublicApiUrl;
   });
 
   beforeEach(() => {
@@ -17,6 +20,11 @@ describe("users/[id]/page metadata", () => {
   });
 
   it("builds user metadata and renders the client page", async () => {
+    process.env.API_URL = "http://internal-api:8787";
+    process.env.NEXT_PUBLIC_API_URL = "https://public-api.example.com";
+    vi.resetModules();
+
+    const { default: UserPage, generateMetadata } = await import("../page");
     vi.spyOn(global, "fetch").mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -37,7 +45,7 @@ describe("users/[id]/page metadata", () => {
 
     expect(metadata.title).toBe("Alice A. | OpenShelf");
     expect(metadata.alternates?.types?.["application/atom+xml"]).toContain(
-      "/feed/users/user-1/atom.xml",
+      "https://public-api.example.com/feed/users/user-1/atom.xml",
     );
     expect(screen.getByText("user:user-1")).toBeInTheDocument();
   });

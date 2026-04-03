@@ -3,7 +3,6 @@ import { cors } from "hono/cors";
 import { timingSafeEqual } from "hono/utils/buffer";
 import type { Env, Variables } from "./types";
 import auth from "./routes/auth";
-import testAuth from "./routes/test-auth";
 import usersRoute from "./routes/users";
 import papersRoute from "./routes/papers";
 import invitesRoute from "./routes/invites";
@@ -61,8 +60,8 @@ app.use("/api/*", async (c, next) => {
         const allowedOrigins = parseOriginList(c.env.ALLOWED_ORIGINS);
         const requestOrigin = normalizeOrigin(origin ?? undefined);
         const refererOrigin = normalizeOrigin(referer ?? undefined);
-        const isAllowedOriginValue = isAllowedOrigin(requestOrigin, frontendOrigin, allowedOrigins);
-        const isAllowedReferer = isAllowedOrigin(refererOrigin, frontendOrigin, allowedOrigins);
+        const isAllowedOriginValue = isAllowedOrigin(requestOrigin, frontendOrigin, allowedOrigins, { allowWildcard: false });
+        const isAllowedReferer = isAllowedOrigin(refererOrigin, frontendOrigin, allowedOrigins, { allowWildcard: false });
 
         if (isAllowedOriginValue || isAllowedReferer) return await next();
 
@@ -77,7 +76,10 @@ app.use("/api/*", async (c, next) => {
 // Routes
 app.route("/api/auth", auth);
 
-app.route("/api/test-auth", testAuth);
+if (process.env.NODE_ENV !== "production") {
+    const { default: testAuth } = await import("./routes/test-auth");
+    app.route("/api/test-auth", testAuth);
+}
 app.route("/api/users", usersRoute);
 app.route("/api/papers", papersRoute);
 app.route("/api/invites", invitesRoute);

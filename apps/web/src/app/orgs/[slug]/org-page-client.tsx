@@ -254,8 +254,6 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
           </div>
           <div className="flex items-center gap-2">
             <FeedButton url={feedUrl} />
-          <div className="flex items-center gap-2">
-            <FeedButton url={feedUrl} />
             {isAdmin && (
               <Link
                 href={`/orgs/${slug}/settings`}
@@ -265,7 +263,6 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
               </Link>
             )}
           </div>
-        </div>
         </div>
         <div className="flex gap-4 mt-4 text-sm text-gray-500">
           <span>👥 {memberCount} メンバー</span>

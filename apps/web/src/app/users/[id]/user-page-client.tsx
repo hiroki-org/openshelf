@@ -36,12 +36,18 @@ export default function UserPageClient({ id }: UserPageClientProps) {
   const feedUrl = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787"}/feed/users/${id}/atom.xml`;
 
   useEffect(() => {
+    let cancelled = false;
+    setError("");
+    setProfile(null);
+    setCollections([]);
+
     (async () => {
       try {
         const [profileRes, collectionsRes] = await Promise.all([
           apiFetch(`/api/users/${encodeURIComponent(id)}`),
           apiFetch(`/api/users/${encodeURIComponent(id)}/collections`),
         ]);
+        if (cancelled) return;
 
         if (!profileRes.ok) {
           setError("ユーザーが見つかりません");
@@ -49,16 +55,23 @@ export default function UserPageClient({ id }: UserPageClientProps) {
         }
 
         const profileData = await profileRes.json();
+        if (cancelled) return;
         setProfile(profileData.user);
 
         if (collectionsRes.ok) {
           const collectionsData = await collectionsRes.json();
+          if (cancelled) return;
           setCollections(collectionsData.collections ?? []);
         }
       } catch {
+        if (cancelled) return;
         setError("取得に失敗しました");
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
   if (error)

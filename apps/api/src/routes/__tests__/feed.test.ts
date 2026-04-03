@@ -102,8 +102,6 @@ describe("feed routes", () => {
                     updatedAt: "2026-01-02 00:00:00",
                 },
             }))
-            .mockImplementationOnce(() => makeQuery({ allResult: [] }))
-            .mockImplementationOnce(() => makeQuery({ allResult: [] }))
             .mockImplementationOnce(() => makeQuery({ allResult: [] }));
 
         const app = await createTestApp();
@@ -115,6 +113,16 @@ describe("feed routes", () => {
         const text = await res.text();
         expect(text).toContain("<feed xmlns=\"http://www.w3.org/2005/Atom\">");
         expect(text).toContain("<title>Lab - OpenShelf</title>");
+    });
+
+    it("GET /feed/orgs/:slug/atom.xml returns 400 for invalid slug", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request("http://localhost/feed/orgs/Invalid_Slug/atom.xml", {}, env as any);
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "invalid slug" });
     });
 
     it("GET /feed/users/:id/atom.xml returns atom xml for public user papers", async () => {
@@ -282,5 +290,19 @@ describe("feed routes", () => {
         const text = await res.text();
         expect(text).toContain("<title>Featured - Lab - OpenShelf</title>");
         expect(text).toContain("Collection Paper");
+    });
+
+    it("GET /feed/orgs/:slug/collections/:cSlug/atom.xml returns 400 for invalid slug", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/feed/orgs/lab/collections/Invalid_Slug/atom.xml",
+            {},
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "invalid slug" });
     });
 });

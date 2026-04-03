@@ -14,9 +14,13 @@ type UserResponse = {
   };
 };
 
-const API_BASE =
+const API_FETCH_BASE =
   process.env.API_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
+  "http://localhost:8787";
+const PUBLIC_API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ??
+  process.env.API_URL ??
   "http://localhost:8787";
 const SITE_BASE =
   process.env.SITE_URL ??
@@ -25,7 +29,7 @@ const SITE_BASE =
 
 async function fetchUserMetadata(id: string): Promise<UserResponse | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/users/${safePath(id)}`, {
+    const res = await fetch(`${API_FETCH_BASE}/api/users/${safePath(id)}`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -54,7 +58,7 @@ export async function generateMetadata(props: {
     title,
     alternates: {
       types: {
-        "application/atom+xml": `${API_BASE}/feed/users/${id}/atom.xml`,
+        "application/atom+xml": `${PUBLIC_API_BASE}/feed/users/${id}/atom.xml`,
       },
     },
     openGraph: {
