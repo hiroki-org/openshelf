@@ -10,6 +10,8 @@ import orgsRoute from "./routes/orgs";
 import tagsRoute from "./routes/tags";
 import collectionsRoute from "./routes/collections";
 import badgeRoute from "./routes/badge";
+import feedRoute from "./routes/feed";
+import { isAllowedOrigin, normalizeOrigin, parseOriginList } from "./utils/origin";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -18,18 +20,15 @@ app.use(
     "/api/*",
     cors({
         origin: (origin, c) => {
-            const allowedOrigins = c.env.ALLOWED_ORIGINS
-                ? c.env.ALLOWED_ORIGINS
-                    .split(",")
-                    .map((value: string) => value.trim())
-                    .filter(Boolean)
-                : undefined;
+            const allowedOrigins = parseOriginList(c.env.ALLOWED_ORIGINS);
+            const requestOrigin = normalizeOrigin(origin ?? undefined);
+            const frontendOrigin = normalizeOrigin(c.env.FRONTEND_URL);
 
-            if (allowedOrigins && allowedOrigins.length > 0) {
-                return origin && allowedOrigins.includes(origin) ? origin : "";
+            if (isAllowedOrigin(requestOrigin, frontendOrigin, allowedOrigins)) {
+                return origin;
             }
 
-            return c.env.FRONTEND_URL;
+            return undefined;
         },
         credentials: true,
         allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -57,15 +56,14 @@ app.use("/api/*", async (c, next) => {
     if (authHeader?.startsWith("Bearer ") || isTestEnv) return await next();
 
     try {
-        const frontendOrigin = new URL(c.env.FRONTEND_URL).origin;
-        const allowedOrigins = c.env.ALLOWED_ORIGINS
-            ? c.env.ALLOWED_ORIGINS.split(",").map((v: string) => v.trim()).filter(Boolean)
-            : [];
+        const frontendOrigin = normalizeOrigin(c.env.FRONTEND_URL);
+        const allowedOrigins = parseOriginList(c.env.ALLOWED_ORIGINS);
+        const requestOrigin = normalizeOrigin(origin ?? undefined);
+        const refererOrigin = normalizeOrigin(referer ?? undefined);
+        const isAllowedOriginValue = isAllowedOrigin(requestOrigin, frontendOrigin, allowedOrigins, { allowWildcard: false });
+        const isAllowedReferer = isAllowedOrigin(refererOrigin, frontendOrigin, allowedOrigins, { allowWildcard: false });
 
-        const isAllowedOrigin = origin && (origin === frontendOrigin || allowedOrigins.includes(origin));
-        const isAllowedReferer = referer && (new URL(referer).origin === frontendOrigin || allowedOrigins.includes(new URL(referer).origin));
-
-        if (isAllowedOrigin || isAllowedReferer) return await next();
+        if (isAllowedOriginValue || isAllowedReferer) return await next();
 
         console.error(`CSRF check failed: origin=${origin}, referer=${referer}, frontendOrigin=${frontendOrigin}`);
     } catch (err) {
@@ -89,6 +87,7 @@ app.route("/api/orgs", orgsRoute);
 app.route("/api/tags", tagsRoute);
 app.route("/api", collectionsRoute);
 app.route("/badge", badgeRoute);
+app.route("/feed", feedRoute);
 
 // Health
 app.get("/", (c) => c.json({ status: "ok", service: "openshelf-api" }));

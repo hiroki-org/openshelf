@@ -190,7 +190,7 @@ OpenShelf API は staging / production の 2 環境で運用します。
 - 適用済みマイグレーションはイミュータブルです。既存ファイルは変更せず、新しい番号のファイルを追加してください。
 - スキーマ変更があるたびに、新しい番号のマイグレーションファイルを追加します。
 - デプロイ時に `wrangler d1 migrations apply` が staging / production それぞれに対して自動実行されます。
-- ローカルでは `npm run db:migrate:local`、リモートでは `npm run db:migrate:remote` を使います。
+- ローカルでは `npm run db:migrate:local`、リモートでは `npm run db:migrate:remote:production` を使います。
 - 既存マイグレーションファイルの変更は CI で検知されます。
 
 #### Secrets 管理

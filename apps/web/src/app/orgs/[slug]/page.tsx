@@ -80,10 +80,16 @@ export async function generateMetadata(props: {
     data.org.name,
     data.org.description ?? undefined,
   );
+  const feedUrl = `${API_BASE}/feed/orgs/${slug}/atom.xml`;
 
   return {
     title,
     description,
+    alternates: {
+      types: {
+        "application/atom+xml": feedUrl,
+      },
+    },
     openGraph: {
       title,
       description,

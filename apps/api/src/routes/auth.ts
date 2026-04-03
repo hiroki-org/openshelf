@@ -6,17 +6,26 @@ import { eq } from "drizzle-orm";
 import { users, orgs, orgMembers, enableForeignKeys, touchUpdatedAt } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { parseOriginList, resolveAllowedOrigin } from "../utils/origin";
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 const JWT_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
 const OAUTH_STATE_TTL_MS = 5 * 60 * 1000;
 const OAUTH_STATE_TTL_SECONDS = OAUTH_STATE_TTL_MS / 1000;
 const OAUTH_FLOW_NONCE_COOKIE = "oauth_flow_nonce";
+const OAUTH_FLOW_ORIGIN_COOKIE = "oauth_flow_origin";
 
 // GET /api/auth/github — redirect to GitHub OAuth
 auth.get("/github", async (c) => {
     const state = crypto.randomUUID();
     const flowNonce = crypto.randomUUID();
+    const requestOrigin = c.req.query("frontend_origin");
+    const requestReferer = c.req.header("Origin") ?? c.req.header("Referer");
+    const frontendOrigin = resolveAllowedOrigin(
+        [requestOrigin, requestReferer],
+        c.env.FRONTEND_URL,
+        parseOriginList(c.env.ALLOWED_ORIGINS),
+    );
 
     // Opportunistically clean up expired states to prevent unbounded growth.
     await c.env.DB.prepare(
@@ -30,6 +39,13 @@ auth.get("/github", async (c) => {
         .run();
 
     setCookie(c, OAUTH_FLOW_NONCE_COOKIE, flowNonce, {
+        httpOnly: true,
+        secure: new URL(c.req.url).protocol === "https:",
+        sameSite: "Lax",
+        maxAge: OAUTH_STATE_TTL_SECONDS,
+        path: "/",
+    });
+    setCookie(c, OAUTH_FLOW_ORIGIN_COOKIE, frontendOrigin, {
         httpOnly: true,
         secure: new URL(c.req.url).protocol === "https:",
         sameSite: "Lax",
@@ -53,8 +69,10 @@ auth.get("/github/callback", async (c) => {
     const code = c.req.query("code");
     const stateParam = c.req.query("state");
     const flowNonce = getCookie(c, OAUTH_FLOW_NONCE_COOKIE);
+    const flowOrigin = getCookie(c, OAUTH_FLOW_ORIGIN_COOKIE);
 
     deleteCookie(c, OAUTH_FLOW_NONCE_COOKIE, { path: "/" });
+    deleteCookie(c, OAUTH_FLOW_ORIGIN_COOKIE, { path: "/" });
 
     if (!stateParam) {
         return c.json({ error: "Missing state parameter" }, 400);
@@ -217,7 +235,7 @@ auth.get("/github/callback", async (c) => {
         "HS256",
     );
 
-    const frontendUrl = c.env.FRONTEND_URL;
+    const frontendUrl = flowOrigin ?? c.env.FRONTEND_URL;
     if (!frontendUrl) {
         console.error("FATAL: FRONTEND_URL environment variable is not set.");
         return c.json({ error: "Server configuration error" }, 500);

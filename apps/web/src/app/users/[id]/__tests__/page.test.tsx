@@ -17,10 +17,6 @@ vi.mock("@/lib/api", () => ({
   apiFetch: vi.fn(),
 }));
 
-vi.mock("next/navigation", () => ({
-  useParams: () => ({ id: "user-1" }),
-}));
-
 vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: any) => (
     <a href={href} {...props}>
@@ -72,7 +68,8 @@ describe("UserPage", () => {
       throw new Error(`Unexpected request: ${String(url)}`);
     });
 
-    render(<UserPage />);
+    const view = await UserPage({ params: { id: "user-1" } });
+    render(view);
 
     await waitFor(() => {
       expect(screen.getByText("Alice A.")).toBeInTheDocument();
@@ -99,7 +96,8 @@ describe("UserPage", () => {
       throw new Error(`Unexpected request: ${String(url)}`);
     });
 
-    render(<UserPage />);
+    const view = await UserPage({ params: { id: "user-1" } });
+    render(view);
 
     expect(await screen.findByText("ユーザーが見つかりません")).toBeInTheDocument();
   });
