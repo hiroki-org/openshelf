@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createTestApp, createTestEnv, makeQuery } from "../../test/helpers";
+import {
+    createMockD1Binding,
+    createTestApp,
+    createTestEnv,
+    makeQuery,
+} from "../../test/helpers";
 
 /**
  * Tests for the staging environment configuration introduced in the PR:
@@ -11,6 +16,7 @@ import { createTestApp, createTestEnv, makeQuery } from "../../test/helpers";
  */
 
 const STAGING_URL =
+    // Fixed fixture URL to lock regression tests to the exact staging-origin change in PR #294.
     "https://open-shelf-git-staging-hirokis-projects-afd618c7.vercel.app";
 const HTTP_STAGING_URL =
     "http://open-shelf-git-staging-hirokis-projects-afd618c7.vercel.app";
@@ -28,15 +34,6 @@ vi.mock("../../db/schema", () => ({
     enableForeignKeys: vi.fn(() => Promise.resolve()),
     touchUpdatedAt: vi.fn(() => ({})),
 }));
-
-function makeDbEnv() {
-    return {
-        prepare: vi.fn(() => ({
-            run: vi.fn(),
-            bind: vi.fn(() => ({ run: vi.fn(), first: vi.fn(() => null) })),
-        })),
-    };
-}
 
 beforeEach(() => {
     vi.restoreAllMocks();
@@ -60,7 +57,7 @@ describe("CORS – staging Vercel URL in ALLOWED_ORIGINS", () => {
     it("accepts the staging Vercel URL as a valid CORS origin", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: makeDbEnv(),
+            DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
             ALLOWED_ORIGINS: STAGING_URL,
         });
@@ -77,7 +74,7 @@ describe("CORS – staging Vercel URL in ALLOWED_ORIGINS", () => {
     it("blocks localhost:3000 when ALLOWED_ORIGINS contains only the staging URL (regression: old value removed)", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: makeDbEnv(),
+            DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
             ALLOWED_ORIGINS: STAGING_URL,
         });
@@ -95,7 +92,7 @@ describe("CORS – staging Vercel URL in ALLOWED_ORIGINS", () => {
     it("blocks the HTTP (non-HTTPS) variant of the staging URL", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: makeDbEnv(),
+            DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
             ALLOWED_ORIGINS: STAGING_URL,
         });
@@ -113,7 +110,7 @@ describe("CORS – staging Vercel URL in ALLOWED_ORIGINS", () => {
     it("blocks an unrelated origin when ALLOWED_ORIGINS is set to the staging URL", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: makeDbEnv(),
+            DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
             ALLOWED_ORIGINS: STAGING_URL,
         });
@@ -130,7 +127,7 @@ describe("CORS – staging Vercel URL in ALLOWED_ORIGINS", () => {
     it("uses the staging URL as CORS origin fallback when ALLOWED_ORIGINS is absent", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: makeDbEnv(),
+            DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
             ALLOWED_ORIGINS: undefined,
         });
@@ -153,7 +150,7 @@ describe("CORS preflight – staging Vercel URL in ALLOWED_ORIGINS", () => {
     it("returns correct preflight headers for the staging Vercel URL", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: makeDbEnv(),
+            DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
             ALLOWED_ORIGINS: STAGING_URL,
         });
@@ -178,7 +175,7 @@ describe("CORS preflight – staging Vercel URL in ALLOWED_ORIGINS", () => {
     it("blocks preflight for localhost:3000 now that staging URL is the sole ALLOWED_ORIGINS", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: makeDbEnv(),
+            DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
             ALLOWED_ORIGINS: STAGING_URL,
         });
@@ -202,7 +199,7 @@ describe("CORS preflight – staging Vercel URL in ALLOWED_ORIGINS", () => {
     it("blocks preflight for the HTTP variant of the staging URL", async () => {
         const app = await createTestApp();
         const env = createTestEnv({
-            DB: makeDbEnv(),
+            DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
             ALLOWED_ORIGINS: STAGING_URL,
         });
