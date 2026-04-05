@@ -14,7 +14,7 @@ jobs:
     name: require-staging-source
     runs-on: ubuntu-latest
     steps:
-      - name: Retarget PR to staging
+      - name: Retarget PR base
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -37,6 +37,36 @@ jobs:
           if [ "$BASE_BRANCH" != "main" ]; then
             echo "Unexpected base branch: $BASE_BRANCH"
             exit 1
+          fi
+
+          stacked_base=""
+          min_ahead=""
+
+          while IFS= read -r candidate; do
+            if [ -z "$candidate" ] || [ "$candidate" = "$HEAD_BRANCH" ] || [ "$candidate" = "main" ] || [ "$candidate" = "staging" ]; then
+              continue
+            fi
+
+            candidate_enc="${candidate//\//%2F}"
+            head_enc="${HEAD_BRANCH//\//%2F}"
+            compare_line=$(gh api "repos/$GH_REPO/compare/$candidate_enc...$head_enc" --jq '"\(.status) \(.ahead_by) \(.behind_by)"' 2>/dev/null || true)
+            if [ -z "$compare_line" ]; then
+              continue
+            fi
+
+            IFS=' ' read -r status ahead_by behind_by <<<"$compare_line"
+            if [ "$status" = "ahead" ] && [ "$behind_by" = "0" ] && [ "${ahead_by:-0}" -gt 0 ]; then
+              if [ -z "$min_ahead" ] || [ "$ahead_by" -lt "$min_ahead" ]; then
+                min_ahead="$ahead_by"
+                stacked_base="$candidate"
+              fi
+            fi
+          done < <(gh pr list --repo "$GH_REPO" --state open --json number,headRefName --jq ".[] | select(.number != $PR_NUMBER) | .headRefName")
+
+          if [ -n "$stacked_base" ]; then
+            gh pr edit "$PR_NUMBER" --repo "$GH_REPO" --base "$stacked_base"
+            gh pr comment "$PR_NUMBER" --repo "$GH_REPO" --body "stacked PR を検知したため、ベースブランチを \`$stacked_base\` に変更しました。"
+            exit 0
           fi
 
           gh pr edit "$PR_NUMBER" --repo "$GH_REPO" --base staging
