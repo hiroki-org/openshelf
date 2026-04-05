@@ -35,6 +35,7 @@ describe("tags routes", () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
         const env = createTestEnv();
+        (env.DB as any).prepare = vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all: vi.fn().mockResolvedValue({ results: [{ tag: "AI" }] }) }) });
 
         const res = await app.request(
             "http://localhost/api/tags/suggest?q=a",
@@ -51,6 +52,7 @@ describe("tags routes", () => {
 
     it("GET /api/tags/suggest returns prefix-matched tags for current user", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.all = vi.fn().mockResolvedValue([{ tag: "AI", count: 3 }]);
         mockDb.select = vi.fn(() =>
             makeQuery({
                 allResult: [
@@ -64,6 +66,7 @@ describe("tags routes", () => {
 
         const app = await createTestApp();
         const env = createTestEnv();
+        (env.DB as any).prepare = vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all: vi.fn().mockResolvedValue({ results: [{ tag: "AI" }] }) }) });
         const res = await app.request(
             "http://localhost/api/tags/suggest?q=AI",
             {
@@ -85,6 +88,7 @@ describe("tags routes", () => {
 
         const app = await createTestApp();
         const env = createTestEnv();
+        (env.DB as any).prepare = vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all: vi.fn().mockResolvedValue({ results: [{ tag: "AI" }] }) }) });
         const res = await app.request(
             "http://localhost/api/tags/suggest?q=AI&orgSlug=my-lab",
             {
@@ -113,6 +117,8 @@ describe("tags routes", () => {
 
         const app = await createTestApp();
         const env = createTestEnv();
+        (env.DB as any).prepare = vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all: vi.fn().mockResolvedValue({ results: [{ tag: "AI" }] }) }) });
+        env.DB = { prepare: vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all: vi.fn().mockResolvedValue({ results: [{ tag: "Search" }, { tag: "Secret Notes" }] }) }) }) };
         const res = await app.request(
             "http://localhost/api/tags/suggest?q=Se&orgSlug=my-lab",
             {
