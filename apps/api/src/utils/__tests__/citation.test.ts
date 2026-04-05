@@ -41,22 +41,22 @@ describe("buildCitation", () => {
             expect(bibtex.citation).not.toContain("url = {");
         });
 
-        it("uses doi for plain", () => {
+        it("uses doi url for plain format", () => {
             const plain = buildCitation(paperWithDoi, authors, "plain", "https://openshelf.example");
             expect(plain.citation).toContain("https://doi.org/10.1145/xxxxxxx.xxxxxxx");
         });
 
-        it("uses doi for apa", () => {
+        it("uses doi url for apa format", () => {
             const apa = buildCitation(paperWithDoi, authors, "apa", "https://openshelf.example");
             expect(apa.citation).toContain("https://doi.org/10.1145/xxxxxxx.xxxxxxx");
         });
 
-        it("uses doi for ieee", () => {
+        it("uses doi prefix for ieee format", () => {
             const ieee = buildCitation(paperWithDoi, authors, "ieee", "https://openshelf.example");
             expect(ieee.citation).toContain("doi: 10.1145/xxxxxxx.xxxxxxx");
         });
 
-        it("uses doi for mla", () => {
+        it("uses doi prefix for mla format", () => {
             const mla = buildCitation(paperWithDoi, authors, "mla", "https://openshelf.example");
             expect(mla.citation).toContain("doi:10.1145/xxxxxxx.xxxxxxx");
         });
