@@ -21,6 +21,7 @@ jobs:
     name: require-staging-source
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Enforce staging-first PR targets
         env:
           GH_TOKEN: ${{ github.token }}
