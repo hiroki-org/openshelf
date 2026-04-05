@@ -31,25 +31,35 @@ describe("buildCitation", () => {
         expect(result.citation).toContain("url = {https://openshelf.example/papers/paper-1}");
     });
 
-    it("uses doi field when doi exists across all formats", () => {
+    describe("when doi exists", () => {
         const paperWithDoi = { ...paperBase, doi: "10.1145/xxxxxxx.xxxxxxx" };
         const authors = [{ name: "hiroki", displayName: "Hiroki Mukai" }];
 
-        const bibtex = buildCitation(paperWithDoi, authors, "bibtex", "https://openshelf.example");
-        expect(bibtex.citation).toContain("doi = {10.1145/xxxxxxx.xxxxxxx}");
-        expect(bibtex.citation).not.toContain("url = {");
+        it("uses doi for bibtex and omits url", () => {
+            const bibtex = buildCitation(paperWithDoi, authors, "bibtex", "https://openshelf.example");
+            expect(bibtex.citation).toContain("doi = {10.1145/xxxxxxx.xxxxxxx}");
+            expect(bibtex.citation).not.toContain("url = {");
+        });
 
-        const plain = buildCitation(paperWithDoi, authors, "plain", "https://openshelf.example");
-        expect(plain.citation).toContain("https://doi.org/10.1145/xxxxxxx.xxxxxxx");
+        it("uses doi for plain", () => {
+            const plain = buildCitation(paperWithDoi, authors, "plain", "https://openshelf.example");
+            expect(plain.citation).toContain("https://doi.org/10.1145/xxxxxxx.xxxxxxx");
+        });
 
-        const apa = buildCitation(paperWithDoi, authors, "apa", "https://openshelf.example");
-        expect(apa.citation).toContain("https://doi.org/10.1145/xxxxxxx.xxxxxxx");
+        it("uses doi for apa", () => {
+            const apa = buildCitation(paperWithDoi, authors, "apa", "https://openshelf.example");
+            expect(apa.citation).toContain("https://doi.org/10.1145/xxxxxxx.xxxxxxx");
+        });
 
-        const ieee = buildCitation(paperWithDoi, authors, "ieee", "https://openshelf.example");
-        expect(ieee.citation).toContain("doi: 10.1145/xxxxxxx.xxxxxxx");
+        it("uses doi for ieee", () => {
+            const ieee = buildCitation(paperWithDoi, authors, "ieee", "https://openshelf.example");
+            expect(ieee.citation).toContain("doi: 10.1145/xxxxxxx.xxxxxxx");
+        });
 
-        const mla = buildCitation(paperWithDoi, authors, "mla", "https://openshelf.example");
-        expect(mla.citation).toContain("doi:10.1145/xxxxxxx.xxxxxxx");
+        it("uses doi for mla", () => {
+            const mla = buildCitation(paperWithDoi, authors, "mla", "https://openshelf.example");
+            expect(mla.citation).toContain("doi:10.1145/xxxxxxx.xxxxxxx");
+        });
     });
 
     it("supports plain format output", () => {
@@ -125,7 +135,6 @@ describe("buildCitation", () => {
         expect(result.citation).toContain("Kato, Y.");
         expect(result.citation).toContain("(2026).");
     });
-
 
     it("formats IEEE output correctly", () => {
         const result = buildCitation(
