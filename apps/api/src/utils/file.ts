@@ -8,13 +8,41 @@ const MIME_COMPATIBILITY: Record<string, readonly string[]> = {
   ],
 };
 
-const MAGIC_NUMBER_MAP: ReadonlyArray<[string, string]> = [
-  ["255044462D", "application/pdf"],
-  ["89504E470D0A1A0A", "image/png"],
-  ["FFD8FF", "image/jpeg"],
-  ["D0CF11E0A1B11AE1", "application/x-ole-storage"],
-  ["504B0304", "application/zip"],
+const MAGIC_NUMBER_MAP: ReadonlyArray<
+  readonly [Readonly<Uint8Array>, string]
+> = [
+  [Uint8Array.from([0x25, 0x50, 0x44, 0x46, 0x2d]), "application/pdf"],
+  [
+    Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    "image/png",
+  ],
+  [Uint8Array.from([0xff, 0xd8, 0xff]), "image/jpeg"],
+  [
+    Uint8Array.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]),
+    "application/x-ole-storage",
+  ],
+  [Uint8Array.from([0x50, 0x4b, 0x03, 0x04]), "application/zip"],
 ];
+const MAX_MAGIC_SIZE = Math.max(
+  ...MAGIC_NUMBER_MAP.map(([signature]) => signature.length),
+);
+
+function matchesMagicPrefix(
+  bytes: Uint8Array,
+  signature: Readonly<Uint8Array>,
+): boolean {
+  if (bytes.length < signature.length) {
+    return false;
+  }
+
+  for (let index = 0; index < signature.length; index++) {
+    if (bytes[index] !== signature[index]) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 // Helper function to efficiently parse ZIP Central Directory to find a specific entry
 async function hasZipEntry(file: File, targetEntry: string): Promise<boolean> {
@@ -182,14 +210,11 @@ export async function validateMagicNumbers(
   file: File,
   declaredMime: string,
 ): Promise<boolean> {
-  const buffer = await file.slice(0, 8).arrayBuffer();
+  const buffer = await file.slice(0, MAX_MAGIC_SIZE).arrayBuffer();
   const bytes = new Uint8Array(buffer);
-  const hex = Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, "0").toUpperCase())
-    .join("");
-
   const detectedType =
-    MAGIC_NUMBER_MAP.find(([magic]) => hex.startsWith(magic))?.[1] ?? null;
+    MAGIC_NUMBER_MAP.find(([signature]) => matchesMagicPrefix(bytes, signature))
+      ?.[1] ?? null;
 
   if (!detectedType) return false;
 
