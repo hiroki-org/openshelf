@@ -20,7 +20,7 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
     const userId = c.get("user").sub;
     const query = (c.req.query("q") ?? "").trim();
     const orgSlug = (c.req.query("orgSlug") ?? "").trim().toLowerCase();
-    const normalizedQuery = query.toLowerCase();
+    const normalizedQuery = query.toLowerCase().replace(/([%_\\])/g, '\\$1');
 
     if (query.length < TAG_SUGGEST_MIN_QUERY_LENGTH) {
         return c.json({ tags: [] });
@@ -50,10 +50,10 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
             FROM paper_orgs
             INNER JOIN papers ON paper_orgs.paper_id = papers.id
             LEFT JOIN paper_authors ON paper_authors.paper_id = papers.id AND paper_authors.user_id = ?1
-             , json_each(CASE WHEN json_valid(papers.tags) THEN papers.tags ELSE '[]' END)
+            , json_each(CASE WHEN json_valid(papers.tags) THEN papers.tags ELSE '[]' END)
             WHERE paper_orgs.org_id = ?2
               AND typeof(json_each.value) = 'text'
-              AND json_each.value LIKE replace(replace(?3, '%', '\%'), '_', '\_') || '%' ESCAPE '\'
+              AND json_each.value LIKE ?3 || '%' ESCAPE '\\' COLLATE NOCASE
               AND (
                   papers.visibility = 'public'
                   OR papers.visibility = 'org_only'
@@ -71,10 +71,10 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
                 COUNT(*) as count
             FROM papers
             INNER JOIN paper_authors ON paper_authors.paper_id = papers.id
-             , json_each(CASE WHEN json_valid(papers.tags) THEN papers.tags ELSE '[]' END)
+            , json_each(CASE WHEN json_valid(papers.tags) THEN papers.tags ELSE '[]' END)
             WHERE paper_authors.user_id = ?1
               AND typeof(json_each.value) = 'text'
-              AND json_each.value LIKE replace(replace(?2, '%', '\%'), '_', '\_') || '%' ESCAPE '\'
+              AND json_each.value LIKE ?2 || '%' ESCAPE '\\' COLLATE NOCASE
             GROUP BY json_each.value
             ORDER BY count DESC, tag ASC
             LIMIT ?3

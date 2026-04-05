@@ -117,6 +117,7 @@ describe("tags routes", () => {
 
         const app = await createTestApp();
         const env = createTestEnv();
+        (env.DB as any).prepare = vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all: vi.fn().mockResolvedValue({ results: [{ tag: "AI" }] }) }) });
         env.DB = { prepare: vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all: vi.fn().mockResolvedValue({ results: [{ tag: "Search" }, { tag: "Secret Notes" }] }) }) }) };
         const res = await app.request(
             "http://localhost/api/tags/suggest?q=Se&orgSlug=my-lab",
