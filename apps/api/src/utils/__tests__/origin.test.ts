@@ -37,4 +37,16 @@ describe("origin utils", () => {
         ).toBe(false);
     });
 
+    it("matches multi-level subdomains and ports for wildcard hosts", () => {
+        const frontendOrigin = normalizeOrigin("https://frontend.example.com");
+        expect(
+            isAllowedOrigin(
+                "https://sub.sub.example.com:8443",
+                frontendOrigin,
+                ["https://*.example.com:8443"],
+                { allowWildcard: true },
+            ),
+        ).toBe(true);
+    });
+
 });

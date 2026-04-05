@@ -20,13 +20,15 @@ export function parseOriginList(value: string | undefined): string[] {
         : [];
 }
 
+const WILDCARD_SEGMENT_PATTERN = "[^/?#]+";
+
 export function matchesOriginPattern(origin: string, pattern: string): boolean {
     if (pattern === "*") return true;
     if (!pattern.includes("*")) return origin === pattern;
 
     const escapedPattern = pattern
         .replace(/[|\\{}()[\]^$+?.]/g, "\\$&")
-        .replace(/\*/g, "[a-zA-Z0-9-]+");
+        .replace(/\*/g, WILDCARD_SEGMENT_PATTERN);
     return new RegExp(`^${escapedPattern}$`).test(origin);
 }
 
