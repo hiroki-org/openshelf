@@ -755,7 +755,6 @@ orgsRoute.get("/:slug/papers", async (c) => {
                     effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
                     categoryFilter ? eq(papers.category, categoryFilter) : undefined,
                     isNotNull(papers.venue),
-                    // DrizzleにTRIM相当のヘルパーがないため、カラム参照のみを使ったraw SQLで空文字を除外
                     sql`TRIM(${papers.venue}) != ''`,
                 ),
             )
