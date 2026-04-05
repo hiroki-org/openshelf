@@ -6,7 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { AuthProvider, useAuth } from "../auth-provider";
+import { AuthProvider, buildLoginUrl, useAuth } from "../auth-provider";
 import { apiFetch } from "@/lib/api";
 
 vi.mock("@/lib/api", () => ({
@@ -113,5 +113,24 @@ describe("AuthProvider", () => {
       expect(localStorage.getItem("auth_token")).toBeNull();
       expect(screen.getByTestId("user").textContent).toBe("null");
     });
+  });
+
+  it("buildLoginUrl includes the current frontend origin", () => {
+    expect(buildLoginUrl("https://api.example.com", "https://frontend.example.com")).toBe(
+      "https://api.example.com/api/auth/github?frontend_origin=https%3A%2F%2Ffrontend.example.com",
+    );
+  });
+
+  it("buildLoginUrl percent-encodes special characters in the origin", () => {
+    const url = buildLoginUrl("https://api.example.com", "http://localhost:3000");
+    expect(url).toBe(
+      "https://api.example.com/api/auth/github?frontend_origin=http%3A%2F%2Flocalhost%3A3000",
+    );
+  });
+
+  it("buildLoginUrl handles an apiBase with a trailing slash gracefully", () => {
+    const url = buildLoginUrl("https://api.example.com/", "https://frontend.example.com");
+    expect(url).toContain("/api/auth/github?frontend_origin=");
+    expect(url).toContain("https%3A%2F%2Ffrontend.example.com");
   });
 });
