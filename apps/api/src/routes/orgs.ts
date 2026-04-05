@@ -59,18 +59,6 @@ function buildOrgPapersVisibilityCondition(
     return eq(papers.visibility, "public");
 }
 
-
-function isOrgPaperVisibleToUser(
-    visibility: string,
-    isMember: boolean,
-    isAuthor: boolean,
-): boolean {
-    if (visibility === "public") return true;
-    if (visibility === "org_only") return isMember || isAuthor;
-    if (visibility === "private") return isAuthor;
-    return false;
-}
-
 function hasJwtSub(value: unknown): value is Pick<JwtPayload, "sub"> {
     return !!value
         && typeof value === "object"
@@ -210,14 +198,20 @@ orgsRoute.get("/:slug/tags", async (c) => {
     for (let i = 0; i < orgPapers.length; i++) {
         const paper = orgPapers[i];
 
-        const isAuthor = currentUserId !== null && paper.authorUserId === currentUserId;
-        const isVisible = isOrgPaperVisibleToUser(paper.visibility, isMember, isAuthor);
+        let isVisible = paper.visibility === "public";
+        if (!isVisible) {
+            const isAuthor = paper.authorUserId === currentUserId;
+            if (paper.visibility === "org_only") {
+                isVisible = isMember || isAuthor;
+            } else if (paper.visibility === "private") {
+                isVisible = isAuthor;
+            }
+        }
 
         if (!isVisible || !paper.tags || paper.tags === "[]") continue;
 
-        const canUseRawTagPrefilter = query !== "" && JSON.stringify(query).slice(1, -1) === query;
         // Fast path string check before doing JSON.parse when query exists
-        if (canUseRawTagPrefilter && !paper.tags.toLowerCase().includes(query)) continue;
+        if (query && !paper.tags.toLowerCase().includes(query)) continue;
 
         const tags = parseStoredTags(paper.tags);
         for (let j = 0; j < tags.length; j++) {
