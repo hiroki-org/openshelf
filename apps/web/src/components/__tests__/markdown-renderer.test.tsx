@@ -1,6 +1,11 @@
-import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
+import { describe, it, expect, afterEach } from "vitest";
 import { MarkdownRenderer } from "../markdown-renderer";
+
+
+afterEach(() => {
+  cleanup();
+});
 
 describe("MarkdownRenderer", () => {
   it("renders plain text correctly", () => {
@@ -12,7 +17,7 @@ describe("MarkdownRenderer", () => {
     const { container } = render(
       <MarkdownRenderer markdown="Text" className="custom-class" />
     );
-    expect(container.firstChild).toHaveClass("custom-class");
+    expect(container.firstElementChild).toHaveClass("custom-class");
   });
 
   it("renders headers correctly", () => {
@@ -56,6 +61,8 @@ describe("MarkdownRenderer", () => {
     expect(pre).toHaveClass("overflow-x-auto rounded-md bg-gray-950 p-3 text-sm text-gray-100");
     const code = container.querySelector("code");
     expect(code).toBeInTheDocument();
+    expect(code).toHaveClass("language-javascript");
+    expect(container.querySelector("span[class^=\"hljs\"], span[class*=\" hljs\"]")).toBeInTheDocument();
   });
 
   it("supports GitHub Flavored Markdown (tables)", () => {
@@ -88,6 +95,7 @@ describe("MarkdownRenderer", () => {
 <script>alert('xss')</script>
 <iframe src="javascript:alert('xss')"></iframe>
 [Safe link](javascript:alert('xss'))
+<a href="javascript:alert('xss')">Unsafe anchor</a>
     `;
     const { container } = render(<MarkdownRenderer markdown={unsafeMarkdown} />);
 
@@ -102,5 +110,11 @@ describe("MarkdownRenderer", () => {
     // unsafe link should have href removed or sanitized to empty string or #
     const link = screen.queryByRole("link", { name: "Safe link" });
     expect(link).toBeNull();
+
+    const unsafeAnchorText = screen.queryByText("Unsafe anchor");
+    if (unsafeAnchorText) {
+      const anchor = unsafeAnchorText.closest("a");
+      expect(anchor).not.toHaveAttribute("href");
+    }
   });
 });
