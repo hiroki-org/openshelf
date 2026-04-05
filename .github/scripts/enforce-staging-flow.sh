@@ -7,17 +7,25 @@ PR_NUMBER=${PR_NUMBER:-}
 COMMENT_ON_CHANGE=${COMMENT_ON_CHANGE:-0}
 OPEN_PR_LIMIT=${OPEN_PR_LIMIT:-100}
 MAX_STACK_COMPARE_CANDIDATES=${MAX_STACK_COMPARE_CANDIDATES:-50}
-
-uri_encode() {
-  jq -rn --arg value "$1" '$value | @uri'
-}
+ADMIN_BYPASS_CACHE=""
 
 author_has_admin_bypass() {
   local pr_author="$1"
+  local cached=""
   local permission=""
 
   if [ -z "$pr_author" ]; then
     return 1
+  fi
+
+  cached=$(
+    printf '%s' "$ADMIN_BYPASS_CACHE" |
+      awk -F ':' -v author="$pr_author" '$1 == author { print $2; exit }'
+  )
+
+  if [ -n "$cached" ]; then
+    [ "$cached" = "1" ]
+    return
   fi
 
   permission=$(
@@ -25,7 +33,15 @@ author_has_admin_bypass() {
       --jq .permission 2>/dev/null || true
   )
 
-  [ "$permission" = "admin" ]
+  if [ "$permission" = "admin" ]; then
+    ADMIN_BYPASS_CACHE="${ADMIN_BYPASS_CACHE}${pr_author}:1
+"
+    return 0
+  fi
+
+  ADMIN_BYPASS_CACHE="${ADMIN_BYPASS_CACHE}${pr_author}:0
+"
+  return 1
 }
 
 open_pr_rows=$(
@@ -34,7 +50,7 @@ open_pr_rows=$(
     --state open \
     --limit "$OPEN_PR_LIMIT" \
     --json number,headRefName,baseRefName,author \
-    --jq 'sort_by(.number) | reverse | .[] | [.number, .headRefName, .baseRefName, (.author.login // "")] | @tsv'
+    --jq 'sort_by(.number) | reverse | .[] | [.number, .headRefName, (.headRefName | @uri), .baseRefName, (.author.login // "")] | @tsv'
 )
 
 if [ -z "$open_pr_rows" ]; then
@@ -45,15 +61,13 @@ fi
 find_stacked_base() {
   local pr_number="$1"
   local head_branch="$2"
+  local head_branch_enc="$3"
   local stacked_base=""
   local min_ahead=""
   local stacked_base_number=""
   local compared_candidates=0
-  local head_enc=""
 
-  head_enc=$(uri_encode "$head_branch")
-
-  while IFS=$'\t' read -r candidate_number candidate_head _candidate_base _candidate_author; do
+  while IFS=$'\t' read -r candidate_number candidate_head candidate_head_enc _candidate_base _candidate_author; do
     if [ -z "$candidate_head" ] ||
       [ "$candidate_number" = "$pr_number" ] ||
       [ "$candidate_number" -ge "$pr_number" ] ||
@@ -68,11 +82,9 @@ find_stacked_base() {
       break
     fi
 
-    local candidate_enc=""
     local compare_line
-    candidate_enc=$(uri_encode "$candidate_head")
     compare_line=$(
-      gh api "repos/$GH_REPO/compare/$candidate_enc...$head_enc" \
+      gh api "repos/$GH_REPO/compare/$candidate_head_enc...$head_branch_enc" \
         --jq '"\(.status) \(.ahead_by) \(.behind_by)"' 2>/dev/null || true
     )
 
@@ -125,8 +137,9 @@ comment_on_change() {
 process_pr() {
   local pr_number="$1"
   local head_branch="$2"
-  local base_branch="$3"
-  local pr_author="$4"
+  local head_branch_enc="$3"
+  local base_branch="$4"
+  local pr_author="$5"
 
   if [ "$base_branch" != "main" ]; then
     echo "PR #$pr_number is not targeting main; skipping."
@@ -144,7 +157,7 @@ process_pr() {
   fi
 
   local target_base
-  target_base=$(find_stacked_base "$pr_number" "$head_branch")
+  target_base=$(find_stacked_base "$pr_number" "$head_branch" "$head_branch_enc")
 
   if [ -z "$target_base" ]; then
     target_base="staging"
@@ -168,11 +181,11 @@ if [ -n "$PR_NUMBER" ]; then
     exit 0
   fi
 
-  IFS=$'\t' read -r pr_number head_branch base_branch pr_author <<<"$pr_row"
-  process_pr "$pr_number" "$head_branch" "$base_branch" "$pr_author"
+  IFS=$'\t' read -r pr_number head_branch head_branch_enc base_branch pr_author <<<"$pr_row"
+  process_pr "$pr_number" "$head_branch" "$head_branch_enc" "$base_branch" "$pr_author"
   exit 0
 fi
 
-while IFS=$'\t' read -r pr_number head_branch base_branch pr_author; do
-  process_pr "$pr_number" "$head_branch" "$base_branch" "$pr_author"
+while IFS=$'\t' read -r pr_number head_branch head_branch_enc base_branch pr_author; do
+  process_pr "$pr_number" "$head_branch" "$head_branch_enc" "$base_branch" "$pr_author"
 done <<<"$open_pr_rows"
