@@ -5,11 +5,13 @@ vi.mock("../org-page-client", () => ({
   default: ({ slug }: any) => <div>{`org:${slug}`}</div>,
 }));
 
-import OrgPage, { generateMetadata } from "../page";
-
 describe("orgs/[slug]/page metadata", () => {
+  const originalApiUrl = process.env.API_URL;
+  const originalPublicApiUrl = process.env.NEXT_PUBLIC_API_URL;
   afterEach(() => {
     cleanup();
+    process.env.API_URL = originalApiUrl;
+    process.env.NEXT_PUBLIC_API_URL = originalPublicApiUrl;
   });
 
   beforeEach(() => {
@@ -17,6 +19,11 @@ describe("orgs/[slug]/page metadata", () => {
   });
 
   it("builds org metadata and renders the client page", async () => {
+    process.env.API_URL = "http://internal-api:8787";
+    process.env.NEXT_PUBLIC_API_URL = "https://public-api.example.com";
+    vi.resetModules();
+
+    const { default: OrgPage, generateMetadata } = await import("../page");
     vi.spyOn(global, "fetch").mockResolvedValueOnce(
       new Response(
         JSON.stringify({
@@ -35,8 +42,8 @@ describe("orgs/[slug]/page metadata", () => {
     render(view);
 
     expect(metadata.title).toBe("Research Lab | OpenShelf");
-    expect(metadata.alternates?.types?.["application/atom+xml"]).toContain(
-      "/feed/orgs/lab/atom.xml",
+    expect(metadata.alternates?.types?.["application/atom+xml"]).toBe(
+      "https://public-api.example.com/feed/orgs/lab/atom.xml",
     );
     expect(screen.getByText("org:lab")).toBeInTheDocument();
   });
