@@ -105,10 +105,13 @@ describe("auth routes", () => {
         process.env.NODE_ENV = originalNodeEnv;
     });
 
-    it("GET /api/auth/github persists state in D1 and redirects with client_id", async () => {
+    it("GET /api/auth/github uses request Origin over frontend_origin query when both are present", async () => {
         const app = await createTestApp();
         const oauthStateDb = createOAuthStateDb();
-        const env = createTestEnv({ DB: oauthStateDb.db as any });
+        const env = createTestEnv({
+            DB: oauthStateDb.db as any,
+            ALLOWED_ORIGINS: "https://frontend.example.com,https://staging.example.com",
+        });
 
         const res = await app.request(
             "http://localhost/api/auth/github?frontend_origin=https%3A%2F%2Ffrontend.example.com",
@@ -131,9 +134,28 @@ describe("auth routes", () => {
         expect(state ? oauthStateDb.states.has(state) : false).toBe(true);
         const setCookie = res.headers.get("set-cookie") ?? "";
         expect(setCookie).toContain("oauth_flow_nonce=");
-        expect(setCookie).toContain("oauth_flow_origin=");
+        expect(setCookie).toContain("oauth_flow_origin=https%3A%2F%2Ffrontend.example.com");
         expect(setCookie).toContain("HttpOnly");
         expect(state ? oauthStateDb.states.get(state)?.browserNonce : null).toBeTruthy();
+    });
+
+    it("GET /api/auth/github falls back to query origin when request Origin is missing", async () => {
+        const app = await createTestApp();
+        const oauthStateDb = createOAuthStateDb();
+        const env = createTestEnv({
+            DB: oauthStateDb.db as any,
+            ALLOWED_ORIGINS: "https://frontend.example.com,http://localhost:3000",
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github?frontend_origin=http%3A%2F%2Flocalhost%3A3000",
+            {},
+            env as any,
+        );
+
+        expect(res.status).toBe(302);
+        const setCookie = res.headers.get("set-cookie") ?? "";
+        expect(setCookie).toContain("oauth_flow_origin=http%3A%2F%2Flocalhost%3A3000");
     });
 
     it("GET /api/auth/github/callback returns 400 when state does not exist in D1", async () => {
@@ -329,7 +351,11 @@ describe("auth routes", () => {
         );
 
         const app = await createTestApp();
-        const env = createTestEnv({ DB: oauthStateDb.db as any });
+        const env = createTestEnv({
+            DB: oauthStateDb.db as any,
+            FRONTEND_URL: "https://frontend.example.com",
+            ALLOWED_ORIGINS: "https://frontend.example.com,https://staging.example.com",
+        });
 
         const res = await app.request(
             "http://localhost/api/auth/github/callback?code=code123&state=good-state",
@@ -344,6 +370,61 @@ describe("auth routes", () => {
         expect(res.status).toBe(302);
         const location = res.headers.get("location") ?? "";
         expect(location).toContain("https://staging.example.com/auth/callback#token=");
+    });
+
+    it("GET /api/auth/github/callback falls back to FRONTEND_URL when oauth_flow_origin is not allowlisted", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-1" } }));
+
+        const nowState = new Date().toISOString().replace("T", " " ).slice(0, 19);
+        const oauthStateDb = createOAuthStateDb({
+            "good-state": {
+                createdAt: nowState,
+                browserNonce: "good-nonce",
+            },
+        });
+
+        vi.stubGlobal(
+            "fetch",
+            vi
+                .fn()
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({ access_token: "gh-token" }),
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: async () => ({
+                        id: 123,
+                        login: "octocat",
+                        name: "Octo Cat",
+                        avatar_url: "http://avatar",
+                        email: "octo@example.com",
+                    }),
+                }),
+        );
+
+        const app = await createTestApp();
+        const env = createTestEnv({
+            DB: oauthStateDb.db as any,
+            FRONTEND_URL: "https://frontend.example.com",
+            ALLOWED_ORIGINS: "https://frontend.example.com",
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github/callback?code=code123&state=good-state",
+            {
+                headers: {
+                    Cookie: "oauth_flow_nonce=good-nonce; oauth_flow_origin=https://attacker.example.com",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(302);
+        const location = res.headers.get("location") ?? "";
+        expect(location).toContain("https://frontend.example.com/auth/callback#token=");
     });
 
     it("GET /api/auth/github/callback returns 502 when OAuth token exchange fails", async () => {

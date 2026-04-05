@@ -24,7 +24,9 @@ export function matchesOriginPattern(origin: string, pattern: string): boolean {
     if (pattern === "*") return true;
     if (!pattern.includes("*")) return origin === pattern;
 
-    const escapedPattern = pattern.replace(/[|\\{}()[\]^$+?.]/g, "\\$&").replace(/\*/g, ".*");
+    const escapedPattern = pattern
+        .replace(/[|\\{}()[\]^$+?.]/g, "\\$&")
+        .replace(/\*/g, "[a-zA-Z0-9-]+");
     return new RegExp(`^${escapedPattern}$`).test(origin);
 }
 
@@ -41,7 +43,7 @@ export function isAllowedOrigin(
     return (
         allowedOrigins.some((allowedOrigin) => {
             if (allowedOrigin.includes("*")) {
-                if (allowedOrigin === "*" && !allowWildcard) {
+                if (!allowWildcard) {
                     return false;
                 }
                 return matchesOriginPattern(origin, allowedOrigin);

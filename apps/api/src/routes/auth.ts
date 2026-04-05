@@ -19,10 +19,10 @@ const OAUTH_FLOW_ORIGIN_COOKIE = "oauth_flow_origin";
 auth.get("/github", async (c) => {
     const state = crypto.randomUUID();
     const flowNonce = crypto.randomUUID();
-    const requestOrigin = c.req.query("frontend_origin");
-    const requestReferer = c.req.header("Origin") ?? c.req.header("Referer");
+    const requestedFrontendOrigin = c.req.query("frontend_origin");
+    const requestSignalOrigin = c.req.header("Origin") ?? c.req.header("Referer");
     const frontendOrigin = resolveAllowedOrigin(
-        [requestOrigin, requestReferer],
+        [requestSignalOrigin, requestedFrontendOrigin],
         c.env.FRONTEND_URL,
         parseOriginList(c.env.ALLOWED_ORIGINS),
     );
@@ -235,7 +235,11 @@ auth.get("/github/callback", async (c) => {
         "HS256",
     );
 
-    const frontendUrl = flowOrigin ?? c.env.FRONTEND_URL;
+    const frontendUrl = resolveAllowedOrigin(
+        [flowOrigin],
+        c.env.FRONTEND_URL,
+        parseOriginList(c.env.ALLOWED_ORIGINS),
+    );
     if (!frontendUrl) {
         console.error("FATAL: FRONTEND_URL environment variable is not set.");
         return c.json({ error: "Server configuration error" }, 500);

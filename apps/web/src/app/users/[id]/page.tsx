@@ -5,13 +5,16 @@ import { safePath } from "@/lib/sanitization";
 
 type Params = { id: string };
 
+type UserProfile = {
+  id: string;
+  name: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  githubId: string;
+};
+
 type UserResponse = {
-  user: {
-    id: string;
-    name: string;
-    displayName: string | null;
-    githubId: string;
-  };
+  user: UserProfile;
 };
 
 const API_FETCH_BASE =
@@ -79,9 +82,11 @@ export default async function UserPage(props: {
     return <div className="text-center py-16">無効な識別子です</div>;
   }
 
+  const data = await fetchUserMetadata(id);
+
   return (
     <Suspense fallback={<div className="text-center py-16">読み込み中...</div>}>
-      <UserPageClient id={id} />
+      <UserPageClient id={id} initialUser={data?.user ?? null} />
     </Suspense>
   );
 }

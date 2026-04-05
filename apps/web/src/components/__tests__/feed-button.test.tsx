@@ -30,7 +30,7 @@ describe("FeedButton", () => {
   it("copies the feed URL to the clipboard", async () => {
     render(<FeedButton url="https://api.example/feed.xml" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "📡 RSS" }));
+    fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
 
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
@@ -44,7 +44,7 @@ describe("FeedButton", () => {
     vi.stubGlobal("navigator", {});
 
     render(<FeedButton url="https://api.example/feed.xml" />);
-    fireEvent.click(screen.getByRole("button", { name: "📡 RSS" }));
+    fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
 
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith(
