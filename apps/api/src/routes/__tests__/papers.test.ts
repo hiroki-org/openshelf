@@ -977,7 +977,6 @@ describe("papers routes", () => {
         expect(body.id).toBe("paper-1");
         expect(body.description).toBe("## Updated");
         expect(body.descriptionUpdatedAt).toBe("2026-04-01T12:00:00.000Z");
-        expect(body.description_updated_at).toBe("2026-04-01T12:00:00.000Z");
     });
 
     it("PUT /api/papers/:id/description rejects non-author", async () => {

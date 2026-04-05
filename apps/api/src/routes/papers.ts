@@ -1374,8 +1374,6 @@ papersRoute.put("/:id/description", authMiddleware, async (c) => {
         id: updatedPaper.id,
         description: updatedPaper.description,
         descriptionUpdatedAt: normalizedDescriptionUpdatedAt,
-        // Backward compatibility for existing clients expecting snake_case.
-        description_updated_at: normalizedDescriptionUpdatedAt,
     });
 });
 
