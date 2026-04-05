@@ -89,6 +89,8 @@ function setCachedResults(key: string, data: any[]) {
         for (const [k, v] of searchCache.entries()) {
             if (now - v.timestamp > CACHE_TTL_MS) {
                 searchCache.delete(k);
+            } else {
+                break;
             }
         }
 
@@ -97,6 +99,7 @@ function setCachedResults(key: string, data: any[]) {
             searchCache.clear();
         }
     }
+    searchCache.delete(key);
     searchCache.set(key, { data, timestamp: Date.now() });
 }
 
