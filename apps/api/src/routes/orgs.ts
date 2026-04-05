@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import { verify } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, sql, inArray, desc, or, like, isNotNull } from "drizzle-orm";
+import { eq, and, sql, inArray, desc, or, isNotNull } from "drizzle-orm";
 import {
     orgs,
     orgMembers,
@@ -66,6 +66,11 @@ function hasJwtSub(value: unknown): value is Pick<JwtPayload, "sub"> {
 }
 
 const MEMBER_ROLES = ["admin", "member"] as const;
+
+const escapeLikeLiteral = (str: string) => {
+    return str.replace(/[\\%_]/g, '\\$&');
+};
+
 const ADMIN_LIKE_ROLES = ["admin", "owner"] as const;
 
 // ─── Validation helpers ─────────────────────────────────────────
@@ -605,9 +610,6 @@ orgsRoute.get("/:slug/papers", async (c) => {
         return c.json({ error: "Invalid category" }, 400);
     }
     const categoryFilter = categoryQuery as CategoryType | null;
-    const escapedVenueQuery = venueQuery
-        ? venueQuery.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_")
-        : null;
 
     let requestedYear: number | null = null;
     const wantsAllYears = yearQuery === "all";
@@ -651,7 +653,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
     let effectiveYear = requestedYear;
     const latestYearFilters = [...baseFilters];
     if (venueQuery) {
-        latestYearFilters.push(sql`${papers.venue} LIKE ${`%${escapedVenueQuery}%`} ESCAPE '\\'`);
+        latestYearFilters.push(sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`);
     }
     if (categoryFilter) {
         latestYearFilters.push(eq(papers.category, categoryFilter));
@@ -669,7 +671,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
 
     const finalFilters = [...baseFilters];
     if (venueQuery) {
-        finalFilters.push(sql`${papers.venue} LIKE ${`%${escapedVenueQuery}%`} ESCAPE '\\'`);
+        finalFilters.push(sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`);
     }
     if (categoryFilter) {
         finalFilters.push(eq(papers.category, categoryFilter));
@@ -737,7 +739,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
             .where(
                 and(
                     ...baseFilters,
-                    venueQuery ? sql`${papers.venue} LIKE ${`%${escapedVenueQuery}%`} ESCAPE '\\'` : undefined,
+                    venueQuery ? sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'` : undefined,
                     categoryFilter ? eq(papers.category, categoryFilter) : undefined,
                     isNotNull(papers.year),
                 ),
@@ -758,7 +760,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
                     effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
                     categoryFilter ? eq(papers.category, categoryFilter) : undefined,
                     isNotNull(papers.venue),
-                    // DrizzleにTRIM相当のヘルパーがないため、カラム参照のみのraw SQLで空文字を除外
+                    // Drizzleに同等ヘルパーがないためカラム参照のみでraw SQLを使用
                     sql`TRIM(${papers.venue}) != ''`,
                 ),
             )
@@ -776,7 +778,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
                 and(
                     ...baseFilters,
                     effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
-                    venueQuery ? sql`${papers.venue} LIKE ${`%${escapedVenueQuery}%`} ESCAPE '\\'` : undefined,
+                    venueQuery ? sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'` : undefined,
                     isNotNull(papers.category),
                 ),
             )
