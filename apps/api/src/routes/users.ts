@@ -83,18 +83,12 @@ function getCachedResults(key: string): any[] | null {
 }
 
 function setCachedResults(key: string, data: any[]) {
-    // cleanup old cache randomly to prevent memory leak
     if (searchCache.size >= MAX_CACHE_SIZE) {
-        const now = Date.now();
-        for (const [k, v] of searchCache.entries()) {
-            if (now - v.timestamp > CACHE_TTL_MS) {
-                searchCache.delete(k);
-            }
-        }
-
-        // if still too large, clear to prevent memory leak
-        if (searchCache.size >= MAX_CACHE_SIZE) {
-            searchCache.clear();
+        // Map iterates in insertion order, so the first key is the oldest.
+        // This gives us O(1) eviction for LRU/FIFO behavior.
+        const oldestKey = searchCache.keys().next().value;
+        if (oldestKey !== undefined) {
+            searchCache.delete(oldestKey);
         }
     }
     searchCache.set(key, { data, timestamp: Date.now() });
