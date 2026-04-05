@@ -17,6 +17,10 @@ const API_BASE =
   process.env.API_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:8787";
+const PUBLIC_API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ??
+  process.env.API_URL ??
+  "http://localhost:8787";
 const SITE_BASE =
   process.env.SITE_URL ??
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -80,10 +84,16 @@ export async function generateMetadata(props: {
     data.org.name,
     data.org.description ?? undefined,
   );
+  const feedUrl = `${PUBLIC_API_BASE}/feed/orgs/${slug}/atom.xml`;
 
   return {
     title,
     description,
+    alternates: {
+      types: {
+        "application/atom+xml": feedUrl,
+      },
+    },
     openGraph: {
       title,
       description,
