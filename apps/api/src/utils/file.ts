@@ -23,6 +23,9 @@ const MAGIC_NUMBER_MAP: ReadonlyArray<
   ],
   [Uint8Array.from([0x50, 0x4b, 0x03, 0x04]), "application/zip"],
 ];
+const MAX_MAGIC_SIZE = Math.max(
+  ...MAGIC_NUMBER_MAP.map(([signature]) => signature.length),
+);
 
 function matchesMagicPrefix(
   bytes: Uint8Array,
@@ -207,7 +210,7 @@ export async function validateMagicNumbers(
   file: File,
   declaredMime: string,
 ): Promise<boolean> {
-  const buffer = await file.slice(0, 8).arrayBuffer();
+  const buffer = await file.slice(0, MAX_MAGIC_SIZE).arrayBuffer();
   const bytes = new Uint8Array(buffer);
   const detectedType =
     MAGIC_NUMBER_MAP.find(([signature]) => matchesMagicPrefix(bytes, signature))
