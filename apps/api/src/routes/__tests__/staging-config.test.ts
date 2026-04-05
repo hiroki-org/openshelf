@@ -1,0 +1,328 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+    createMockD1Binding,
+    createTestApp,
+    createTestEnv,
+    makeQuery,
+} from "../../test/helpers";
+
+/**
+ * Tests for the staging environment configuration introduced in the PR:
+ *   FRONTEND_URL  = "https://open-shelf-git-staging-hirokis-projects-afd618c7.vercel.app"
+ *   ALLOWED_ORIGINS = "https://open-shelf-git-staging-hirokis-projects-afd618c7.vercel.app"
+ *
+ * These tests verify that the CORS and CSRF middleware behave correctly when
+ * the staging Vercel URL is used instead of the previous localhost:3000 values.
+ */
+
+const STAGING_URL =
+    // Fixed fixture URL to lock regression tests to the exact staging-origin change in PR #294.
+    "https://open-shelf-git-staging-hirokis-projects-afd618c7.vercel.app";
+const HTTP_STAGING_URL =
+    "http://open-shelf-git-staging-hirokis-projects-afd618c7.vercel.app";
+
+let mockDb: any;
+
+vi.mock("drizzle-orm/d1", () => ({
+    drizzle: vi.fn(() => mockDb),
+}));
+
+vi.mock("../../db/schema", () => ({
+    users: { id: "id", githubId: "github_id" },
+    orgs: { id: "id" },
+    orgMembers: { orgId: "org_id" },
+    enableForeignKeys: vi.fn(() => Promise.resolve()),
+    touchUpdatedAt: vi.fn(() => ({})),
+}));
+
+beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.resetModules();
+    mockDb = {
+        run: vi.fn(async () => undefined),
+        select: vi.fn(() => makeQuery()),
+        insert: vi.fn(() => ({
+            values: vi.fn(() => ({
+                onConflictDoUpdate: vi.fn(async () => undefined),
+            })),
+        })),
+    };
+});
+
+// ---------------------------------------------------------------------------
+// CORS – staging ALLOWED_ORIGINS configuration
+// ---------------------------------------------------------------------------
+
+describe("CORS – staging Vercel URL in ALLOWED_ORIGINS", () => {
+    it("accepts the staging Vercel URL as a valid CORS origin", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            DB: createMockD1Binding(),
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_URL,
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github",
+            { headers: { Origin: STAGING_URL } },
+            env as any,
+        );
+
+        expect(res.headers.get("access-control-allow-origin")).toBe(STAGING_URL);
+    });
+
+    it("blocks localhost:3000 when ALLOWED_ORIGINS contains only the staging URL (regression: old value removed)", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            DB: createMockD1Binding(),
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_URL,
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github",
+            { headers: { Origin: "http://localhost:3000" } },
+            env as any,
+        );
+
+        // localhost:3000 is no longer in ALLOWED_ORIGINS – it must be blocked.
+        expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    });
+
+    it("blocks the HTTP (non-HTTPS) variant of the staging URL", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            DB: createMockD1Binding(),
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_URL,
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github",
+            { headers: { Origin: HTTP_STAGING_URL } },
+            env as any,
+        );
+
+        // The allowed list contains only the HTTPS URL; the HTTP variant is different.
+        expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    });
+
+    it("blocks an unrelated origin when ALLOWED_ORIGINS is set to the staging URL", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            DB: createMockD1Binding(),
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_URL,
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github",
+            { headers: { Origin: "https://attacker.example.com" } },
+            env as any,
+        );
+
+        expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    });
+
+    it("uses the staging URL as CORS origin fallback when ALLOWED_ORIGINS is absent", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            DB: createMockD1Binding(),
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: undefined,
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github",
+            { headers: { Origin: STAGING_URL } },
+            env as any,
+        );
+
+        expect(res.headers.get("access-control-allow-origin")).toBe(STAGING_URL);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// CORS – OPTIONS preflight with staging configuration
+// ---------------------------------------------------------------------------
+
+describe("CORS preflight – staging Vercel URL in ALLOWED_ORIGINS", () => {
+    it("returns correct preflight headers for the staging Vercel URL", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            DB: createMockD1Binding(),
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_URL,
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github",
+            {
+                method: "OPTIONS",
+                headers: {
+                    Origin: STAGING_URL,
+                    "Access-Control-Request-Method": "POST",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.headers.get("access-control-allow-origin")).toBe(STAGING_URL);
+        expect(res.headers.get("access-control-allow-methods")).toContain("POST");
+        expect(res.headers.get("access-control-allow-headers")).toBeTruthy();
+    });
+
+    it("blocks preflight for localhost:3000 now that staging URL is the sole ALLOWED_ORIGINS", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            DB: createMockD1Binding(),
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_URL,
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github",
+            {
+                method: "OPTIONS",
+                headers: {
+                    Origin: "http://localhost:3000",
+                    "Access-Control-Request-Method": "POST",
+                },
+            },
+            env as any,
+        );
+
+        // localhost:3000 is no longer allowed – preflight must be blocked.
+        expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    });
+
+    it("blocks preflight for the HTTP variant of the staging URL", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            DB: createMockD1Binding(),
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_URL,
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github",
+            {
+                method: "OPTIONS",
+                headers: {
+                    Origin: HTTP_STAGING_URL,
+                    "Access-Control-Request-Method": "DELETE",
+                },
+            },
+            env as any,
+        );
+
+        expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// CSRF – staging Vercel URL as FRONTEND_URL / ALLOWED_ORIGINS
+// ---------------------------------------------------------------------------
+
+describe("CSRF – staging Vercel URL configuration", () => {
+    it("allows a mutative request whose Origin matches the staging FRONTEND_URL", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_URL,
+            ENABLE_TEST_AUTH: "false",
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: { Origin: STAGING_URL },
+            },
+            env as any,
+        );
+
+        // CSRF check passes; result depends on auth, but must NOT be 403 Forbidden.
+        expect(res.status).not.toBe(403);
+    });
+
+    it("blocks a mutative request whose Origin is localhost:3000 when staging URL is FRONTEND_URL", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_URL,
+            ENABLE_TEST_AUTH: "false",
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: { Origin: "http://localhost:3000" },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(403);
+    });
+
+    it("blocks a mutative request whose Origin is the HTTP variant of the staging URL", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_URL,
+            ENABLE_TEST_AUTH: "false",
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: { Origin: HTTP_STAGING_URL },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(403);
+    });
+
+    it("allows a mutative request whose Referer is under the staging URL", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_URL,
+            ENABLE_TEST_AUTH: "false",
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: {
+                    // No Origin header – CSRF relies on Referer only.
+                    Referer: `${STAGING_URL}/some/page`,
+                },
+            },
+            env as any,
+        );
+
+        expect(res.status).not.toBe(403);
+    });
+
+    it("blocks a mutative request with no Origin and no Referer", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            FRONTEND_URL: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_URL,
+            ENABLE_TEST_AUTH: "false",
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            { method: "POST" },
+            env as any,
+        );
+
+        expect(res.status).toBe(403);
+    });
+});
