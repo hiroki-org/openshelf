@@ -1,5 +1,3 @@
-import re
-
 file_path = "apps/api/src/utils/__tests__/citation.test.ts"
 with open(file_path, "r") as f:
     content = f.read()
