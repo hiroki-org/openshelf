@@ -195,16 +195,30 @@ orgsRoute.get("/:slug/tags", async (c) => {
     if (orgPapers.length === 0) return c.json({ tags: [] });
 
     const counts = new Map<string, number>();
-    for (const paper of orgPapers) {
-        const isAuthor = paper.authorUserId === currentUserId;
-        const isVisible = paper.visibility === "public"
-            || (paper.visibility === "org_only" && (isMember || isAuthor))
-            || (paper.visibility === "private" && isAuthor);
-        if (!isVisible) continue;
+    for (let i = 0; i < orgPapers.length; i++) {
+        const paper = orgPapers[i];
 
-        for (const tag of parseStoredTags(paper.tags)) {
+        let isVisible = paper.visibility === "public";
+        if (!isVisible) {
+            const isAuthor = paper.authorUserId === currentUserId;
+            if (paper.visibility === "org_only") {
+                isVisible = isMember || isAuthor;
+            } else if (paper.visibility === "private") {
+                isVisible = isAuthor;
+            }
+        }
+
+        if (!isVisible || !paper.tags || paper.tags === "[]") continue;
+
+        // Fast path string check before doing JSON.parse when query exists
+        if (query && !paper.tags.toLowerCase().includes(query)) continue;
+
+        const tags = parseStoredTags(paper.tags);
+        for (let j = 0; j < tags.length; j++) {
+            const tag = tags[j];
             if (query && !tag.toLowerCase().startsWith(query)) continue;
-            counts.set(tag, (counts.get(tag) ?? 0) + 1);
+            const count = counts.get(tag);
+            counts.set(tag, count === undefined ? 1 : count + 1);
         }
     }
 
