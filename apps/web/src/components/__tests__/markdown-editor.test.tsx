@@ -126,6 +126,29 @@ describe("MarkdownEditor", () => {
       expect(mockOnModeChange).toHaveBeenCalledWith("write");
     });
 
+
+    it("wraps from preview to write on ArrowRight", () => {
+      render(<MarkdownEditor {...defaultProps} mode="preview" />);
+
+      const tablist = screen.getByRole("tablist");
+      const writeTab = screen.getByRole("tab", { name: "Write" });
+      fireEvent.keyDown(tablist, { key: "ArrowRight" });
+
+      expect(mockOnModeChange).toHaveBeenCalledWith("write");
+      expect(writeTab).toHaveFocus();
+    });
+
+    it("wraps from write to preview on ArrowLeft", () => {
+      render(<MarkdownEditor {...defaultProps} />);
+
+      const tablist = screen.getByRole("tablist");
+      const previewTab = screen.getByRole("tab", { name: "Preview" });
+      fireEvent.keyDown(tablist, { key: "ArrowLeft" });
+
+      expect(mockOnModeChange).toHaveBeenCalledWith("preview");
+      expect(previewTab).toHaveFocus();
+    });
+
     it("ignores other keys", () => {
       render(<MarkdownEditor {...defaultProps} />);
 
