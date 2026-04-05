@@ -38,7 +38,7 @@ cd apps/web && npx vitest run src/components/__tests__/SomeComponent.test.tsx
 npm run dev                     # wrangler dev
 npm run db:generate             # Generate Drizzle migration
 npm run db:migrate:local        # Apply migrations to local D1
-npm run db:migrate:remote       # Apply migrations to Cloudflare D1
+npm run db:migrate:remote:production       # Apply migrations to Cloudflare D1
 ```
 
 ### Web (`apps/web`)

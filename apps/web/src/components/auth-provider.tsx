@@ -28,6 +28,10 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+export function buildLoginUrl(apiBase: string, currentOrigin: string): string {
+  return `${apiBase}/api/auth/github?frontend_origin=${encodeURIComponent(currentOrigin)}`;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,7 +70,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       return;
     }
-    window.location.href = `${apiBase}/api/auth/github`;
+    const currentOrigin = window.location.origin;
+    window.location.href = buildLoginUrl(apiBase, currentOrigin);
   }, []);
 
   const logout = useCallback(async () => {
