@@ -200,7 +200,7 @@ orgsRoute.get("/:slug/tags", async (c) => {
 
         let isVisible = paper.visibility === "public";
         if (!isVisible) {
-            const isAuthor = currentUserId !== null && paper.authorUserId === currentUserId;
+            const isAuthor = paper.authorUserId === currentUserId;
             if (paper.visibility === "org_only") {
                 isVisible = isMember || isAuthor;
             } else if (paper.visibility === "private") {
@@ -210,8 +210,7 @@ orgsRoute.get("/:slug/tags", async (c) => {
 
         if (!isVisible || !paper.tags || paper.tags === "[]") continue;
 
-        // Fast path: JSON文字列にqueryが含まれるか確認するヒューリスティック事前フィルタ。
-        // JSONエスケープの影響で偽陰性/偽陽性の可能性はあるが、性能最適化のために使用。
+        // Fast path string check before doing JSON.parse when query exists
         if (query && !paper.tags.toLowerCase().includes(query)) continue;
 
         const tags = parseStoredTags(paper.tags);
