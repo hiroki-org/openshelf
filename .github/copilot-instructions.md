@@ -55,6 +55,7 @@ npm run lint             # ESLint on apps/*/src
 npm run dev                    # Start wrangler dev server (staging env, port 8787)
 npm run db:generate           # Generate Drizzle migration
 npm run db:migrate:local      # Apply migrations to local D1 (staging env)
+npm run db:migrate:remote     # Apply migrations to Cloudflare D1 (staging env)
 npm run db:migrate:remote:production     # Apply migrations to Cloudflare D1 (production env)
 
 # Web (apps/web)
@@ -378,7 +379,7 @@ gh pr merge 42 --squash
 2. Run `npm run db:generate`
 3. Review the generated migration in `apps/api/drizzle/`
 4. Test with `npm run db:migrate:local`
-5. Deploy with `npm run db:migrate:remote:production`
+5. Deploy with `npm run db:migrate:remote` (staging), then `npm run db:migrate:remote:production` (production)
 
 ### Add Frontend Component
 
@@ -403,7 +404,7 @@ Tests auto-start both frontend (port 3000) and API (port 8787).
 
 - **Frontend**: Vercel or Docker (see `apps/web/Dockerfile`)
 - **API**: Cloudflare Workers via `wrangler deploy`
-- **Database migrations**: Apply via `npm run db:migrate:remote:production`
+- **Database migrations**: Apply staging with `npm run db:migrate:remote`, then production with `npm run db:migrate:remote:production`
 
 See `apps/web/README.md` and `apps/api/wrangler.toml` for environment variable requirements.
 
