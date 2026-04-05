@@ -605,6 +605,9 @@ orgsRoute.get("/:slug/papers", async (c) => {
         return c.json({ error: "Invalid category" }, 400);
     }
     const categoryFilter = categoryQuery as CategoryType | null;
+    const escapedVenueQuery = venueQuery
+        ? venueQuery.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_")
+        : null;
 
     let requestedYear: number | null = null;
     const wantsAllYears = yearQuery === "all";
@@ -648,7 +651,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
     let effectiveYear = requestedYear;
     const latestYearFilters = [...baseFilters];
     if (venueQuery) {
-        latestYearFilters.push(like(papers.venue, `%${venueQuery}%`));
+        latestYearFilters.push(sql`${papers.venue} LIKE ${`%${escapedVenueQuery}%`} ESCAPE '\\'`);
     }
     if (categoryFilter) {
         latestYearFilters.push(eq(papers.category, categoryFilter));
@@ -666,7 +669,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
 
     const finalFilters = [...baseFilters];
     if (venueQuery) {
-        finalFilters.push(like(papers.venue, `%${venueQuery}%`));
+        finalFilters.push(sql`${papers.venue} LIKE ${`%${escapedVenueQuery}%`} ESCAPE '\\'`);
     }
     if (categoryFilter) {
         finalFilters.push(eq(papers.category, categoryFilter));
@@ -734,7 +737,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
             .where(
                 and(
                     ...baseFilters,
-                    venueQuery ? like(papers.venue, `%${venueQuery}%`) : undefined,
+                    venueQuery ? sql`${papers.venue} LIKE ${`%${escapedVenueQuery}%`} ESCAPE '\\'` : undefined,
                     categoryFilter ? eq(papers.category, categoryFilter) : undefined,
                     isNotNull(papers.year),
                 ),
@@ -755,6 +758,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
                     effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
                     categoryFilter ? eq(papers.category, categoryFilter) : undefined,
                     isNotNull(papers.venue),
+                    // DrizzleにTRIM相当のヘルパーがないため、カラム参照のみのraw SQLで空文字を除外
                     sql`TRIM(${papers.venue}) != ''`,
                 ),
             )
@@ -772,7 +776,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
                 and(
                     ...baseFilters,
                     effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
-                    venueQuery ? like(papers.venue, `%${venueQuery}%`) : undefined,
+                    venueQuery ? sql`${papers.venue} LIKE ${`%${escapedVenueQuery}%`} ESCAPE '\\'` : undefined,
                     isNotNull(papers.category),
                 ),
             )
