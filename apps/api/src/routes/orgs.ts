@@ -1,7 +1,7 @@
 import { Hono, type Context } from "hono";
 import { verify } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, sql, inArray, desc, or } from "drizzle-orm";
+import { eq, and, sql, inArray, desc, or, like, isNotNull } from "drizzle-orm";
 import {
     orgs,
     orgMembers,
@@ -648,7 +648,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
     let effectiveYear = requestedYear;
     const latestYearFilters = [...baseFilters];
     if (venueQuery) {
-        latestYearFilters.push(sql`${papers.venue} LIKE ${`%${venueQuery}%`}`);
+        latestYearFilters.push(like(papers.venue, `%${venueQuery}%`));
     }
     if (categoryFilter) {
         latestYearFilters.push(eq(papers.category, categoryFilter));
@@ -666,7 +666,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
 
     const finalFilters = [...baseFilters];
     if (venueQuery) {
-        finalFilters.push(sql`${papers.venue} LIKE ${`%${venueQuery}%`}`);
+        finalFilters.push(like(papers.venue, `%${venueQuery}%`));
     }
     if (categoryFilter) {
         finalFilters.push(eq(papers.category, categoryFilter));
@@ -734,9 +734,9 @@ orgsRoute.get("/:slug/papers", async (c) => {
             .where(
                 and(
                     ...baseFilters,
-                    venueQuery ? sql`${papers.venue} LIKE ${`%${venueQuery}%`}` : undefined,
+                    venueQuery ? like(papers.venue, `%${venueQuery}%`) : undefined,
                     categoryFilter ? eq(papers.category, categoryFilter) : undefined,
-                    sql`${papers.year} IS NOT NULL`,
+                    isNotNull(papers.year),
                 ),
             )
             .groupBy(papers.year)
@@ -754,7 +754,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
                     ...baseFilters,
                     effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
                     categoryFilter ? eq(papers.category, categoryFilter) : undefined,
-                    sql`${papers.venue} IS NOT NULL`,
+                    isNotNull(papers.venue),
                     sql`TRIM(${papers.venue}) != ''`,
                 ),
             )
@@ -772,8 +772,8 @@ orgsRoute.get("/:slug/papers", async (c) => {
                 and(
                     ...baseFilters,
                     effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
-                    venueQuery ? sql`${papers.venue} LIKE ${`%${venueQuery}%`}` : undefined,
-                    sql`${papers.category} IS NOT NULL`,
+                    venueQuery ? like(papers.venue, `%${venueQuery}%`) : undefined,
+                    isNotNull(papers.category),
                 ),
             )
             .groupBy(papers.category)
