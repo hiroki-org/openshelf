@@ -292,6 +292,8 @@ function purgeExpiredTokenCache(now: number): void {
     for (const [cachedToken, entry] of tokenCache.entries()) {
         if (entry.expiresAt <= now) {
             tokenCache.delete(cachedToken);
+        } else {
+            break;
         }
     }
 }
