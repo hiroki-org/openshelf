@@ -24,11 +24,12 @@ type Collection = {
 
 type UserPageClientProps = {
   id: string;
+  initialUser?: UserProfile | null;
 };
 
-export default function UserPageClient({ id }: UserPageClientProps) {
+export default function UserPageClient({ id, initialUser = null }: UserPageClientProps) {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(initialUser);
   const [collections, setCollections] = useState<Collection[]>([]);
   const [error, setError] = useState("");
 
@@ -38,25 +39,34 @@ export default function UserPageClient({ id }: UserPageClientProps) {
   useEffect(() => {
     let cancelled = false;
     setError("");
-    setProfile(null);
+    setProfile(initialUser);
     setCollections([]);
 
     (async () => {
       try {
+        const profileResPromise = initialUser
+          ? Promise.resolve(null)
+          : apiFetch(`/api/users/${encodeURIComponent(id)}`);
         const [profileRes, collectionsRes] = await Promise.all([
-          apiFetch(`/api/users/${encodeURIComponent(id)}`),
+          profileResPromise,
           apiFetch(`/api/users/${encodeURIComponent(id)}/collections`),
         ]);
         if (cancelled) return;
 
-        if (!profileRes.ok) {
-          setError("ユーザーが見つかりません");
-          return;
-        }
+        if (!initialUser) {
+          if (!profileRes || !profileRes.ok) {
+            setError(
+              profileRes?.status === 404
+                ? "ユーザーが見つかりません"
+                : "ユーザー情報の取得に失敗しました",
+            );
+            return;
+          }
 
-        const profileData = await profileRes.json();
-        if (cancelled) return;
-        setProfile(profileData.user);
+          const profileData = await profileRes.json();
+          if (cancelled) return;
+          setProfile(profileData.user);
+        }
 
         if (collectionsRes.ok) {
           const collectionsData = await collectionsRes.json();
@@ -72,7 +82,7 @@ export default function UserPageClient({ id }: UserPageClientProps) {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, initialUser]);
 
   if (error)
     return <div className="text-center py-16 text-red-600">{error}</div>;
