@@ -428,6 +428,11 @@ See `apps/web/README.md` and `apps/api/wrangler.toml` for environment variable r
 - For database changes, test locally with `db:migrate:local` before planning remote migrations.
 - Keep JWT secret and GitHub OAuth credentials secure; use environment variables.
 
+### Completion Signaling Policy（完了宣言ポリシー）
+
+- **禁止 / Forbidden:** 「自律的に続行します」「continuing autonomously」等の宣言をした直後、同一フローでただちに `task_complete` を実行してはならない。
+- **必須 / Required:** 上記の宣言後は、少なくとも1つの実作業（例: ツール実行・修正適用・検証実施）を完了して結果を確認したうえでのみ `task_complete` を実行する。
+
 ### PR Workflow Reminders
 
 - **New features:** Always create a feature branch and open a PR; never commit directly to `main`.
