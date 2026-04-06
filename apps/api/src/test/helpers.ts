@@ -107,6 +107,16 @@ export function createMockDb(overrides: Record<string, any> = {}) {
     };
 }
 
+
+export function createMockD1Binding() {
+    return {
+        prepare: vi.fn(() => ({
+            run: vi.fn(),
+            bind: vi.fn(() => ({ run: vi.fn(), first: vi.fn(() => null) })),
+        })),
+    };
+}
+
 export function queueSelectResponses(
     mockDb: { select: unknown },
     responses: MockDbResponse[],

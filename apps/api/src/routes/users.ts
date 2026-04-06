@@ -83,12 +83,16 @@ function getCachedResults(key: string): any[] | null {
 }
 
 function setCachedResults(key: string, data: any[]) {
+    searchCache.delete(key);
+
     // cleanup old cache randomly to prevent memory leak
     if (searchCache.size >= MAX_CACHE_SIZE) {
         const now = Date.now();
         for (const [k, v] of searchCache.entries()) {
             if (now - v.timestamp > CACHE_TTL_MS) {
                 searchCache.delete(k);
+            } else {
+                break;
             }
         }
 
