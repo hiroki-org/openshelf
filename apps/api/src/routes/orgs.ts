@@ -760,7 +760,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
                     effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
                     categoryFilter ? eq(papers.category, categoryFilter) : undefined,
                     isNotNull(papers.venue),
-                    // Drizzleに同等ヘルパーがないためカラム参照のみでraw SQLを使用
+                    // Use raw SQL for the trimmed column predicate because Drizzle has no helper for it.
                     sql`TRIM(${papers.venue}) != ''`,
                 ),
             )

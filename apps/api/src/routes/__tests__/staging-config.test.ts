@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     createMockD1Binding,
@@ -6,20 +7,24 @@ import {
     makeQuery,
 } from "../../test/helpers";
 
-/**
- * Tests for the staging environment configuration introduced in the PR:
- *   FRONTEND_URL  = "https://open-shelf-git-staging-hirokis-projects-afd618c7.vercel.app"
- *   ALLOWED_ORIGINS = "https://open-shelf-git-staging-hirokis-projects-afd618c7.vercel.app"
- *
- * These tests verify that the CORS and CSRF middleware behave correctly when
- * the staging Vercel URL is used instead of the previous localhost:3000 values.
- */
+const WRANGLER_TOML = readFileSync(
+    new URL("../../../wrangler.toml", import.meta.url),
+    "utf8",
+);
+const STAGING_VARS_SECTION =
+    WRANGLER_TOML.match(/\[env\.staging\.vars\]([\s\S]*?)(?:\n\[|$)/)?.[1] ?? "";
 
-const STAGING_URL =
-    // Fixed fixture URL to lock regression tests to the exact staging-origin change in PR #294.
-    "https://open-shelf-git-staging-hirokis-projects-afd618c7.vercel.app";
-const HTTP_STAGING_URL =
-    "http://open-shelf-git-staging-hirokis-projects-afd618c7.vercel.app";
+function readStagingVar(name: "FRONTEND_URL" | "ALLOWED_ORIGINS") {
+    const match = STAGING_VARS_SECTION.match(new RegExp(`^${name}\\s*=\\s*"([^"]+)"$`, "m"));
+    if (!match) {
+        throw new Error(`Missing ${name} in apps/api/wrangler.toml [env.staging.vars]`);
+    }
+    return match[1];
+}
+
+const STAGING_URL = readStagingVar("FRONTEND_URL");
+const STAGING_ALLOWED_ORIGINS = readStagingVar("ALLOWED_ORIGINS");
+const HTTP_STAGING_URL = STAGING_URL.replace(/^https:/, "http:");
 
 let mockDb: any;
 
@@ -59,7 +64,7 @@ describe("CORS – staging Vercel URL in ALLOWED_ORIGINS", () => {
         const env = createTestEnv({
             DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
-            ALLOWED_ORIGINS: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_ALLOWED_ORIGINS,
         });
 
         const res = await app.request(
@@ -76,7 +81,7 @@ describe("CORS – staging Vercel URL in ALLOWED_ORIGINS", () => {
         const env = createTestEnv({
             DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
-            ALLOWED_ORIGINS: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_ALLOWED_ORIGINS,
         });
 
         const res = await app.request(
@@ -94,7 +99,7 @@ describe("CORS – staging Vercel URL in ALLOWED_ORIGINS", () => {
         const env = createTestEnv({
             DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
-            ALLOWED_ORIGINS: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_ALLOWED_ORIGINS,
         });
 
         const res = await app.request(
@@ -112,7 +117,7 @@ describe("CORS – staging Vercel URL in ALLOWED_ORIGINS", () => {
         const env = createTestEnv({
             DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
-            ALLOWED_ORIGINS: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_ALLOWED_ORIGINS,
         });
 
         const res = await app.request(
@@ -152,7 +157,7 @@ describe("CORS preflight – staging Vercel URL in ALLOWED_ORIGINS", () => {
         const env = createTestEnv({
             DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
-            ALLOWED_ORIGINS: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_ALLOWED_ORIGINS,
         });
 
         const res = await app.request(
@@ -177,7 +182,7 @@ describe("CORS preflight – staging Vercel URL in ALLOWED_ORIGINS", () => {
         const env = createTestEnv({
             DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
-            ALLOWED_ORIGINS: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_ALLOWED_ORIGINS,
         });
 
         const res = await app.request(
@@ -201,7 +206,7 @@ describe("CORS preflight – staging Vercel URL in ALLOWED_ORIGINS", () => {
         const env = createTestEnv({
             DB: createMockD1Binding(),
             FRONTEND_URL: STAGING_URL,
-            ALLOWED_ORIGINS: STAGING_URL,
+            ALLOWED_ORIGINS: STAGING_ALLOWED_ORIGINS,
         });
 
         const res = await app.request(

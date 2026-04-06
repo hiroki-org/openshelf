@@ -69,7 +69,6 @@ find_stacked_base() {
 
   while IFS=$'\t' read -r candidate_number candidate_head candidate_head_enc _candidate_base _candidate_author; do
     if [ -z "$candidate_head" ] ||
-      [ "$candidate_number" = "$pr_number" ] ||
       [ "$candidate_number" -ge "$pr_number" ] ||
       [ "$candidate_head" = "$head_branch" ] ||
       [ "$candidate_head" = "main" ] ||

@@ -13,6 +13,14 @@ const tagsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 const TAG_SUGGEST_MIN_QUERY_LENGTH = 2;
 const TAG_SUGGEST_LIMIT = 20;
 
+const SAFE_TAG_ARRAY_SQL = `
+                CASE
+                    WHEN json_valid(papers.tags) AND json_type(papers.tags) = 'array' THEN papers.tags
+                    ELSE '[]'
+                END
+`;
+const TRIMMED_TAG_SQL = "TRIM(json_each.value)";
+
 
 // GET /api/tags/suggest?q=...&orgSlug=...
 tagsRoute.get("/suggest", authMiddleware, async (c) => {
@@ -45,21 +53,22 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
 
         const result = await c.env.DB.prepare(`
             SELECT
-                json_each.value as tag,
+                ${TRIMMED_TAG_SQL} as tag,
                 COUNT(*) as count
             FROM paper_orgs
             INNER JOIN papers ON paper_orgs.paper_id = papers.id
             LEFT JOIN paper_authors ON paper_authors.paper_id = papers.id AND paper_authors.user_id = ?1
-            , json_each(CASE WHEN json_valid(papers.tags) THEN papers.tags ELSE '[]' END)
+            , json_each(${SAFE_TAG_ARRAY_SQL})
             WHERE paper_orgs.org_id = ?2
               AND typeof(json_each.value) = 'text'
-              AND json_each.value LIKE ?3 || '%' ESCAPE '\\' COLLATE NOCASE
+              AND ${TRIMMED_TAG_SQL} != ''
+              AND ${TRIMMED_TAG_SQL} LIKE ?3 || '%' ESCAPE '\\' COLLATE NOCASE
               AND (
                   papers.visibility = 'public'
                   OR papers.visibility = 'org_only'
                   OR (papers.visibility = 'private' AND paper_authors.user_id = ?1)
               )
-            GROUP BY json_each.value
+            GROUP BY ${TRIMMED_TAG_SQL}
             ORDER BY count DESC, tag ASC
             LIMIT ?4
         `).bind(userId, org.id, normalizedQuery || "", TAG_SUGGEST_LIMIT).all();
@@ -67,15 +76,16 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
     } else {
         const result = await c.env.DB.prepare(`
             SELECT
-                json_each.value as tag,
+                ${TRIMMED_TAG_SQL} as tag,
                 COUNT(*) as count
             FROM papers
             INNER JOIN paper_authors ON paper_authors.paper_id = papers.id
-            , json_each(CASE WHEN json_valid(papers.tags) THEN papers.tags ELSE '[]' END)
+            , json_each(${SAFE_TAG_ARRAY_SQL})
             WHERE paper_authors.user_id = ?1
               AND typeof(json_each.value) = 'text'
-              AND json_each.value LIKE ?2 || '%' ESCAPE '\\' COLLATE NOCASE
-            GROUP BY json_each.value
+              AND ${TRIMMED_TAG_SQL} != ''
+              AND ${TRIMMED_TAG_SQL} LIKE ?2 || '%' ESCAPE '\\' COLLATE NOCASE
+            GROUP BY ${TRIMMED_TAG_SQL}
             ORDER BY count DESC, tag ASC
             LIMIT ?3
         `).bind(userId, normalizedQuery || "", TAG_SUGGEST_LIMIT).all();
