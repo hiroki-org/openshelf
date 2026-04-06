@@ -31,16 +31,35 @@ describe("buildCitation", () => {
         expect(result.citation).toContain("url = {https://openshelf.example/papers/paper-1}");
     });
 
-    it("uses doi field when doi exists", () => {
-        const result = buildCitation(
-            { ...paperBase, doi: "10.1145/xxxxxxx.xxxxxxx" },
-            [{ name: "hiroki", displayName: "Hiroki Mukai" }],
-            "bibtex",
-            "https://openshelf.example",
-        );
+    describe("when doi exists", () => {
+        const paperWithDoi = { ...paperBase, doi: "10.1145/xxxxxxx.xxxxxxx" };
+        const authors = [{ name: "hiroki", displayName: "Hiroki Mukai" }];
 
-        expect(result.citation).toContain("doi = {10.1145/xxxxxxx.xxxxxxx}");
-        expect(result.citation).not.toContain("url = {");
+        it("uses doi for bibtex and omits url", () => {
+            const bibtex = buildCitation(paperWithDoi, authors, "bibtex", "https://openshelf.example");
+            expect(bibtex.citation).toContain("doi = {10.1145/xxxxxxx.xxxxxxx}");
+            expect(bibtex.citation).not.toContain("url = {");
+        });
+
+        it("uses doi url for plain format", () => {
+            const plain = buildCitation(paperWithDoi, authors, "plain", "https://openshelf.example");
+            expect(plain.citation).toContain("https://doi.org/10.1145/xxxxxxx.xxxxxxx");
+        });
+
+        it("uses doi url for apa format", () => {
+            const apa = buildCitation(paperWithDoi, authors, "apa", "https://openshelf.example");
+            expect(apa.citation).toContain("https://doi.org/10.1145/xxxxxxx.xxxxxxx");
+        });
+
+        it("uses doi prefix for ieee format", () => {
+            const ieee = buildCitation(paperWithDoi, authors, "ieee", "https://openshelf.example");
+            expect(ieee.citation).toContain("doi: 10.1145/xxxxxxx.xxxxxxx");
+        });
+
+        it("uses doi prefix for mla format", () => {
+            const mla = buildCitation(paperWithDoi, authors, "mla", "https://openshelf.example");
+            expect(mla.citation).toContain("doi:10.1145/xxxxxxx.xxxxxxx");
+        });
     });
 
     it("supports plain format output", () => {
@@ -117,4 +136,37 @@ describe("buildCitation", () => {
         expect(result.citation).toContain("(2026).");
     });
 
+    it("formats IEEE output correctly", () => {
+        const result = buildCitation(
+            paperBase,
+            [
+                { name: "hiroki", displayName: "Hiroki Mukai" },
+                { name: "kato", displayName: "Yusaku Kato" },
+            ],
+            "ieee",
+            "https://openshelf.example",
+        );
+
+        expect(result.format).toBe("ieee");
+        expect(result.key).toBeNull();
+        expect(result.citation).toContain("Hiroki Mukai, Yusaku Kato");
+        expect(result.citation).toContain('"Balance Boundary Explorer", ASE, 2026, https://openshelf.example/papers/paper-1.');
+    });
+
+    it("formats MLA output correctly", () => {
+        const result = buildCitation(
+            paperBase,
+            [
+                { name: "hiroki", displayName: "Hiroki Mukai" },
+                { name: "kato", displayName: "Yusaku Kato" },
+            ],
+            "mla",
+            "https://openshelf.example",
+        );
+
+        expect(result.format).toBe("mla");
+        expect(result.key).toBeNull();
+        expect(result.citation).toContain("Hiroki Mukai, Yusaku Kato.");
+        expect(result.citation).toContain('"Balance Boundary Explorer", ASE, 2026. https://openshelf.example/papers/paper-1.');
+    });
 });
