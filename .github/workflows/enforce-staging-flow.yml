@@ -9,8 +9,8 @@ on:
     - cron: '17 * * * *'
 
 concurrency:
-  group: enforce-staging-flow
-  cancel-in-progress: false
+  group: enforce-staging-flow-${{ github.event.pull_request.number || github.event_name }}
+  cancel-in-progress: true
 
 permissions:
   pull-requests: write

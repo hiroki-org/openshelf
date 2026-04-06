@@ -85,7 +85,7 @@ function getCachedResults(key: string): any[] | null {
 function setCachedResults(key: string, data: any[]) {
     searchCache.delete(key);
 
-    // cleanup old cache randomly to prevent memory leak
+    // Prune expired entries in insertion order and stop once the cache reaches fresh data.
     if (searchCache.size >= MAX_CACHE_SIZE) {
         const now = Date.now();
         for (const [k, v] of searchCache.entries()) {

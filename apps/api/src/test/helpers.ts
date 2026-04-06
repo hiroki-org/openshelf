@@ -109,10 +109,15 @@ export function createMockDb(overrides: Record<string, any> = {}) {
 
 
 export function createMockD1Binding() {
+    const all = vi.fn(async () => ({ results: [] }));
+    const first = vi.fn(async () => null);
+    const run = vi.fn(async () => all());
+    const statement = { run, all, first };
+
     return {
         prepare: vi.fn(() => ({
-            run: vi.fn(),
-            bind: vi.fn(() => ({ run: vi.fn(), first: vi.fn(() => null) })),
+            ...statement,
+            bind: vi.fn(() => statement),
         })),
     };
 }
