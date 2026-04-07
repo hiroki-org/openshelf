@@ -27,10 +27,29 @@ describe("FeedButton", () => {
     vi.unstubAllGlobals();
   });
 
-  it("copies the feed URL to the clipboard", async () => {
+  it("shows the feed URL and open link in the popover", () => {
     render(<FeedButton url="https://api.example/feed.xml" />);
 
     fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
+
+    expect(screen.getByRole("textbox", { name: "フィード URL" })).toHaveValue(
+      "https://api.example/feed.xml",
+    );
+    expect(screen.getByRole("link", { name: "開く" })).toHaveAttribute(
+      "href",
+      "https://api.example/feed.xml",
+    );
+    expect(screen.getByRole("link", { name: "開く" })).toHaveAttribute(
+      "target",
+      "_blank",
+    );
+  });
+
+  it("copies the feed URL from the popover", async () => {
+    render(<FeedButton url="https://api.example/feed.xml" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
+    fireEvent.click(screen.getByRole("button", { name: "コピー" }));
 
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
@@ -45,6 +64,7 @@ describe("FeedButton", () => {
 
     render(<FeedButton url="https://api.example/feed.xml" />);
     fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
+    fireEvent.click(screen.getByRole("button", { name: "コピー" }));
 
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith(
