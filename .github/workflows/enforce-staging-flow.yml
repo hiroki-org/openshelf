@@ -13,6 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
+  issues: write
   pull-requests: write
   contents: read
 
@@ -21,10 +22,10 @@ jobs:
     name: require-staging-source
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Enforce staging-first PR targets
         env:
-          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
+          GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           COMMENT_ON_CHANGE: ${{ github.event_name == 'pull_request_target' && '1' || '0' }}
