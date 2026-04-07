@@ -374,6 +374,7 @@ async function buildOrgFeedResponse(c: FeedContext, slug: string): Promise<Respo
             updatedFallback: org.updatedAt,
             authorName: org.name,
         },
+        // SQLで絞り込み済みだが、フィルタの整合性確認と重複排除を兼ねて再利用する
         filterPaperRowsByTag(papersRows, tagFilter),
     );
 }
@@ -405,6 +406,7 @@ async function buildUserFeedResponse(c: FeedContext, id: string): Promise<Respon
             updatedFallback: user.updatedAt,
             authorName: user.displayName ?? user.name,
         },
+        // SQLで絞り込み済みだが、フィルタの整合性確認と重複排除を兼ねて再利用する
         filterPaperRowsByTag(papersRows, tagFilter),
     );
 }

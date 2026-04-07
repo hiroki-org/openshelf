@@ -1,7 +1,7 @@
 "use client";
 
 import { toast } from "@/components/toast";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type FeedButtonProps = {
   url: string;
@@ -15,6 +15,31 @@ export function FeedButton({
   label = "📡 Feed",
 }: FeedButtonProps) {
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
 
   const handleCopy = async () => {
     if (!navigator.clipboard?.writeText) {
@@ -31,7 +56,7 @@ export function FeedButton({
   };
 
   return (
-    <div className="relative inline-block">
+    <div ref={containerRef} className="relative inline-block">
       <button
         type="button"
         className={className}
@@ -42,7 +67,12 @@ export function FeedButton({
         {label}
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-2 w-80 rounded-md border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-900">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="フィード URL"
+          className="absolute right-0 top-full z-20 mt-2 w-80 rounded-md border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-900"
+        >
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
             フィード URL
           </p>
