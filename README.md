@@ -171,8 +171,7 @@ OpenShelf API は staging / production の 2 環境で運用します。
 
 > [!NOTE]
 > `main` 宛てに PR を作成した場合、source が `staging` でなければ `staging` に自動で retarget されます（`pull_request_target` の `opened` / `reopened` / `edited` で適用）。
-> Ruleset の bypass 権限を持つ admin は `main` 宛て PR をそのまま維持できます。
-> なお、`main` マージ後は production が先にデプロイされ、その後 `main` を `staging` に同期します。
+> `main` への push 後は、`main` → `staging` の同期 PR を自動で作成または再利用します。
 
 緊急 hotfix:
 

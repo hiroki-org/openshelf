@@ -7,50 +7,14 @@ PR_NUMBER=${PR_NUMBER:-}
 COMMENT_ON_CHANGE=${COMMENT_ON_CHANGE:-0}
 OPEN_PR_LIMIT=${OPEN_PR_LIMIT:-100}
 MAX_STACK_COMPARE_CANDIDATES=${MAX_STACK_COMPARE_CANDIDATES:-50}
-ADMIN_BYPASS_CACHE=""
-
-author_has_admin_bypass() {
-  local pr_author="$1"
-  local cached=""
-  local permission=""
-
-  if [ -z "$pr_author" ]; then
-    return 1
-  fi
-
-  cached=$(
-    printf '%s' "$ADMIN_BYPASS_CACHE" |
-      awk -F ':' -v author="$pr_author" '$1 == author { print $2; exit }'
-  )
-
-  if [ -n "$cached" ]; then
-    [ "$cached" = "1" ]
-    return
-  fi
-
-  permission=$(
-    gh api "repos/$GH_REPO/collaborators/$pr_author/permission" \
-      --jq .permission 2>/dev/null || true
-  )
-
-  if [ "$permission" = "admin" ]; then
-    ADMIN_BYPASS_CACHE="${ADMIN_BYPASS_CACHE}${pr_author}:1
-"
-    return 0
-  fi
-
-  ADMIN_BYPASS_CACHE="${ADMIN_BYPASS_CACHE}${pr_author}:0
-"
-  return 1
-}
 
 open_pr_rows=$(
   gh pr list \
     --repo "$GH_REPO" \
     --state open \
     --limit "$OPEN_PR_LIMIT" \
-    --json number,headRefName,baseRefName,author \
-    --jq 'sort_by(.number) | reverse | .[] | [.number, .headRefName, (.headRefName | @uri), .baseRefName, (.author.login // "")] | @tsv'
+    --json number,headRefName,baseRefName \
+    --jq 'sort_by(.number) | reverse | .[] | [.number, .headRefName, (.headRefName | @uri), .baseRefName] | @tsv'
 )
 
 if [ -z "$open_pr_rows" ]; then
@@ -67,7 +31,7 @@ find_stacked_base() {
   local stacked_base_number=""
   local compared_candidates=0
 
-  while IFS=$'\t' read -r candidate_number candidate_head candidate_head_enc _candidate_base _candidate_author; do
+  while IFS=$'\t' read -r candidate_number candidate_head candidate_head_enc _candidate_base; do
     if [ -z "$candidate_head" ] ||
       [ "$candidate_number" -ge "$pr_number" ] ||
       [ "$candidate_head" = "$head_branch" ] ||
@@ -138,8 +102,6 @@ process_pr() {
   local head_branch="$2"
   local head_branch_enc="$3"
   local base_branch="$4"
-  local pr_author="$5"
-
   if [ "$base_branch" != "main" ]; then
     echo "PR #$pr_number is not targeting main; skipping."
     return 0
@@ -147,11 +109,6 @@ process_pr() {
 
   if [ "$head_branch" = "staging" ]; then
     echo "PR #$pr_number is the expected staging -> main PR."
-    return 0
-  fi
-
-  if author_has_admin_bypass "$pr_author"; then
-    echo "PR #$pr_number author has admin permission; leaving target as main."
     return 0
   fi
 
@@ -180,11 +137,11 @@ if [ -n "$PR_NUMBER" ]; then
     exit 0
   fi
 
-  IFS=$'\t' read -r pr_number head_branch head_branch_enc base_branch pr_author <<<"$pr_row"
-  process_pr "$pr_number" "$head_branch" "$head_branch_enc" "$base_branch" "$pr_author"
+  IFS=$'\t' read -r pr_number head_branch head_branch_enc base_branch <<<"$pr_row"
+  process_pr "$pr_number" "$head_branch" "$head_branch_enc" "$base_branch"
   exit 0
 fi
 
-while IFS=$'\t' read -r pr_number head_branch head_branch_enc base_branch pr_author; do
-  process_pr "$pr_number" "$head_branch" "$head_branch_enc" "$base_branch" "$pr_author"
+while IFS=$'\t' read -r pr_number head_branch head_branch_enc base_branch; do
+  process_pr "$pr_number" "$head_branch" "$head_branch_enc" "$base_branch"
 done <<<"$open_pr_rows"
