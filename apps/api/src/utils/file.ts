@@ -214,7 +214,8 @@ export async function validateMagicNumbers(
   const bytes = new Uint8Array(buffer);
 
   let detectedType: string | null = null;
-  for (const [signature, type] of MAGIC_NUMBER_MAP) {
+  for (let i = 0; i < MAGIC_NUMBER_MAP.length; i++) {
+    const [signature, type] = MAGIC_NUMBER_MAP[i];
     if (matchesMagicPrefix(bytes, signature)) {
       detectedType = type;
       break;
