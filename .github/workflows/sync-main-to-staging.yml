@@ -10,20 +10,24 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
+  issues: write
+  pull-requests: write
 
 jobs:
-  sync-staging:
-    name: Sync main into staging
+  open-sync-pr:
+    name: Open Main -> Staging Sync PR
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-        with:
-          fetch-depth: 0
-      - name: Sync main into staging
+      - name: Create or reuse main -> staging sync PR
         env:
+          GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           HEAD_BRANCH: main
           BASE_BRANCH: staging
           SYNC_SHA: ${{ github.sha }}
+          SYNC_PR_LABELS: ${{ vars.SYNC_PR_LABELS || 'sync,automated' }}
+          SYNC_PR_ASSIGNEES: ${{ vars.SYNC_PR_ASSIGNEES || 'is0692vs' }}
+          SYNC_PR_REVIEWERS: ${{ vars.SYNC_PR_REVIEWERS || 'is0692vs' }}
         run: bash .github/scripts/sync-main-to-staging.sh
