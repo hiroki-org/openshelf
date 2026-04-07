@@ -28,6 +28,6 @@ jobs:
           BASE_BRANCH: staging
           SYNC_SHA: ${{ github.sha }}
           SYNC_PR_LABELS: ${{ vars.SYNC_PR_LABELS || 'sync,automated' }}
-          SYNC_PR_ASSIGNEES: ${{ vars.SYNC_PR_ASSIGNEES || 'is0692vs' }}
-          SYNC_PR_REVIEWERS: ${{ vars.SYNC_PR_REVIEWERS || 'is0692vs' }}
+          SYNC_PR_ASSIGNEES: ${{ vars.SYNC_PR_ASSIGNEES || '' }}
+          SYNC_PR_REVIEWERS: ${{ vars.SYNC_PR_REVIEWERS || '' }}
         run: bash .github/scripts/sync-main-to-staging.sh
