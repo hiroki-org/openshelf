@@ -269,6 +269,17 @@ describe("PaperDetailClient", () => {
 
     await screen.findByRole("heading", { name: "Transformer Tricks" });
     expect(
+      screen.getByRole("link", { name: "← ダッシュボードに戻る" }),
+    ).toHaveAttribute("href", "/");
+    expect(screen.getByRole("link", { name: "Alice" })).toHaveAttribute(
+      "href",
+      "/users/author-1",
+    );
+    expect(screen.getByRole("link", { name: "Bob" })).toHaveAttribute(
+      "href",
+      "/users/author-2",
+    );
+    expect(
       await screen.findByText("公開表示中の閲覧・ダウンロード数"),
     ).toBeInTheDocument();
 

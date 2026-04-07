@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { Hono, type Context } from "hono";
 import {
@@ -12,10 +12,20 @@ import {
     users,
 } from "../db/schema";
 import type { Env, Variables } from "../types";
+import { parseStoredTags } from "../utils/tags";
 
 const feedRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 const FEED_LIMIT = 50;
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
+const PAPER_FEED_SELECT = {
+    id: papers.id,
+    title: papers.title,
+    abstract: papers.abstract,
+    category: papers.category,
+    tags: papers.tags,
+    createdAt: papers.createdAt,
+    updatedAt: papers.updatedAt,
+} as const;
 
 type FeedContext = Context<{ Bindings: Env; Variables: Variables }>;
 
@@ -49,6 +59,7 @@ type PaperRow = {
     title: string;
     abstract: string | null;
     category: string | null;
+    tags?: string | null;
     createdAt: string;
     updatedAt: string;
 };
@@ -127,6 +138,35 @@ function dedupePaperRows(rows: PaperRow[]): PaperRow[] {
         uniqueRows.push(row);
     }
     return uniqueRows;
+}
+
+function normalizeTagFilter(value: string | undefined): string | null {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+}
+
+function buildTagFilterCondition(tagFilter: string | null) {
+    if (!tagFilter) return undefined;
+
+    const normalizedTag = tagFilter.toLowerCase();
+    return sql<boolean>`EXISTS (
+        SELECT 1
+        FROM json_each(COALESCE(${papers.tags}, '[]'))
+        WHERE lower(trim(value)) = ${normalizedTag}
+    )`;
+}
+
+function filterPaperRowsByTag(rows: PaperRow[], tag: string | null): PaperRow[] {
+    const uniqueRows = dedupePaperRows(rows);
+    if (!tag) return uniqueRows;
+
+    const normalizedTag = tag.toLowerCase();
+    return uniqueRows.filter((paper) =>
+        parseStoredTags(paper.tags ?? null).some(
+            (storedTag) => storedTag.toLowerCase() === normalizedTag,
+        ),
+    );
 }
 
 function authorLabel(author: AuthorRow): string {
@@ -256,7 +296,7 @@ function buildPaperEntries(
             category: paper.category ?? undefined,
             enclosure: enclosure
                 ? {
-                      href: `${apiBase}/api/papers/${encodeURIComponent(paper.id)}/files/${encodeURIComponent(enclosure.id)}/download`,
+                      href: `${apiBase}/api/papers/${encodeURIComponent(paper.id)}/files/${encodeURIComponent(enclosure.id)}/stream`,
                       type: enclosure.mimeType ?? "application/pdf",
                       length: enclosure.sizeBytes,
                   }
@@ -304,28 +344,22 @@ async function buildFeedResponse(
     });
 }
 
-feedRoute.get("/orgs/:slug/atom.xml", async (c) => {
-    const slug = c.req.param("slug");
+async function buildOrgFeedResponse(c: FeedContext, slug: string): Promise<Response> {
     if (!SLUG_REGEX.test(slug)) {
         return c.json({ error: "invalid slug" }, 400);
     }
     const db = drizzle(c.env.DB);
+    const tagFilter = normalizeTagFilter(c.req.query("tag") ?? undefined);
+    const tagCondition = buildTagFilterCondition(tagFilter);
 
     const org = await db.select().from(orgs).where(eq(orgs.slug, slug)).get();
     if (!org) return c.json({ error: "Org not found" }, 404);
 
     const papersRows = await db
-        .select({
-            id: papers.id,
-            title: papers.title,
-            abstract: papers.abstract,
-            category: papers.category,
-            createdAt: papers.createdAt,
-            updatedAt: papers.updatedAt,
-        })
+        .select(PAPER_FEED_SELECT)
         .from(paperOrgs)
         .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
-        .where(and(eq(paperOrgs.orgId, org.id), eq(papers.visibility, "public")))
+        .where(and(eq(paperOrgs.orgId, org.id), eq(papers.visibility, "public"), tagCondition))
         .orderBy(desc(papers.createdAt))
         .limit(FEED_LIMIT)
         .all();
@@ -340,33 +374,27 @@ feedRoute.get("/orgs/:slug/atom.xml", async (c) => {
             updatedFallback: org.updatedAt,
             authorName: org.name,
         },
-        papersRows,
+        // SQLで絞り込み済みだが、フィルタの整合性確認と重複排除を兼ねて再利用する
+        filterPaperRowsByTag(papersRows, tagFilter),
     );
-});
+}
 
-feedRoute.get("/users/:id/atom.xml", async (c) => {
-    const id = c.req.param("id");
+async function buildUserFeedResponse(c: FeedContext, id: string): Promise<Response> {
     const db = drizzle(c.env.DB);
+    const tagFilter = normalizeTagFilter(c.req.query("tag") ?? undefined);
+    const tagCondition = buildTagFilterCondition(tagFilter);
 
     const user = await db.select().from(users).where(eq(users.id, id)).get();
     if (!user) return c.json({ error: "User not found" }, 404);
 
     const papersRows = await db
-        .select({
-            id: papers.id,
-            title: papers.title,
-            abstract: papers.abstract,
-            category: papers.category,
-            createdAt: papers.createdAt,
-            updatedAt: papers.updatedAt,
-        })
+        .select(PAPER_FEED_SELECT)
         .from(paperAuthors)
         .innerJoin(papers, eq(paperAuthors.paperId, papers.id))
-        .where(and(eq(paperAuthors.userId, id), eq(papers.visibility, "public")))
+        .where(and(eq(paperAuthors.userId, id), eq(papers.visibility, "public"), tagCondition))
         .orderBy(desc(papers.createdAt))
         .limit(FEED_LIMIT)
         .all();
-    const uniquePapersRows = dedupePaperRows(papersRows);
 
     return await buildFeedResponse(
         c,
@@ -378,14 +406,17 @@ feedRoute.get("/users/:id/atom.xml", async (c) => {
             updatedFallback: user.updatedAt,
             authorName: user.displayName ?? user.name,
         },
-        uniquePapersRows,
+        // SQLで絞り込み済みだが、フィルタの整合性確認と重複排除を兼ねて再利用する
+        filterPaperRowsByTag(papersRows, tagFilter),
     );
-});
+}
 
-feedRoute.get("/orgs/:slug/collections/:cSlug/atom.xml", async (c) => {
-    const slug = c.req.param("slug");
-    const cSlug = c.req.param("cSlug");
-    if (!SLUG_REGEX.test(slug) || !SLUG_REGEX.test(cSlug)) {
+async function buildOrgCollectionFeedResponse(
+    c: FeedContext,
+    slug: string,
+    collectionSlug: string,
+): Promise<Response> {
+    if (!SLUG_REGEX.test(slug) || !SLUG_REGEX.test(collectionSlug)) {
         return c.json({ error: "invalid slug" }, 400);
     }
     const db = drizzle(c.env.DB);
@@ -399,8 +430,8 @@ feedRoute.get("/orgs/:slug/collections/:cSlug/atom.xml", async (c) => {
         .where(
             and(
                 eq(collections.ownerType, "org"),
-                eq(collections.orgSlug, slug),
-                eq(collections.slug, cSlug),
+                eq(collections.ownerId, org.id),
+                eq(collections.slug, collectionSlug),
             ),
         )
         .get();
@@ -410,14 +441,7 @@ feedRoute.get("/orgs/:slug/collections/:cSlug/atom.xml", async (c) => {
     }
 
     const papersRows = await db
-        .select({
-            id: papers.id,
-            title: papers.title,
-            abstract: papers.abstract,
-            category: papers.category,
-            createdAt: papers.createdAt,
-            updatedAt: papers.updatedAt,
-        })
+        .select(PAPER_FEED_SELECT)
         .from(collectionPapers)
         .innerJoin(papers, eq(collectionPapers.paperId, papers.id))
         .where(and(eq(collectionPapers.collectionId, collection.id), eq(papers.visibility, "public")))
@@ -429,14 +453,87 @@ feedRoute.get("/orgs/:slug/collections/:cSlug/atom.xml", async (c) => {
         c,
         {
             title: `${collection.name} - ${org.name} - OpenShelf`,
-            link: `${normalizeBaseUrl(c.env.FRONTEND_URL)}/orgs/${encodeURIComponent(slug)}/c/${encodeURIComponent(cSlug)}`,
+            link: `${normalizeBaseUrl(c.env.FRONTEND_URL)}/orgs/${encodeURIComponent(slug)}/c/${encodeURIComponent(collectionSlug)}`,
             selfLink: c.req.url,
             id: `urn:openshelf:collection:${collection.id}`,
             updatedFallback: collection.updatedAt,
             authorName: org.name,
         },
-        papersRows,
+        dedupePaperRows(papersRows),
     );
-});
+}
+
+async function buildUserCollectionFeedResponse(
+    c: FeedContext,
+    id: string,
+    collectionSlug: string,
+): Promise<Response> {
+    if (!SLUG_REGEX.test(collectionSlug)) {
+        return c.json({ error: "invalid slug" }, 400);
+    }
+
+    const db = drizzle(c.env.DB);
+
+    const user = await db.select().from(users).where(eq(users.id, id)).get();
+    if (!user) return c.json({ error: "User not found" }, 404);
+
+    const collection = await db
+        .select()
+        .from(collections)
+        .where(
+            and(
+                eq(collections.ownerType, "user"),
+                eq(collections.ownerId, id),
+                eq(collections.slug, collectionSlug),
+            ),
+        )
+        .get();
+
+    if (!collection || collection.visibility !== "public") {
+        return c.json({ error: "Collection not found" }, 404);
+    }
+
+    const papersRows = await db
+        .select(PAPER_FEED_SELECT)
+        .from(collectionPapers)
+        .innerJoin(papers, eq(collectionPapers.paperId, papers.id))
+        .where(and(eq(collectionPapers.collectionId, collection.id), eq(papers.visibility, "public")))
+        .orderBy(asc(collectionPapers.sortOrder))
+        .limit(FEED_LIMIT)
+        .all();
+
+    return await buildFeedResponse(
+        c,
+        {
+            title: `${collection.name} - ${user.displayName ?? user.name} - OpenShelf`,
+            link: `${normalizeBaseUrl(c.env.FRONTEND_URL)}/users/${encodeURIComponent(id)}/c/${encodeURIComponent(collectionSlug)}`,
+            selfLink: c.req.url,
+            id: `urn:openshelf:collection:${collection.id}`,
+            updatedFallback: collection.updatedAt,
+            authorName: user.displayName ?? user.name,
+        },
+        dedupePaperRows(papersRows),
+    );
+}
+
+feedRoute.get("/orgs/:slug/atom.xml", async (c) => buildOrgFeedResponse(c, c.req.param("slug")));
+feedRoute.get("/org/:slug", async (c) => buildOrgFeedResponse(c, c.req.param("slug")));
+
+feedRoute.get("/users/:id/atom.xml", async (c) => buildUserFeedResponse(c, c.req.param("id")));
+feedRoute.get("/user/:id", async (c) => buildUserFeedResponse(c, c.req.param("id")));
+
+feedRoute.get("/orgs/:slug/collections/:cSlug/atom.xml", async (c) =>
+    buildOrgCollectionFeedResponse(c, c.req.param("slug"), c.req.param("cSlug")),
+);
+feedRoute.get("/org/:slug/collection/:collectionSlug", async (c) =>
+    buildOrgCollectionFeedResponse(c, c.req.param("slug"), c.req.param("collectionSlug")),
+);
+
+feedRoute.get("/users/:id/collections/:cSlug/atom.xml", async (c) =>
+    buildUserCollectionFeedResponse(c, c.req.param("id"), c.req.param("cSlug")),
+);
+feedRoute.get("/user/:id/collection/:collectionSlug", async (c) =>
+    buildUserCollectionFeedResponse(c, c.req.param("id"), c.req.param("collectionSlug")),
+);
 
 export default feedRoute;

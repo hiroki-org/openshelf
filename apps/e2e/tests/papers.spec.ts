@@ -141,6 +141,28 @@ test.describe('非公開論文の詳細閲覧', () => {
             await unauthContext.close();
         }
     });
+
+    test('詳細ページの戻るボタンと著者リンクが正しい遷移先を指すこと', async ({ page }) => {
+        const author = await loginAsTestUser(page, { name: 'Navigation User' });
+        const paperTitle = `Navigation Paper - ${randomUUID()}`;
+        const paperId = await uploadPaper(page, {
+            title: paperTitle,
+            visibility: 'public',
+            filePath: path.resolve(__dirname, '../fixtures/test-paper.pdf')
+        });
+
+        await page.goto(`/papers/${paperId}`);
+        await expect(page.getByRole('heading', { name: paperTitle })).toBeVisible();
+        await expect(page.getByRole('link', { name: '← ダッシュボードに戻る' })).toHaveAttribute('href', '/');
+        await expect(page.getByRole('link', { name: 'Navigation User' })).toHaveAttribute(
+            'href',
+            `/users/${author.sub}`,
+        );
+
+        await page.getByRole('link', { name: '← ダッシュボードに戻る' }).click();
+        await expect(page).toHaveURL(/\/$/);
+        await expect(page.getByRole('heading', { name: 'マイ論文' })).toBeVisible();
+    });
 });
 
 test.describe('PDFプレビュー', () => {
