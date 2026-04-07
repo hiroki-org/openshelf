@@ -1,0 +1,29 @@
+name: Sync Main To Staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: sync-main-to-staging
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  open-sync-pr:
+    name: Open Main -> Staging Sync PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create or reuse main -> staging sync PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_BRANCH: main
+          BASE_BRANCH: staging
+          SYNC_SHA: ${{ github.sha }}
+        run: bash .github/scripts/sync-main-to-staging.sh
