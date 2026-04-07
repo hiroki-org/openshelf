@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
       - name: Create or reuse main -> staging sync PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GH_PAT || github.token }}
           GH_REPO: ${{ github.repository }}
           HEAD_BRANCH: main
           BASE_BRANCH: staging
