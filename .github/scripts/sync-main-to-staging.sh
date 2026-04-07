@@ -8,6 +8,10 @@ BASE_BRANCH=${BASE_BRANCH:-staging}
 SYNC_SHA=${SYNC_SHA:-}
 DRY_RUN=${DRY_RUN:-0}
 
+encode_ref() {
+  printf '%s' "$1" | jq -sRr @uri
+}
+
 existing_pr_url=$(
   gh pr list \
     --repo "$GH_REPO" \
@@ -24,8 +28,8 @@ if [ -n "$existing_pr_url" ]; then
 fi
 
 ahead_by=$(
-  gh api "repos/$GH_REPO/compare/$BASE_BRANCH...$HEAD_BRANCH" \
-    --jq '.ahead_by'
+  gh api "repos/$GH_REPO/compare/$(encode_ref "$BASE_BRANCH")...$(encode_ref "$HEAD_BRANCH")" \
+    --jq '.ahead_by // 0'
 )
 
 if [ "${ahead_by:-0}" -eq 0 ]; then
@@ -53,6 +57,7 @@ if [ "$DRY_RUN" = "1" ]; then
   echo "DRY_RUN=1, skipping PR creation."
   echo "Would create PR: $HEAD_BRANCH -> $BASE_BRANCH"
   echo "Title: $title"
+  printf 'Body:\n%s\n' "$body"
   exit 0
 fi
 
