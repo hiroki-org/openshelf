@@ -212,9 +212,15 @@ export async function validateMagicNumbers(
 ): Promise<boolean> {
   const buffer = await file.slice(0, MAX_MAGIC_SIZE).arrayBuffer();
   const bytes = new Uint8Array(buffer);
-  const detectedType =
-    MAGIC_NUMBER_MAP.find(([signature]) => matchesMagicPrefix(bytes, signature))
-      ?.[1] ?? null;
+
+  let detectedType: string | null = null;
+  for (let i = 0; i < MAGIC_NUMBER_MAP.length; i++) {
+    const [signature, type] = MAGIC_NUMBER_MAP[i];
+    if (matchesMagicPrefix(bytes, signature)) {
+      detectedType = type;
+      break;
+    }
+  }
 
   if (!detectedType) return false;
 
