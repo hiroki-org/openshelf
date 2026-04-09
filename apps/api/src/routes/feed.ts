@@ -316,13 +316,14 @@ async function buildFeedResponse(
         loadPaperAuthors(db, paperIds),
         loadPaperFiles(db, paperIds),
     ]);
+    const authorName = meta.authorName.trim() || "OpenShelf";
     const entries = buildPaperEntries(
         papersRows,
         authorsByPaperId,
         filesByPaperId,
         c.env.FRONTEND_URL,
         new URL(c.req.url).origin,
-        meta.authorName,
+        authorName,
     );
     const xml = buildAtomFeed(
         {
@@ -331,7 +332,7 @@ async function buildFeedResponse(
             selfLink: meta.selfLink,
             id: meta.id,
             updated: toIsoString(latestTimestamp(papersRows, meta.updatedFallback)),
-            authorName: meta.authorName,
+            authorName,
         },
         entries,
     );

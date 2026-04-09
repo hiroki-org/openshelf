@@ -336,6 +336,7 @@ describe("feed routes", () => {
         const text = await res.text();
         expect(text).toContain("User Paper");
         expect(text).toContain("<author><name>OpenShelf</name></author>");
+        expect(text).not.toMatch(/<author><name>\s+<\/name><\/author>/);
     });
 
     it("GET /feed/users/:id/atom.xml de-duplicates repeated paper rows", async () => {
