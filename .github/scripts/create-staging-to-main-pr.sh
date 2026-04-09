@@ -49,7 +49,10 @@ resolve_repo() {
   fi
 
   local repo
-  repo="$(printf '%s\n' "$remote_url" | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')"
+  repo="$(gh repo view --json nameWithOwner --jq '.nameWithOwner' 2>/dev/null || true)"
+  if [ -z "$repo" ]; then
+    repo="$(printf '%s\n' "$remote_url" | sed -E 's#(git@github.com:|https://github.com/|ssh://git@github.com/)##; s#\.git$##')"
+  fi
   if ! printf '%s\n' "$repo" | grep -Eq '^[^/]+/[^/]+$'; then
     echo "Could not infer GitHub repository from remote URL: $remote_url" >&2
     exit 1
@@ -74,6 +77,10 @@ build_included_pr_lines() {
         --jq '[.number, .title, (.author.login // "unknown")] | @tsv' 2>/dev/null
     )"; then
       printf 'Warning: skipping non-PR or failed lookup for #%s\n' "$pr_number" >&2
+      continue
+    fi
+    if [ -z "$metadata" ]; then
+      printf 'Warning: skipping empty metadata lookup for #%s\n' "$pr_number" >&2
       continue
     fi
     IFS=$'\t' read -r number title author <<< "$metadata"
