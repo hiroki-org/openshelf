@@ -232,6 +232,7 @@ Defined in `apps/api/wrangler.toml` and accessed in handlers via `c.env.DB`, `c.
    ```
 4. Push branch and open a Pull Request on GitHub
 5. Wait for CI to complete (observe via `gh pr checks`)
+6. After staging verification, run `npm run pr:promote` to open or refresh the `staging` → `main` promotion PR
 
 #### Existing Feature (Non-Destructive Changes)
 
