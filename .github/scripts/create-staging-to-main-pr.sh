@@ -163,12 +163,19 @@ while IFS= read -r pr_number; do
 done < <(
   git log --pretty=format:'%s' "$base_ref..$head_ref" |
     while IFS= read -r subject; do
-      printf '%s\n' "$subject" | grep -oE '#[0-9]+' | sed 's/#//' || true
+      # Match PR numbers from GitHub merge/squash formats only.
+      printf '%s\n' "$subject" |
+        grep -oE 'Merge pull request #[0-9]+|\(#[0-9]+\)' |
+        grep -oE '[0-9]+' || true
     done |
     awk '!seen[$0]++'
 )
 
-included_pr_lines="$(build_included_pr_lines "${pr_numbers[@]}")"
+if [ "${#pr_numbers[@]}" -eq 0 ]; then
+  included_pr_lines="$(build_included_pr_lines)"
+else
+  included_pr_lines="$(build_included_pr_lines "${pr_numbers[@]}")"
+fi
 body="$(build_body "$included_pr_lines")"
 
 declare -a label_values=()

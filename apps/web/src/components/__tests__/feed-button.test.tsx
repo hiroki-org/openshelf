@@ -45,6 +45,19 @@ describe("FeedButton", () => {
     );
   });
 
+  it("renders custom label and className", () => {
+    render(
+      <FeedButton
+        url="https://api.example/feed.xml"
+        label="Feed URL を表示"
+        className="custom-trigger"
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Feed URL を表示" });
+    expect(trigger).toHaveClass("custom-trigger");
+  });
+
   it("moves focus into the dialog when it opens", async () => {
     render(<FeedButton url="https://api.example/feed.xml" />);
 
@@ -58,7 +71,8 @@ describe("FeedButton", () => {
   it("closes the dialog when clicking outside with pointer events", async () => {
     render(<FeedButton url="https://api.example/feed.xml" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
+    const trigger = screen.getByRole("button", { name: "📡 Feed" });
+    fireEvent.click(trigger);
     expect(screen.getByRole("dialog", { name: "フィード URL" })).toBeInTheDocument();
 
     fireEvent.pointerDown(document.body);
@@ -67,6 +81,7 @@ describe("FeedButton", () => {
       expect(
         screen.queryByRole("dialog", { name: "フィード URL" }),
       ).not.toBeInTheDocument();
+      expect(trigger).toHaveFocus();
     });
   });
 
@@ -94,6 +109,20 @@ describe("FeedButton", () => {
     });
   });
 
+  it("keeps focus trapped when tabbing from the dialog container", async () => {
+    render(<FeedButton url="https://api.example/feed.xml" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "フィード URL" });
+    const textbox = screen.getByRole("textbox", { name: "フィード URL" });
+
+    dialog.focus();
+    fireEvent.keyDown(document, { key: "Tab" });
+
+    expect(textbox).toHaveFocus();
+  });
+
   it("copies the feed URL from the popover", async () => {
     render(<FeedButton url="https://api.example/feed.xml" />);
 
@@ -105,6 +134,38 @@ describe("FeedButton", () => {
         "https://api.example/feed.xml",
       );
       expect(toastSuccess).toHaveBeenCalledWith("コピーしました");
+    });
+  });
+
+  it("shows an error when clipboard write fails", async () => {
+    vi.stubGlobal("navigator", {
+      clipboard: {
+        writeText: vi.fn(async () => {
+          throw new Error("clipboard write failed");
+        }),
+      },
+    });
+
+    render(<FeedButton url="https://api.example/feed.xml" />);
+    fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
+    fireEvent.click(screen.getByRole("button", { name: "コピー" }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith("クリップボードへのコピーに失敗しました");
+    });
+  });
+
+  it("shows an error when clipboard.writeText is unavailable", async () => {
+    vi.stubGlobal("navigator", { clipboard: {} });
+
+    render(<FeedButton url="https://api.example/feed.xml" />);
+    fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
+    fireEvent.click(screen.getByRole("button", { name: "コピー" }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        "このブラウザではクリップボード機能を利用できません",
+      );
     });
   });
 
