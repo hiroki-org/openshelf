@@ -23,7 +23,7 @@ export function FeedButton({
     if (!open) return;
 
     const focusableSelector =
-      'button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])';
+      'button:not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([tabindex="-1"]), textarea:not([tabindex="-1"]), select:not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
     const getFocusableElements = () =>
       Array.from(
         dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ??
@@ -44,6 +44,7 @@ export function FeedButton({
         !containerRef.current?.contains(target)
       ) {
         setOpen(false);
+        triggerRef.current?.focus();
       }
     };
 
@@ -65,11 +66,8 @@ export function FeedButton({
         return;
       }
 
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (!first || !last) {
-        return;
-      }
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
 
       const activeElement = document.activeElement;
       if (event.shiftKey) {
