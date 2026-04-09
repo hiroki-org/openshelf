@@ -171,11 +171,7 @@ done < <(
     awk '!seen[$0]++'
 )
 
-if [ "${#pr_numbers[@]}" -eq 0 ]; then
-  included_pr_lines="$(build_included_pr_lines)"
-else
-  included_pr_lines="$(build_included_pr_lines "${pr_numbers[@]}")"
-fi
+included_pr_lines="$(build_included_pr_lines "${pr_numbers[@]}")"
 body="$(build_body "$included_pr_lines")"
 
 declare -a label_values=()
