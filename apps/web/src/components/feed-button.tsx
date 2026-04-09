@@ -16,12 +16,33 @@ export function FeedButton({
 }: FeedButtonProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
 
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
+    const focusableSelector =
+      'button, [href], input, textarea, select, [tabindex]:not([tabindex="-1"])';
+    const getFocusableElements = () =>
+      Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ??
+          [],
+      ).filter(
+        (element) =>
+          !element.hasAttribute("disabled") &&
+          element.getAttribute("aria-hidden") !== "true",
+      );
+
+    const firstFocusable = getFocusableElements()[0];
+    (firstFocusable ?? dialogRef.current)?.focus();
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        !containerRef.current?.contains(target)
+      ) {
         setOpen(false);
       }
     };
@@ -29,14 +50,47 @@ export function FeedButton({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpen(false);
+        triggerRef.current?.focus();
+        return;
+      }
+
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      const focusable = getFocusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) {
+        return;
+      }
+
+      const activeElement = document.activeElement;
+      if (event.shiftKey) {
+        if (activeElement === first || activeElement === dialogRef.current) {
+          event.preventDefault();
+          last.focus();
+        }
+        return;
+      }
+
+      if (activeElement === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
-    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
@@ -58,6 +112,7 @@ export function FeedButton({
   return (
     <div ref={containerRef} className="relative inline-block">
       <button
+        ref={triggerRef}
         type="button"
         className={className}
         aria-haspopup="dialog"
@@ -68,9 +123,11 @@ export function FeedButton({
       </button>
       {open && (
         <div
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-label="フィード URL"
+          tabIndex={-1}
           className="absolute right-0 top-full z-20 mt-2 w-80 rounded-md border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-900"
         >
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">

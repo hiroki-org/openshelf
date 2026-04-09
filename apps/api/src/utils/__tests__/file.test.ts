@@ -83,31 +83,37 @@ function createFile(name: string, type: string, bytes: Uint8Array) {
   return new File([Uint8Array.from(bytes)], name, { type });
 }
 
-function withText(bytes: number[], text: string) {
-  const textBytes = new TextEncoder().encode(text);
-  return new Uint8Array([...bytes, ...textBytes]);
-}
-
-function toUtf16Le(text: string) {
-  const bytes = new Uint8Array(text.length * 2);
-  for (let index = 0; index < text.length; index++) {
-    bytes[index * 2] = text.charCodeAt(index);
-    bytes[index * 2 + 1] = 0;
-  }
-  return bytes;
-}
-
 describe("validateMagicNumbers", () => {
-  it("accepts valid PDF files", async () => {
-    const pdf = createFile(
-      "paper.pdf",
-      "application/pdf",
-      new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37]),
-    );
-
-    await expect(validateMagicNumbers(pdf, "application/pdf")).resolves.toBe(
-      true,
-    );
+  it.each([
+    {
+      label: "PDF",
+      file: createFile(
+        "paper.pdf",
+        "application/pdf",
+        new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37]),
+      ),
+      declaredMime: "application/pdf",
+    },
+    {
+      label: "PNG",
+      file: createFile(
+        "cover.png",
+        "image/png",
+        new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      ),
+      declaredMime: "image/png",
+    },
+    {
+      label: "JPEG",
+      file: createFile(
+        "photo.jpg",
+        "image/jpeg",
+        new Uint8Array([0xff, 0xd8, 0xff, 0xdb]),
+      ),
+      declaredMime: "image/jpeg",
+    },
+  ])("accepts valid $label files", async ({ file, declaredMime }) => {
+    await expect(validateMagicNumbers(file, declaredMime)).resolves.toBe(true);
   });
 
   it("rejects files whose magic number does not match the declared type", async () => {
@@ -153,9 +159,6 @@ describe("validateMagicNumbers", () => {
   });
 
   it("accepts legacy PowerPoint files when the OLE payload contains the document marker", async () => {
-    const header = new Uint8Array([
-      0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1,
-    ]);
     const ppt = createFile(
       "slides.ppt",
       "application/vnd.ms-powerpoint",
@@ -176,6 +179,18 @@ describe("validateMagicNumbers", () => {
 
     await expect(
       validateMagicNumbers(file, "application/octet-stream"),
+    ).resolves.toBe(false);
+  });
+
+  it("rejects files whose content ends before a full signature match", async () => {
+    const truncatedPng = createFile(
+      "cover.png",
+      "image/png",
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+    );
+
+    await expect(
+      validateMagicNumbers(truncatedPng, "image/png"),
     ).resolves.toBe(false);
   });
 });
