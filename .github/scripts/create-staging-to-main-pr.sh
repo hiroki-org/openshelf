@@ -163,7 +163,10 @@ while IFS= read -r pr_number; do
 done < <(
   git log --pretty=format:'%s' "$base_ref..$head_ref" |
     while IFS= read -r subject; do
-      printf '%s\n' "$subject" | grep -oE '#[0-9]+' | sed 's/#//' || true
+      # Match PR numbers from GitHub merge/squash formats only.
+      printf '%s\n' "$subject" |
+        grep -oE 'Merge pull request #[0-9]+|\(#[0-9]+\)' |
+        grep -oE '[0-9]+' || true
     done |
     awk '!seen[$0]++'
 )
