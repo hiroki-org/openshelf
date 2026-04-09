@@ -67,12 +67,15 @@ build_included_pr_lines() {
   fi
 
   for pr_number in "$@"; do
-    metadata="$(
+    if ! metadata="$(
       gh pr view "$pr_number" \
         --repo "$GH_REPO" \
         --json number,title,author \
-        --jq '[.number, .title, (.author.login // "unknown")] | @tsv'
-    )"
+        --jq '[.number, .title, (.author.login // "unknown")] | @tsv' 2>/dev/null
+    )"; then
+      printf 'Warning: skipping non-PR or failed lookup for #%s\n' "$pr_number" >&2
+      continue
+    fi
     IFS=$'\t' read -r number title author <<< "$metadata"
     printf -- '- #%s: %s (@%s)\n' "$number" "$title" "$author"
   done
@@ -125,7 +128,7 @@ existing_pr_row="$(
     --base "$BASE_BRANCH" \
     --head "$HEAD_BRANCH" \
     --json number,url \
-    --jq '.[0] | [.number // "", .url // ""] | @tsv'
+    --jq 'if length > 0 then .[0] | [(.number | tostring), .url] | @tsv else "" end'
 )"
 
 existing_pr_number=""
@@ -181,6 +184,10 @@ if [ "$DRY_RUN" = "1" ]; then
   if [ -n "$existing_pr_number" ] && [ "$UPDATE_EXISTING_PR" = "1" ]; then
     echo "DRY_RUN=1, skipping PR update."
     echo "Would update PR #$existing_pr_number: $existing_pr_url"
+  elif [ -n "$existing_pr_number" ]; then
+    echo "DRY_RUN=1, skipping PR update and creation."
+    echo "Existing promotion PR found: $existing_pr_url"
+    echo "UPDATE_EXISTING_PR=0, leaving the current PR unchanged."
   else
     echo "DRY_RUN=1, skipping PR creation."
     echo "Would create PR: $HEAD_BRANCH -> $BASE_BRANCH"
@@ -194,11 +201,28 @@ if [ "$DRY_RUN" = "1" ]; then
 fi
 
 if [ -n "$existing_pr_number" ] && [ "$UPDATE_EXISTING_PR" = "1" ]; then
-  gh pr edit "$existing_pr_number" \
-    --repo "$GH_REPO" \
-    --title "$PROMOTION_PR_TITLE" \
+  edit_args=(
+    --repo "$GH_REPO"
+    --title "$PROMOTION_PR_TITLE"
     --body "$body"
+  )
+  for label in "${label_values[@]}"; do
+    edit_args+=(--add-label "$label")
+  done
+  for assignee in "${assignee_values[@]}"; do
+    edit_args+=(--add-assignee "$assignee")
+  done
+  for reviewer in "${reviewer_values[@]}"; do
+    edit_args+=(--add-reviewer "$reviewer")
+  done
+  gh pr edit "$existing_pr_number" "${edit_args[@]}"
   echo "Updated existing promotion PR: $existing_pr_url"
+  exit 0
+fi
+
+if [ -n "$existing_pr_number" ]; then
+  echo "Existing promotion PR found: $existing_pr_url"
+  echo "UPDATE_EXISTING_PR=0, skipping update and creation."
   exit 0
 fi
 

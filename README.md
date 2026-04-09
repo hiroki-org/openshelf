@@ -166,7 +166,7 @@ OpenShelf API は staging / production の 2 環境で運用します。
 3. `staging` 宛てに PR を作成（CI が自動実行）
 4. レビュー・マージ → staging に自動デプロイ
 5. staging 環境で動作確認
-6. 問題なければ `npm run pr:promote` で `staging` → `main` の PR を作成
+6. 問題なければ `npm run pr:promote` で `staging` → `main` の PR を作成または更新
 7. マージ → production に自動デプロイ
 
 > [!NOTE]
