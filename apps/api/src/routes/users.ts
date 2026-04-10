@@ -129,6 +129,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
                 or(
                     like(users.name, `%${q}%`),
                     like(users.githubId, `%${q}%`),
+                    like(users.displayName, `%${q}%`),
                 ),
                 ne(users.id, currentUserId),
             ),
