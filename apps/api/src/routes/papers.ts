@@ -529,9 +529,9 @@ async function prepareUploadEntries(c: Context, body: Record<string, string | Fi
     const uploads: UploadEntry[] = [];
 
     // Validate all file entries before any upload or DB mutation.
-    for (let i = 0; ; i++) {
+    for (let i = 0; body[`files_${i}`]; i++) {
         const fileCandidate = body[`files_${i}`];
-        if (!fileCandidate) break;
+
         if (typeof fileCandidate === "string" || Array.isArray(fileCandidate)) {
             console.error(`Field files_${i} is not a single file`);
             return { errorResponse: c.json({ error: `Field files_${i} is not a valid file` }, 400) };

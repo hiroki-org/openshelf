@@ -539,6 +539,15 @@ export default function PaperDetailClient({
 
   return (
     <div className="max-w-3xl">
+      <div className="mb-6">
+        <Link
+          href="/"
+          className="text-sm text-blue-600 hover:underline dark:text-blue-400"
+        >
+          ← ダッシュボードに戻る
+        </Link>
+      </div>
+
       <div className="flex justify-between items-start mb-2">
         <h1 className="text-2xl font-bold">{paper.title}</h1>
         {isAuthor && (
@@ -864,9 +873,12 @@ export default function PaperDetailClient({
                     className="rounded-full ring-1 ring-gray-200 dark:ring-gray-700"
                   />
                 )}
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                <Link
+                  href={`/users/${encodeURIComponent(a.userId)}`}
+                  className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
+                >
                   {a.displayName ?? a.name}
-                </span>
+                </Link>
               </div>
               {(() => {
                 const badge = getRoleBadge(a.role);

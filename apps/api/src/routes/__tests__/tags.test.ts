@@ -51,19 +51,9 @@ describe("tags routes", () => {
 
     it("GET /api/tags/suggest returns prefix-matched tags for current user", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
-        mockDb.select = vi.fn(() =>
-            makeQuery({
-                allResult: [
-                    { tags: "[\"AI\",\"NLP\"]" },
-                    { tags: "[\"AI\",\"Vision\"]" },
-                    { tags: "[\"AI\"]" },
-                    { tags: null },
-                ],
-            }),
-        );
-
         const app = await createTestApp();
         const env = createTestEnv();
+        (env.DB as any).prepare = vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all: vi.fn().mockResolvedValue({ results: [{ tag: "AI" }] }) }) });
         const res = await app.request(
             "http://localhost/api/tags/suggest?q=AI",
             {
@@ -102,17 +92,11 @@ describe("tags routes", () => {
         queueSelectResponses([
             { getResult: { id: "org-1" } },
             { getResult: { userId: "user-1" } },
-            {
-                allResult: [
-                    { tags: "[\"Secret Project\"]", visibility: "private", authorUserId: null },
-                    { tags: "[\"Secret Notes\"]", visibility: "private", authorUserId: "user-1" },
-                    { tags: "[\"Search\"]", visibility: "org_only", authorUserId: null },
-                ],
-            },
         ]);
 
         const app = await createTestApp();
         const env = createTestEnv();
+        env.DB = { prepare: vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all: vi.fn().mockResolvedValue({ results: [{ tag: "Search" }, { tag: "Secret Notes" }] }) }) }) };
         const res = await app.request(
             "http://localhost/api/tags/suggest?q=Se&orgSlug=my-lab",
             {

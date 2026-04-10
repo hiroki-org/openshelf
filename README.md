@@ -166,13 +166,13 @@ OpenShelf API は staging / production の 2 環境で運用します。
 3. `staging` 宛てに PR を作成（CI が自動実行）
 4. レビュー・マージ → staging に自動デプロイ
 5. staging 環境で動作確認
-6. 問題なければ `staging` → `main` へ PR を作成
+6. 問題なければ `npm run pr:promote` で `staging` → `main` の PR を作成または更新
 7. マージ → production に自動デプロイ
 
 > [!NOTE]
 > `main` 宛てに PR を作成した場合、source が `staging` でなければ `staging` に自動で retarget されます（`pull_request_target` の `opened` / `reopened` / `edited` で適用）。
-> Ruleset の bypass 権限を持つ admin は `main` 宛て PR をそのまま維持できます。
-> なお、`main` マージ後は production が先にデプロイされ、その後 `main` を `staging` に同期します。
+> `main` への push 後は、`main` → `staging` の同期 PR を自動で作成または再利用します。
+> `staging` の検証後は `npm run pr:promote` を実行すると、`staging` → `main` の promotion PR を作成または更新し、description に含まれる PR 一覧も自動生成します。事前確認だけ行いたい場合は `DRY_RUN=1 npm run pr:promote` を使ってください。
 
 緊急 hotfix:
 
@@ -190,7 +190,7 @@ OpenShelf API は staging / production の 2 環境で運用します。
 - 適用済みマイグレーションはイミュータブルです。既存ファイルは変更せず、新しい番号のファイルを追加してください。
 - スキーマ変更があるたびに、新しい番号のマイグレーションファイルを追加します。
 - デプロイ時に `wrangler d1 migrations apply` が staging / production それぞれに対して自動実行されます。
-- ローカルでは `npm run db:migrate:local`、リモートでは `npm run db:migrate:remote` を使います。
+- ローカルでは `npm run db:migrate:local`、リモートでは `npm run db:migrate:remote:production` を使います。
 - 既存マイグレーションファイルの変更は CI で検知されます。
 
 #### Secrets 管理

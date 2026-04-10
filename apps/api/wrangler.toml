@@ -26,8 +26,8 @@ binding = "BUCKET"
 name = "openshelf-api-staging"
 
 [env.staging.vars]
-FRONTEND_URL = "http://localhost:3000"
-ALLOWED_ORIGINS = "http://localhost:3000"
+FRONTEND_URL = "https://open-shelf-git-staging-hirokis-projects-afd618c7.vercel.app"
+ALLOWED_ORIGINS = "https://open-shelf-git-staging-hirokis-projects-afd618c7.vercel.app"
 NODE_ENV = "staging"
 
 [[env.staging.d1_databases]]

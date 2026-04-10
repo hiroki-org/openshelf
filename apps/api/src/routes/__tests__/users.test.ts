@@ -13,6 +13,27 @@ vi.mock("drizzle-orm/d1", () => ({
 }));
 
 describe("users routes", () => {
+    it("GET /api/users/search?q=... sanitizes double quotes for FTS5", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+        mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-3", name: "Quote", githubId: "quote" }] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            'http://localhost/api/users/search?q=ali"ce',
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as any;
+        expect(body.users).toHaveLength(1);
+        expect(mockDb.select).toHaveBeenCalled();
+    });
+
     beforeEach(() => {
         vi.restoreAllMocks();
         vi.resetModules();

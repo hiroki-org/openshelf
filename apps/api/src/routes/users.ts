@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, like, or, and, ne } from "drizzle-orm";
+import { eq, like, or, and, ne, sql } from "drizzle-orm";
 import { users, enableForeignKeys } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -83,12 +83,16 @@ function getCachedResults(key: string): any[] | null {
 }
 
 function setCachedResults(key: string, data: any[]) {
-    // cleanup old cache randomly to prevent memory leak
+    searchCache.delete(key);
+
+    // Prune expired entries in insertion order and stop once the cache reaches fresh data.
     if (searchCache.size >= MAX_CACHE_SIZE) {
         const now = Date.now();
         for (const [k, v] of searchCache.entries()) {
             if (now - v.timestamp > CACHE_TTL_MS) {
                 searchCache.delete(k);
+            } else {
+                break;
             }
         }
 
@@ -104,6 +108,9 @@ function setCachedResults(key: string, data: any[]) {
 usersRoute.get("/search", authMiddleware, async (c) => {
     const q = c.req.query("q");
     if (!q || q.length < 2) return c.json({ users: [] });
+
+    // Sanitize for FTS5 to prevent syntax errors and enable prefix matching
+    const sanitizedQ = '"' + q.replace(/"/g, '""') + '" *';
 
     const currentUserId = c.get("user").sub;
     const cacheKey = `${q}-${currentUserId}`;
@@ -123,14 +130,11 @@ usersRoute.get("/search", authMiddleware, async (c) => {
             githubId: users.githubId,
             avatarUrl: users.avatarUrl,
         })
-        .from(users)
+        .from(usersSearch)
+        .innerJoin(users, eq(users.id, usersSearch.id))
         .where(
             and(
-                or(
-                    like(users.name, `%${q}%`),
-                    like(users.githubId, `%${q}%`),
-                    like(users.displayName, `%${q}%`),
-                ),
+                sql`${usersSearch} MATCH ${sanitizedQ}`,
                 ne(users.id, currentUserId),
             ),
         )

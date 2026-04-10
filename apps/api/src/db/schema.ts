@@ -33,11 +33,7 @@ export const users = sqliteTable(
         createdAt: createdAt(),
         updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
     },
-    (t) => [
-        uniqueIndex("users_github_id_idx").on(t.githubId),
-        index("users_name_idx").on(t.name),
-        index("users_display_name_idx").on(t.displayName),
-    ],
+    (t) => [uniqueIndex("users_github_id_idx").on(t.githubId)],
 );
 
 export const VALID_VENUE_TYPES = ["conference", "journal", "workshop", "other"] as const;
@@ -361,3 +357,14 @@ export const touchUpdatedAt = () => ({
 export const enableForeignKeys = async (db: ReturnType<typeof drizzle>) => {
     await db.run(sql`PRAGMA foreign_keys = ON`);
 };
+
+// ─── users_search (FTS5) ────────────────────────────────────────
+export const usersSearch = sqliteTable(
+    "users_search",
+    {
+        id: text("id").notNull(),
+        name: text("name").notNull(),
+        displayName: text("display_name"),
+        githubId: text("github_id").notNull(),
+    }
+);
