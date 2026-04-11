@@ -1,6 +1,6 @@
-import { defineConfig, type UserConfig } from "vitest/config";
+import { defineConfig } from "vitest/config";
 
-export default defineConfig(async (): Promise<UserConfig> => {
+export default defineConfig(async () => {
     const { default: codspeedPlugin } = await import("@codspeed/vitest-plugin");
     return {
     plugins: [codspeedPlugin()],
@@ -20,5 +20,5 @@ export default defineConfig(async (): Promise<UserConfig> => {
             exclude: ["src/types.ts", "**/coverage/**"],
         }
     }
-    };
+    } as any;
 });
