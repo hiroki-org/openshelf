@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { isAllowedOrigin, normalizeOrigin } from "../origin";
 
 describe("origin utils", () => {
+    it("returns null for malformed URI components", () => {
+        expect(normalizeOrigin("not-a-url-%E0%A4%A")).toBeNull();
+    });
+
     it("normalizes exact origins before comparison", () => {
         const origin = normalizeOrigin("https://app.example.com")!;
         const frontendOrigin = normalizeOrigin("https://frontend.example.com")!;
