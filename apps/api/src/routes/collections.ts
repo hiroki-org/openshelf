@@ -558,7 +558,8 @@ collectionsRoute.get("/collections/:id/papers", async (c) => {
         const orgOnlyIds = restrictedRows
             .filter(r => r.visibility === "org_only" && !authoredSet.has(r.id))
             .map(r => r.id);
-        const orgAccessSet = new Set<string>();
+
+        let orgAccessSet = new Set<string>();
         if (orgOnlyIds.length > 0) {
             const orgAccessRows = await db
                 .select({ paperId: paperOrgs.paperId })
@@ -566,7 +567,7 @@ collectionsRoute.get("/collections/:id/papers", async (c) => {
                 .innerJoin(paperOrgs, eq(orgMembers.orgId, paperOrgs.orgId))
                 .where(and(inArray(paperOrgs.paperId, orgOnlyIds), eq(orgMembers.userId, currentUserId)))
                 .all();
-            for (const r of orgAccessRows) orgAccessSet.add(r.paperId);
+            orgAccessSet = new Set(orgAccessRows.map(r => r.paperId));
         }
 
         visiblePapers = rows.filter(r => {
