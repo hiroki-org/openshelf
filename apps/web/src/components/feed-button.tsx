@@ -23,7 +23,7 @@ export function FeedButton({
     if (!open) return;
 
     const focusableSelector =
-      'button:not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([tabindex="-1"]), textarea:not([tabindex="-1"]), select:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
+      'button:not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([tabindex="-1"]), textarea:not([tabindex="-1"]), select:not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
     const getFocusableElements = () =>
       Array.from(
         dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ??
@@ -78,7 +78,7 @@ export function FeedButton({
         return;
       }
 
-      if (activeElement === last || activeElement === dialogRef.current) {
+      if (activeElement === last) {
         event.preventDefault();
         first.focus();
       }

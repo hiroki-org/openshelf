@@ -43,12 +43,7 @@ function createMockZip(entries: string[]) {
   return result;
 }
 
-type MockOleEntry = {
-  name: string;
-  objectType?: number;
-};
-
-function createMockOle2(streams: Array<string | MockOleEntry>) {
+function createMockOle2(streams: string[]) {
   const buffer = new Uint8Array(1536);
   const view = new DataView(buffer.buffer);
 
@@ -70,20 +65,15 @@ function createMockOle2(streams: Array<string | MockOleEntry>) {
   }
 
   for (let i = 0; i < streams.length && i < 4; i++) {
-    const rawEntry = streams[i];
-    const entry =
-      typeof rawEntry === "string"
-        ? { name: rawEntry, objectType: 2 }
-        : { name: rawEntry.name, objectType: rawEntry.objectType ?? 2 };
-
+    const stream = streams[i];
     const entryOffset = 1024 + i * 128;
 
-    for (let j = 0; j < entry.name.length; j++) {
-      view.setUint16(entryOffset + j * 2, entry.name.charCodeAt(j), true);
+    for (let j = 0; j < stream.length; j++) {
+      view.setUint16(entryOffset + j * 2, stream.charCodeAt(j), true);
     }
-    view.setUint16(entryOffset + entry.name.length * 2, 0, true);
-    view.setUint16(entryOffset + 64, (entry.name.length + 1) * 2, true);
-    view.setUint8(entryOffset + 66, entry.objectType);
+    view.setUint16(entryOffset + stream.length * 2, 0, true);
+    view.setUint16(entryOffset + 64, (stream.length + 1) * 2, true);
+    view.setUint8(entryOffset + 66, stream === "non_stream" ? 1 : 2);
   }
 
   return buffer;
@@ -180,18 +170,6 @@ describe("validateMagicNumbers", () => {
     ).resolves.toBe(true);
   });
 
-  it("rejects legacy PowerPoint files when the marker is not a stream entry", async () => {
-    const ppt = createFile(
-      "slides.ppt",
-      "application/vnd.ms-powerpoint",
-      createMockOle2([{ name: "PowerPoint Document", objectType: 1 }]),
-    );
-
-    await expect(
-      validateMagicNumbers(ppt, "application/vnd.ms-powerpoint"),
-    ).resolves.toBe(false);
-  });
-
   it("rejects files with unknown signatures", async () => {
     const file = createFile(
       "notes.bin",
@@ -216,33 +194,33 @@ describe("validateMagicNumbers", () => {
     );
   });
 
-  it("returns false when DataView throws a RangeError for a corrupt file", async () => {
-    const zipHeader = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0]);
-    const corruptFile = {
-      size: 100000,
-      type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-      slice(start?: number, end?: number) {
-        if (start === 0 && end === zipHeader.byteLength) {
-          // Pass the magic number check for ZIP
-          return {
-            arrayBuffer: () => Promise.resolve(zipHeader.buffer),
-          };
-        }
-        // Throw a RangeError when hasZipEntry calls slice(start).arrayBuffer()
-        return {
-          arrayBuffer: () =>
-            Promise.reject(
-              new RangeError("Offset is outside the bounds of the DataView"),
-            ),
-        };
-      },
-    } as any as File;
+  it("rejects legacy PowerPoint files when the target entry is not a stream (objectType !== 2)", async () => {
+    const ppt = createFile(
+      "slides.ppt",
+      "application/vnd.ms-powerpoint",
+      createMockOle2(["non_stream"]),
+    );
+    // Overwrite the stream name in the buffer to match "PowerPoint Document"
+    // but keep the objectType as 1 (storage) set by our updated mock
+    const buffer = new Uint8Array(await ppt.arrayBuffer());
+    const view = new DataView(buffer.buffer);
+    const targetStream = "PowerPoint Document";
+    const entryOffset = 1024 + 0 * 128; // First entry
+
+    for (let j = 0; j < targetStream.length; j++) {
+      view.setUint16(entryOffset + j * 2, targetStream.charCodeAt(j), true);
+    }
+    view.setUint16(entryOffset + targetStream.length * 2, 0, true);
+    view.setUint16(entryOffset + 64, (targetStream.length + 1) * 2, true);
+    // Ensure objectType is still 1
+    view.setUint8(entryOffset + 66, 1);
+
+    const modifiedPpt = new File([buffer], "slides.ppt", {
+      type: "application/vnd.ms-powerpoint",
+    });
 
     await expect(
-      validateMagicNumbers(
-        corruptFile,
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-      ),
+      validateMagicNumbers(modifiedPpt, "application/vnd.ms-powerpoint"),
     ).resolves.toBe(false);
   });
 });

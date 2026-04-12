@@ -26,33 +26,6 @@ const MAX_MAGIC_SIZE = Math.max(
   ...MAGIC_NUMBER_MAP.map(([signature]) => signature.length),
 );
 
-function matchesMagicPrefix(
-  bytes: Uint8Array,
-  signature: Readonly<Uint8Array>,
-): boolean {
-  if (bytes.length < signature.length) {
-    return false;
-  }
-
-  for (let index = 0; index < signature.length; index++) {
-    if (bytes[index] !== signature[index]) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function detectMagicNumberMime(bytes: Uint8Array): string | null {
-  for (const [signature, mime] of MAGIC_NUMBER_MAP) {
-    if (matchesMagicPrefix(bytes, signature)) {
-      return mime;
-    }
-  }
-
-  return null;
-}
-
 // Helper function to efficiently parse ZIP Central Directory to find a specific entry
 async function hasZipEntry(file: File, targetEntry: string): Promise<boolean> {
   const CHUNK_SIZE = 65536 + 22; // Max comment size + EOCD size
@@ -185,7 +158,7 @@ function checkDirectorySector(
     const nameLength = dirView.getUint16(entryOffset + 64, true);
     const objectType = dirView.getUint8(entryOffset + 66);
 
-    if (objectType !== 2) continue; // Stream entry only
+    if (objectType !== 2) continue; // Only process stream object type
 
     if (nameLength === targetLength) {
       let match = true;
@@ -254,34 +227,41 @@ export async function validateMagicNumbers(
   file: File,
   declaredMime: string,
 ): Promise<boolean> {
-  try {
-    const buffer = await file.slice(0, MAX_MAGIC_SIZE).arrayBuffer();
-    const bytes = new Uint8Array(buffer);
+  const buffer = await file.slice(0, MAX_MAGIC_SIZE).arrayBuffer();
+  const bytes = new Uint8Array(buffer);
 
-    const detectedType = detectMagicNumberMime(bytes);
-
-    if (!detectedType) return false;
-
-    const isValidBasic = (MIME_COMPATIBILITY[declaredMime] ?? []).includes(
-      detectedType,
-    );
-    if (!isValidBasic) return false;
-
-    // Deeper inspection of PPT/PPTX files
-    if (
-      declaredMime ===
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-    ) {
-      return await hasZipEntry(file, "ppt/presentation.xml");
-    } else if (declaredMime === "application/vnd.ms-powerpoint") {
-      return await hasOleStream(file, "PowerPoint Document");
+  let detectedType: string | null = null;
+  for (const [signature, mimeType] of MAGIC_NUMBER_MAP) {
+    if (bytes.length < signature.length) continue;
+    let match = true;
+    for (let i = 0; i < signature.length; i++) {
+      if (bytes[i] !== signature[i]) {
+        match = false;
+        break;
+      }
     }
-
-    return true;
-  } catch (error) {
-    if (error instanceof RangeError || error instanceof TypeError) {
-      return false;
+    if (match) {
+      detectedType = mimeType;
+      break;
     }
-    throw error;
   }
+
+  if (!detectedType) return false;
+
+  const isValidBasic = (MIME_COMPATIBILITY[declaredMime] ?? []).includes(
+    detectedType,
+  );
+  if (!isValidBasic) return false;
+
+  // Deeper inspection of PPT/PPTX files
+  if (
+    declaredMime ===
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+  ) {
+    return hasZipEntry(file, "ppt/presentation.xml");
+  } else if (declaredMime === "application/vnd.ms-powerpoint") {
+    return hasOleStream(file, "PowerPoint Document");
+  }
+
+  return true;
 }
