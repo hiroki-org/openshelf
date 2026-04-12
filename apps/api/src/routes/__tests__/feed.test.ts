@@ -250,6 +250,95 @@ describe("feed routes", () => {
         expect(text).toContain("User Paper");
     });
 
+    it("GET /feed/users/:id/atom.xml returns 404 when user is missing", async () => {
+        mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request("http://localhost/feed/users/missing/atom.xml", {}, env as any);
+
+        expect(res.status).toBe(404);
+        await expect(res.json()).resolves.toEqual({ error: "User not found" });
+    });
+
+    it("GET /feed/users/:id/atom.xml falls back to user name when displayName is null", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({
+                getResult: {
+                    id: "user-1",
+                    name: "Alice",
+                    displayName: null,
+                    githubId: "alice",
+                    updatedAt: "2026-01-02 00:00:00",
+                },
+            }))
+            .mockImplementationOnce(() => makeQuery({
+                allResult: [
+                    {
+                        id: "paper-1",
+                        title: "User Paper",
+                        abstract: null,
+                        category: null,
+                        createdAt: "2026-01-03 00:00:00",
+                        updatedAt: "2026-01-04 00:00:00",
+                    },
+                ],
+            }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [] }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request("http://localhost/feed/users/user-1/atom.xml", {}, env as any);
+
+        expect(res.status).toBe(200);
+        const text = await res.text();
+        expect(text).toContain("<title>Alice - OpenShelf</title>");
+        expect(text).toContain("<author><name>Alice</name></author>");
+    });
+
+    it("GET /feed/users/:id/atom.xml falls back to OpenShelf when feed author is blank", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({
+                getResult: {
+                    id: "user-1",
+                    name: "   ",
+                    displayName: null,
+                    githubId: "alice",
+                    updatedAt: "2026-01-02 00:00:00",
+                },
+            }))
+            .mockImplementationOnce(() => makeQuery({
+                allResult: [
+                    {
+                        id: "paper-1",
+                        title: "User Paper",
+                        abstract: null,
+                        category: null,
+                        createdAt: "2026-01-03 00:00:00",
+                        updatedAt: "2026-01-04 00:00:00",
+                    },
+                ],
+            }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [] }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request("http://localhost/feed/users/user-1/atom.xml", {}, env as any);
+
+        expect(res.status).toBe(200);
+        const text = await res.text();
+        expect(text).toContain("User Paper");
+        expect(text).toContain("<author><name>OpenShelf</name></author>");
+        expect(text).not.toMatch(/<author><name>\s+<\/name><\/author>/);
+    });
+
     it("GET /feed/users/:id/atom.xml de-duplicates repeated paper rows", async () => {
         mockDb.select = vi
             .fn()
@@ -443,6 +532,75 @@ describe("feed routes", () => {
         const text = await res.text();
         expect(text).toContain("<title>Featured - Lab - OpenShelf</title>");
         expect(text).toContain("Collection Paper");
+    });
+
+    it("GET /feed/orgs/:slug/collections/:cSlug/atom.xml returns 404 when collection is missing", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({
+                getResult: {
+                    id: "org-1",
+                    slug: "lab",
+                    name: "Lab",
+                    description: null,
+                    createdAt: "2026-01-01 00:00:00",
+                    updatedAt: "2026-01-02 00:00:00",
+                },
+            }))
+            .mockImplementationOnce(() => makeQuery({ getResult: null }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/feed/orgs/lab/collections/missing/atom.xml",
+            {},
+            env as any,
+        );
+
+        expect(res.status).toBe(404);
+        await expect(res.json()).resolves.toEqual({ error: "Collection not found" });
+    });
+
+    it("GET /feed/orgs/:slug/collections/:cSlug/atom.xml returns 404 when collection is private", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({
+                getResult: {
+                    id: "org-1",
+                    slug: "lab",
+                    name: "Lab",
+                    description: null,
+                    createdAt: "2026-01-01 00:00:00",
+                    updatedAt: "2026-01-02 00:00:00",
+                },
+            }))
+            .mockImplementationOnce(() => makeQuery({
+                getResult: {
+                    id: "col-1",
+                    ownerType: "org",
+                    ownerId: "org-1",
+                    orgSlug: "lab",
+                    slug: "featured",
+                    name: "Featured",
+                    description: null,
+                    visibility: "private",
+                    createdAt: "2026-01-01 00:00:00",
+                    updatedAt: "2026-01-02 00:00:00",
+                },
+            }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/feed/orgs/lab/collections/featured/atom.xml",
+            {},
+            env as any,
+        );
+
+        expect(res.status).toBe(404);
+        await expect(res.json()).resolves.toEqual({ error: "Collection not found" });
     });
 
     it("GET /feed/users/:id/collections/:cSlug/atom.xml returns atom xml for public collection papers", async () => {

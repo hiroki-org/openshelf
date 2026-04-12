@@ -211,8 +211,38 @@ describe("validateMagicNumbers", () => {
       new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
     );
 
+    await expect(validateMagicNumbers(truncatedPng, "image/png")).resolves.toBe(
+      false,
+    );
+  });
+
+  it("returns false when DataView throws a RangeError for a corrupt file", async () => {
+    const zipHeader = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0]);
+    const corruptFile = {
+      size: 100000,
+      type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      slice(start?: number, end?: number) {
+        if (start === 0 && end === zipHeader.byteLength) {
+          // Pass the magic number check for ZIP
+          return {
+            arrayBuffer: () => Promise.resolve(zipHeader.buffer),
+          };
+        }
+        // Throw a RangeError when hasZipEntry calls slice(start).arrayBuffer()
+        return {
+          arrayBuffer: () =>
+            Promise.reject(
+              new RangeError("Offset is outside the bounds of the DataView"),
+            ),
+        };
+      },
+    } as any as File;
+
     await expect(
-      validateMagicNumbers(truncatedPng, "image/png"),
+      validateMagicNumbers(
+        corruptFile,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      ),
     ).resolves.toBe(false);
   });
 });

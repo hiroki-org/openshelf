@@ -254,27 +254,34 @@ export async function validateMagicNumbers(
   file: File,
   declaredMime: string,
 ): Promise<boolean> {
-  const buffer = await file.slice(0, MAX_MAGIC_SIZE).arrayBuffer();
-  const bytes = new Uint8Array(buffer);
+  try {
+    const buffer = await file.slice(0, MAX_MAGIC_SIZE).arrayBuffer();
+    const bytes = new Uint8Array(buffer);
 
-  const detectedType = detectMagicNumberMime(bytes);
+    const detectedType = detectMagicNumberMime(bytes);
 
-  if (!detectedType) return false;
+    if (!detectedType) return false;
 
-  const isValidBasic = (MIME_COMPATIBILITY[declaredMime] ?? []).includes(
-    detectedType,
-  );
-  if (!isValidBasic) return false;
+    const isValidBasic = (MIME_COMPATIBILITY[declaredMime] ?? []).includes(
+      detectedType,
+    );
+    if (!isValidBasic) return false;
 
-  // Deeper inspection of PPT/PPTX files
-  if (
-    declaredMime ===
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-  ) {
-    return hasZipEntry(file, "ppt/presentation.xml");
-  } else if (declaredMime === "application/vnd.ms-powerpoint") {
-    return hasOleStream(file, "PowerPoint Document");
+    // Deeper inspection of PPT/PPTX files
+    if (
+      declaredMime ===
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    ) {
+      return await hasZipEntry(file, "ppt/presentation.xml");
+    } else if (declaredMime === "application/vnd.ms-powerpoint") {
+      return await hasOleStream(file, "PowerPoint Document");
+    }
+
+    return true;
+  } catch (error) {
+    if (error instanceof RangeError || error instanceof TypeError) {
+      return false;
+    }
+    throw error;
   }
-
-  return true;
 }
