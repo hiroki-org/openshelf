@@ -8,21 +8,20 @@ const MIME_COMPATIBILITY: Record<string, readonly string[]> = {
   ],
 };
 
-const MAGIC_NUMBER_MAP: ReadonlyArray<
-  readonly [Readonly<Uint8Array>, string]
-> = [
-  [Uint8Array.from([0x25, 0x50, 0x44, 0x46, 0x2d]), "application/pdf"],
+const MAGIC_NUMBER_MAP: ReadonlyArray<readonly [Readonly<Uint8Array>, string]> =
   [
-    Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    "image/png",
-  ],
-  [Uint8Array.from([0xff, 0xd8, 0xff]), "image/jpeg"],
-  [
-    Uint8Array.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]),
-    "application/x-ole-storage",
-  ],
-  [Uint8Array.from([0x50, 0x4b, 0x03, 0x04]), "application/zip"],
-];
+    [Uint8Array.from([0x25, 0x50, 0x44, 0x46, 0x2d]), "application/pdf"],
+    [
+      Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      "image/png",
+    ],
+    [Uint8Array.from([0xff, 0xd8, 0xff]), "image/jpeg"],
+    [
+      Uint8Array.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]),
+      "application/x-ole-storage",
+    ],
+    [Uint8Array.from([0x50, 0x4b, 0x03, 0x04]), "application/zip"],
+  ];
 const MAX_MAGIC_SIZE = Math.max(
   ...MAGIC_NUMBER_MAP.map(([signature]) => signature.length),
 );
@@ -95,12 +94,14 @@ async function hasZipEntry(file: File, targetEntry: string): Promise<boolean> {
   return false;
 }
 
-// Helper function to parse OLE2 streams to find a specific stream name
-async function hasOleStream(
-  file: File,
-  targetStream: string,
-): Promise<boolean> {
-  if (file.size < 512) return false;
+interface OleHeader {
+  sectorSize: number;
+  dirSector: number;
+  fatSectors: number[];
+}
+
+async function parseOleHeader(file: File): Promise<OleHeader | null> {
+  if (file.size < 512) return null;
 
   const headerBuffer = await file.slice(0, 512).arrayBuffer();
   const headerView = new DataView(headerBuffer);
@@ -110,14 +111,14 @@ async function hasOleStream(
     headerView.getUint32(0, true) !== 0xe011cfd0 ||
     headerView.getUint32(4, true) !== 0xe11ab1a1
   ) {
-    return false;
+    return null;
   }
 
   const sectorShift = headerView.getUint16(30, true);
-  if (sectorShift !== 9 && sectorShift !== 12) return false; // Usually 9 (512 bytes) or 12 (4096 bytes)
+  if (sectorShift !== 9 && sectorShift !== 12) return null; // Usually 9 (512 bytes) or 12 (4096 bytes)
 
   const sectorSize = 1 << sectorShift;
-  let dirSector = headerView.getUint32(48, true); // First directory sector
+  const dirSector = headerView.getUint32(48, true); // First directory sector
 
   // Read MSAT/FAT
   const fatSectors: number[] = [];
@@ -127,8 +128,12 @@ async function hasOleStream(
     fatSectors.push(sec);
   }
 
+  return { sectorSize, dirSector, fatSectors };
+}
+
+function createFatReader(file: File, sectorSize: number, fatSectors: number[]) {
   const loadedFatSectors = new Map<number, DataView>();
-  const getFatEntry = async (sectorIndex: number): Promise<number> => {
+  return async (sectorIndex: number): Promise<number> => {
     const entriesPerFatSector = sectorSize / 4;
     const fatSectorIndex = Math.floor(sectorIndex / entriesPerFatSector);
     if (fatSectorIndex >= fatSectors.length) return 0xffffffff;
@@ -149,11 +154,63 @@ async function hasOleStream(
     if (entryIndex * 4 >= fatView.byteLength) return 0xffffffff;
     return fatView.getUint32(entryIndex * 4, true);
   };
+}
+
+function checkDirectorySector(
+  dirView: DataView,
+  targetStream: string,
+  sectorSize: number,
+): boolean {
+  const entriesPerSector = sectorSize / 128; // Directory entries are 128 bytes
+  const targetLength = (targetStream.length + 1) * 2; // +1 for null terminator
+
+  for (let i = 0; i < entriesPerSector; i++) {
+    const entryOffset = i * 128;
+    if (entryOffset + 128 > dirView.byteLength) break;
+
+    const nameLength = dirView.getUint16(entryOffset + 64, true);
+    const objectType = dirView.getUint8(entryOffset + 66);
+
+    if (objectType === 0) continue; // Empty entry
+
+    if (nameLength === targetLength) {
+      let match = true;
+      for (let j = 0; j < targetStream.length; j++) {
+        if (
+          dirView.getUint16(entryOffset + j * 2, true) !==
+          targetStream.charCodeAt(j)
+        ) {
+          match = false;
+          break;
+        }
+      }
+      // Check null terminator
+      if (
+        match &&
+        dirView.getUint16(entryOffset + targetStream.length * 2, true) === 0
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Helper function to parse OLE2 streams to find a specific stream name
+async function hasOleStream(
+  file: File,
+  targetStream: string,
+): Promise<boolean> {
+  const header = await parseOleHeader(file);
+  if (!header) return false;
+
+  const { sectorSize, fatSectors } = header;
+  let { dirSector } = header;
+
+  const getFatEntry = createFatReader(file, sectorSize, fatSectors);
 
   const MAX_DIR_SECTORS = 1000;
   let dirSectorsRead = 0;
-
-  const targetLength = (targetStream.length + 1) * 2; // +1 for null terminator
 
   while (
     dirSector !== 0xffffffff &&
@@ -168,35 +225,8 @@ async function hasOleStream(
       .arrayBuffer();
     const dirView = new DataView(dirBuffer);
 
-    const entriesPerSector = sectorSize / 128; // Directory entries are 128 bytes
-    for (let i = 0; i < entriesPerSector; i++) {
-      const entryOffset = i * 128;
-      if (entryOffset + 128 > dirView.byteLength) break;
-
-      const nameLength = dirView.getUint16(entryOffset + 64, true);
-      const objectType = dirView.getUint8(entryOffset + 66);
-
-      if (objectType === 0) continue; // Empty entry
-
-      if (nameLength === targetLength) {
-        let match = true;
-        for (let j = 0; j < targetStream.length; j++) {
-          if (
-            dirView.getUint16(entryOffset + j * 2, true) !==
-            targetStream.charCodeAt(j)
-          ) {
-            match = false;
-            break;
-          }
-        }
-        // Check null terminator
-        if (
-          match &&
-          dirView.getUint16(entryOffset + targetStream.length * 2, true) === 0
-        ) {
-          return true;
-        }
-      }
+    if (checkDirectorySector(dirView, targetStream, sectorSize)) {
+      return true;
     }
 
     dirSector = await getFatEntry(dirSector);
@@ -214,15 +244,53 @@ export async function validateMagicNumbers(
   const bytes = new Uint8Array(buffer);
 
   let detectedType: string | null = null;
-  if (bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d) {
+  if (
+    bytes.length >= 5 &&
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46 &&
+    bytes[4] === 0x2d
+  ) {
     detectedType = "application/pdf";
-  } else if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) {
+  } else if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47 &&
+    bytes[4] === 0x0d &&
+    bytes[5] === 0x0a &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0x0a
+  ) {
     detectedType = "image/png";
-  } else if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+  } else if (
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff
+  ) {
     detectedType = "image/jpeg";
-  } else if (bytes.length >= 8 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0 && bytes[4] === 0xa1 && bytes[5] === 0xb1 && bytes[6] === 0x1a && bytes[7] === 0xe1) {
+  } else if (
+    bytes.length >= 8 &&
+    bytes[0] === 0xd0 &&
+    bytes[1] === 0xcf &&
+    bytes[2] === 0x11 &&
+    bytes[3] === 0xe0 &&
+    bytes[4] === 0xa1 &&
+    bytes[5] === 0xb1 &&
+    bytes[6] === 0x1a &&
+    bytes[7] === 0xe1
+  ) {
     detectedType = "application/x-ole-storage";
-  } else if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+  } else if (
+    bytes.length >= 4 &&
+    bytes[0] === 0x50 &&
+    bytes[1] === 0x4b &&
+    bytes[2] === 0x03 &&
+    bytes[3] === 0x04
+  ) {
     detectedType = "application/zip";
   }
 
