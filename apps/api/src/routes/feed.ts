@@ -316,14 +316,13 @@ async function buildFeedResponse(
         loadPaperAuthors(db, paperIds),
         loadPaperFiles(db, paperIds),
     ]);
-    const authorName = meta.authorName.trim() || "OpenShelf";
     const entries = buildPaperEntries(
         papersRows,
         authorsByPaperId,
         filesByPaperId,
         c.env.FRONTEND_URL,
         new URL(c.req.url).origin,
-        authorName,
+        meta.authorName,
     );
     const xml = buildAtomFeed(
         {
@@ -332,7 +331,7 @@ async function buildFeedResponse(
             selfLink: meta.selfLink,
             id: meta.id,
             updated: toIsoString(latestTimestamp(papersRows, meta.updatedFallback)),
-            authorName,
+            authorName: meta.authorName,
         },
         entries,
     );
@@ -387,6 +386,7 @@ async function buildUserFeedResponse(c: FeedContext, id: string): Promise<Respon
 
     const user = await db.select().from(users).where(eq(users.id, id)).get();
     if (!user) return c.json({ error: "User not found" }, 404);
+    const authorName = (user.displayName ?? user.name ?? "").trim() || "OpenShelf";
 
     const papersRows = await db
         .select(PAPER_FEED_SELECT)
@@ -400,12 +400,12 @@ async function buildUserFeedResponse(c: FeedContext, id: string): Promise<Respon
     return await buildFeedResponse(
         c,
         {
-            title: `${user.displayName ?? user.name} - OpenShelf`,
+            title: `${authorName} - OpenShelf`,
             link: `${normalizeBaseUrl(c.env.FRONTEND_URL)}/users/${encodeURIComponent(id)}`,
             selfLink: c.req.url,
             id: `urn:openshelf:user:${id}`,
             updatedFallback: user.updatedAt,
-            authorName: user.displayName ?? user.name,
+            authorName,
         },
         // SQLで絞り込み済みだが、フィルタの整合性確認と重複排除を兼ねて再利用する
         filterPaperRowsByTag(papersRows, tagFilter),
@@ -477,6 +477,7 @@ async function buildUserCollectionFeedResponse(
 
     const user = await db.select().from(users).where(eq(users.id, id)).get();
     if (!user) return c.json({ error: "User not found" }, 404);
+    const authorName = (user.displayName ?? user.name ?? "").trim() || "OpenShelf";
 
     const collection = await db
         .select()
@@ -506,12 +507,12 @@ async function buildUserCollectionFeedResponse(
     return await buildFeedResponse(
         c,
         {
-            title: `${collection.name} - ${user.displayName ?? user.name} - OpenShelf`,
+            title: `${collection.name} - ${authorName} - OpenShelf`,
             link: `${normalizeBaseUrl(c.env.FRONTEND_URL)}/users/${encodeURIComponent(id)}/c/${encodeURIComponent(collectionSlug)}`,
             selfLink: c.req.url,
             id: `urn:openshelf:collection:${collection.id}`,
             updatedFallback: collection.updatedAt,
-            authorName: user.displayName ?? user.name,
+            authorName,
         },
         dedupePaperRows(papersRows),
     );
