@@ -195,17 +195,15 @@ describe("validateMagicNumbers", () => {
   });
 
   it("returns false when DataView throws a RangeError for a corrupt file", async () => {
+    const zipHeader = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0]);
     const corruptFile = {
       size: 100000,
       type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
       slice(start?: number, end?: number) {
-        if (start === 0 && end === 8) {
+        if (start === 0 && end === zipHeader.byteLength) {
           // Pass the magic number check for ZIP
           return {
-            arrayBuffer: () =>
-              Promise.resolve(
-                new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0, 0, 0]).buffer,
-              ),
+            arrayBuffer: () => Promise.resolve(zipHeader.buffer),
           };
         }
         // Throw a RangeError when hasZipEntry calls slice(start).arrayBuffer()
