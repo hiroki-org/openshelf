@@ -9,7 +9,6 @@ export default defineConfig(async (): Promise<UserConfig> => {
         include: ["src/**/__tests__/**/*.test.ts"],
         reporters: ["default", "junit"],
         outputFile: {
-            lcov: "./coverage/lcov.info",
             junit: "./test-report.junit.xml",
         },
         coverage: {

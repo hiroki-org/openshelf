@@ -227,41 +227,53 @@ export async function validateMagicNumbers(
   file: File,
   declaredMime: string,
 ): Promise<boolean> {
-  const buffer = await file.slice(0, MAX_MAGIC_SIZE).arrayBuffer();
-  const bytes = new Uint8Array(buffer);
+  try {
+    const buffer = await file.slice(0, MAX_MAGIC_SIZE).arrayBuffer();
+    const bytes = new Uint8Array(buffer);
 
-  let detectedType: string | null = null;
-  for (const [signature, mimeType] of MAGIC_NUMBER_MAP) {
-    if (bytes.length < signature.length) continue;
-    let match = true;
-    for (let i = 0; i < signature.length; i++) {
-      if (bytes[i] !== signature[i]) {
-        match = false;
+    let detectedType: string | null = null;
+    for (const [signature, mimeType] of MAGIC_NUMBER_MAP) {
+      if (bytes.length < signature.length) continue;
+      let match = true;
+      for (let i = 0; i < signature.length; i++) {
+        if (bytes[i] !== signature[i]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) {
+        detectedType = mimeType;
         break;
       }
     }
-    if (match) {
-      detectedType = mimeType;
-      break;
+
+    if (!detectedType) return false;
+
+    const isValidBasic = (MIME_COMPATIBILITY[declaredMime] ?? []).includes(
+      detectedType,
+    );
+    if (!isValidBasic) return false;
+
+    // Deeper inspection of PPT/PPTX files
+    if (
+      declaredMime ===
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    ) {
+      return await hasZipEntry(file, "ppt/presentation.xml");
     }
+    if (declaredMime === "application/vnd.ms-powerpoint") {
+      return await hasOleStream(file, "PowerPoint Document");
+    }
+
+    return true;
+  } catch (error) {
+    if (
+      error instanceof RangeError ||
+      error instanceof TypeError ||
+      (error instanceof DOMException && error.name === "InvalidStateError")
+    ) {
+      return false;
+    }
+    throw error;
   }
-
-  if (!detectedType) return false;
-
-  const isValidBasic = (MIME_COMPATIBILITY[declaredMime] ?? []).includes(
-    detectedType,
-  );
-  if (!isValidBasic) return false;
-
-  // Deeper inspection of PPT/PPTX files
-  if (
-    declaredMime ===
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-  ) {
-    return hasZipEntry(file, "ppt/presentation.xml");
-  } else if (declaredMime === "application/vnd.ms-powerpoint") {
-    return hasOleStream(file, "PowerPoint Document");
-  }
-
-  return true;
 }
