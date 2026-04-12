@@ -43,6 +43,16 @@ function matchesMagicPrefix(
   return true;
 }
 
+function detectMagicNumberMime(bytes: Uint8Array): string | null {
+  for (const [signature, mime] of MAGIC_NUMBER_MAP) {
+    if (matchesMagicPrefix(bytes, signature)) {
+      return mime;
+    }
+  }
+
+  return null;
+}
+
 // Helper function to efficiently parse ZIP Central Directory to find a specific entry
 async function hasZipEntry(file: File, targetEntry: string): Promise<boolean> {
   const CHUNK_SIZE = 65536 + 22; // Max comment size + EOCD size
@@ -131,7 +141,11 @@ async function parseOleHeader(file: File): Promise<OleHeader | null> {
   return { sectorSize, dirSector, fatSectors };
 }
 
-function createFatReader(file: File, sectorSize: number, fatSectors: number[]) {
+function createFatReader(
+  file: File,
+  sectorSize: number,
+  fatSectors: number[],
+): (sectorIndex: number) => Promise<number> {
   const loadedFatSectors = new Map<number, DataView>();
   return async (sectorIndex: number): Promise<number> => {
     const entriesPerFatSector = sectorSize / 4;
@@ -171,7 +185,7 @@ function checkDirectorySector(
     const nameLength = dirView.getUint16(entryOffset + 64, true);
     const objectType = dirView.getUint8(entryOffset + 66);
 
-    if (objectType === 0) continue; // Empty entry
+    if (objectType !== 2) continue; // Stream entry only
 
     if (nameLength === targetLength) {
       let match = true;
@@ -243,56 +257,7 @@ export async function validateMagicNumbers(
   const buffer = await file.slice(0, MAX_MAGIC_SIZE).arrayBuffer();
   const bytes = new Uint8Array(buffer);
 
-  let detectedType: string | null = null;
-  if (
-    bytes.length >= 5 &&
-    bytes[0] === 0x25 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x44 &&
-    bytes[3] === 0x46 &&
-    bytes[4] === 0x2d
-  ) {
-    detectedType = "application/pdf";
-  } else if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x89 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x4e &&
-    bytes[3] === 0x47 &&
-    bytes[4] === 0x0d &&
-    bytes[5] === 0x0a &&
-    bytes[6] === 0x1a &&
-    bytes[7] === 0x0a
-  ) {
-    detectedType = "image/png";
-  } else if (
-    bytes.length >= 3 &&
-    bytes[0] === 0xff &&
-    bytes[1] === 0xd8 &&
-    bytes[2] === 0xff
-  ) {
-    detectedType = "image/jpeg";
-  } else if (
-    bytes.length >= 8 &&
-    bytes[0] === 0xd0 &&
-    bytes[1] === 0xcf &&
-    bytes[2] === 0x11 &&
-    bytes[3] === 0xe0 &&
-    bytes[4] === 0xa1 &&
-    bytes[5] === 0xb1 &&
-    bytes[6] === 0x1a &&
-    bytes[7] === 0xe1
-  ) {
-    detectedType = "application/x-ole-storage";
-  } else if (
-    bytes.length >= 4 &&
-    bytes[0] === 0x50 &&
-    bytes[1] === 0x4b &&
-    bytes[2] === 0x03 &&
-    bytes[3] === 0x04
-  ) {
-    detectedType = "application/zip";
-  }
+  const detectedType = detectMagicNumberMime(bytes);
 
   if (!detectedType) return false;
 

@@ -43,7 +43,12 @@ function createMockZip(entries: string[]) {
   return result;
 }
 
-function createMockOle2(streams: string[]) {
+type MockOleEntry = {
+  name: string;
+  objectType?: number;
+};
+
+function createMockOle2(streams: Array<string | MockOleEntry>) {
   const buffer = new Uint8Array(1536);
   const view = new DataView(buffer.buffer);
 
@@ -65,15 +70,20 @@ function createMockOle2(streams: string[]) {
   }
 
   for (let i = 0; i < streams.length && i < 4; i++) {
-    const stream = streams[i];
+    const rawEntry = streams[i];
+    const entry =
+      typeof rawEntry === "string"
+        ? { name: rawEntry, objectType: 2 }
+        : { name: rawEntry.name, objectType: rawEntry.objectType ?? 2 };
+
     const entryOffset = 1024 + i * 128;
 
-    for (let j = 0; j < stream.length; j++) {
-      view.setUint16(entryOffset + j * 2, stream.charCodeAt(j), true);
+    for (let j = 0; j < entry.name.length; j++) {
+      view.setUint16(entryOffset + j * 2, entry.name.charCodeAt(j), true);
     }
-    view.setUint16(entryOffset + stream.length * 2, 0, true);
-    view.setUint16(entryOffset + 64, (stream.length + 1) * 2, true);
-    view.setUint8(entryOffset + 66, 2);
+    view.setUint16(entryOffset + entry.name.length * 2, 0, true);
+    view.setUint16(entryOffset + 64, (entry.name.length + 1) * 2, true);
+    view.setUint8(entryOffset + 66, entry.objectType);
   }
 
   return buffer;
@@ -168,6 +178,18 @@ describe("validateMagicNumbers", () => {
     await expect(
       validateMagicNumbers(ppt, "application/vnd.ms-powerpoint"),
     ).resolves.toBe(true);
+  });
+
+  it("rejects legacy PowerPoint files when the marker is not a stream entry", async () => {
+    const ppt = createFile(
+      "slides.ppt",
+      "application/vnd.ms-powerpoint",
+      createMockOle2([{ name: "PowerPoint Document", objectType: 1 }]),
+    );
+
+    await expect(
+      validateMagicNumbers(ppt, "application/vnd.ms-powerpoint"),
+    ).resolves.toBe(false);
   });
 
   it("rejects files with unknown signatures", async () => {
