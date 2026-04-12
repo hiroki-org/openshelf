@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'crypto';
-import { issueTestToken } from '../../helpers/auth';
-
-const apiURL = process.env.E2E_API_URL || 'http://localhost:8787';
-const testAuthSecret = process.env.TEST_AUTH_SECRET || 'test-secret';
-const testOrigin = process.env.E2E_BASE_URL || 'http://localhost:3000';
+import {
+  issueTestToken,
+  apiURL,
+  testAuthSecret,
+  testOrigin,
+} from '../../helpers/auth';
 
 test.describe('Backend Auth E2E', () => {
   test('test-token endpoint rejects requests without shared secret', async ({
@@ -69,9 +70,26 @@ test.describe('Backend Auth E2E', () => {
     });
   });
 
-  test('test-org endpoint validates payload then creates membership', async ({
+  test('test-org endpoint rejects requests without shared secret', async ({
     request,
   }) => {
+    const unauthorizedRes = await request.post(`${apiURL}/api/test-auth/test-org`, {
+      data: {
+        userId: randomUUID(),
+        orgId: randomUUID(),
+      },
+      headers: {
+        origin: testOrigin,
+        referer: testOrigin,
+      },
+    });
+    expect(unauthorizedRes.status()).toBe(401);
+    await expect(unauthorizedRes.json()).resolves.toMatchObject({
+      error: 'Unauthorized (E2E)',
+    });
+  });
+
+  test('test-org endpoint validates payload', async ({ request }) => {
     const { payload } = await issueTestToken(request, {
       name: `org-member-${randomUUID().slice(0, 8)}`,
     });
@@ -89,6 +107,14 @@ test.describe('Backend Auth E2E', () => {
     expect(invalidRes.status()).toBe(400);
     await expect(invalidRes.json()).resolves.toMatchObject({
       error: 'userId and orgId are required',
+    });
+  });
+
+  test('test-org endpoint creates membership with valid payload', async ({
+    request,
+  }) => {
+    const { payload } = await issueTestToken(request, {
+      name: `org-member-${randomUUID().slice(0, 8)}`,
     });
 
     const validRes = await request.post(`${apiURL}/api/test-auth/test-org`, {
