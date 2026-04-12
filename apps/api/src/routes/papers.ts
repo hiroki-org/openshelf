@@ -1292,7 +1292,11 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
 
     const keys = files.map((f) => f.r2Key);
     for (let i = 0; i < keys.length; i += 1000) {
-        await c.env.BUCKET.delete(keys.slice(i, i + 1000));
+        try {
+            await c.env.BUCKET.delete(keys.slice(i, i + 1000));
+        } catch {
+            // Continue deleting DB record even if R2 cleanup fails for a chunk.
+        }
     }
     await db.delete(papers).where(eq(papers.id, paperId));
 
