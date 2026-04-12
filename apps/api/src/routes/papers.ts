@@ -22,6 +22,7 @@ import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
 import { buildCitation, isCitationFormat } from "../utils/citation";
+import pMap from "p-map";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -645,25 +646,20 @@ papersRoute.post("/", authMiddleware, async (c) => {
     const uploadedKeys: string[] = [];
     try {
         const errors: unknown[] = [];
-        for (let i = 0; i < uploads.length; i += MAX_CONCURRENT_UPLOADS) {
-            const chunk = uploads.slice(i, i + MAX_CONCURRENT_UPLOADS);
-            const results = await Promise.allSettled(
-                chunk.map(async (entry) => {
+        await pMap(
+            uploads,
+            async (entry) => {
+                try {
                     await c.env.BUCKET.put(entry.r2Key, entry.file.stream() as any, {
                         httpMetadata: { contentType: entry.file.type },
                     });
-                    return entry.r2Key;
-                }),
-            );
-
-            for (const result of results) {
-                if (result.status === "fulfilled") {
-                    uploadedKeys.push(result.value);
-                } else {
-                    errors.push(result.reason);
+                    uploadedKeys.push(entry.r2Key);
+                } catch (e) {
+                    errors.push(e);
                 }
-            }
-        }
+            },
+            { concurrency: MAX_CONCURRENT_UPLOADS, stopOnError: false }
+        );
 
         if (errors.length > 0) {
             console.error("File upload errors:", { errors });
