@@ -3,7 +3,7 @@ import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { sign } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
 import { eq } from "drizzle-orm";
-import { users, enableForeignKeys, touchUpdatedAt } from "../db/schema";
+import { users, orgs, orgMembers, enableForeignKeys, touchUpdatedAt } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { parseOriginList, resolveAllowedOrigin } from "../utils/origin";

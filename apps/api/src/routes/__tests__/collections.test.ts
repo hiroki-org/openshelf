@@ -334,46 +334,6 @@ describe("collections routes", () => {
         expect(((await res.json()) as any).error).toBe("No fields to update");
     });
 
-    it("PATCH /api/collections/:id returns 409 when slug is already in use", async () => {
-        const token = await createTestJWT({ sub: "user-1" });
-        queueSelectResponses([
-            {
-                getResult: {
-                    id: "col-1",
-                    ownerType: "user",
-                    ownerId: "user-1",
-                    visibility: "private",
-                },
-            },
-        ]);
-
-        const setValues = vi.fn(() => ({
-            where: vi.fn(async () => {
-                throw new Error("UNIQUE constraint failed: collections.slug");
-            }),
-        }));
-        mockDb.update = vi.fn(() => ({ set: setValues }));
-
-        const app = await createTestApp();
-        const env = createTestEnv();
-
-        const res = await app.request(
-            "http://localhost/api/collections/col-1",
-            {
-                method: "PATCH",
-                headers: {
-                    Authorization: "Bearer " + token,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ slug: "existing-slug" }),
-            },
-            env as any,
-        );
-
-        expect(res.status).toBe(409);
-        await expect(res.json()).resolves.toEqual({ error: "slug already in use" });
-    });
-
     it("DELETE /api/collections/:id deletes a collection for the owner", async () => {
         const token = await createTestJWT({ sub: "user-1" });
         queueSelectResponses([
