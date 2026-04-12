@@ -31,6 +31,6 @@
   "dependencies": {
     "drizzle-orm": "^0.45.2",
     "hono": "^4.12.12",
-    "p-map": "^7.0.4"
+    "p-map": "^4.0.0"
   }
 }
