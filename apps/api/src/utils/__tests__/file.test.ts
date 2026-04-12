@@ -73,7 +73,7 @@ function createMockOle2(streams: string[]) {
     }
     view.setUint16(entryOffset + stream.length * 2, 0, true);
     view.setUint16(entryOffset + 64, (stream.length + 1) * 2, true);
-    view.setUint8(entryOffset + 66, 2);
+    view.setUint8(entryOffset + 66, stream === "non_stream" ? 1 : 2);
   }
 
   return buffer;
@@ -189,8 +189,38 @@ describe("validateMagicNumbers", () => {
       new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
     );
 
+    await expect(validateMagicNumbers(truncatedPng, "image/png")).resolves.toBe(
+      false,
+    );
+  });
+
+  it("rejects legacy PowerPoint files when the target entry is not a stream (objectType !== 2)", async () => {
+    const ppt = createFile(
+      "slides.ppt",
+      "application/vnd.ms-powerpoint",
+      createMockOle2(["non_stream"]),
+    );
+    // Overwrite the stream name in the buffer to match "PowerPoint Document"
+    // but keep the objectType as 1 (storage) set by our updated mock
+    const buffer = new Uint8Array(await ppt.arrayBuffer());
+    const view = new DataView(buffer.buffer);
+    const targetStream = "PowerPoint Document";
+    const entryOffset = 1024 + 0 * 128; // First entry
+
+    for (let j = 0; j < targetStream.length; j++) {
+      view.setUint16(entryOffset + j * 2, targetStream.charCodeAt(j), true);
+    }
+    view.setUint16(entryOffset + targetStream.length * 2, 0, true);
+    view.setUint16(entryOffset + 64, (targetStream.length + 1) * 2, true);
+    // Ensure objectType is still 1
+    view.setUint8(entryOffset + 66, 1);
+
+    const modifiedPpt = new File([buffer], "slides.ppt", {
+      type: "application/vnd.ms-powerpoint",
+    });
+
     await expect(
-      validateMagicNumbers(truncatedPng, "image/png"),
+      validateMagicNumbers(modifiedPpt, "application/vnd.ms-powerpoint"),
     ).resolves.toBe(false);
   });
 });
