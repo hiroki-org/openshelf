@@ -645,29 +645,26 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
     const uploadedKeys: string[] = [];
     try {
-        const uploadResults = await pMap(
+        const errors: unknown[] = [];
+        const results = await pMap(
             uploads,
-            async (entry): Promise<{ r2Key: string; error: unknown | null }> => {
+            async (entry) => {
                 try {
                     await c.env.BUCKET.put(entry.r2Key, entry.file.stream() as any, {
                         httpMetadata: { contentType: entry.file.type },
                     });
                     return { r2Key: entry.r2Key, error: null };
                 } catch (e) {
-                    return { r2Key: entry.r2Key, error: e };
+                    return { r2Key: null, error: e };
                 }
             },
             { concurrency: MAX_CONCURRENT_UPLOADS }
         );
 
-        const errors = uploadResults
-            .filter((result) => result.error !== null)
-            .map((result) => result.error);
-        uploadedKeys.push(
-            ...uploadResults
-                .filter((result) => result.error === null)
-                .map((result) => result.r2Key),
-        );
+        for (const res of results) {
+            if (res.error) errors.push(res.error);
+            else if (res.r2Key) uploadedKeys.push(res.r2Key);
+        }
 
         if (errors.length > 0) {
             console.error("File upload errors:", { errors });
