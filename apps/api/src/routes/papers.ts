@@ -696,8 +696,9 @@ papersRoute.post("/", authMiddleware, async (c) => {
         for (let i = 0; i < uploadedKeys.length; i += 1000) {
             try {
                 await c.env.BUCKET.delete(uploadedKeys.slice(i, i + 1000));
-            } catch {
+            } catch (e) {
                 // Ignore cleanup errors
+                console.error("Cleanup failed intentionally:", e.message);
             }
         }
         await db.delete(papers).where(eq(papers.id, paperId));
@@ -1292,11 +1293,7 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
 
     const keys = files.map((f) => f.r2Key);
     for (let i = 0; i < keys.length; i += 1000) {
-        try {
-            await c.env.BUCKET.delete(keys.slice(i, i + 1000));
-        } catch {
-            // Continue deleting DB record even if R2 cleanup fails for a chunk.
-        }
+        await c.env.BUCKET.delete(keys.slice(i, i + 1000));
     }
     await db.delete(papers).where(eq(papers.id, paperId));
 
