@@ -7,6 +7,16 @@ import {
   testOrigin,
 } from '../../helpers/auth';
 
+const baseHeaders = {
+  origin: testOrigin,
+  referer: testOrigin,
+};
+
+const testAuthHeaders = {
+  ...baseHeaders,
+  'x-test-auth-secret': testAuthSecret,
+};
+
 test.describe('Backend Auth E2E', () => {
   test('test-token endpoint rejects requests without shared secret', async ({
     request,
@@ -17,10 +27,7 @@ test.describe('Backend Auth E2E', () => {
         githubId: randomUUID(),
         name: 'No Secret User',
       },
-      headers: {
-        origin: testOrigin,
-        referer: testOrigin,
-      },
+      headers: baseHeaders,
     });
 
     expect(res.status()).toBe(401);
@@ -35,11 +42,7 @@ test.describe('Backend Auth E2E', () => {
         sub: randomUUID(),
         githubId: randomUUID(),
       },
-      headers: {
-        'x-test-auth-secret': testAuthSecret,
-        origin: testOrigin,
-        referer: testOrigin,
-      },
+      headers: testAuthHeaders,
     });
 
     expect(res.status()).toBe(400);
@@ -78,10 +81,7 @@ test.describe('Backend Auth E2E', () => {
         userId: randomUUID(),
         orgId: randomUUID(),
       },
-      headers: {
-        origin: testOrigin,
-        referer: testOrigin,
-      },
+      headers: baseHeaders,
     });
     expect(unauthorizedRes.status()).toBe(401);
     await expect(unauthorizedRes.json()).resolves.toMatchObject({
@@ -98,11 +98,7 @@ test.describe('Backend Auth E2E', () => {
       data: {
         userId: payload.sub,
       },
-      headers: {
-        'x-test-auth-secret': testAuthSecret,
-        origin: testOrigin,
-        referer: testOrigin,
-      },
+      headers: testAuthHeaders,
     });
     expect(invalidRes.status()).toBe(400);
     await expect(invalidRes.json()).resolves.toMatchObject({
@@ -122,11 +118,7 @@ test.describe('Backend Auth E2E', () => {
         userId: payload.sub,
         orgId: randomUUID(),
       },
-      headers: {
-        'x-test-auth-secret': testAuthSecret,
-        origin: testOrigin,
-        referer: testOrigin,
-      },
+      headers: testAuthHeaders,
     });
     expect(validRes.status()).toBe(200);
     await expect(validRes.json()).resolves.toMatchObject({ ok: true });
