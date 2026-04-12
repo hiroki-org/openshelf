@@ -698,7 +698,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
                 await c.env.BUCKET.delete(uploadedKeys.slice(i, i + 1000));
             } catch (e) {
                 // Ignore cleanup errors
-                console.error("Cleanup failed intentionally:", e.message);
+                console.error("Cleanup failed intentionally:", e instanceof Error ? e.message : String(e));
             }
         }
         await db.delete(papers).where(eq(papers.id, paperId));
