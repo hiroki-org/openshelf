@@ -1,0 +1,50 @@
+name: OSV Auto Fix
+
+on:
+  workflow_run:
+    workflows: ["OSV-Scanner"]
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-fix:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Fix NPM vulnerabilities
+        run: |
+          npm install --ignore-scripts
+          npm audit fix
+
+          # Fix apps/web if present
+          if [ -d "apps/web" ]; then
+            npm --prefix apps/web install --ignore-scripts
+            npm --prefix apps/web audit fix
+          fi
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(security): fix vulnerabilities detected by OSV-Scanner"
+          title: "chore(security): auto-fix vulnerabilities"
+          body: |
+            Automated PR to fix vulnerabilities detected by OSV-Scanner.
+
+            This PR was created automatically because the `OSV-Scanner` workflow failed on the `main` branch.
+          branch: "security/auto-fix-osv-vulnerabilities"
+          base: main
