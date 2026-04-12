@@ -696,10 +696,10 @@ papersRoute.post("/", authMiddleware, async (c) => {
         for (let i = 0; i < uploadedKeys.length; i += 1000) {
             try {
                 await c.env.BUCKET.delete(uploadedKeys.slice(i, i + 1000));
-            } /* v8 ignore start */ catch (e) {
+            } catch (e) {
                 // Ignore cleanup errors
                 console.error("Cleanup failed intentionally:", e instanceof Error ? e.message : String(e));
-            } /* v8 ignore stop */
+            }
         }
         await db.delete(papers).where(eq(papers.id, paperId));
         throw error;
