@@ -24,9 +24,9 @@ jobs:
           fetch-depth: 0
       - name: Create or update staging -> main PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PROMOTION_PR_TOKEN || github.token }}
           GH_REPO: ${{ github.repository }}
           PROMOTION_PR_LABELS: ${{ vars.PROMOTION_PR_LABELS || 'release,automated' }}
-          PROMOTION_PR_ASSIGNEES: ${{ vars.PROMOTION_PR_ASSIGNEES || 'is0692vs' }}
-          PROMOTION_PR_REVIEWERS: ${{ vars.PROMOTION_PR_REVIEWERS || 'is0692vs' }}
+          PROMOTION_PR_ASSIGNEES: ${{ vars.PROMOTION_PR_ASSIGNEES || '' }}
+          PROMOTION_PR_REVIEWERS: ${{ vars.PROMOTION_PR_REVIEWERS || '' }}
         run: bash .github/scripts/create-staging-to-main-pr.sh
