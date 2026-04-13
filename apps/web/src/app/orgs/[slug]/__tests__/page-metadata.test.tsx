@@ -10,17 +10,11 @@ describe("orgs/[slug]/page metadata", () => {
   const originalPublicApiUrl = process.env.NEXT_PUBLIC_API_URL;
   afterEach(() => {
     cleanup();
-    if (originalApiUrl === undefined) {
-      delete process.env.API_URL;
-    } else {
-      process.env.API_URL = originalApiUrl;
-    }
+    if (originalApiUrl === undefined) delete process.env.API_URL;
+    else process.env.API_URL = originalApiUrl;
 
-    if (originalPublicApiUrl === undefined) {
-      delete process.env.NEXT_PUBLIC_API_URL;
-    } else {
-      process.env.NEXT_PUBLIC_API_URL = originalPublicApiUrl;
-    }
+    if (originalPublicApiUrl === undefined) delete process.env.NEXT_PUBLIC_API_URL;
+    else process.env.NEXT_PUBLIC_API_URL = originalPublicApiUrl;
 
     vi.restoreAllMocks();
   });
