@@ -49,7 +49,7 @@ existing_pr_url=$(
 
 if [ -n "$existing_pr_url" ]; then
   echo "Sync PR already open: $existing_pr_url"
-  exit 0
+  echo "Will attempt direct merge first, and close the PR if successful."
 fi
 
 ahead_by=$(
@@ -60,6 +60,23 @@ ahead_by=$(
 if [ "${ahead_by:-0}" -eq 0 ]; then
   echo "No commits to sync from $HEAD_BRANCH into $BASE_BRANCH."
   exit 0
+fi
+
+if [ "$DRY_RUN" != "1" ]; then
+  echo "Attempting direct merge: $HEAD_BRANCH -> $BASE_BRANCH"
+  if gh api --method POST "repos/$GH_REPO/merges" \
+    -f base="$BASE_BRANCH" \
+    -f head="$HEAD_BRANCH" \
+    -f commit_message="chore: sync $HEAD_BRANCH into $BASE_BRANCH" > /dev/null; then
+    echo "Successfully merged $HEAD_BRANCH into $BASE_BRANCH directly."
+    if [ -n "$existing_pr_url" ]; then
+      echo "Closing existing sync PR: $existing_pr_url"
+      gh pr close "$existing_pr_url" --repo "$GH_REPO" || true
+    fi
+    exit 0
+  else
+    echo "Direct merge failed (e.g. conflicts). Falling back to creating a PR."
+  fi
 fi
 
 title="chore: sync $HEAD_BRANCH into $BASE_BRANCH"
@@ -87,6 +104,8 @@ parse_csv_values "$SYNC_PR_ASSIGNEES" assignee_values
 parse_csv_values "$SYNC_PR_REVIEWERS" reviewer_values
 
 if [ "$DRY_RUN" = "1" ]; then
+  echo "DRY_RUN=1, attempting simulated direct merge:"
+  echo "  gh api --method POST repos/$GH_REPO/merges -f base=$BASE_BRANCH -f head=$HEAD_BRANCH"
   echo "DRY_RUN=1, skipping PR creation."
   echo "Would create PR: $HEAD_BRANCH -> $BASE_BRANCH"
   echo "Title: $title"
