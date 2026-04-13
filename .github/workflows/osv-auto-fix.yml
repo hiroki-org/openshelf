@@ -33,18 +33,23 @@ jobs:
         run: |
           npm install --ignore-scripts
           npm audit fix
-          npm update brace-expansion
 
           # Fix apps/web if present
           if [ -d "apps/web" ]; then
             npm --prefix apps/web install --ignore-scripts
             npm --prefix apps/web audit fix
-            npm --prefix apps/web update brace-expansion
           fi
+
+      - name: Ensure PR token is configured
+        if: ${{ !secrets.OSV_AUTO_FIX_TOKEN && !secrets.SYNC_PR_TOKEN }}
+        run: |
+          echo "::error::Set OSV_AUTO_FIX_TOKEN or SYNC_PR_TOKEN to create auto-fix PRs with CI-triggering credentials."
+          exit 1
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@67df0571927e887e4d593f7a4b15a4b86b8d4fac # v6.0.6
         with:
+          token: ${{ secrets.OSV_AUTO_FIX_TOKEN || secrets.SYNC_PR_TOKEN }}
           commit-message: "chore(security): fix vulnerabilities detected by OSV-Scanner"
           title: "chore(security): auto-fix vulnerabilities"
           body: |

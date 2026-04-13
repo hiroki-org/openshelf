@@ -76,6 +76,11 @@ if [ "$DRY_RUN" != "1" ]; then
     exit 0
   else
     echo "Direct merge failed (e.g. conflicts). Falling back to creating a PR."
+    if [ -n "$existing_pr_url" ]; then
+      echo "Existing sync PR remains open: $existing_pr_url"
+      echo "Skipping PR creation because a sync PR already exists."
+      exit 0
+    fi
   fi
 fi
 
