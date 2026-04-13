@@ -422,6 +422,7 @@ describe("papers routes", () => {
 
         // Spy on BUCKET.delete
         const bucketDeleteSpy = vi.spyOn(env.BUCKET, "delete").mockRejectedValue(new Error("Cleanup failed"));
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
         const form = new FormData();
         form.set("metadata", JSON.stringify({ title: "Test Paper", visibility: "private" }));
@@ -449,10 +450,22 @@ describe("papers routes", () => {
         expect(deletedKeys).toEqual(
             expect.arrayContaining([expect.stringContaining("papers/")]),
         );
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+            "Cleanup error (non-fatal, rollback continues)",
+            expect.objectContaining({
+                chunkStart: 0,
+                chunkEndExclusive: 1,
+                chunkSize: 1,
+                chunkSample: expect.arrayContaining([expect.stringContaining("papers/")]),
+                error: "Cleanup failed",
+            }),
+        );
 
         // db.delete should be called for papers
         expect(mockDb.delete).toHaveBeenCalledTimes(1);
         expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
+        consoleErrorSpy.mockRestore();
+        bucketDeleteSpy.mockRestore();
     });
 
     it("POST /api/papers rejects upload when content does not match declared MIME", async () => {
