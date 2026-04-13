@@ -168,11 +168,7 @@ done < <(
     awk '!seen[$0]++'
 )
 
-if [ "${#pr_numbers[@]}" -gt 0 ]; then
-  included_pr_lines="$(build_included_pr_lines "${pr_numbers[@]}")"
-else
-  included_pr_lines="$(build_included_pr_lines)"
-fi
+included_pr_lines="$(build_included_pr_lines "${pr_numbers[@]}")"
 body="$(build_body "$included_pr_lines")"
 
 declare -a label_values=()
@@ -191,10 +187,7 @@ while IFS= read -r value; do
   reviewer_values+=("$value")
 done < <(csv_to_lines "$PROMOTION_PR_REVIEWERS")
 
-if [ "$DRY_RUN" = "1" ]; then
-  echo "DRY_RUN=1, skipping direct merge attempt."
-  echo "Would attempt direct merge: $HEAD_BRANCH -> $BASE_BRANCH"
-else
+if [ "$DRY_RUN" != "1" ]; then
   echo "Attempting direct merge: $HEAD_BRANCH -> $BASE_BRANCH"
   if gh api --method POST "repos/$GH_REPO/merges" \
     -f base="$BASE_BRANCH" \
@@ -212,6 +205,8 @@ else
 fi
 
 if [ "$DRY_RUN" = "1" ]; then
+  echo "DRY_RUN=1, attempting simulated direct merge:"
+  echo "  gh api --method POST repos/$GH_REPO/merges -f base=$BASE_BRANCH -f head=$HEAD_BRANCH"
   if [ -n "$existing_pr_number" ] && [ "$UPDATE_EXISTING_PR" = "1" ]; then
     echo "DRY_RUN=1, skipping PR update."
     echo "Would update PR #$existing_pr_number: $existing_pr_url"
