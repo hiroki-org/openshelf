@@ -113,6 +113,22 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    const handleNativeTouchMove = (event: Event) => {
+      const touchEvent = event as globalThis.TouchEvent;
+      if (!pinchStateRef.current || touchEvent.touches.length !== 2) return;
+      touchEvent.preventDefault();
+    };
+
+    node.addEventListener("touchmove", handleNativeTouchMove, { passive: false });
+    return () => {
+      node.removeEventListener("touchmove", handleNativeTouchMove);
+    };
+  }, []);
+
   const pageWidth = useMemo(() => {
     if (containerWidth <= 0) return undefined;
     return Math.max(280, Math.floor(containerWidth * zoom));
@@ -125,6 +141,10 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const activePage = viewMode === "continuous" ? visiblePage : pageNumber;
   const canPrev = activePage > 1;
   const canNext = numPages > 0 && activePage < numPages;
+  const searchMatchSet = useMemo(
+    () => new Set(searchMatches),
+    [searchMatches],
+  );
   const pages = useMemo(
     () => Array.from({ length: numPages }, (_, index) => index + 1),
     [numPages],
@@ -170,10 +190,10 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   );
 
   const onDocumentLoadSuccess = useCallback((info: unknown) => {
-    const document = info as PdfDocumentProxy;
-    pdfDocumentRef.current = document;
+    const pdfDocument = info as PdfDocumentProxy;
+    pdfDocumentRef.current = pdfDocument;
     searchTextCacheRef.current.clear();
-    setNumPages(document.numPages);
+    setNumPages(pdfDocument.numPages);
     setPageNumber(1);
     setVisiblePage(1);
     setSearchMatches([]);
@@ -482,7 +502,11 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           >
             次の一致
           </button>
-          <span className="text-xs text-gray-500 dark:text-gray-300">
+          <span
+            aria-live="polite"
+            aria-atomic="true"
+            className="text-xs text-gray-500 dark:text-gray-300"
+          >
             {searchQuery.trim().length === 0
               ? ""
               : searchMatches.length === 0
@@ -539,7 +563,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
                 {pages.map((targetPage) => {
                   const isVisibleByBuffer =
                     targetPage >= renderRange.start && targetPage <= renderRange.end;
-                  const isSearchMatch = searchMatches.includes(targetPage);
+                  const isSearchMatch = searchMatchSet.has(targetPage);
                   const isActiveSearchMatch = activeMatchPage === targetPage;
                   const shouldRender = isVisibleByBuffer || isActiveSearchMatch;
 
