@@ -694,14 +694,16 @@ papersRoute.post("/", authMiddleware, async (c) => {
             })),
         );
     } catch (error) {
+        const cleanupPromises: Promise<void>[] = [];
         for (let i = 0; i < uploadedKeys.length; i += 1000) {
-            try {
-                await c.env.BUCKET.delete(uploadedKeys.slice(i, i + 1000));
-            } /* v8 ignore start */ catch (e) {
-                // Ignore cleanup errors
-                console.error("Cleanup failed intentionally:", e instanceof Error ? e.message : String(e));
-            } /* v8 ignore stop */
+            cleanupPromises.push(
+                c.env.BUCKET.delete(uploadedKeys.slice(i, i + 1000)).catch((e) => {
+                    // Ignore cleanup errors
+                    console.error("Cleanup failed intentionally:", e instanceof Error ? e.message : String(e));
+                }),
+            );
         }
+        await Promise.all(cleanupPromises);
         await db.delete(papers).where(eq(papers.id, paperId));
         throw error;
     }
@@ -1293,9 +1295,11 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
         .all();
 
     const keys = files.map((f) => f.r2Key);
+    const deletePromises: Promise<void>[] = [];
     for (let i = 0; i < keys.length; i += 1000) {
-        await c.env.BUCKET.delete(keys.slice(i, i + 1000));
+        deletePromises.push(c.env.BUCKET.delete(keys.slice(i, i + 1000)));
     }
+    await Promise.all(deletePromises);
     await db.delete(papers).where(eq(papers.id, paperId));
 
     return c.json({ ok: true });

@@ -31,7 +31,7 @@ test.describe('Backend Auth E2E', () => {
     });
 
     expect(res.status()).toBe(401);
-    await expect(res.json()).resolves.toMatchObject({
+    await expect(res.json()).resolves.toEqual({
       error: 'Unauthorized (E2E)',
     });
   });
@@ -46,7 +46,7 @@ test.describe('Backend Auth E2E', () => {
     });
 
     expect(res.status()).toBe(400);
-    await expect(res.json()).resolves.toMatchObject({
+    await expect(res.json()).resolves.toEqual({
       error: 'Invalid request body',
     });
   });
@@ -64,11 +64,16 @@ test.describe('Backend Auth E2E', () => {
     });
 
     expect(res.status()).toBe(200);
-    await expect(res.json()).resolves.toMatchObject({
+    await expect(res.json()).resolves.toEqual({
       user: {
         id: payload.sub,
         githubId: payload.githubId,
         name: payload.name,
+        displayName: null,
+        avatarUrl: null,
+        email: null,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
       },
     });
   });
@@ -84,7 +89,7 @@ test.describe('Backend Auth E2E', () => {
       headers: baseHeaders,
     });
     expect(unauthorizedRes.status()).toBe(401);
-    await expect(unauthorizedRes.json()).resolves.toMatchObject({
+    await expect(unauthorizedRes.json()).resolves.toEqual({
       error: 'Unauthorized (E2E)',
     });
   });
@@ -101,7 +106,7 @@ test.describe('Backend Auth E2E', () => {
       headers: testAuthHeaders,
     });
     expect(invalidRes.status()).toBe(400);
-    await expect(invalidRes.json()).resolves.toMatchObject({
+    await expect(invalidRes.json()).resolves.toEqual({
       error: 'userId and orgId are required',
     });
   });
@@ -121,6 +126,6 @@ test.describe('Backend Auth E2E', () => {
       headers: testAuthHeaders,
     });
     expect(validRes.status()).toBe(200);
-    await expect(validRes.json()).resolves.toMatchObject({ ok: true });
+    await expect(validRes.json()).resolves.toEqual({ ok: true });
   });
 });
