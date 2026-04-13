@@ -421,7 +421,7 @@ describe("papers routes", () => {
         const env = createTestEnv({ DB: mockDb as any });
 
         // Spy on BUCKET.delete
-        const bucketDeleteSpy = vi.spyOn(env.BUCKET, "delete");
+        const bucketDeleteSpy = vi.spyOn(env.BUCKET, "delete").mockRejectedValue(new Error("Cleanup failed"));
 
         const form = new FormData();
         form.set("metadata", JSON.stringify({ title: "Test Paper", visibility: "private" }));
