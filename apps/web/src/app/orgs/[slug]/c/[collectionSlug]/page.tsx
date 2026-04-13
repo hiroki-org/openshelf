@@ -26,9 +26,7 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:8787";
 const PUBLIC_API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ??
-  process.env.API_URL ??
-  "http://localhost:8787";
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787";
 const SITE_BASE =
   process.env.SITE_URL ??
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -78,6 +76,15 @@ export async function generateMetadata(props: {
   params: Params | Promise<Params>;
 }): Promise<Metadata> {
   const { slug, collectionSlug } = await Promise.resolve(props.params);
+  let safeSlug: string;
+  let safeCollectionSlug: string;
+  try {
+    safeSlug = safePath(slug);
+    safeCollectionSlug = safePath(collectionSlug);
+  } catch {
+    return { title: "コレクション詳細 | OpenShelf" };
+  }
+
   const data = await fetchCollectionMetadata(slug, collectionSlug);
 
   if (!data) {
@@ -87,7 +94,7 @@ export async function generateMetadata(props: {
       title,
       openGraph: {
         title,
-        url: `${SITE_BASE}/orgs/${slug}/c/${collectionSlug}`,
+        url: `${SITE_BASE}/orgs/${safeSlug}/c/${safeCollectionSlug}`,
         images: [{ url: ogImage, width: 1200, height: 630 }],
       },
       twitter: {
@@ -102,7 +109,7 @@ export async function generateMetadata(props: {
   const description =
     data.collection.description ?? `${data.orgName} のコレクション`;
   const ogImage = buildOgImageUrl(data.collection.name, data.orgName);
-  const feedUrl = `${PUBLIC_API_BASE}/feed/orgs/${slug}/collections/${collectionSlug}/atom.xml`;
+  const feedUrl = `${PUBLIC_API_BASE}/feed/orgs/${safeSlug}/collections/${safeCollectionSlug}/atom.xml`;
 
   return {
     title,
@@ -116,7 +123,7 @@ export async function generateMetadata(props: {
       title,
       description,
       type: "website",
-      url: `${SITE_BASE}/orgs/${slug}/c/${collectionSlug}`,
+      url: `${SITE_BASE}/orgs/${safeSlug}/c/${safeCollectionSlug}`,
       images: [{ url: ogImage, width: 1200, height: 630 }],
     },
     twitter: {

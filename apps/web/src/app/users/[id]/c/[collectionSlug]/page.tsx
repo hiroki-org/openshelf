@@ -27,9 +27,7 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:8787";
 const PUBLIC_API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ??
-  process.env.API_URL ??
-  "http://localhost:8787";
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787";
 const SITE_BASE =
   process.env.SITE_URL ??
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -65,9 +63,11 @@ export async function generateMetadata(props: {
   params: Params | Promise<Params>;
 }): Promise<Metadata> {
   const { id, collectionSlug } = await Promise.resolve(props.params);
+  let safeId: string;
+  let safeCollectionSlug: string;
   try {
-    safePath(id);
-    safePath(collectionSlug);
+    safeId = safePath(id);
+    safeCollectionSlug = safePath(collectionSlug);
   } catch {
     return { title: "OpenShelf" };
   }
@@ -80,7 +80,7 @@ export async function generateMetadata(props: {
   const title = `${data.collection.name} | ${data.userName} | OpenShelf`;
   const description =
     data.collection.description ?? `${data.userName} のコレクション`;
-  const feedUrl = `${PUBLIC_API_BASE}/feed/users/${id}/collections/${collectionSlug}/atom.xml`;
+  const feedUrl = `${PUBLIC_API_BASE}/feed/users/${safeId}/collections/${safeCollectionSlug}/atom.xml`;
 
   return {
     title,
@@ -93,7 +93,7 @@ export async function generateMetadata(props: {
     openGraph: {
       title,
       description,
-      url: `${SITE_BASE}/users/${id}/c/${collectionSlug}`,
+      url: `${SITE_BASE}/users/${safeId}/c/${safeCollectionSlug}`,
     },
   };
 }

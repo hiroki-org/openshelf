@@ -31,7 +31,7 @@ export default function UserCollectionPageClient({
   id,
   collectionSlug,
 }: UserCollectionPageClientProps) {
-  const feedUrl = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787"}/feed/users/${id}/collections/${collectionSlug}/atom.xml`;
+  const feedUrl = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787"}/feed/users/${safePath(id)}/collections/${safePath(collectionSlug)}/atom.xml`;
   const [collection, setCollection] = useState<Collection | null>(null);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [error, setError] = useState("");
