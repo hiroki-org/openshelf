@@ -696,10 +696,17 @@ papersRoute.post("/", authMiddleware, async (c) => {
     } catch (error) {
         const cleanupPromises: Promise<void>[] = [];
         for (let i = 0; i < uploadedKeys.length; i += 1000) {
+            const chunk = uploadedKeys.slice(i, i + 1000);
             cleanupPromises.push(
-                c.env.BUCKET.delete(uploadedKeys.slice(i, i + 1000)).catch((e) => {
+                c.env.BUCKET.delete(chunk).catch((e) => {
                     // Ignore cleanup errors
-                    console.error("Cleanup failed intentionally:", e instanceof Error ? e.message : String(e));
+                    console.error("Cleanup failed intentionally", {
+                        chunkStart: i,
+                        chunkEndExclusive: i + chunk.length,
+                        chunkSize: chunk.length,
+                        chunkSample: chunk.slice(0, 3),
+                        error: e instanceof Error ? e.message : String(e),
+                    });
                 }),
             );
         }
