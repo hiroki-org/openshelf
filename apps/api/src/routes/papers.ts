@@ -700,7 +700,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
             cleanupPromises.push(
                 c.env.BUCKET.delete(chunk).catch((e) => {
                     // Ignore cleanup errors
-                    console.error("Cleanup failed intentionally", {
+                    console.error("Cleanup error (non-fatal, rollback continues)", {
                         chunkStart: i,
                         chunkEndExclusive: i + chunk.length,
                         chunkSize: chunk.length,

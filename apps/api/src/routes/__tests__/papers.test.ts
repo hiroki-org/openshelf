@@ -451,7 +451,7 @@ describe("papers routes", () => {
             expect.arrayContaining([expect.stringContaining("papers/")]),
         );
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-            "Cleanup failed intentionally",
+            "Cleanup error (non-fatal, rollback continues)",
             expect.objectContaining({
                 chunkStart: 0,
                 chunkEndExclusive: 1,
@@ -465,6 +465,7 @@ describe("papers routes", () => {
         expect(mockDb.delete).toHaveBeenCalledTimes(1);
         expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
         consoleErrorSpy.mockRestore();
+        bucketDeleteSpy.mockRestore();
     });
 
     it("POST /api/papers rejects upload when content does not match declared MIME", async () => {
