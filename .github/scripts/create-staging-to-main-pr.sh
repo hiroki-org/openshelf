@@ -168,7 +168,11 @@ done < <(
     awk '!seen[$0]++'
 )
 
-included_pr_lines="$(build_included_pr_lines "${pr_numbers[@]}")"
+if [ "${#pr_numbers[@]}" -gt 0 ]; then
+  included_pr_lines="$(build_included_pr_lines "${pr_numbers[@]}")"
+else
+  included_pr_lines="$(build_included_pr_lines)"
+fi
 body="$(build_body "$included_pr_lines")"
 
 declare -a label_values=()
@@ -187,12 +191,15 @@ while IFS= read -r value; do
   reviewer_values+=("$value")
 done < <(csv_to_lines "$PROMOTION_PR_REVIEWERS")
 
-if [ "$DRY_RUN" != "1" ]; then
+if [ "$DRY_RUN" = "1" ]; then
+  echo "DRY_RUN=1, skipping direct merge attempt."
+  echo "Would attempt direct merge: $HEAD_BRANCH -> $BASE_BRANCH"
+else
   echo "Attempting direct merge: $HEAD_BRANCH -> $BASE_BRANCH"
   if gh api --method POST "repos/$GH_REPO/merges" \
     -f base="$BASE_BRANCH" \
     -f head="$HEAD_BRANCH" \
-    -f commit_message="$PROMOTION_PR_TITLE" > /dev/null 2>&1; then
+    -f commit_message="$PROMOTION_PR_TITLE" > /dev/null; then
     echo "Successfully merged $HEAD_BRANCH into $BASE_BRANCH directly."
     if [ -n "$existing_pr_number" ]; then
       echo "Closing existing promotion PR: $existing_pr_url"

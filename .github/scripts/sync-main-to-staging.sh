@@ -37,19 +37,20 @@ parse_csv_values() {
   done
 }
 
-existing_pr_url=$(
+existing_pr_row="$(
   gh pr list \
     --repo "$GH_REPO" \
     --state open \
     --base "$BASE_BRANCH" \
     --head "$HEAD_BRANCH" \
-    --json url \
-    --jq '.[0].url // ""'
-)
+    --json number,url \
+    --jq 'if length > 0 then .[0] | [(.number | tostring), .url] | @tsv else "" end'
+)"
 
-if [ -n "$existing_pr_url" ]; then
-  echo "Sync PR already open: $existing_pr_url"
-  exit 0
+existing_pr_number=""
+existing_pr_url=""
+if [ -n "$existing_pr_row" ]; then
+  IFS=$'\t' read -r existing_pr_number existing_pr_url <<< "$existing_pr_row"
 fi
 
 ahead_by=$(
@@ -62,17 +63,29 @@ if [ "${ahead_by:-0}" -eq 0 ]; then
   exit 0
 fi
 
-if [ "$DRY_RUN" != "1" ]; then
+if [ "$DRY_RUN" = "1" ]; then
+  echo "DRY_RUN=1, skipping direct merge attempt."
+  echo "Would attempt direct merge: $HEAD_BRANCH -> $BASE_BRANCH"
+else
   echo "Attempting direct merge: $HEAD_BRANCH -> $BASE_BRANCH"
   if gh api --method POST "repos/$GH_REPO/merges" \
     -f base="$BASE_BRANCH" \
     -f head="$HEAD_BRANCH" \
-    -f commit_message="chore: sync $HEAD_BRANCH into $BASE_BRANCH" > /dev/null 2>&1; then
+    -f commit_message="chore: sync $HEAD_BRANCH into $BASE_BRANCH" > /dev/null; then
     echo "Successfully merged $HEAD_BRANCH into $BASE_BRANCH directly."
+    if [ -n "$existing_pr_number" ]; then
+      echo "Closing existing sync PR: $existing_pr_url"
+      gh pr close "$existing_pr_number" --repo "$GH_REPO" || true
+    fi
     exit 0
   else
     echo "Direct merge failed (e.g. conflicts). Falling back to creating a PR."
   fi
+fi
+
+if [ -n "$existing_pr_url" ]; then
+  echo "Sync PR already open: $existing_pr_url"
+  exit 0
 fi
 
 title="chore: sync $HEAD_BRANCH into $BASE_BRANCH"
