@@ -28,6 +28,6 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate live rulesets against manifest
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.SYNC_PR_TOKEN || github.token }}
           GH_REPO: ${{ github.repository }}
         run: bash .github/scripts/check-ruleset-drift.sh

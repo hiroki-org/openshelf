@@ -105,6 +105,13 @@ else
   gh api "repos/$repo/rulesets?per_page=100" | normalize_rulesets >"$actual_normalized"
 fi
 
+expected_count=$(jq '.rulesets | length' "$expected_normalized")
+actual_count=$(jq '.rulesets | length' "$actual_normalized")
+if [ "$expected_count" -gt 0 ] && [ "$actual_count" -eq 0 ]; then
+  echo "::error::No repository rulesets were visible to the token used by this workflow. Verify the token can read repository rulesets." >&2
+  exit 1
+fi
+
 if diff -u "$expected_normalized" "$actual_normalized"; then
   echo "✅ Ruleset manifest matches live GitHub state."
   exit 0
