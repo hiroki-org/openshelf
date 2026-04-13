@@ -62,6 +62,19 @@ if [ "${ahead_by:-0}" -eq 0 ]; then
   exit 0
 fi
 
+if [ "$DRY_RUN" != "1" ]; then
+  echo "Attempting direct merge: $HEAD_BRANCH -> $BASE_BRANCH"
+  if gh api --method POST "repos/$GH_REPO/merges" \
+    -f base="$BASE_BRANCH" \
+    -f head="$HEAD_BRANCH" \
+    -f commit_message="chore: sync $HEAD_BRANCH into $BASE_BRANCH" > /dev/null 2>&1; then
+    echo "Successfully merged $HEAD_BRANCH into $BASE_BRANCH directly."
+    exit 0
+  else
+    echo "Direct merge failed (e.g. conflicts). Falling back to creating a PR."
+  fi
+fi
+
 title="chore: sync $HEAD_BRANCH into $BASE_BRANCH"
 body=$(
   cat <<EOF
