@@ -51,3 +51,12 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+.react-pdf__Page {
+  position: relative;
+}
+
+.react-pdf__Page__textContent {
+  inset: 0;
+  user-select: text;
+}
