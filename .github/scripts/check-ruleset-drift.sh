@@ -70,11 +70,11 @@ normalize_rulesets() {
               }
             else
               (
-                .rules[]
+                (.rules // [])[]
                 | select(.type == "required_status_checks")
                 | {
                     contexts: (
-                      .parameters.required_status_checks
+                      (.parameters.required_status_checks // [])
                       | map(.context)
                       | sort
                     ),
