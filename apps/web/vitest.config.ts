@@ -1,7 +1,7 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, type UserConfig } from "vitest/config";
 import path from "node:path";
 
-export default defineConfig(async () => {
+export default defineConfig(async (): Promise<UserConfig> => {
     const { default: codspeedPlugin } = await import("@codspeed/vitest-plugin");
     return {
     plugins: [codspeedPlugin()],
@@ -25,5 +25,5 @@ export default defineConfig(async () => {
             reportsDirectory: "./coverage"
         }
     }
-    } as any;
+    };
 });
