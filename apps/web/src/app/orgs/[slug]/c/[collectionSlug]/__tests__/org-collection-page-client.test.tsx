@@ -94,6 +94,7 @@ describe("OrgCollectionPageClient", () => {
     await waitFor(() => {
       expect(screen.getByText("Featured")).toBeInTheDocument();
     });
+    expect(screen.getByRole("button", { name: "📡 Feed" })).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: "↓" })[0]);
 

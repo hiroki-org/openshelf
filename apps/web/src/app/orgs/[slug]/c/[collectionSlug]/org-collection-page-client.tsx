@@ -1,5 +1,6 @@
 "use client";
 
+import { FeedButton } from "@/components/feed-button";
 import { useAuth } from "@/components/auth-provider";
 import { apiFetch } from "@/lib/api";
 import Link from "next/link";
@@ -34,6 +35,7 @@ export default function OrgCollectionPageClient({
   collectionSlug,
 }: OrgCollectionPageClientProps) {
   const { user } = useAuth();
+  const feedUrl = `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787"}/feed/orgs/${safePath(slug)}/collections/${safePath(collectionSlug)}/atom.xml`;
   const [collection, setCollection] = useState<Collection | null>(null);
   const [papers, setPapers] = useState<Paper[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -135,15 +137,20 @@ export default function OrgCollectionPageClient({
         >
           ← 組織ページに戻る
         </Link>
-        <h1 className="text-2xl font-bold mt-2">{collection.name}</h1>
-        {collection.description && (
-          <p className="text-sm text-gray-600 mt-1 dark:text-gray-400">
-            {collection.description}
-          </p>
-        )}
-        <p className="text-xs text-gray-500 mt-2">
-          visibility: {collection.visibility}
-        </p>
+        <div className="mt-2 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">{collection.name}</h1>
+            {collection.description && (
+              <p className="text-sm text-gray-600 mt-1 dark:text-gray-400">
+                {collection.description}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-2">
+              visibility: {collection.visibility}
+            </p>
+          </div>
+          <FeedButton url={feedUrl} />
+        </div>
       </div>
 
       {papers.length === 0 ? (
