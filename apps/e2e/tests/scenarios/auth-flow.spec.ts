@@ -30,4 +30,33 @@ test.describe('Auth Flow', () => {
         await page.waitForURL(url => url.pathname !== '/upload');
         expect(page.url()).not.toContain('/upload');
     });
+
+    test('認証トークンで API にアクセスでき、ログアウト後は未認証になること', async ({ page }) => {
+        const user = await loginAsTestUser(page);
+        const token = await page.evaluate(() => localStorage.getItem('auth_token'));
+        expect(token).toBeTruthy();
+
+        const meRes = await page.request.get('/api/users/me', {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        expect(meRes.status()).toBe(200);
+        await expect(meRes.json()).resolves.toMatchObject({
+            user: {
+                id: user.sub,
+            },
+        });
+
+        await page.getByRole('button', { name: 'ログアウト' }).click();
+        await expect.poll(async () => {
+            return page.evaluate(() => localStorage.getItem('auth_token'));
+        }).toBeNull();
+
+        const unauthRes = await page.request.get('/api/users/me');
+        expect(unauthRes.status()).toBe(401);
+        await expect(unauthRes.json()).resolves.toMatchObject({
+            error: 'Unauthorized',
+        });
+    });
 });
