@@ -3,6 +3,7 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
-    # Default branch is always included; add staging-target PRs explicitly.
+    # Keep default-branch and staging-target PRs under automatic review.
     base_branches:
+      - "^main$"
       - "^staging$"
