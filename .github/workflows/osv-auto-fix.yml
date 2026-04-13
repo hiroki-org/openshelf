@@ -41,10 +41,14 @@ jobs:
           fi
 
       - name: Ensure PR token is configured
-        if: ${{ !secrets.OSV_AUTO_FIX_TOKEN && !secrets.SYNC_PR_TOKEN }}
+        env:
+          OSV_AUTO_FIX_TOKEN: ${{ secrets.OSV_AUTO_FIX_TOKEN }}
+          SYNC_PR_TOKEN: ${{ secrets.SYNC_PR_TOKEN }}
         run: |
-          echo "::error::Set OSV_AUTO_FIX_TOKEN or SYNC_PR_TOKEN to create auto-fix PRs with CI-triggering credentials."
-          exit 1
+          if [ -z "${OSV_AUTO_FIX_TOKEN}" ] && [ -z "${SYNC_PR_TOKEN}" ]; then
+            echo "::error::Set OSV_AUTO_FIX_TOKEN or SYNC_PR_TOKEN to create auto-fix PRs with CI-triggering credentials."
+            exit 1
+          fi
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@67df0571927e887e4d593f7a4b15a4b86b8d4fac # v6.0.6
