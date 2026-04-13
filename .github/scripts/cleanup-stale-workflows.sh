@@ -2,12 +2,20 @@
 
 set -euo pipefail
 
-GH_REPO=${GH_REPO:?GH_REPO is required}
+GH_REPO=${GH_REPO:-${GITHUB_REPOSITORY:-}}
 DRY_RUN=${DRY_RUN:-1}
+
+if [ -z "$GH_REPO" ]; then
+  echo "GH_REPO or GITHUB_REPOSITORY is required." >&2
+  exit 1
+fi
 
 default_branch="$(
   gh api "repos/$GH_REPO" --jq '.default_branch'
-)"
+)" || {
+  echo "Could not determine the default branch for $GH_REPO (gh api failed)." >&2
+  exit 1
+}
 
 if [ -z "$default_branch" ]; then
   echo "Could not determine the default branch for $GH_REPO." >&2
@@ -31,8 +39,19 @@ disabled_count=0
 
 workflow_exists_on_default_branch() {
   local workflow_path="$1"
+  local output
 
-  gh api "repos/$GH_REPO/contents/$workflow_path?ref=$default_branch" >/dev/null 2>&1
+  if output="$(gh api "repos/$GH_REPO/contents/$workflow_path?ref=$default_branch" 2>&1)"; then
+    return 0
+  fi
+
+  if printf '%s\n' "$output" | grep -Eq '(^|[^0-9])404([^0-9]|$)|Not Found'; then
+    return 1
+  fi
+
+  echo "Warning: failed to check $workflow_path on $default_branch; treating it as present to avoid accidental disable." >&2
+  echo "$output" >&2
+  return 0
 }
 
 disable_workflow() {
