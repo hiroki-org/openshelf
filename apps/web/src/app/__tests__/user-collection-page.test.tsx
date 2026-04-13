@@ -1,14 +1,10 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import UserCollectionPage from "../users/[id]/c/[collectionSlug]/page";
+import UserCollectionPageClient from "../users/[id]/c/[collectionSlug]/user-collection-page-client";
 import { apiFetch } from "@/lib/api";
 
 vi.mock("@/lib/api", () => ({
   apiFetch: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({
-  useParams: () => ({ id: "user-1", collectionSlug: "favorites" }),
 }));
 
 vi.mock("next/link", () => ({
@@ -67,7 +63,9 @@ describe("UserCollectionPage", () => {
       throw new Error(`Unexpected request: ${String(url)}`);
     });
 
-    render(<UserCollectionPage />);
+    render(
+      <UserCollectionPageClient id="user-1" collectionSlug="favorites" />,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("Favorites")).toBeInTheDocument();
@@ -82,7 +80,9 @@ describe("UserCollectionPage", () => {
       new Response(JSON.stringify({ collections: [] }), { status: 200 }),
     );
 
-    render(<UserCollectionPage />);
+    render(
+      <UserCollectionPageClient id="user-1" collectionSlug="favorites" />,
+    );
 
     expect(await screen.findByText("コレクションが見つかりません")).toBeInTheDocument();
   });

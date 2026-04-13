@@ -1,124 +1,113 @@
-"use client";
+import type { Metadata } from "next";
+import { safePath } from "@/lib/sanitization";
+import UserCollectionPageClient from "./user-collection-page-client";
 
-import { apiFetch } from "@/lib/api";
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+type Params = { id: string; collectionSlug: string };
+
+type UserResponse = {
+  user: {
+    id: string;
+    name: string;
+    displayName: string | null;
+  };
+};
 
 type Collection = {
-  id: string;
   slug: string;
   name: string;
   description: string | null;
-  visibility: string;
 };
 
-type Paper = {
-  id: string;
-  title: string;
-  abstract: string | null;
-  visibility: string;
-  sortOrder: number;
+type CollectionsResponse = {
+  collections: Collection[];
 };
 
-export default function UserCollectionPage() {
-  const { id, collectionSlug } = useParams<{
-    id: string;
-    collectionSlug: string;
-  }>();
+const API_BASE =
+  process.env.API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  "http://localhost:8787";
+const PUBLIC_API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787";
+const SITE_BASE =
+  process.env.SITE_URL ??
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  "http://localhost:3000";
 
-  const [collection, setCollection] = useState<Collection | null>(null);
-  const [papers, setPapers] = useState<Paper[]>([]);
-  const [error, setError] = useState("");
+async function fetchCollectionMetadata(id: string, collectionSlug: string) {
+  try {
+    const [userRes, collectionsRes] = await Promise.all([
+      fetch(`${API_BASE}/api/users/${safePath(id)}`, { cache: "no-store" }),
+      fetch(`${API_BASE}/api/users/${safePath(id)}/collections`, {
+        cache: "no-store",
+      }),
+    ]);
+    if (!userRes.ok || !collectionsRes.ok) return null;
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const listRes = await apiFetch(
-          `/api/users/${encodeURIComponent(id)}/collections`,
-        );
-        const listData = listRes.ok
-          ? await listRes.json()
-          : { collections: [] };
-        const found =
-          (listData.collections ?? []).find(
-            (c: Collection) => c.slug === collectionSlug,
-          ) ?? null;
-        if (!found) {
-          setError("コレクションが見つかりません");
-          return;
-        }
-        setCollection(found);
+    const userData = (await userRes.json()) as UserResponse;
+    const collectionsData = (await collectionsRes.json()) as CollectionsResponse;
+    const collection = collectionsData.collections.find(
+      (item) => item.slug === collectionSlug,
+    );
+    if (!collection) return null;
 
-        const papersRes = await apiFetch(
-          `/api/collections/${encodeURIComponent(found.id)}/papers`,
-        );
-        if (papersRes.ok) {
-          const papersData = await papersRes.json();
-          setPapers(
-            (papersData.papers ?? [])
-              .slice()
-              .sort((a: Paper, b: Paper) => a.sortOrder - b.sortOrder),
-          );
-        }
-      } catch {
-        setError("取得に失敗しました");
-      }
-    })();
-  }, [id, collectionSlug]);
+    return {
+      userName: userData.user.displayName ?? userData.user.name,
+      collection,
+    };
+  } catch {
+    return null;
+  }
+}
 
-  if (error)
-    return <div className="text-center py-16 text-red-600">{error}</div>;
-  if (!collection)
-    return <div className="text-center py-16">読み込み中...</div>;
+export async function generateMetadata(props: {
+  params: Params | Promise<Params>;
+}): Promise<Metadata> {
+  const { id, collectionSlug } = await Promise.resolve(props.params);
+  let safeId: string;
+  let safeCollectionSlug: string;
+  try {
+    safeId = safePath(id);
+    safeCollectionSlug = safePath(collectionSlug);
+  } catch {
+    return { title: "OpenShelf" };
+  }
 
-  return (
-    <div className="max-w-4xl">
-      <div className="mb-6">
-        <Link
-          href={`/users/${id}`}
-          className="text-sm text-blue-600 hover:underline dark:text-blue-400"
-        >
-          ← ユーザーページに戻る
-        </Link>
-        <h1 className="text-2xl font-bold mt-2">{collection.name}</h1>
-        {collection.description && (
-          <p className="text-sm text-gray-600 mt-1 dark:text-gray-400">
-            {collection.description}
-          </p>
-        )}
-        <p className="text-xs text-gray-500 mt-2">
-          visibility: {collection.visibility}
-        </p>
-      </div>
+  const data = await fetchCollectionMetadata(id, collectionSlug);
+  if (!data) {
+    return { title: "コレクション詳細 | OpenShelf" };
+  }
 
-      {papers.length === 0 ? (
-        <p className="text-sm text-gray-500">論文がありません</p>
-      ) : (
-        <ul className="space-y-3">
-          {papers.map((paper) => (
-            <li
-              key={paper.id}
-              className="rounded-md border p-3 dark:border-gray-700"
-            >
-              <Link
-                href={`/papers/${paper.id}`}
-                className="font-medium hover:underline"
-              >
-                {paper.title}
-              </Link>
-              {paper.abstract && (
-                <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                  {paper.abstract}
-                </p>
-              )}
-              <p className="text-xs text-gray-400 mt-1">
-                visibility: {paper.visibility}
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
+  const title = `${data.collection.name} | ${data.userName} | OpenShelf`;
+  const description =
+    data.collection.description ?? `${data.userName} のコレクション`;
+  const feedUrl = `${PUBLIC_API_BASE}/feed/users/${safeId}/collections/${safeCollectionSlug}/atom.xml`;
+
+  return {
+    title,
+    description,
+    alternates: {
+      types: {
+        "application/atom+xml": feedUrl,
+      },
+    },
+    openGraph: {
+      title,
+      description,
+      url: `${SITE_BASE}/users/${safeId}/c/${safeCollectionSlug}`,
+    },
+  };
+}
+
+export default async function UserCollectionPage(props: {
+  params: Params | Promise<Params>;
+}) {
+  const { id, collectionSlug } = await Promise.resolve(props.params);
+  try {
+    safePath(id);
+    safePath(collectionSlug);
+  } catch {
+    return <div className="text-center py-16">無効な識別子です</div>;
+  }
+
+  return <UserCollectionPageClient id={id} collectionSlug={collectionSlug} />;
 }
