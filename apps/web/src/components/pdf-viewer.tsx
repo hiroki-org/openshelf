@@ -35,6 +35,7 @@ const MIN_ZOOM = ZOOM_PRESETS[0];
 const MAX_ZOOM = ZOOM_PRESETS[ZOOM_PRESETS.length - 1];
 const CONTINUOUS_BUFFER = 2;
 const PAGE_ASPECT_RATIO = 1.414;
+const SEARCH_DEBOUNCE_MS = 350;
 
 function clampZoom(value: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
@@ -72,15 +73,19 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const pageNodesRef = useRef<Map<number, HTMLDivElement>>(new Map());
   const pinchStateRef = useRef<{ startDistance: number; startZoom: number } | null>(null);
   const pdfDocumentRef = useRef<PdfDocumentProxy | null>(null);
+  const searchTextCacheRef = useRef<Map<number, string>>(new Map());
+  const isProgrammaticNavRef = useRef(false);
+  const prevViewModeRef = useRef<ViewMode>("paged");
 
   const [containerWidth, setContainerWidth] = useState(0);
   const [numPages, setNumPages] = useState(0);
   const [pageNumber, setPageNumber] = useState(1);
-  const [zoom, setZoom] = useState<(typeof ZOOM_PRESETS)[number]>(1);
+  const [zoom, setZoom] = useState(1);
   const [viewMode, setViewMode] = useState<ViewMode>("paged");
   const [visiblePage, setVisiblePage] = useState(1);
   const [loadingError, setLoadingError] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [searchMatches, setSearchMatches] = useState<number[]>([]);
   const [activeMatchIndex, setActiveMatchIndex] = useState(-1);
   const [isPinching, setIsPinching] = useState(false);
@@ -157,18 +162,17 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       const boundedPage = Math.min(numPages, Math.max(1, targetPage));
       setPageNumber(boundedPage);
       if (viewMode === "continuous") {
+        isProgrammaticNavRef.current = true;
         setVisiblePage(boundedPage);
-        requestAnimationFrame(() => {
-          scrollToPage(boundedPage);
-        });
       }
     },
-    [numPages, scrollToPage, viewMode],
+    [numPages, viewMode],
   );
 
   const onDocumentLoadSuccess = useCallback((info: unknown) => {
     const document = info as PdfDocumentProxy;
     pdfDocumentRef.current = document;
+    searchTextCacheRef.current.clear();
     setNumPages(document.numPages);
     setPageNumber(1);
     setVisiblePage(1);
@@ -179,6 +183,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
   const onDocumentLoadError = useCallback(() => {
     pdfDocumentRef.current = null;
+    searchTextCacheRef.current.clear();
     setLoadingError(true);
   }, []);
 
@@ -195,10 +200,20 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   }, []);
 
   useEffect(() => {
-    if (viewMode !== "continuous") return;
-    requestAnimationFrame(() => {
-      scrollToPage(pageNumber, "auto");
-    });
+    const enteringContinuous =
+      viewMode === "continuous" && prevViewModeRef.current !== "continuous";
+    const shouldScroll =
+      viewMode === "continuous" &&
+      (enteringContinuous || isProgrammaticNavRef.current);
+
+    if (shouldScroll) {
+      requestAnimationFrame(() => {
+        scrollToPage(pageNumber, "auto");
+      });
+    }
+
+    isProgrammaticNavRef.current = false;
+    prevViewModeRef.current = viewMode;
   }, [viewMode, pageNumber, scrollToPage]);
 
   useEffect(() => {
@@ -228,10 +243,20 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
     pageNodesRef.current.forEach((node) => observer.observe(node));
     return () => observer.disconnect();
-  }, [numPages, viewMode, pageWidth]);
+  }, [numPages, viewMode, pageWidth, renderRange.start, renderRange.end]);
 
   useEffect(() => {
-    const query = searchQuery.trim().toLowerCase();
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const query = debouncedSearchQuery.toLowerCase();
     const doc = pdfDocumentRef.current;
     if (!doc || !query) {
       setSearchMatches([]);
@@ -245,21 +270,25 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       const matches: number[] = [];
       for (let page = 1; page <= doc.numPages; page += 1) {
         try {
-          const pdfPage = await doc.getPage(page);
-          const textContent = await pdfPage.getTextContent();
-          const pageText = textContent.items
-            .map((item) => {
-              if (
-                item &&
-                typeof item === "object" &&
-                "str" in item &&
-                typeof (item as { str?: unknown }).str === "string"
-              ) {
-                return ((item as { str: string }).str).toLowerCase();
-              }
-              return "";
-            })
-            .join(" ");
+          let pageText = searchTextCacheRef.current.get(page);
+          if (pageText === undefined) {
+            const pdfPage = await doc.getPage(page);
+            const textContent = await pdfPage.getTextContent();
+            pageText = textContent.items
+              .map((item) => {
+                if (
+                  item &&
+                  typeof item === "object" &&
+                  "str" in item &&
+                  typeof (item as { str?: unknown }).str === "string"
+                ) {
+                  return ((item as { str: string }).str).toLowerCase();
+                }
+                return "";
+              })
+              .join(" ");
+            searchTextCacheRef.current.set(page, pageText);
+          }
           if (pageText.includes(query)) {
             matches.push(page);
           }
@@ -274,13 +303,12 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
         return;
       }
       setActiveMatchIndex(0);
-      goToPage(matches[0]);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [goToPage, searchQuery]);
+  }, [debouncedSearchQuery, numPages]);
 
   const activeMatchPage =
     activeMatchIndex >= 0 ? searchMatches[activeMatchIndex] : undefined;
@@ -319,12 +347,14 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     const nextDistance = touchDistance(first, second);
     if (nextDistance <= 0 || state.startDistance <= 0) return;
     const nextZoom = state.startZoom * (nextDistance / state.startDistance);
-    setZoom(snapZoom(nextZoom));
+    setZoom(clampZoom(nextZoom));
   }, []);
 
   const handleTouchEnd = useCallback((event: TouchEvent<HTMLDivElement>) => {
     if (event.touches.length >= 2) return;
+    if (!pinchStateRef.current) return;
     pinchStateRef.current = null;
+    setZoom((current) => snapZoom(current));
     setIsPinching(false);
   }, []);
 
@@ -372,7 +402,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
                 const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
                 if (currentIndex > 0) setZoom(ZOOM_PRESETS[currentIndex - 1]);
               }}
-              disabled={zoom === ZOOM_PRESETS[0]}
+              disabled={zoom <= MIN_ZOOM}
               className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             -
@@ -380,10 +410,8 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
           <select
             aria-label="PDF zoom"
-            value={zoom}
-            onChange={(e) =>
-              setZoom(Number(e.target.value) as (typeof ZOOM_PRESETS)[number])
-            }
+            value={snapZoom(zoom)}
+            onChange={(e) => setZoom(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
           >
             {ZOOM_PRESETS.map((preset) => (
@@ -401,7 +429,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
                   setZoom(ZOOM_PRESETS[currentIndex + 1]);
                 }
               }}
-              disabled={zoom === ZOOM_PRESETS[ZOOM_PRESETS.length - 1]}
+              disabled={zoom >= MAX_ZOOM}
               className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             +

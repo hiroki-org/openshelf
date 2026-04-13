@@ -34,9 +34,65 @@ type MockPageProps = {
   renderAnnotationLayer?: boolean;
 };
 
+type MockObserverEntry = {
+  target: Element;
+  isIntersecting?: boolean;
+  intersectionRatio?: number;
+};
+
+type MockIntersectionCallback = (
+  entries: IntersectionObserverEntry[],
+  observer: IntersectionObserver,
+) => void;
+
 const mockPage = vi.fn((props: MockPageProps) => (
   <div data-testid={`mock-page-${props.pageNumber}`} />
 ));
+
+class MockIntersectionObserver {
+  static instances: MockIntersectionObserver[] = [];
+
+  readonly observed = new Set<Element>();
+  private readonly callback: MockIntersectionCallback;
+
+  constructor(callback: MockIntersectionCallback) {
+    this.callback = callback;
+    MockIntersectionObserver.instances.push(this);
+  }
+
+  observe(target: Element) {
+    this.observed.add(target);
+  }
+
+  unobserve(target: Element) {
+    this.observed.delete(target);
+  }
+
+  disconnect() {
+    this.observed.clear();
+  }
+
+  takeRecords() {
+    return [];
+  }
+
+  triggerIntersect(entries: MockObserverEntry[]) {
+    const normalizedEntries = entries.map(
+      ({ target, isIntersecting = true, intersectionRatio = 1 }) =>
+        ({
+          target,
+          isIntersecting,
+          intersectionRatio,
+          time: 0,
+          rootBounds: null,
+          boundingClientRect: {} as DOMRectReadOnly,
+          intersectionRect: {} as DOMRectReadOnly,
+        }) as IntersectionObserverEntry,
+    );
+
+    this.callback(normalizedEntries, this as unknown as IntersectionObserver);
+  }
+}
 
 vi.mock("react-pdf", () => {
   const workerOptions = { workerSrc: "" };
@@ -69,18 +125,11 @@ describe("PdfViewer", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    MockIntersectionObserver.instances = [];
 
     class MockResizeObserver {
       observe() {}
       disconnect() {}
-    }
-    class MockIntersectionObserver {
-      observe() {}
-      unobserve() {}
-      disconnect() {}
-      takeRecords() {
-        return [];
-      }
     }
 
     Object.defineProperty(window, "ResizeObserver", {
@@ -162,7 +211,9 @@ describe("PdfViewer", () => {
       ).toBeInTheDocument();
     });
 
-    const [documentProps] = mockDocument.mock.calls.at(-1) as [MockDocumentProps];
+    const [documentProps] = mockDocument.mock.calls[mockDocument.mock.calls.length - 1] as [
+      MockDocumentProps,
+    ];
     mockPage.mockClear();
     await act(async () => {
       documentProps.onLoadSuccess?.(
@@ -177,11 +228,46 @@ describe("PdfViewer", () => {
       expect(renderedPages).toEqual(expect.arrayContaining([1, 2, 3]));
       expect(renderedPages).not.toContain(4);
     });
+
+    const currentObserver =
+      MockIntersectionObserver.instances[
+        MockIntersectionObserver.instances.length - 1
+      ];
+    const page3Node = document.querySelector('[data-page-number="3"]');
+    expect(currentObserver).toBeDefined();
+    expect(page3Node).toBeTruthy();
+
+    act(() => {
+      currentObserver?.triggerIntersect([
+        { target: page3Node as Element, intersectionRatio: 1 },
+      ]);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("3 / 4")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      const renderedPages = mockPage.mock.calls.map(
+        ([props]) => props.pageNumber,
+      );
+      expect(renderedPages).toContain(4);
+    });
+
+    const refreshedObserver =
+      MockIntersectionObserver.instances[
+        MockIntersectionObserver.instances.length - 1
+      ];
+    const page4Node = document.querySelector('[data-page-number="4"]');
+    expect(page4Node).toBeTruthy();
+    expect(refreshedObserver?.observed.has(page4Node as Element)).toBe(true);
   });
 
   it("supports custom search navigation across pages", async () => {
     render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
-    const [documentProps] = mockDocument.mock.calls.at(-1) as [MockDocumentProps];
+    const [documentProps] = mockDocument.mock.calls[mockDocument.mock.calls.length - 1] as [
+      MockDocumentProps,
+    ];
 
     await act(async () => {
       documentProps.onLoadSuccess?.(
