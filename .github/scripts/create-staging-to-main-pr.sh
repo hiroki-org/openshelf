@@ -187,7 +187,26 @@ while IFS= read -r value; do
   reviewer_values+=("$value")
 done < <(csv_to_lines "$PROMOTION_PR_REVIEWERS")
 
+if [ "$DRY_RUN" != "1" ]; then
+  echo "Attempting direct merge: $HEAD_BRANCH -> $BASE_BRANCH"
+  if gh api --method POST "repos/$GH_REPO/merges" \
+    -f base="$BASE_BRANCH" \
+    -f head="$HEAD_BRANCH" \
+    -f commit_message="$PROMOTION_PR_TITLE" > /dev/null; then
+    echo "Successfully merged $HEAD_BRANCH into $BASE_BRANCH directly."
+    if [ -n "$existing_pr_number" ]; then
+      echo "Closing existing promotion PR: $existing_pr_url"
+      gh pr close "$existing_pr_number" --repo "$GH_REPO" || true
+    fi
+    exit 0
+  else
+    echo "Direct merge failed (e.g. conflicts). Falling back to updating/creating a PR."
+  fi
+fi
+
 if [ "$DRY_RUN" = "1" ]; then
+  echo "DRY_RUN=1, attempting simulated direct merge:"
+  echo "  gh api --method POST repos/$GH_REPO/merges -f base=$BASE_BRANCH -f head=$HEAD_BRANCH"
   if [ -n "$existing_pr_number" ] && [ "$UPDATE_EXISTING_PR" = "1" ]; then
     echo "DRY_RUN=1, skipping PR update."
     echo "Would update PR #$existing_pr_number: $existing_pr_url"
