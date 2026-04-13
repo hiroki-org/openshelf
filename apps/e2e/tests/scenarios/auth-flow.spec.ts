@@ -42,9 +42,16 @@ test.describe('Auth Flow', () => {
             },
         });
         expect(meRes.status()).toBe(200);
-        await expect(meRes.json()).resolves.toMatchObject({
+        await expect(meRes.json()).resolves.toEqual({
             user: {
                 id: user.sub,
+                githubId: user.githubId,
+                name: user.name,
+                displayName: null,
+                avatarUrl: null,
+                email: null,
+                createdAt: expect.any(String),
+                updatedAt: expect.any(String),
             },
         });
 
@@ -55,7 +62,7 @@ test.describe('Auth Flow', () => {
 
         const unauthRes = await page.request.get('/api/users/me');
         expect(unauthRes.status()).toBe(401);
-        await expect(unauthRes.json()).resolves.toMatchObject({
+        await expect(unauthRes.json()).resolves.toEqual({
             error: 'Unauthorized',
         });
     });
