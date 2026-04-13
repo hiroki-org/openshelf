@@ -1,13 +1,13 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../org-collection-page-client", () => ({
-  default: ({ slug, collectionSlug }: any) => (
-    <div>{`org-collection:${slug}:${collectionSlug}`}</div>
+vi.mock("../user-collection-page-client", () => ({
+  default: ({ id, collectionSlug }: { id: string; collectionSlug: string }) => (
+    <div>{`user-collection:${id}:${collectionSlug}`}</div>
   ),
 }));
 
-describe("orgs/[slug]/c/[collectionSlug]/page metadata", () => {
+describe("users/[id]/c/[collectionSlug]/page metadata", () => {
   const originalApiUrl = process.env.API_URL;
   const originalPublicApiUrl = process.env.NEXT_PUBLIC_API_URL;
 
@@ -21,20 +21,23 @@ describe("orgs/[slug]/c/[collectionSlug]/page metadata", () => {
     vi.clearAllMocks();
   });
 
-  it("builds org collection metadata", async () => {
+  it("builds user collection metadata and renders the client page", async () => {
     process.env.API_URL = "http://internal-api:8787";
     process.env.NEXT_PUBLIC_API_URL = "https://public-api.example.com";
     vi.resetModules();
-    const { generateMetadata } = await import("../page");
+
+    const { default: UserCollectionPage, generateMetadata } = await import(
+      "../page"
+    );
 
     vi.spyOn(global, "fetch")
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            org: { slug: "lab", name: "Research Lab" },
+            user: { id: "user-1", name: "Alice", displayName: "Alice A." },
           }),
           { status: 200 },
-        ) as any,
+        ) as Response,
       )
       .mockResolvedValueOnce(
         new Response(
@@ -48,23 +51,30 @@ describe("orgs/[slug]/c/[collectionSlug]/page metadata", () => {
             ],
           }),
           { status: 200 },
-        ) as any,
+        ) as Response,
       );
 
     const metadata = await generateMetadata({
-      params: { slug: "lab", collectionSlug: "featured" },
+      params: { id: "user-1", collectionSlug: "featured" },
     });
+    const view = await UserCollectionPage({
+      params: { id: "user-1", collectionSlug: "featured" },
+    });
+    render(view);
 
-    expect(metadata.title).toBe("Featured | Research Lab | OpenShelf");
+    expect(metadata.title).toBe("Featured | Alice A. | OpenShelf");
     expect(metadata.alternates?.types?.["application/atom+xml"]).toBe(
-      "https://public-api.example.com/feed/orgs/lab/collections/featured/atom.xml",
+      "https://public-api.example.com/feed/users/user-1/collections/featured/atom.xml",
     );
+    expect(
+      screen.getByText("user-collection:user-1:featured"),
+    ).toBeInTheDocument();
   });
 
-  it("renders an invalid identifier message for invalid params", async () => {
-    const { default: OrgCollectionPage } = await import("../page");
-    const view = await OrgCollectionPage({
-      params: { slug: "../bad", collectionSlug: "featured" },
+  it("renders invalid identifier message for invalid params", async () => {
+    const { default: UserCollectionPage } = await import("../page");
+    const view = await UserCollectionPage({
+      params: { id: "../bad", collectionSlug: "featured" },
     });
     render(view);
 

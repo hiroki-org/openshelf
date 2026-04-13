@@ -25,6 +25,10 @@ const API_BASE =
   process.env.API_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
   "http://localhost:8787";
+const PUBLIC_API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ??
+  process.env.API_URL ??
+  "http://localhost:8787";
 const SITE_BASE =
   process.env.SITE_URL ??
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -98,10 +102,16 @@ export async function generateMetadata(props: {
   const description =
     data.collection.description ?? `${data.orgName} のコレクション`;
   const ogImage = buildOgImageUrl(data.collection.name, data.orgName);
+  const feedUrl = `${PUBLIC_API_BASE}/feed/orgs/${slug}/collections/${collectionSlug}/atom.xml`;
 
   return {
     title,
     description,
+    alternates: {
+      types: {
+        "application/atom+xml": feedUrl,
+      },
+    },
     openGraph: {
       title,
       description,
