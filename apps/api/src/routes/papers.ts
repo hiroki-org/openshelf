@@ -22,11 +22,14 @@ import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
 import { buildCitation, isCitationFormat } from "../utils/citation";
+import pMap from "p-map";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 const MAX_CONCURRENT_UPLOADS = 3;
+const R2_DELETE_BATCH_SIZE = 1000;
+const MAX_CONCURRENT_R2_DELETES = 2;
 const ALLOWED_MIME_TYPES = [
     "application/pdf",
     "application/vnd.ms-powerpoint",
@@ -59,6 +62,13 @@ const BOT_USER_AGENT_KEYWORDS = [
 ];
 
 type TrackEvent = typeof TRACKABLE_EVENTS[number];
+type DeleteBatchErrorInfo = {
+    chunkStart: number;
+    chunkEndExclusive: number;
+    chunkSize: number;
+    chunkSample: string[];
+    error: string;
+};
 
 function formatDateKey(date: Date): string {
     return date.toISOString().slice(0, 10);
@@ -106,6 +116,41 @@ function normalizeReferrer(value: unknown): string | null {
     const trimmed = value.trim();
     if (!trimmed) return null;
     return trimmed.slice(0, MAX_REFERRER_LENGTH);
+}
+
+async function deleteKeysInBatches(
+    bucket: Env["BUCKET"],
+    keys: string[],
+    onChunkError?: (info: DeleteBatchErrorInfo) => void,
+): Promise<void> {
+    const chunkStarts = Array.from(
+        { length: Math.ceil(keys.length / R2_DELETE_BATCH_SIZE) },
+        (_, index) => index * R2_DELETE_BATCH_SIZE,
+    );
+
+    await pMap(
+        chunkStarts,
+        async (chunkStart) => {
+            const chunk = keys.slice(chunkStart, chunkStart + R2_DELETE_BATCH_SIZE);
+            try {
+                await bucket.delete(chunk);
+            } catch (error) {
+                const info = {
+                    chunkStart,
+                    chunkEndExclusive: chunkStart + chunk.length,
+                    chunkSize: chunk.length,
+                    chunkSample: chunk.slice(0, 3),
+                    error: error instanceof Error ? error.message : String(error),
+                };
+                if (onChunkError) {
+                    onChunkError(info);
+                    return;
+                }
+                throw error;
+            }
+        },
+        { concurrency: MAX_CONCURRENT_R2_DELETES },
+    );
 }
 
 /**
@@ -645,24 +690,24 @@ papersRoute.post("/", authMiddleware, async (c) => {
     const uploadedKeys: string[] = [];
     try {
         const errors: unknown[] = [];
-        for (let i = 0; i < uploads.length; i += MAX_CONCURRENT_UPLOADS) {
-            const chunk = uploads.slice(i, i + MAX_CONCURRENT_UPLOADS);
-            const results = await Promise.allSettled(
-                chunk.map(async (entry) => {
+        const results = await pMap(
+            uploads,
+            async (entry) => {
+                try {
                     await c.env.BUCKET.put(entry.r2Key, entry.file.stream() as any, {
                         httpMetadata: { contentType: entry.file.type },
                     });
-                    return entry.r2Key;
-                }),
-            );
-
-            for (const result of results) {
-                if (result.status === "fulfilled") {
-                    uploadedKeys.push(result.value);
-                } else {
-                    errors.push(result.reason);
+                    return { r2Key: entry.r2Key, error: null };
+                } catch (e) {
+                    return { r2Key: null, error: e };
                 }
-            }
+            },
+            { concurrency: MAX_CONCURRENT_UPLOADS }
+        );
+
+        for (const res of results) {
+            if (res.error) errors.push(res.error);
+            else if (res.r2Key) uploadedKeys.push(res.r2Key);
         }
 
         if (errors.length > 0) {
@@ -693,11 +738,10 @@ papersRoute.post("/", authMiddleware, async (c) => {
             })),
         );
     } catch (error) {
-        const chunks = [];
-        for (let i = 0; i < uploadedKeys.length; i += 1000) {
-            chunks.push(c.env.BUCKET.delete(uploadedKeys.slice(i, i + 1000)));
-        }
-        await Promise.allSettled(chunks);
+        await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
+            // Ignore cleanup errors during rollback after a later failure.
+            console.error("Cleanup error (non-fatal, rollback continues)", info);
+        });
         await db.delete(papers).where(eq(papers.id, paperId));
         throw error;
     }
@@ -1289,11 +1333,7 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
         .all();
 
     const keys = files.map((f) => f.r2Key);
-    const chunks = [];
-    for (let i = 0; i < keys.length; i += 1000) {
-        chunks.push(c.env.BUCKET.delete(keys.slice(i, i + 1000)));
-    }
-    await Promise.all(chunks);
+    await deleteKeysInBatches(c.env.BUCKET, keys);
     await db.delete(papers).where(eq(papers.id, paperId));
 
     return c.json({ ok: true });

@@ -421,7 +421,8 @@ describe("papers routes", () => {
         const env = createTestEnv({ DB: mockDb as any });
 
         // Spy on BUCKET.delete
-        const bucketDeleteSpy = vi.spyOn(env.BUCKET, "delete");
+        const bucketDeleteSpy = vi.spyOn(env.BUCKET, "delete").mockRejectedValue(new Error("Cleanup failed"));
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
         const form = new FormData();
         form.set("metadata", JSON.stringify({ title: "Test Paper", visibility: "private" }));
@@ -449,10 +450,22 @@ describe("papers routes", () => {
         expect(deletedKeys).toEqual(
             expect.arrayContaining([expect.stringContaining("papers/")]),
         );
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+            "Cleanup error (non-fatal, rollback continues)",
+            expect.objectContaining({
+                chunkStart: 0,
+                chunkEndExclusive: 1,
+                chunkSize: 1,
+                chunkSample: expect.arrayContaining([expect.stringContaining("papers/")]),
+                error: "Cleanup failed",
+            }),
+        );
 
         // db.delete should be called for papers
         expect(mockDb.delete).toHaveBeenCalledTimes(1);
         expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
+        consoleErrorSpy.mockRestore();
+        bucketDeleteSpy.mockRestore();
     });
 
     it("POST /api/papers rejects upload when content does not match declared MIME", async () => {
@@ -1274,6 +1287,64 @@ describe("papers routes", () => {
         );
 
         expect(res.status).toBe(200);
+    });
+
+    it("DELETE /api/papers/:id bounds concurrent R2 batch deletes", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const files = Array.from({ length: 2001 }, (_, index) => ({
+            r2Key: `papers/paper-1/file-${index}.pdf`,
+        }));
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: files }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const pendingDeletes: Array<() => void> = [];
+        let activeDeletes = 0;
+        let maxActiveDeletes = 0;
+        const bucketDeleteSpy = vi.spyOn(env.BUCKET, "delete").mockImplementation(
+            async () =>
+                new Promise<void>((resolve) => {
+                    activeDeletes += 1;
+                    maxActiveDeletes = Math.max(maxActiveDeletes, activeDeletes);
+                    pendingDeletes.push(() => {
+                        activeDeletes -= 1;
+                        resolve();
+                    });
+                }),
+        );
+
+        const responsePromise = app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000",
+                },
+            },
+            env as any,
+        );
+
+        await vi.waitFor(() => {
+            expect(bucketDeleteSpy).toHaveBeenCalledTimes(2);
+        });
+        expect(maxActiveDeletes).toBe(2);
+
+        pendingDeletes.shift()?.();
+        await vi.waitFor(() => {
+            expect(bucketDeleteSpy).toHaveBeenCalledTimes(3);
+        });
+        expect(maxActiveDeletes).toBe(2);
+
+        pendingDeletes.shift()?.();
+        pendingDeletes.shift()?.();
+
+        const res = await responsePromise;
+        expect(res.status).toBe(200);
+        bucketDeleteSpy.mockRestore();
     });
 
     it("GET /api/papers/:id returns 404 when paper does not exist", async () => {
