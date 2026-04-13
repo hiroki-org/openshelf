@@ -28,6 +28,8 @@ const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 const MAX_CONCURRENT_UPLOADS = 3;
+const R2_DELETE_BATCH_SIZE = 1000;
+const MAX_CONCURRENT_R2_DELETES = 2;
 const ALLOWED_MIME_TYPES = [
     "application/pdf",
     "application/vnd.ms-powerpoint",
@@ -60,6 +62,13 @@ const BOT_USER_AGENT_KEYWORDS = [
 ];
 
 type TrackEvent = typeof TRACKABLE_EVENTS[number];
+type DeleteBatchErrorInfo = {
+    chunkStart: number;
+    chunkEndExclusive: number;
+    chunkSize: number;
+    chunkSample: string[];
+    error: string;
+};
 
 function formatDateKey(date: Date): string {
     return date.toISOString().slice(0, 10);
@@ -107,6 +116,41 @@ function normalizeReferrer(value: unknown): string | null {
     const trimmed = value.trim();
     if (!trimmed) return null;
     return trimmed.slice(0, MAX_REFERRER_LENGTH);
+}
+
+async function deleteKeysInBatches(
+    bucket: Env["BUCKET"],
+    keys: string[],
+    onChunkError?: (info: DeleteBatchErrorInfo) => void,
+): Promise<void> {
+    const chunkStarts = Array.from(
+        { length: Math.ceil(keys.length / R2_DELETE_BATCH_SIZE) },
+        (_, index) => index * R2_DELETE_BATCH_SIZE,
+    );
+
+    await pMap(
+        chunkStarts,
+        async (chunkStart) => {
+            const chunk = keys.slice(chunkStart, chunkStart + R2_DELETE_BATCH_SIZE);
+            try {
+                await bucket.delete(chunk);
+            } catch (error) {
+                const info = {
+                    chunkStart,
+                    chunkEndExclusive: chunkStart + chunk.length,
+                    chunkSize: chunk.length,
+                    chunkSample: chunk.slice(0, 3),
+                    error: error instanceof Error ? error.message : String(error),
+                };
+                if (onChunkError) {
+                    onChunkError(info);
+                    return;
+                }
+                throw error;
+            }
+        },
+        { concurrency: MAX_CONCURRENT_R2_DELETES },
+    );
 }
 
 /**
@@ -694,23 +738,10 @@ papersRoute.post("/", authMiddleware, async (c) => {
             })),
         );
     } catch (error) {
-        const cleanupPromises: Promise<void>[] = [];
-        for (let i = 0; i < uploadedKeys.length; i += 1000) {
-            const chunk = uploadedKeys.slice(i, i + 1000);
-            cleanupPromises.push(
-                c.env.BUCKET.delete(chunk).catch((e) => {
-                    // Ignore cleanup errors
-                    console.error("Cleanup error (non-fatal, rollback continues)", {
-                        chunkStart: i,
-                        chunkEndExclusive: i + chunk.length,
-                        chunkSize: chunk.length,
-                        chunkSample: chunk.slice(0, 3),
-                        error: e instanceof Error ? e.message : String(e),
-                    });
-                }),
-            );
-        }
-        await Promise.all(cleanupPromises);
+        await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
+            // Ignore cleanup errors during rollback after a later failure.
+            console.error("Cleanup error (non-fatal, rollback continues)", info);
+        });
         await db.delete(papers).where(eq(papers.id, paperId));
         throw error;
     }
@@ -1302,11 +1333,7 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
         .all();
 
     const keys = files.map((f) => f.r2Key);
-    const deletePromises: Promise<void>[] = [];
-    for (let i = 0; i < keys.length; i += 1000) {
-        deletePromises.push(c.env.BUCKET.delete(keys.slice(i, i + 1000)));
-    }
-    await Promise.all(deletePromises);
+    await deleteKeysInBatches(c.env.BUCKET, keys);
     await db.delete(papers).where(eq(papers.id, paperId));
 
     return c.json({ ok: true });
