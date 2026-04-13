@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+reviews:
+  auto_review:
+    enabled: true
+    drafts: false
+    # Default branch is always included; add staging-target PRs explicitly.
+    base_branches:
+      - "^staging$"
