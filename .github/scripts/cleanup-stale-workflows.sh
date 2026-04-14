@@ -82,7 +82,10 @@ while IFS=$'\t' read -r workflow_id workflow_name workflow_path; do
     continue
   fi
 
-  disable_workflow "$workflow_id"
+  if ! disable_workflow "$workflow_id"; then
+    echo "Warning: failed to disable workflow id $workflow_id; skipping." >&2
+    continue
+  fi
   disabled_count=$((disabled_count + 1))
   echo "Disabled workflow id $workflow_id"
 done <<<"$workflow_rows"
