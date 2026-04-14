@@ -142,7 +142,7 @@ E2E tests skip real GitHub OAuth by calling `/api/auth/test-token` (only active 
 Use the shared docs instead of restating detailed workflows here:
 
 - `AGENTS.md` — universal entry point for any agent
-- `docs/agent-tooling.md` — Dosu / Notion / ntn reference, including CLI and MCP usage
+- `docs/agent-tooling.md` — canonical OpenShelf reference for Dosu / Notion / ntn usage, including CLI and MCP guidance
 - `.github/agents/pr-review-closure-loop.md` — review-thread closure loop
 - `.github/agents/pr-consolidation-playbook.md` — PR consolidation workflow
 

@@ -12,7 +12,7 @@ applyTo: "**"
 If you only need one starting point, open `../AGENTS.md`.
 
 - `../AGENTS.md` — universal index for every agent
-- `../docs/agent-tooling.md` — shared Dosu / Notion / ntn reference, including CLI, MCP, and knowledge capture rules
+- `../docs/agent-tooling.md` — canonical OpenShelf reference for Dosu / Notion / ntn usage, including CLI, MCP, and knowledge capture rules
 - `./agents/pr-review-closure-loop.md` — PR review conversation closure loop
 - `./agents/pr-consolidation-playbook.md` — PR consolidation workflow
 - `../instruction.md` — legacy guide kept for compatibility
