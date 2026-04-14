@@ -9,13 +9,13 @@ applyTo: "**"
 
 ## Agent entry points
 
-If you only need one starting point, open `AGENTS.md`.
+If you only need one starting point, open `../AGENTS.md`.
 
-- `AGENTS.md` — universal index for every agent
-- `docs/agent-tooling.md` — shared Dosu / Notion / ntn reference, including CLI, MCP, and knowledge capture rules
-- `.github/agents/pr-review-closure-loop.md` — PR review conversation closure loop
-- `.github/agents/pr-consolidation-playbook.md` — PR consolidation workflow
-- `instruction.md` — legacy guide kept for compatibility
+- `../AGENTS.md` — universal index for every agent
+- `../docs/agent-tooling.md` — shared Dosu / Notion / ntn reference, including CLI, MCP, and knowledge capture rules
+- `./agents/pr-review-closure-loop.md` — PR review conversation closure loop
+- `./agents/pr-consolidation-playbook.md` — PR consolidation workflow
+- `../instruction.md` — legacy guide kept for compatibility
 
 ## Quick Reference
 
@@ -267,8 +267,8 @@ Run `npm run typecheck` before committing to catch TS errors.
 
 ### PR Review Playbooks
 
-- Detailed review-thread closure: `.github/agents/pr-review-closure-loop.md`
-- Detailed PR consolidation: `.github/agents/pr-consolidation-playbook.md`
+- Detailed review-thread closure: `./agents/pr-review-closure-loop.md`
+- Detailed PR consolidation: `./agents/pr-consolidation-playbook.md`
 - Use those playbooks as the source of truth for reply/resolve loops and absorbed-PR handling.
 
 ---
@@ -349,7 +349,7 @@ See `apps/web/README.md` and `apps/api/wrangler.toml` for environment variable r
 
 ## Notes for Agents
 
-- Always check `AGENTS.md` **first** for shared agent workflow, then this file for project-specific conventions.
+- Always check `../AGENTS.md` **first** for shared agent workflow, then this file for project-specific conventions.
 - Use `npm run typecheck` and `npm run test` to validate changes before pushing.
 - E2E tests require both `apps/api` and `apps/web` running; Playwright auto-starts them.
 - For database changes, test locally with `db:migrate:local` before planning remote migrations.
@@ -362,6 +362,8 @@ See `apps/web/README.md` and `apps/api/wrangler.toml` for environment variable r
 
 ### PR Workflow Reminders
 
-- Use `.github/agents/pr-review-closure-loop.md` for the full review / CI loop.
-- Use `.github/agents/pr-consolidation-playbook.md` for PR consolidation.
-- Keep `staging` as the first merge target for feature work.
+- Use `./agents/pr-review-closure-loop.md` for the full review / CI loop.
+- Use `./agents/pr-consolidation-playbook.md` for PR consolidation.
+- Never commit directly to `main`; always work on a feature branch via PR.
+- Keep `staging` as the first merge target for feature work, and retarget PRs to `staging` when automation or maintainer guidance requests it.
+- If `main` and `staging` diverge, use the repository main→staging sync PR automation (`npm run pr:sync-main-to-staging`) before promotion work.

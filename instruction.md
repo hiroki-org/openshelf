@@ -146,6 +146,8 @@ Use the shared docs instead of restating detailed workflows here:
 - `.github/agents/pr-review-closure-loop.md` — review-thread closure loop
 - `.github/agents/pr-consolidation-playbook.md` — PR consolidation workflow
 
+### Branch Workflow
+
 - New feature or task: create a branch from the default branch and open a Pull Request.
 - Improving an existing PR or branch: check out the existing feature branch and push your changes.
 

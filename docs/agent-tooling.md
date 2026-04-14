@@ -6,11 +6,7 @@ Use it when you need to choose between Dosu, Notion CLI (`ntn`), or the Notion/D
 
 ## Entry points
 
-- `AGENTS.md` — universal index for any agent
-- `.github/copilot-instructions.md` — OpenShelf repository conventions and coding workflow
-- `.github/agents/pr-review-closure-loop.md` — review-thread closure loop
-- `.github/agents/pr-consolidation-playbook.md` — PR consolidation workflow
-- `instruction.md` — legacy guide kept for compatibility
+See [`AGENTS.md`](../AGENTS.md) for the full index of agent entry points.
 
 ## What to use when
 
