@@ -224,6 +224,14 @@ cd apps/e2e && npx playwright test
 
 ---
 
+## 🤖 エージェント向けドキュメント
+
+- [`AGENTS.md`](./AGENTS.md) — どのエージェントでも最初に読む共通入口
+- [`docs/agent-tooling.md`](./docs/agent-tooling.md) — Dosu / Notion / ntn の共通ワークフロー
+- [`.github/copilot-instructions.md`](./.github/copilot-instructions.md) — OpenShelf 固有の開発ルール
+
+---
+
 ## 📄 ライセンス
 
 [MIT License](./LICENSE)

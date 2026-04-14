@@ -17,6 +17,8 @@ user-invocable: true
 
 This document defines a repeatable workflow for consolidating many similar open PRs into a smaller set of target PRs.
 
+Shared tooling reference: `../../AGENTS.md` and `../../docs/agent-tooling.md`.
+
 ## Objective
 
 - Group similar PRs by scope (e.g., same file, same feature area, same intent).

@@ -7,6 +7,16 @@ applyTo: "**"
 
 **OpenShelf** is a research artifact hosting and sharing platform where users authenticate with GitHub OAuth to upload and share research outputs (papers, slides, datasets). The stack is a TypeScript monorepo deployed on Cloudflare's edge platform.
 
+## Agent entry points
+
+If you only need one starting point, open `AGENTS.md`.
+
+- `AGENTS.md` — universal index for every agent
+- `docs/agent-tooling.md` — shared Dosu / Notion / ntn workflow and knowledge capture rules
+- `.github/agents/pr-review-closure-loop.md` — PR review conversation closure loop
+- `.github/agents/pr-consolidation-playbook.md` — PR consolidation workflow
+- `instruction.md` — legacy guide kept for compatibility
+
 ## Quick Reference
 
 | Component    | Tech                                 | Location                    |
@@ -255,96 +265,11 @@ Run `npm run typecheck` before committing to catch TS errors.
 
 ---
 
-### Responding to PR Reviews
+### PR Review Playbooks
 
-**Overview:** For each PR review comment, you must reply via GitHub's conversation API, resolve the thread, and verify all conversations are addressed before merging.
-
-**Detailed Workflow:**
-
-1. **Fetch and review all conversations**
-
-   ```bash
-   gh pr view <PR#> --json reviews
-   ```
-
-2. **For each conversation thread**, choose one of two paths:
-
-   **Path A: Accepting the suggestion**
-   - Apply the change to your branch and commit:
-     ```bash
-     # Make edits, then:
-     git add .
-     git commit -m "Address review: <subject>"
-     git push
-     ```
-   - Reply to the conversation explaining the fix:
-     ```bash
-     gh pr comment <PR#> --body "✅ Applied in commit $(git rev-parse --short HEAD). Changes: <brief description>"
-     ```
-   - Mark as resolved on GitHub (via web UI or after approval)
-
-   **Path B: Declining or deferring**
-   - Reply with justification:
-     ```bash
-     gh pr comment <PR#> --body "⚠️ Deferred for future work because: <reason>. Tracked in #XYZ"
-     ```
-   - Resolve the conversation (indicate it won't be addressed in this PR)
-
-3. **Verify all conversations are resolved**
-
-   ```bash
-   # Check for unresolved review threads
-   gh pr view <PR#> --json reviews | grep -i "pending\|unresolved"
-   ```
-
-   Status should be empty (no pending reviews).
-
-4. **Check CI status**
-
-   ```bash
-   gh pr checks <PR#>
-   ```
-
-   - **All passing?** → Proceed to merge
-   - **Any failing?** → Investigate and fix:
-     ```bash
-     gh pr checks <PR#> --watch  # Real-time logs
-     ```
-
-5. **Final approval and merge**
-
-   ```bash
-   # Wait for any last-minute feedback
-   sleep 300 && gh pr checks <PR#>
-
-   # If all checks pass and reviews approved:
-   gh pr merge <PR#> --squash --delete-branch
-   ```
-
-**Conversation Checklist:**
-
-- ☐ All comments have a reply (accept or defer)
-- ☐ All accepted changes are committed and pushed
-- ☐ All deferred changes reference a tracking issue
-- ☐ All threads marked as resolved on GitHub
-- ☐ CI checks are passing
-- ☐ Code review approval(s) received
-
-**Example Command Sequence:**
-
-```bash
-# Check PR status
-gh pr view 42
-
-# Wait and re-check CI after making changes
-sleep 300 && gh pr checks 42
-
-# Watch CI in real-time
-gh pr checks 42 --watch
-
-# Once ready, merge
-gh pr merge 42 --squash
-```
+- Detailed review-thread closure: `.github/agents/pr-review-closure-loop.md`
+- Detailed PR consolidation: `.github/agents/pr-consolidation-playbook.md`
+- Use those playbooks as the source of truth for reply/resolve loops and absorbed-PR handling.
 
 ---
 
@@ -424,7 +349,7 @@ See `apps/web/README.md` and `apps/api/wrangler.toml` for environment variable r
 
 ## Notes for Agents
 
-- Always check `.github/copilot-instructions.md` **first** for project-specific conventions.
+- Always check `AGENTS.md` **first** for shared agent workflow, then this file for project-specific conventions.
 - Use `npm run typecheck` and `npm run test` to validate changes before pushing.
 - E2E tests require both `apps/api` and `apps/web` running; Playwright auto-starts them.
 - For database changes, test locally with `db:migrate:local` before planning remote migrations.
@@ -437,11 +362,6 @@ See `apps/web/README.md` and `apps/api/wrangler.toml` for environment variable r
 
 ### PR Workflow Reminders
 
-- **New features:** Always create a feature branch and open a PR; never commit directly to `main`.
-- **Staging-first deployment:** Treat `staging` as the first merge target for feature work. Verify there, then open a `staging` → `main` PR for production.
-- **PR retargeting:** If a PR to `main` is opened from a non-`staging` source branch, the workflow will retarget it to `staging`.
-- **main sync:** After pushes to `main`, rely on the automation that opens or reuses a `main` → `staging` sync PR.
-- **PR reviews:** Reply to _each_ conversation thread on GitHub; unresolved threads block merging.
-- **CI failures:** Investigate immediately via `gh pr checks <PR#> --watch` and fix before re-requesting review.
-- **Merge readiness checklist:** All conversations resolved + all CI passing + approval received = safe to merge.
-- **Use `sleep` + recheck pattern:** `sleep 300 && gh pr checks <PR#>` to let CI run before final checks.
+- Use `.github/agents/pr-review-closure-loop.md` for the full review / CI loop.
+- Use `.github/agents/pr-consolidation-playbook.md` for PR consolidation.
+- Keep `staging` as the first merge target for feature work.

@@ -139,28 +139,15 @@ E2E tests skip real GitHub OAuth by calling `/api/auth/test-token` (only active 
 
 ## Agent Workflow Guidelines
 
-When you receive instructions, follow these guidelines based on the context:
+Use the shared docs instead of restating detailed workflows here:
 
-- **New Feature or Task**: Create a new branch from the default branch and open a Pull Request.
-- **Improving an Existing PR/Branch**: Checkout the existing feature branch and push your changes.
+- `AGENTS.md` — universal entry point for any agent
+- `docs/agent-tooling.md` — Dosu / Notion / ntn workflow
+- `.github/agents/pr-review-closure-loop.md` — review-thread closure loop
+- `.github/agents/pr-consolidation-playbook.md` — PR consolidation workflow
 
-### Agent Playbooks
-
-- [PR Review Closure Loop](.github/agents/pr-review-closure-loop.md)
-- [PR Consolidation Playbook](.github/agents/pr-consolidation-playbook.md)
-
-### Pull Request Reviews
-When responding to PR reviews using the `gh` CLI:
-- Always reply to and resolve the GitHub conversation for each comment.
-- If accepting a suggestion, apply the change, reply with the commit details explaining how it was addressed, and resolve the conversation.
-- If ignoring a suggestion, reply with a clear reason why it is being skipped, and resolve the conversation.
-- If a suggestion is implemented with an alternative approach, explain the implementation and the reasoning before resolving the conversation.
-- Ensure that the number of unresolved conversations (`isResolved: false`) is strictly 0.
-
-### CI Status
-- If CI is configured, check its status.
-- If CI succeeds, proceed.
-- If CI fails, check the failure details and address the issues.
+- New feature or task: create a branch from the default branch and open a Pull Request.
+- Improving an existing PR or branch: check out the existing feature branch and push your changes.
 
 ### Language Requirement
 When interacting on GitHub (e.g., PR descriptions, PR comments, replies), always use Japanese. This applies strictly to GitHub interactions, not to code implementation, variable names, or inline code messages.
