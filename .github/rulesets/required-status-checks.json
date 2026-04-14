@@ -1,0 +1,62 @@
+{
+  "rulesets": [
+    {
+      "conditions": {
+        "ref_name": {
+          "exclude": [],
+          "include": [
+            "refs/heads/main"
+          ]
+        }
+      },
+      "enforcement": "active",
+      "name": "protect-main",
+      "required_status_checks": {
+        "contexts": [
+          "Setup",
+          "Lint",
+          "Type Check",
+          "Test API",
+          "Test Web",
+          "Upload Coverage",
+          "Build Web (Preview Check)",
+          "E2E Tests (1-of-2)",
+          "E2E Tests (2-of-2)",
+          "CodSpeed",
+          "require-staging-source"
+        ],
+        "do_not_enforce_on_create": false,
+        "strict_required_status_checks_policy": true
+      },
+      "target": "branch"
+    },
+    {
+      "conditions": {
+        "ref_name": {
+          "exclude": [],
+          "include": [
+            "refs/heads/staging"
+          ]
+        }
+      },
+      "enforcement": "active",
+      "name": "protect-staging",
+      "required_status_checks": {
+        "contexts": [
+          "Setup",
+          "Lint",
+          "Type Check",
+          "Test API",
+          "Test Web",
+          "Build Web (Preview Check)",
+          "E2E Tests (1-of-2)",
+          "E2E Tests (2-of-2)",
+          "Upload Coverage"
+        ],
+        "do_not_enforce_on_create": false,
+        "strict_required_status_checks_policy": false
+      },
+      "target": "branch"
+    }
+  ]
+}
