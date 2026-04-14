@@ -10,6 +10,13 @@ permissions:
   contents: read
 
 jobs:
+  # Keep the historical required check name while the branch protection rules
+  # still reference "Setup". All real work now fans out immediately.
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Setup compatibility check"
   lint:
     name: Lint
     runs-on: ubuntu-latest
