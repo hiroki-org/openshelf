@@ -1,0 +1,32 @@
+name: Cleanup Stale Workflows
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Report stale workflows without disabling them
+        type: boolean
+        default: true
+  schedule:
+    - cron: '13 3 1 * *'
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: cleanup-stale-workflows
+  cancel-in-progress: true
+
+jobs:
+  cleanup:
+    name: Cleanup stale registered workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Detect and clean up stale workflows
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DRY_RUN: ${{ github.event_name == 'schedule' && '0' || (github.event.inputs.dry_run == 'true' && '1' || '0') }}
+        run: bash .github/scripts/cleanup-stale-workflows.sh
