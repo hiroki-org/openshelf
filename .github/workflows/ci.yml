@@ -95,7 +95,7 @@ jobs:
           path: apps/web/coverage/
   upload-coverage:
     name: Upload Coverage
-    needs: [build-web-check, e2e]
+    needs: [test-api, test-web]
     runs-on: ubuntu-latest
     env:
       CODECOV_COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
@@ -137,7 +137,6 @@ jobs:
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
   build-web-check:
     name: Build Web (Preview Check)
-    needs: [test-api, test-web]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -150,7 +149,7 @@ jobs:
         run: npm run build -w apps/web
   e2e:
     name: E2E Tests (${{ matrix.shardLabel }})
-    needs: [test-api, test-web]
+    needs: [build-web-check]
     timeout-minutes: 15
     runs-on: ubuntu-latest
     strategy:
