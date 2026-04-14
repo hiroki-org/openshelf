@@ -12,7 +12,7 @@ applyTo: "**"
 If you only need one starting point, open `AGENTS.md`.
 
 - `AGENTS.md` — universal index for every agent
-- `docs/agent-tooling.md` — shared Dosu / Notion / ntn workflow and knowledge capture rules
+- `docs/agent-tooling.md` — shared Dosu / Notion / ntn reference, including CLI, MCP, and knowledge capture rules
 - `.github/agents/pr-review-closure-loop.md` — PR review conversation closure loop
 - `.github/agents/pr-consolidation-playbook.md` — PR consolidation workflow
 - `instruction.md` — legacy guide kept for compatibility

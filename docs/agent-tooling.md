@@ -1,52 +1,158 @@
 # Agent Tooling and Knowledge Workflow
 
-This is the shared reference for Copilot, Codex, and other agents working in OpenShelf.
+This is the canonical reference for Copilot, Codex, and other agents working in OpenShelf.
+
+Use it when you need to choose between Dosu, Notion CLI (`ntn`), or the Notion/Dosu MCP surfaces.
 
 ## Entry points
 
 - `AGENTS.md` — universal index for any agent
-- `.github/copilot-instructions.md` — repository conventions and coding workflow
+- `.github/copilot-instructions.md` — OpenShelf repository conventions and coding workflow
 - `.github/agents/pr-review-closure-loop.md` — review-thread closure loop
 - `.github/agents/pr-consolidation-playbook.md` — PR consolidation workflow
 - `instruction.md` — legacy guide kept for compatibility
 
-## Tool map
+## What to use when
 
-| Need | Use | Notes |
+| Need | Prefer | Why |
 | --- | --- | --- |
-| Get repository or domain context | `dosu-init_knowledge` | Start here for unfamiliar or cross-cutting work. |
-| Search documentation | `dosu-search_documentation` | Use for broad documentation discovery. |
-| Read an authoritative source | `dosu-fetch_source` | Prefer this when exact wording or citations matter. |
-| Synthesize an answer with citations | `dosu-ask` | Use after collecting enough context. |
-| Capture durable knowledge | `dosu-save_topic` | Save stable, reusable findings only. |
-| Find available knowledge sources | `dosu-list_available_data_sources` | Useful before broad searches. |
-| Work with Notion | `ntn` | Use for Notion pages, databases, and workers. |
-| Set up or authenticate Dosu | `dosu` CLI | Use for login, status, and MCP registration. |
+| Find repo or cross-cutting context | `dosu-init_knowledge` | Starts with knowledge discovery instead of guessing. |
+| Search docs or runbooks broadly | `dosu-search_documentation` | Good for discovering relevant sources. |
+| Read exact source text | `dosu-fetch_source` | Best when wording, lines, or citations matter. |
+| Ask for a cited synthesis | `dosu-ask` | Use after you have enough sources. |
+| Preserve a stable finding | `dosu-save_topic` | Captures reusable knowledge for later tasks. |
+| Work with Notion pages, databases, files, or workers | `ntn` | CLI for workspace operations and worker management. |
+| Wire Dosu into an AI tool | `dosu setup` / `dosu mcp add` | Registers Dosu MCP for the current environment. |
 
-## Dosu workflow
+## Dosu CLI
 
-1. Start with `dosu-init_knowledge` when the task needs context.
-2. Use `dosu-search_documentation` to find likely sources.
+`dosu --help` shows:
+
+- `login`
+- `logout`
+- `status`
+- `mcp`
+- `setup`
+- `logs`
+
+Use the Dosu CLI when you are configuring access or MCP integration, not when you are searching content.
+
+Helpful commands:
+
+```bash
+dosu status
+dosu login
+dosu setup [--deployment <id>]
+dosu mcp add [-g] <tool>
+dosu mcp list
+```
+
+Notes:
+
+- `dosu setup` sets up Dosu MCP for AI tools.
+- `dosu mcp add -g` adds the integration globally instead of project-local.
+- `dosu status` confirms whether you are logged in and which deployment is active.
+- `dosu logs` is the place to look when the integration needs debugging.
+
+## Dosu knowledge workflow
+
+1. Start with `dosu-init_knowledge` for unfamiliar or cross-cutting work.
+2. Use `dosu-search_documentation` to find candidate sources.
 3. Use `dosu-fetch_source` for exact source text.
-4. Use `dosu-ask` for a cited synthesis once you have enough facts.
-5. Use `dosu-save_topic` when the finding is durable, actionable, and likely to help future tasks.
+4. Use `dosu-ask` for a cited answer once you have enough context.
+5. Use `dosu-save_topic` when the finding is durable and reusable.
 
-## Dosu CLI setup
+Other useful Dosu tools:
 
-- `dosu login` to authenticate.
-- `dosu status` to confirm account and MCP configuration.
-- `dosu mcp add codex -g` to register the MCP target for Codex-compatible tools.
+- `dosu-list_available_data_sources`
+- `dosu-find_public_library`
+- `dosu-ask_public_library`
 
-## Notion CLI workflow
+Use Dosu knowledge tools when the task is about repo understanding, a shared runbook, a cross-file dependency, or a fact that should be reused later.
 
-- Use `ntn` for Notion API tasks, worker operations, page updates, and database queries.
-- Start with `ntn --help`, `ntn api --help`, `ntn workers --help`, and `ntn login` when setting up a session.
-- If an `ntn api` subcommand cannot load its spec, retry after `ntn login` or confirm the target workspace is reachable.
-- Keep Notion work separate from repo code changes unless the task explicitly requires both.
+## Notion CLI (`ntn`)
+
+`ntn --help` shows:
+
+- `api` — public Notion API, beta
+- `files` — file uploads, beta
+- `pages`
+- `login`
+- `logout`
+- `update`
+- `workers`
+
+Helpful commands:
+
+```bash
+ntn api ls
+ntn api <path> --help
+ntn api <path> --docs
+ntn api <path> --spec
+ntn pages create --content '# Title\n\nBody'
+ntn files create < file.png
+ntn files get <upload-id>
+ntn files list
+ntn workers list
+ntn workers exec <KEY> --data '{...}'
+```
+
+Notes:
+
+- `ntn api ls` reads the live OpenAPI index and does not require authentication.
+- `ntn api` is the best way to inspect the public Notion API surface from the CLI.
+- `ntn pages` currently focuses on creating pages from Markdown content.
+- `ntn files` handles file uploads and retrieval.
+- `ntn workers` manages deploy, list, exec, env, oauth, runs, sync, webhooks, and the TUI.
+
+Common environment variables:
+
+- `NOTION_API_TOKEN`
+- `NOTION_WORKSPACE_ID`
+- `NOTION_WORKERS_CONFIG_FILE`
+- `NOTION_ENV`
+- `NOTION_HOME`
+
+Use `ntn` when you need to operate on Notion content directly or when you need worker lifecycle commands.
+
+## Notion MCP / API
+
+Notion docs describe Notion MCP for AI tools like ChatGPT, Claude, and Cursor.
+The supported MCP surface includes:
+
+- Search and fetch: `notion-search`, `notion-fetch`
+- Pages: `notion-create-pages`, `notion-update-page`, `notion-move-pages`, `notion-duplicate-page`
+- Databases and data sources: `notion-create-database`, `notion-update-data-source`, `notion-query-data-sources`
+- Views: `notion-create-view`, `notion-update-view`, `notion-query-database-view`
+- Comments: `notion-create-comment`, `notion-get-comments`
+- Identity: `notion-get-teams`, `notion-get-users`, `notion-get-user`, `notion-get-self`
+
+The Notion API also covers pages, blocks, databases, data sources, users, views, file uploads, comments, search, authentication, and link previews.
+
+Use Notion MCP when the agent is connected directly to Notion from an AI environment. Use `ntn` when you want a CLI workflow, public API inspection, or worker management. Use `ntn api ls` if you want a quick inventory of supported endpoints.
+
+## Dosu docs surface
+
+The official Dosu docs (`docs.dosu.dev`) cover:
+
+- Deployment
+- Data sources
+- Interactions
+- Public spaces
+- Auto-labeling
+- Issue triage and Q&A
+- Generate docs
+- Maintain docs
+- GitHub, Slack, and Confluence installation/configuration
+- RBAC
+- MCP
+- Single sign-on (SSO)
+
+That means Dosu is useful both as a documentation/search system and as an MCP integration point for agents.
 
 ## Shared rules
 
+- Prefer official help/docs over memory.
 - Prefer links over duplicated guidance.
-- Keep task-specific procedures in the specialized playbooks.
-- Save knowledge only when it will stay useful across future tasks.
-- When a finding is specific to OpenShelf, include the repo name plus the relevant file paths in the saved topic.
+- Save only stable, reusable knowledge.
+- When saving an OpenShelf-specific topic, include the repo name and the relevant file paths.
