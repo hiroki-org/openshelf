@@ -187,7 +187,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-
       - name: Install Playwright Browsers
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
         working-directory: apps/e2e
       - name: Setup local .dev.vars for Worker
         env:
