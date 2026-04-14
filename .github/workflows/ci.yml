@@ -63,7 +63,7 @@ jobs:
           flags: test-results
       - name: Upload Coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-api
           path: apps/api/coverage/
@@ -89,7 +89,7 @@ jobs:
           flags: test-results
       - name: Upload Coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-web
           path: apps/web/coverage/
@@ -199,7 +199,7 @@ jobs:
           E2E_API_URL: http://localhost:8787
           NEXT_PUBLIC_API_URL: http://localhost:8787
       - name: Upload Playwright HTML report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-report-${{ matrix.shardLabel }}
@@ -207,7 +207,7 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
       - name: Upload Playwright test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: playwright-test-results-${{ matrix.shardLabel }}
