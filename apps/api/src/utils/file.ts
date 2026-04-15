@@ -232,19 +232,16 @@ export async function validateMagicNumbers(
     const bytes = new Uint8Array(buffer);
 
     let detectedType: string | null = null;
-    for (const [signature, mimeType] of MAGIC_NUMBER_MAP) {
-      if (bytes.length < signature.length) continue;
-      let match = true;
-      for (let i = 0; i < signature.length; i++) {
-        if (bytes[i] !== signature[i]) {
-          match = false;
-          break;
-        }
-      }
-      if (match) {
-        detectedType = mimeType;
-        break;
-      }
+    if (bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d) {
+      detectedType = "application/pdf";
+    } else if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) {
+      detectedType = "image/png";
+    } else if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+      detectedType = "image/jpeg";
+    } else if (bytes.length >= 8 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0 && bytes[4] === 0xa1 && bytes[5] === 0xb1 && bytes[6] === 0x1a && bytes[7] === 0xe1) {
+      detectedType = "application/x-ole-storage";
+    } else if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+      detectedType = "application/zip";
     }
 
     if (!detectedType) return false;
