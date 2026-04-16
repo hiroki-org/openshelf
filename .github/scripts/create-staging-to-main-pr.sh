@@ -116,7 +116,7 @@ git fetch "$REMOTE_NAME" "$BASE_BRANCH" "$HEAD_BRANCH" --quiet
 base_ref="${REMOTE_NAME}/${BASE_BRANCH}"
 head_ref="${REMOTE_NAME}/${HEAD_BRANCH}"
 
-PROMOTION_DATE=${PROMOTION_DATE:-$(git log -1 --format="%cd" --date=format:"%Y-%m-%d %H:%M" "$head_ref")}
+PROMOTION_DATE=${PROMOTION_DATE:-$(git log -1 --format="%cd" --date=format-local:"%Y-%m-%d %H:%M" "$head_ref")}
 PROMOTION_PR_TITLE=${PROMOTION_PR_TITLE:-Release: $HEAD_BRANCH -> $BASE_BRANCH ($PROMOTION_DATE)}
 
 if ! git rev-parse --verify "$base_ref" >/dev/null 2>&1; then
