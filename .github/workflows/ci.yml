@@ -235,7 +235,8 @@ jobs:
               - "apps/api/vitest.config.ts"
       - name: Skip benchmarks for non-API pull requests
         if: ${{ github.event_name == 'pull_request' && steps.codspeed_changes.outputs.codspeed != 'true' }}
-        run: echo "Skipping CodSpeed: no benchmark-relevant API changes in this pull request."
+        run: |
+          echo "Skipping CodSpeed: no benchmark-relevant API changes in this pull request."
       - name: Run benchmarks
         if: ${{ github.event_name != 'pull_request' || steps.codspeed_changes.outputs.codspeed == 'true' }}
         uses: CodSpeedHQ/action@v3
