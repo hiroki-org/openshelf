@@ -624,6 +624,40 @@ describe("collections routes", () => {
         expect(((await res.json()) as any).error).toBe("Paper not found");
     });
 
+
+    it("PATCH /api/collections/:id/papers rejects invalid JSON body", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        queueSelectResponses([
+            {
+                getResult: {
+                    id: "col-1",
+                    ownerType: "user",
+                    ownerId: "user-1",
+                    visibility: "private",
+                },
+            },
+        ]);
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections/col-1/papers",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: "invalid-json",
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
+    });
+
     it("PATCH /api/collections/:id/papers rejects duplicate paper IDs", async () => {
         const token = await createTestJWT({ sub: "user-1" });
         queueSelectResponses([
