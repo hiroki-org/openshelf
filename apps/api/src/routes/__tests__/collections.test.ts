@@ -596,11 +596,11 @@ describe("collections routes", () => {
                 },
                 body: "invalid-json",
             },
-            env as any,
+            env,
         );
 
         expect(res.status).toBe(400);
-        await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
+        expect(((await res.json()) as any).error).toBe("Invalid JSON body");
     });
 
     it("PATCH /api/collections/:id/papers rejects duplicate paper IDs", async () => {
