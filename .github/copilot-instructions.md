@@ -363,6 +363,7 @@ See `apps/web/README.md` and `apps/api/wrangler.toml` for environment variable r
 ### PR Workflow Reminders
 
 - Use `./agents/pr-review-closure-loop.md` for the full review / CI loop.
+- If you opened or updated a PR in this task, you must run the PR review closure loop before reporting completion (handle review comments, push fixes, and re-check CI to completion).
 - Use `./agents/pr-consolidation-playbook.md` for PR consolidation.
 - Never commit directly to `main`; always work on a feature branch via PR.
 - Keep `staging` as the first merge target for feature work, and retarget PRs to `staging` when automation or maintainer guidance requests it.
