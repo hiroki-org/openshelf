@@ -225,7 +225,19 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Detect benchmark-relevant changes
+        id: codspeed_changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            codspeed:
+              - "apps/api/src/**"
+              - "apps/api/vitest.config.ts"
+      - name: Skip benchmarks for non-API pull requests
+        if: ${{ github.event_name == 'pull_request' && steps.codspeed_changes.outputs.codspeed != 'true' }}
+        run: echo "Skipping CodSpeed: no benchmark-relevant API changes in this pull request."
       - name: Run benchmarks
+        if: ${{ github.event_name != 'pull_request' || steps.codspeed_changes.outputs.codspeed == 'true' }}
         uses: CodSpeedHQ/action@v3
         with:
           run: npx vitest bench --run --config apps/api/vitest.config.ts --passWithNoTests

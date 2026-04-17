@@ -8,6 +8,19 @@ const MIME_COMPATIBILITY: Record<string, readonly string[]> = {
   ],
 };
 
+const PDF_MAGIC_LENGTH = 5;
+const PNG_MAGIC_LENGTH = 8;
+const JPEG_MAGIC_LENGTH = 3;
+const OLE_MAGIC_LENGTH = 8;
+const ZIP_MAGIC_LENGTH = 4;
+const MAX_MAGIC_SIZE = Math.max(
+  PDF_MAGIC_LENGTH,
+  PNG_MAGIC_LENGTH,
+  JPEG_MAGIC_LENGTH,
+  OLE_MAGIC_LENGTH,
+  ZIP_MAGIC_LENGTH,
+);
+
 // Helper function to efficiently parse ZIP Central Directory to find a specific entry
 async function hasZipEntry(file: File, targetEntry: string): Promise<boolean> {
   const CHUNK_SIZE = 65536 + 22; // Max comment size + EOCD size
@@ -210,7 +223,7 @@ export async function validateMagicNumbers(
   declaredMime: string,
 ): Promise<boolean> {
   try {
-    const buffer = await file.slice(0, 8).arrayBuffer();
+    const buffer = await file.slice(0, MAX_MAGIC_SIZE).arrayBuffer();
     const bytes = new Uint8Array(buffer);
 
     let detectedType: string | null = null;
