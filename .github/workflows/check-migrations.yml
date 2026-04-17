@@ -17,7 +17,8 @@ jobs:
           fetch-depth: 0
       - name: Check migration immutability
         run: |
-          CHANGED=$(git diff --name-status origin/main...HEAD -- 'apps/api/drizzle/*.sql' 'apps/api/migrations/*.sql' | awk '$1 != "A" {print $NF}')
+          BASE_REF="origin/${GITHUB_BASE_REF:-main}"
+          CHANGED=$(git diff --name-status "$BASE_REF"...HEAD -- 'apps/api/drizzle/*.sql' 'apps/api/migrations/*.sql' | awk '$1 != "A" {print $NF}')
           if [ -n "$CHANGED" ]; then
             echo "::error::適用済みマイグレーションファイルが変更されています:"
             echo "$CHANGED"

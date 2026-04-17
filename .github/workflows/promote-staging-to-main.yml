@@ -1,0 +1,32 @@
+name: Promote Staging To Main
+
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+
+concurrency:
+  group: promote-staging-to-main
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  open-promote-pr:
+    name: Promote Staging -> Main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 0
+      - name: Attempt direct merge or create promote PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PROMOTION_PR_LABELS: ${{ vars.PROMOTION_PR_LABELS || 'release,automated' }}
+          PROMOTION_PR_ASSIGNEES: ${{ vars.PROMOTION_PR_ASSIGNEES || '' }}
+          PROMOTION_PR_REVIEWERS: ${{ vars.PROMOTION_PR_REVIEWERS || '' }}
+        run: bash .github/scripts/create-staging-to-main-pr.sh

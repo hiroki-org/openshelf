@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/auth-provider";
+import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -343,11 +344,10 @@ export default function UploadPage() {
           >
             タグ（カンマ区切り）
           </label>
-          <input
+          <TagAutocompleteInput
             id="paper-tags"
-            type="text"
             value={tags}
-            onChange={(e) => setTags(e.target.value)}
+            onChange={setTags}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             placeholder="例: NLP, LLM, attention"
           />

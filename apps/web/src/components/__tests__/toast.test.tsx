@@ -33,4 +33,19 @@ describe("toast", () => {
     expect(screen.queryByText("failed")).not.toBeInTheDocument();
     expect(screen.queryByText("fyi")).not.toBeInTheDocument();
   });
+
+  it("removes listener on unmount", () => {
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { unmount, container } = render(<ToastContainer />);
+    unmount();
+
+    act(() => {
+      toast.success("should not error");
+    });
+
+    expect(consoleSpy).not.toHaveBeenCalled();
+    expect(container.innerHTML).toBe("");
+
+    consoleSpy.mockRestore();
+  });
 });

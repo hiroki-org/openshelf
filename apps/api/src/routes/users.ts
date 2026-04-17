@@ -83,12 +83,16 @@ function getCachedResults(key: string): any[] | null {
 }
 
 function setCachedResults(key: string, data: any[]) {
-    // cleanup old cache randomly to prevent memory leak
+    searchCache.delete(key);
+
+    // Prune expired entries in insertion order and stop once the cache reaches fresh data.
     if (searchCache.size >= MAX_CACHE_SIZE) {
         const now = Date.now();
         for (const [k, v] of searchCache.entries()) {
             if (now - v.timestamp > CACHE_TTL_MS) {
                 searchCache.delete(k);
+            } else {
+                break;
             }
         }
 

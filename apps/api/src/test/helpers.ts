@@ -76,6 +76,9 @@ export function makeQuery(
         orderBy() {
             return this;
         },
+        offset() {
+            return this;
+        },
         get: async () => getResult,
         all: async () => allResult,
     };
@@ -101,6 +104,21 @@ export function createMockDb(overrides: Record<string, any> = {}) {
             Promise.all(queries.map((query: any) => (query.all ? query.all() : query))),
         ),
         ...overrides,
+    };
+}
+
+
+export function createMockD1Binding() {
+    const all = vi.fn(async () => ({ results: [] }));
+    const first = vi.fn(async () => null);
+    const run = vi.fn(async () => all());
+    const statement = { run, all, first };
+
+    return {
+        prepare: vi.fn(() => ({
+            ...statement,
+            bind: vi.fn(() => statement),
+        })),
     };
 }
 

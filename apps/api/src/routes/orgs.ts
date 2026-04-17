@@ -1,6 +1,7 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { verify } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, sql, inArray } from "drizzle-orm";
+import { eq, and, sql, inArray, desc, or, isNotNull } from "drizzle-orm";
 import {
     orgs,
     orgMembers,
@@ -10,11 +11,67 @@ import {
     users,
     enableForeignKeys,
     touchUpdatedAt,
+    VALID_CATEGORIES,
+    type CategoryType,
 } from "../db/schema";
-import type { Env, Variables } from "../types";
+import type { Env, JwtPayload, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { parseStoredTags } from "../utils/tags";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
+const ORG_TAGS_LIMIT = 100;
+const ORG_PAPERS_PAGE_SIZE = 20;
+
+function normalizeFilterValue(value: string | undefined): string | null {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return trimmed;
+}
+
+function isValidCategory(value: string): value is CategoryType {
+    return VALID_CATEGORIES.includes(value as CategoryType);
+}
+
+function buildOrgPapersVisibilityCondition(
+    isMember: boolean,
+    authoredIds: string[],
+) {
+    if (isMember) {
+        if (authoredIds.length > 0) {
+            return or(
+                eq(papers.visibility, "public"),
+                eq(papers.visibility, "org_only"),
+                and(eq(papers.visibility, "private"), inArray(papers.id, authoredIds)),
+            );
+        }
+        return or(eq(papers.visibility, "public"), eq(papers.visibility, "org_only"));
+    }
+
+    if (authoredIds.length > 0) {
+        return or(
+            eq(papers.visibility, "public"),
+            and(eq(papers.visibility, "org_only"), inArray(papers.id, authoredIds)),
+            and(eq(papers.visibility, "private"), inArray(papers.id, authoredIds)),
+        );
+    }
+
+    return eq(papers.visibility, "public");
+}
+
+function hasJwtSub(value: unknown): value is Pick<JwtPayload, "sub"> {
+    return !!value
+        && typeof value === "object"
+        && typeof (value as { sub?: unknown }).sub === "string";
+}
+
+const MEMBER_ROLES = ["admin", "member"] as const;
+
+const escapeLikeLiteral = (str: string) => {
+    return str.replace(/[\\%_]/g, '\\$&');
+};
+
+const ADMIN_LIKE_ROLES = ["admin", "owner"] as const;
 
 // ─── Validation helpers ─────────────────────────────────────────
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
@@ -56,7 +113,7 @@ async function getOrgMembership(db: ReturnType<typeof drizzle>, orgId: string, u
 
 async function requireOrgAdmin(db: ReturnType<typeof drizzle>, orgId: string, userId: string) {
     const membership = await getOrgMembership(db, orgId, userId);
-    if (!membership || (membership.role !== "admin" && membership.role !== "owner")) {
+    if (!membership || !ADMIN_LIKE_ROLES.includes(membership.role as any)) {
         return { ok: false as const, error: "Forbidden: admin access required" };
     }
     return { ok: true as const, membership };
@@ -76,9 +133,96 @@ async function isPaperAuthor(db: ReturnType<typeof drizzle>, paperId: string, us
     return !!author;
 }
 
+async function getOptionalUserIdFromAuthHeader(
+    c: Context<{ Bindings: Env; Variables: Variables }>,
+): Promise<string | null> {
+    const authHeader = c.req.header("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) return null;
+
+    try {
+        const payload = await verify(authHeader.slice(7), c.env.JWT_SECRET, "HS256");
+        return hasJwtSub(payload) ? payload.sub : null;
+    } catch {
+        return null;
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // 1. Org CRUD
 // ═══════════════════════════════════════════════════════════════
+
+// GET /api/orgs/:slug/tags — list tags used in an org
+orgsRoute.get("/:slug/tags", async (c) => {
+    const slug = c.req.param("slug");
+    const db = drizzle(c.env.DB);
+    const query = (c.req.query("q") ?? "").trim().toLowerCase();
+
+    const org = await getOrgBySlug(db, slug);
+    if (!org) return c.json({ error: "Org not found" }, 404);
+
+    // Optional auth to determine whether org_only/private tags should be visible
+    const currentUserId = await getOptionalUserIdFromAuthHeader(c);
+
+    const isMember = currentUserId
+        ? await isOrgMember(db, org.id, currentUserId)
+        : false;
+
+    const orgPapers = currentUserId
+        ? await db
+            .select({
+                id: papers.id,
+                visibility: papers.visibility,
+                tags: papers.tags,
+                authorUserId: paperAuthors.userId,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .leftJoin(
+                paperAuthors,
+                and(
+                    eq(paperAuthors.paperId, papers.id),
+                    eq(paperAuthors.userId, currentUserId),
+                ),
+            )
+            .where(eq(paperOrgs.orgId, org.id))
+            .all()
+        : await db
+            .select({
+                id: papers.id,
+                visibility: papers.visibility,
+                tags: papers.tags,
+                authorUserId: sql<string | null>`null`,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(eq(paperOrgs.orgId, org.id))
+            .all();
+    if (orgPapers.length === 0) return c.json({ tags: [] });
+
+    const counts = new Map<string, number>();
+    for (const paper of orgPapers) {
+        const isAuthor = paper.authorUserId === currentUserId;
+        const isVisible = paper.visibility === "public"
+            || (paper.visibility === "org_only" && (isMember || isAuthor))
+            || (paper.visibility === "private" && isAuthor);
+        if (!isVisible) continue;
+
+        for (const tag of parseStoredTags(paper.tags)) {
+            if (query && !tag.toLowerCase().startsWith(query)) continue;
+            counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        }
+    }
+
+    const tags = [...counts.entries()]
+        .sort((a, b) => {
+            if (b[1] !== a[1]) return b[1] - a[1];
+            return a[0].localeCompare(b[0]);
+        })
+        .slice(0, ORG_TAGS_LIMIT)
+        .map(([tag]) => tag);
+
+    return c.json({ tags });
+});
 
 // POST /api/orgs — create org
 orgsRoute.post("/", authMiddleware, async (c) => {
@@ -146,15 +290,23 @@ orgsRoute.get("/:slug", async (c) => {
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    const memberCount = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(orgMembers)
-        .where(eq(orgMembers.orgId, org.id))
-        .get();
+    const [memberCount, paperCount] = await Promise.all([
+        db
+            .select({ count: sql<number>`count(*)` })
+            .from(orgMembers)
+            .where(eq(orgMembers.orgId, org.id))
+            .get(),
+        db
+            .select({ count: sql<number>`count(*)` })
+            .from(paperOrgs)
+            .where(eq(paperOrgs.orgId, org.id))
+            .get(),
+    ]);
 
     return c.json({
         org,
         memberCount: memberCount?.count ?? 0,
+        paperCount: paperCount?.count ?? 0,
     });
 });
 
@@ -335,16 +487,20 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
         return c.json({ error: "Invalid JSON body" }, 400);
     }
 
-    const newRole = body?.role;
-    if (!["admin", "member"].includes(newRole)) {
-        return c.json({ error: "role must be 'admin' or 'member'" }, 400);
-    }
-
     const membership = await getOrgMembership(db, org.id, targetUserId);
     if (!membership) return c.json({ error: "Member not found" }, 404);
 
+    if (adminCheck.membership.role === "admin" && membership.role === "owner") {
+        return c.json({ error: "Forbidden: admin cannot modify owner role" }, 403);
+    }
+
+    const newRole = body?.role;
+    if (!MEMBER_ROLES.includes(newRole)) {
+        return c.json({ error: "role must be 'admin' or 'member'" }, 400);
+    }
+
     // Prevent demoting the last admin purely via atomic update check
-    if (newRole === "member" && (membership.role === "admin" || membership.role === "owner")) {
+    if (newRole === "member" && ADMIN_LIKE_ROLES.includes(membership.role as any)) {
         const result = await db
             .update(orgMembers)
             .set({ role: newRole })
@@ -387,8 +543,12 @@ orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
     const membership = await getOrgMembership(db, org.id, targetUserId);
     if (!membership) return c.json({ error: "Member not found" }, 404);
 
+    if (adminCheck.membership.role === "admin" && membership.role === "owner") {
+        return c.json({ error: "Forbidden: admin cannot remove owner" }, 403);
+    }
+
     // Prevent removing the last admin purely via atomic delete check
-    if (membership.role === "admin" || membership.role === "owner") {
+    if (ADMIN_LIKE_ROLES.includes(membership.role as any)) {
         const result = await db
             .delete(orgMembers)
             .where(
@@ -420,81 +580,239 @@ orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
 orgsRoute.get("/:slug/papers", async (c) => {
     const slug = c.req.param("slug");
     const db = drizzle(c.env.DB);
+    const yearQuery = normalizeFilterValue(c.req.query("year"));
+    const venueQuery = normalizeFilterValue(c.req.query("venue"));
+    const categoryQuery = normalizeFilterValue(c.req.query("category"));
+    const pageQuery = c.req.query("page");
+    // year=all は autoYear(最新年度自動選択) を明示的に無効化して全年度表示するために使う
+    const paginate = c.req.query("paginate") === "1";
+    const autoYear = c.req.query("autoYear") === "1";
 
     const org = await getOrgBySlug(db, slug);
     if (!org) return c.json({ error: "Org not found" }, 404);
 
-    // Check auth (optional)
-    let currentUserId: string | null = null;
-    const authHeader = c.req.header("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-        try {
-            const { verify } = await import("hono/jwt");
-            const payload = await verify(authHeader.slice(7), c.env.JWT_SECRET, "HS256") as any;
-            currentUserId = payload.sub ?? null;
-        } catch {
-            // Not authenticated — fine, just show public papers
+    let page = 1;
+    if (pageQuery !== undefined) {
+        if (!/^\d+$/.test(pageQuery)) {
+            return c.json({ error: "Invalid page" }, 400);
+        }
+        page = Number.parseInt(pageQuery, 10);
+        if (!Number.isFinite(page) || page <= 0) {
+            return c.json({ error: "Invalid page" }, 400);
         }
     }
+
+    if (venueQuery && venueQuery.length > 100) {
+        return c.json({ error: "venue must be 100 characters or less" }, 400);
+    }
+
+    if (categoryQuery && !isValidCategory(categoryQuery)) {
+        return c.json({ error: "Invalid category" }, 400);
+    }
+    const categoryFilter = categoryQuery as CategoryType | null;
+
+    let requestedYear: number | null = null;
+    const wantsAllYears = yearQuery === "all";
+    if (yearQuery && !wantsAllYears) {
+        if (!/^\d{4}$/.test(yearQuery)) {
+            return c.json({ error: "Invalid year" }, 400);
+        }
+        const parsedYear = Number.parseInt(yearQuery, 10);
+        if (!Number.isFinite(parsedYear) || parsedYear < 1900 || parsedYear > 2100) {
+            return c.json({ error: "Invalid year" }, 400);
+        }
+        requestedYear = parsedYear;
+    }
+
+    // Check auth (optional)
+    const currentUserId = await getOptionalUserIdFromAuthHeader(c);
 
     const isMember = currentUserId ? await isOrgMember(db, org.id, currentUserId) : false;
-
-    // Fetch paper IDs from paper_orgs
-    const paperOrgRows = await db
-        .select({ paperId: paperOrgs.paperId })
-        .from(paperOrgs)
-        .where(eq(paperOrgs.orgId, org.id))
-        .all();
-
-    if (paperOrgRows.length === 0) return c.json({ papers: [] });
-
-    const paperIds = paperOrgRows.map((r) => r.paperId);
-
-    const allPapers = await db
-        .select({
-            id: papers.id,
-            title: papers.title,
-            abstract: papers.abstract,
-            visibility: papers.visibility,
-            venue: papers.venue,
-            venueType: papers.venueType,
-            year: papers.year,
-            category: papers.category,
-            tags: papers.tags,
-            createdAt: papers.createdAt,
-        })
-        .from(papers)
-        .where(inArray(papers.id, paperIds))
-        .all();
-
-    // Check authorship for non-public papers the user might be an author of
-    let authoredPaperIds = new Set<string>();
+    const authoredPaperIds = new Set<string>();
     if (currentUserId) {
-        const nonPublicPapers = allPapers.filter((p) => p.visibility !== "public");
-        if (nonPublicPapers.length > 0) {
-            const authorships = await db
-                .select({ paperId: paperAuthors.paperId })
-                .from(paperAuthors)
-                .where(
-                    and(
-                        inArray(paperAuthors.paperId, nonPublicPapers.map((p) => p.id)),
-                        eq(paperAuthors.userId, currentUserId),
-                    ),
-                )
-                .all();
-            authoredPaperIds = new Set(authorships.map((a) => a.paperId));
+        const authorRows = await db
+            .select({ paperId: paperAuthors.paperId })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .innerJoin(
+                paperAuthors,
+                and(eq(paperAuthors.paperId, papers.id), eq(paperAuthors.userId, currentUserId)),
+            )
+            .where(eq(paperOrgs.orgId, org.id))
+            .all();
+        for (const row of authorRows) {
+            authoredPaperIds.add(row.paperId);
         }
     }
 
-    // Filter by visibility
-    const filtered = allPapers.filter((p) => {
-        if (p.visibility === "public") return true;
-        if (p.visibility === "org_only" && (isMember || authoredPaperIds.has(p.id))) return true;
-        if (p.visibility === "private" && authoredPaperIds.has(p.id)) return true;
-        return false;
-    });
+    const authoredIds = Array.from(authoredPaperIds);
+    const visibilityCondition = buildOrgPapersVisibilityCondition(isMember, authoredIds);
 
-    return c.json({ papers: filtered });
+    const baseFilters = [eq(paperOrgs.orgId, org.id), visibilityCondition];
+
+    let effectiveYear = requestedYear;
+    const latestYearFilters = [...baseFilters];
+    if (venueQuery) {
+        latestYearFilters.push(sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`);
+    }
+    if (categoryFilter) {
+        latestYearFilters.push(eq(papers.category, categoryFilter));
+    }
+
+    if (autoYear && !wantsAllYears && requestedYear === null) {
+        const latestYearRow = await db
+            .select({ maxYear: sql<number | null>`MAX(${papers.year})` })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(and(...latestYearFilters))
+            .get();
+        effectiveYear = latestYearRow?.maxYear ?? null;
+    }
+
+    const finalFilters = [...baseFilters];
+    if (venueQuery) {
+        finalFilters.push(sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`);
+    }
+    if (categoryFilter) {
+        finalFilters.push(eq(papers.category, categoryFilter));
+    }
+    if (effectiveYear !== null) {
+        finalFilters.push(eq(papers.year, effectiveYear));
+    }
+
+    if (!paginate) {
+        const allPapers = await db
+            .select({
+                id: papers.id,
+                title: papers.title,
+                abstract: papers.abstract,
+                visibility: papers.visibility,
+                venue: papers.venue,
+                venueType: papers.venueType,
+                year: papers.year,
+                category: papers.category,
+                tags: papers.tags,
+                createdAt: papers.createdAt,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(and(...finalFilters))
+            .orderBy(desc(papers.year), desc(papers.createdAt))
+            .all();
+        return c.json({ papers: allPapers });
+    }
+
+    const [totalRow, papersRows, yearOptions, venueOptions, categoryOptions] = await Promise.all([
+        db
+            .select({ count: sql<number>`COUNT(*)` })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(and(...finalFilters))
+            .get(),
+        db
+            .select({
+                id: papers.id,
+                title: papers.title,
+                abstract: papers.abstract,
+                visibility: papers.visibility,
+                venue: papers.venue,
+                venueType: papers.venueType,
+                year: papers.year,
+                category: papers.category,
+                tags: papers.tags,
+                createdAt: papers.createdAt,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(and(...finalFilters))
+            .orderBy(desc(papers.year), desc(papers.createdAt))
+            .limit(ORG_PAPERS_PAGE_SIZE)
+            .offset((page - 1) * ORG_PAPERS_PAGE_SIZE)
+            .all(),
+        db
+            .select({
+                value: papers.year,
+                count: sql<number>`COUNT(*)`,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(
+                and(
+                    ...baseFilters,
+                    venueQuery ? sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'` : undefined,
+                    categoryFilter ? eq(papers.category, categoryFilter) : undefined,
+                    isNotNull(papers.year),
+                ),
+            )
+            .groupBy(papers.year)
+            .orderBy(desc(papers.year))
+            .all(),
+        db
+            .select({
+                value: papers.venue,
+                count: sql<number>`COUNT(*)`,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(
+                and(
+                    ...baseFilters,
+                    effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
+                    categoryFilter ? eq(papers.category, categoryFilter) : undefined,
+                    isNotNull(papers.venue),
+                    // Use raw SQL for the trimmed column predicate because Drizzle has no helper for it.
+                    sql`TRIM(${papers.venue}) != ''`,
+                ),
+            )
+            .groupBy(papers.venue)
+            .orderBy(desc(sql<number>`COUNT(*)`), papers.venue)
+            .all(),
+        db
+            .select({
+                value: papers.category,
+                count: sql<number>`COUNT(*)`,
+            })
+            .from(paperOrgs)
+            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+            .where(
+                and(
+                    ...baseFilters,
+                    effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
+                    venueQuery ? sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'` : undefined,
+                    isNotNull(papers.category),
+                ),
+            )
+            .groupBy(papers.category)
+            .orderBy(desc(sql<number>`COUNT(*)`), papers.category)
+            .all(),
+    ]);
+
+    const total = totalRow?.count ?? 0;
+    const totalPages = Math.max(1, Math.ceil(total / ORG_PAPERS_PAGE_SIZE));
+
+    return c.json({
+        papers: papersRows,
+        total,
+        page,
+        pageSize: ORG_PAPERS_PAGE_SIZE,
+        totalPages,
+        appliedFilters: {
+            year: effectiveYear,
+            venue: venueQuery,
+            category: categoryQuery,
+        },
+        filterOptions: {
+            years: yearOptions
+                .filter((row) => typeof row.value === "number")
+                .map((row) => ({ value: row.value as number, count: row.count })),
+            venues: venueOptions
+                .filter((row) => typeof row.value === "string" && row.value.trim().length > 0)
+                .map((row) => ({ value: row.value as string, count: row.count })),
+            categories: categoryOptions
+                .filter((row) => typeof row.value === "string" && row.value.length > 0)
+                .map((row) => ({ value: row.value as string, count: row.count })),
+        },
+    });
 });
 
 // POST /api/orgs/:slug/papers — associate paper with org

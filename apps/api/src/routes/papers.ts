@@ -1,11 +1,12 @@
 import { Hono, type Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, and, gte, inArray, sql } from "drizzle-orm";
+import { eq, and, gte, sql } from "drizzle-orm";
 import {
     papers,
     paperFiles,
     paperAuthors,
-    paperViews,
+    paperStatsDaily,
+    paperStatsTotal,
     users,
     coauthorInvites,
     orgMembers,
@@ -20,11 +21,15 @@ import {
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
+import { buildCitation, isCitationFormat } from "../utils/citation";
+import pMap from "p-map";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 const MAX_CONCURRENT_UPLOADS = 3;
+const R2_DELETE_BATCH_SIZE = 1000;
+const MAX_CONCURRENT_R2_DELETES = 2;
 const ALLOWED_MIME_TYPES = [
     "application/pdf",
     "application/vnd.ms-powerpoint",
@@ -36,13 +41,34 @@ const VALID_FILE_TYPES = ["paper", "slides", "poster", "supplementary"];
 const VALID_VISIBILITY = ["public", "org_only", "private"];
 const MAX_TITLE_LENGTH = 300;
 const MAX_ABSTRACT_LENGTH = 5000;
+const MAX_DESCRIPTION_LENGTH = 50000;
 const MAX_LANGUAGE_LENGTH = 32;
 const MAX_EXTERNAL_URL_LENGTH = 2048;
 const MAX_DOI_LENGTH = 255;
 const MAX_VENUE_LENGTH = 255;
 const MAX_TAG_LENGTH = 64;
-const VIEW_DEDUPE_WINDOW_MS = 24 * 60 * 60 * 1000;
-const VIEW_STATS_RANGE_DAYS = 30;
+const MAX_REFERRER_LENGTH = 2048;
+const TRACK_DEDUP_RETENTION_DAYS = 90;
+const TRACKABLE_EVENTS = ["view", "download", "preview"] as const;
+const TRACK_STATS_ALLOWED_DAYS = [7, 30, 90, 365] as const;
+const BOT_USER_AGENT_KEYWORDS = [
+    "bot",
+    "crawler",
+    "spider",
+    "googlebot",
+    "bingbot",
+    "facebookexternalhit",
+    "bytespider",
+];
+
+type TrackEvent = typeof TRACKABLE_EVENTS[number];
+type DeleteBatchErrorInfo = {
+    chunkStart: number;
+    chunkEndExclusive: number;
+    chunkSize: number;
+    chunkSample: string[];
+    error: string;
+};
 
 function formatDateKey(date: Date): string {
     return date.toISOString().slice(0, 10);
@@ -52,6 +78,10 @@ function formatDbDateTime(date: Date): string {
     return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
+function toIsoUtc(value: string | null | undefined): string | null {
+    if (!value) return null;
+    return new Date(value.replace(" ", "T") + "Z").toISOString();
+}
 function getDateRange(days: number, now = new Date()): string[] {
     const start = new Date(Date.UTC(
         now.getUTCFullYear(),
@@ -67,18 +97,186 @@ function getDateRange(days: number, now = new Date()): string[] {
     });
 }
 
-function getViewBucket(now = new Date()): number {
-    return Math.floor(now.getTime() / VIEW_DEDUPE_WINDOW_MS);
+function isTrackEvent(value: unknown): value is TrackEvent {
+    return typeof value === "string"
+        && (TRACKABLE_EVENTS as readonly string[]).includes(value);
 }
 
-function getStatsRangeStart(days: number, now = new Date()): string {
-    const start = new Date(Date.UTC(
-        now.getUTCFullYear(),
-        now.getUTCMonth(),
-        now.getUTCDate(),
-    ));
-    start.setUTCDate(start.getUTCDate() - (days - 1));
-    return formatDbDateTime(start);
+function parseTrackDays(value: string | undefined): number | null {
+    if (value === undefined) return 30;
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed)) return null;
+    return (TRACK_STATS_ALLOWED_DAYS as readonly number[]).includes(parsed)
+        ? parsed
+        : null;
+}
+
+function normalizeReferrer(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    return trimmed.slice(0, MAX_REFERRER_LENGTH);
+}
+
+async function deleteKeysInBatches(
+    bucket: Env["BUCKET"],
+    keys: string[],
+    onChunkError?: (info: DeleteBatchErrorInfo) => void,
+): Promise<void> {
+    const chunkStarts = Array.from(
+        { length: Math.ceil(keys.length / R2_DELETE_BATCH_SIZE) },
+        (_, index) => index * R2_DELETE_BATCH_SIZE,
+    );
+
+    await pMap(
+        chunkStarts,
+        async (chunkStart) => {
+            const chunk = keys.slice(chunkStart, chunkStart + R2_DELETE_BATCH_SIZE);
+            try {
+                await bucket.delete(chunk);
+            } catch (error) {
+                const info = {
+                    chunkStart,
+                    chunkEndExclusive: chunkStart + chunk.length,
+                    chunkSize: chunk.length,
+                    chunkSample: chunk.slice(0, 3),
+                    error: error instanceof Error ? error.message : String(error),
+                };
+                if (onChunkError) {
+                    onChunkError(info);
+                    return;
+                }
+                throw error;
+            }
+        },
+        { concurrency: MAX_CONCURRENT_R2_DELETES },
+    );
+}
+
+/**
+ * `isBotUserAgent` treats missing or empty User-Agent values as non-bot.
+ * Requests without a User-Agent header are therefore counted as human traffic.
+ */
+function isBotUserAgent(userAgent: string | undefined): boolean {
+    if (!userAgent) return false;
+    const normalized = userAgent.toLowerCase();
+    return BOT_USER_AGENT_KEYWORDS.some((keyword) => normalized.includes(keyword));
+}
+
+function getClientIp(c: Context<{ Bindings: Env; Variables: Variables }>): string {
+    return c.req.header("CF-Connecting-IP")
+        ?? c.req.header("cf-connecting-ip")
+        ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim()
+        ?? c.req.header("x-forwarded-for")?.split(",")[0]?.trim()
+        ?? "unknown-ip";
+}
+
+async function runInBackground(
+    c: Context<{ Bindings: Env; Variables: Variables }>,
+    promise: Promise<unknown>,
+): Promise<void> {
+    let executionCtx: { waitUntil?: (p: Promise<unknown>) => void } | undefined;
+    try {
+        executionCtx = c.executionCtx as { waitUntil?: (p: Promise<unknown>) => void } | undefined;
+    } catch {
+        executionCtx = undefined;
+    }
+    if (executionCtx?.waitUntil) {
+        executionCtx.waitUntil(promise);
+        return;
+    }
+    await promise;
+}
+
+async function buildTrackSessionHash(
+    c: Context<{ Bindings: Env; Variables: Variables }>,
+    date: string,
+    paperId: string,
+): Promise<string> {
+    const ip = getClientIp(c);
+    return hashString(`${c.env.JWT_SECRET}:track:${paperId}:${ip}:${date}`);
+}
+
+function eventIncrements(event: TrackEvent) {
+    return {
+        views: event === "view" ? 1 : 0,
+        downloads: event === "download" ? 1 : 0,
+        previews: event === "preview" ? 1 : 0,
+    };
+}
+
+type RecordTrackEventInput = {
+    db: Env["DB"];
+    paperId: string;
+    event: TrackEvent;
+    date: string;
+    sessionHash: string;
+    referrer: string | null;
+};
+
+async function recordTrackEvent({
+    db,
+    paperId,
+    event,
+    date,
+    sessionHash,
+    referrer,
+}: RecordTrackEventInput): Promise<boolean> {
+    const increments = eventIncrements(event);
+    const dedupStmt = db
+        .prepare(`
+            INSERT INTO paper_stats_dedup (paper_id, event, date, session_hash, referrer)
+            VALUES (?1, ?2, ?3, ?4, ?5)
+            ON CONFLICT(paper_id, event, date, session_hash) DO NOTHING
+        `)
+        .bind(paperId, event, date, sessionHash, referrer);
+
+    const dailyStmt = db
+        .prepare(`
+            INSERT INTO paper_stats_daily (paper_id, date, views, downloads, previews)
+            SELECT ?1, ?2, ?3, ?4, ?5
+            WHERE changes() > 0
+            ON CONFLICT(paper_id, date) DO UPDATE SET
+                views = views + excluded.views,
+                downloads = downloads + excluded.downloads,
+                previews = previews + excluded.previews
+        `)
+        .bind(
+            paperId,
+            date,
+            increments.views,
+            increments.downloads,
+            increments.previews,
+        );
+
+    const totalStmt = db
+        .prepare(`
+            INSERT INTO paper_stats_total (paper_id, total_views, total_downloads, total_previews)
+            SELECT ?1, ?2, ?3, ?4
+            WHERE changes() > 0
+            ON CONFLICT(paper_id) DO UPDATE SET
+                total_views = total_views + excluded.total_views,
+                total_downloads = total_downloads + excluded.total_downloads,
+                total_previews = total_previews + excluded.total_previews,
+                last_updated = datetime('now')
+        `)
+        .bind(
+            paperId,
+            increments.views,
+            increments.downloads,
+            increments.previews,
+        );
+
+    const cleanupStmt = db
+        .prepare(`
+            DELETE FROM paper_stats_dedup
+            WHERE date < date(?1, ?2)
+        `)
+        .bind(date, `-${TRACK_DEDUP_RETENTION_DAYS} days`);
+
+    const [dedupResult] = await db.batch([dedupStmt, dailyStmt, totalStmt, cleanupStmt]);
+    const changes = dedupResult?.meta?.changes;
+    return typeof changes === "number" ? changes > 0 : true;
 }
 
 async function hashString(value: string): Promise<string> {
@@ -89,37 +287,22 @@ async function hashString(value: string): Promise<string> {
         .join("");
 }
 
-async function buildViewerFingerprint(
-    c: Context<{ Bindings: Env; Variables: Variables }>,
-    paperId: string,
-): Promise<string> {
-    const user = c.get("user");
-    if (user?.sub) {
-        // Authenticated users are tracked by their ID
-        return hashString(`${c.env.JWT_SECRET}:auth:${paperId}:${user.sub}`);
-    }
-
-    // Anonymous users are tracked by IP and User-Agent
-    const forwardedFor = c.req.header("CF-Connecting-IP")
-        ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim()
-        ?? "unknown-ip";
-    const userAgent = c.req.header("User-Agent") ?? "unknown-ua";
-
-    return hashString(
-        `${c.env.JWT_SECRET}:anon:${paperId}:${forwardedFor}:${userAgent}`,
-    );
-}
-
-async function getPaperViewCount(
+async function getPaperPublicStats(
     db: ReturnType<typeof drizzle>,
     paperId: string,
-): Promise<number> {
+): Promise<{ views: number; downloads: number }> {
     const row = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(paperViews)
-        .where(eq(paperViews.paperId, paperId))
+        .select({
+            views: paperStatsTotal.totalViews,
+            downloads: paperStatsTotal.totalDownloads,
+        })
+        .from(paperStatsTotal)
+        .where(eq(paperStatsTotal.paperId, paperId))
         .get();
-    return row?.count ?? 0;
+    return {
+        views: row?.views ?? 0,
+        downloads: row?.downloads ?? 0,
+    };
 }
 
 function sanitizeFilename(filename: string): string {
@@ -297,19 +480,29 @@ async function generateSignedPreviewUrl(
     return null;
 }
 
-// POST /api/papers — create paper + upload files
-papersRoute.post("/", authMiddleware, async (c) => {
-    const body = await c.req.parseBody({ all: true });
 
-    const metadataStr = body["metadata"];
-    if (typeof metadataStr !== "string")
-        return c.json({ error: "metadata field is required" }, 400);
+type ParsedMetadata = {
+    title: string;
+    abstract: string | null;
+    visibility: "public" | "org_only" | "private";
+    showViewCount: boolean;
+    language: string | null;
+    externalUrl: string | null;
+    doi: string | null;
+    venue: string | null;
+    venueType: VenueType | null;
+    year: number | null;
+    category: CategoryType | null;
+    tags: string | null;
+    orgId?: string;
+};
 
+function parseAndValidateMetadata(c: Context, metadataStr: string): { errorResponse?: Response; data?: ParsedMetadata } {
     let meta: Record<string, unknown>;
     try {
         meta = JSON.parse(metadataStr);
     } catch {
-        return c.json({ error: "Invalid metadata JSON" }, 400);
+        return { errorResponse: c.json({ error: "Invalid metadata JSON" }, 400) };
     }
 
     const title = meta.title as string | undefined;
@@ -319,109 +512,107 @@ papersRoute.post("/", authMiddleware, async (c) => {
         title.trim().length === 0 ||
         title.trim().length > MAX_TITLE_LENGTH
     )
-        return c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400);
+        return { errorResponse: c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400) };
 
     const vis = (meta.visibility as string) || "private";
     if (!VALID_VISIBILITY.includes(vis))
-        return c.json({ error: "Invalid visibility" }, 400);
+        return { errorResponse: c.json({ error: "Invalid visibility" }, 400) };
 
     const venueType = (meta.venueType as string | null | undefined) ?? null;
     if (venueType !== null && !(VALID_VENUE_TYPES as readonly string[]).includes(venueType))
-        return c.json({ error: "Invalid venueType" }, 400);
+        return { errorResponse: c.json({ error: "Invalid venueType" }, 400) };
 
     const category = (meta.category as string | null | undefined) ?? null;
     if (category !== null && !(VALID_CATEGORIES as readonly string[]).includes(category))
-        return c.json({ error: "Invalid category" }, 400);
+        return { errorResponse: c.json({ error: "Invalid category" }, 400) };
 
     const externalUrl = (meta.externalUrl as string) || null;
     if (externalUrl && !isValidUrlScheme(externalUrl)) {
-        return c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400);
+        return { errorResponse: c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400) };
     }
 
     if (
         meta.showViewCount !== undefined
         && typeof meta.showViewCount !== "boolean"
     ) {
-        return c.json({ error: "showViewCount must be a boolean" }, 400);
+        return { errorResponse: c.json({ error: "showViewCount must be a boolean" }, 400) };
     }
 
     const orgId = meta.orgId as string | undefined;
     if (vis === "org_only" && !orgId) {
-        return c.json({ error: "orgId is required for org_only visibility" }, 400);
+        return { errorResponse: c.json({ error: "orgId is required for org_only visibility" }, 400) };
     }
 
-    const paperId = crypto.randomUUID();
-    const userId = c.get("user").sub;
-
-    const db = drizzle(c.env.DB);
-    await enableForeignKeys(db);
-
-    if (vis === "org_only" && orgId) {
-        const membership = await db
-            .select({ orgId: orgMembers.orgId })
-            .from(orgMembers)
-            .where(
-                and(
-                    eq(orgMembers.orgId, orgId),
-                    eq(orgMembers.userId, userId),
-                ),
-            )
-            .get();
-        if (!membership) {
-            console.error(`Membership check failed for userId: ${userId}, orgId: ${orgId}`);
-            return c.json({ error: "Invalid orgId or not a member" }, 403);
+    return {
+        data: {
+            title: title.trim(),
+            abstract: (meta.abstract as string) || null,
+            visibility: vis as "public" | "org_only" | "private",
+            showViewCount: Boolean(meta.showViewCount),
+            language: (meta.language as string) || null,
+            externalUrl,
+            doi: (meta.doi as string) || null,
+            venue: (meta.venue as string) || null,
+            venueType: venueType as VenueType | null,
+            year: meta.year ? Number(meta.year) : null,
+            category: category as CategoryType | null,
+            tags: meta.tags ? JSON.stringify(meta.tags) : null,
+            orgId,
         }
-    }
-
-    type UploadEntry = {
-        file: File;
-        fileType: "paper" | "slides" | "poster" | "supplementary";
-        safeFilename: string;
-        r2Key: string;
     };
+}
 
+
+type UploadEntry = {
+    file: File;
+    fileType: "paper" | "slides" | "poster" | "supplementary";
+    safeFilename: string;
+    r2Key: string;
+};
+
+async function prepareUploadEntries(c: Context, body: Record<string, string | File | (string | File)[]>, paperId: string): Promise<{ errorResponse?: Response; uploads?: UploadEntry[] }> {
     const uploads: UploadEntry[] = [];
 
     // Validate all file entries before any upload or DB mutation.
-    for (let i = 0; ; i++) {
+    for (let i = 0; body[`files_${i}`]; i++) {
         const fileCandidate = body[`files_${i}`];
-        if (!fileCandidate) break;
+
         if (typeof fileCandidate === "string" || Array.isArray(fileCandidate)) {
             console.error(`Field files_${i} is not a single file`);
-            return c.json({ error: `Field files_${i} is not a valid file` }, 400);
+            return { errorResponse: c.json({ error: `Field files_${i} is not a valid file` }, 400) };
         }
 
         const file = fileCandidate as File;
         if (!(file instanceof File) && typeof (file as any).slice !== "function") {
             console.error(`Field files_${i} is not a valid File/Blob`);
-            return c.json({ error: `Field files_${i} is not a valid file` }, 400);
+            return { errorResponse: c.json({ error: `Field files_${i} is not a valid file` }, 400) };
         }
 
         if (file.size > MAX_FILE_SIZE)
-            return c.json(
+            return { errorResponse: c.json(
                 { error: `File ${file.name} exceeds 50 MB limit` },
                 400,
-            );
+            ) };
         if (!ALLOWED_MIME_TYPES.includes(file.type))
-            return c.json(
+            return { errorResponse: c.json(
                 {
                     error: `File ${file.name} has unsupported type: ${file.type || "unknown"}`,
                 },
                 400,
-            );
+            ) };
 
         const isValidContent = await validateMagicNumbers(file, file.type);
         if (!isValidContent) {
             console.error(`Magic number validation failed for file ${file.name} (declared: ${file.type})`);
-            return c.json(
+            return { errorResponse: c.json(
                 { error: `File ${file.name} does not match expected format for ${file.type}` },
                 400,
-            );
+            ) };
         }
 
         const ft = (body[`file_types_${i}`] as string) || "paper";
         if (!VALID_FILE_TYPES.includes(ft))
-            return c.json({ error: `Invalid file_type: ${ft}` }, 400);
+            return { errorResponse: c.json({ error: `Invalid file_type: ${ft}` }, 400) };
 
         const safeFilename = sanitizeFilename(file.name);
         const uniqueFilename = `${crypto.randomUUID()}-${safeFilename}`;
@@ -435,47 +626,88 @@ papersRoute.post("/", authMiddleware, async (c) => {
     }
 
     if (uploads.length === 0) {
-        return c.json({ error: "At least one file is required" }, 400);
+        return { errorResponse: c.json({ error: "At least one file is required" }, 400) };
     }
+
+    return { uploads };
+}
+
+// POST /api/papers — create paper + upload files
+papersRoute.post("/", authMiddleware, async (c) => {
+    const body = await c.req.parseBody({ all: true });
+
+    const metadataStr = body["metadata"];
+    if (typeof metadataStr !== "string")
+        return c.json({ error: "metadata field is required" }, 400);
+
+    const { errorResponse, data: meta } = parseAndValidateMetadata(c, metadataStr);
+    if (errorResponse) return errorResponse;
+    if (!meta) return c.json({ error: "Unexpected parsing error" }, 500); // Should not happen based on helper logic
+
+    const paperId = crypto.randomUUID();
+    const userId = c.get("user").sub;
+
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    if (meta.visibility === "org_only" && meta.orgId) {
+        const membership = await db
+            .select({ orgId: orgMembers.orgId })
+            .from(orgMembers)
+            .where(
+                and(
+                    eq(orgMembers.orgId, meta.orgId),
+                    eq(orgMembers.userId, userId),
+                ),
+            )
+            .get();
+        if (!membership) {
+            console.error(`Membership check failed for userId: ${userId}, orgId: ${meta.orgId}`);
+            return c.json({ error: "Invalid orgId or not a member" }, 403);
+        }
+    }
+
+    const { errorResponse: uploadError, uploads } = await prepareUploadEntries(c, body, paperId);
+    if (uploadError) return uploadError;
+    if (!uploads) return c.json({ error: "Unexpected upload processing error" }, 500); // Should not happen based on helper logic
 
     const paperValues: typeof papers.$inferInsert = {
         id: paperId,
-        title: title.trim(),
-        abstract: (meta.abstract as string) || null,
-        visibility: vis as "public" | "org_only" | "private",
-        showViewCount: Boolean(meta.showViewCount),
-        language: (meta.language as string) || null,
-        externalUrl,
-        doi: (meta.doi as string) || null,
-        venue: (meta.venue as string) || null,
-        venueType: venueType as VenueType | null,
-        year: meta.year ? Number(meta.year) : null,
-        category: category as CategoryType | null,
-        tags: meta.tags ? JSON.stringify(meta.tags) : null,
+        title: meta.title,
+        abstract: meta.abstract,
+        visibility: meta.visibility,
+        showViewCount: meta.showViewCount,
+        language: meta.language,
+        externalUrl: meta.externalUrl,
+        doi: meta.doi,
+        venue: meta.venue,
+        venueType: meta.venueType,
+        year: meta.year,
+        category: meta.category,
+        tags: meta.tags,
     };
 
     const uploadedKeys: string[] = [];
     try {
         const errors: unknown[] = [];
-        for (let i = 0; i < uploads.length; i += MAX_CONCURRENT_UPLOADS) {
-            const chunk = uploads.slice(i, i + MAX_CONCURRENT_UPLOADS);
-            const results = await Promise.allSettled(
-                chunk.map(async (entry) => {
-                    const fileBuffer = await entry.file.arrayBuffer();
-                    await c.env.BUCKET.put(entry.r2Key, fileBuffer, {
+        const results = await pMap(
+            uploads,
+            async (entry) => {
+                try {
+                    await c.env.BUCKET.put(entry.r2Key, entry.file.stream() as any, {
                         httpMetadata: { contentType: entry.file.type },
                     });
-                    return entry.r2Key;
-                }),
-            );
-
-            for (const result of results) {
-                if (result.status === "fulfilled") {
-                    uploadedKeys.push(result.value);
-                } else {
-                    errors.push(result.reason);
+                    return { r2Key: entry.r2Key, error: null };
+                } catch (e) {
+                    return { r2Key: null, error: e };
                 }
-            }
+            },
+            { concurrency: MAX_CONCURRENT_UPLOADS }
+        );
+
+        for (const res of results) {
+            if (res.error) errors.push(res.error);
+            else if (res.r2Key) uploadedKeys.push(res.r2Key);
         }
 
         if (errors.length > 0) {
@@ -489,8 +721,8 @@ papersRoute.post("/", authMiddleware, async (c) => {
             .insert(paperAuthors)
             .values({ paperId, userId, role: "uploader" });
 
-        if (vis === "org_only" && orgId) {
-            await db.insert(paperOrgs).values({ paperId, orgId });
+        if (meta.visibility === "org_only" && meta.orgId) {
+            await db.insert(paperOrgs).values({ paperId, orgId: meta.orgId });
         }
 
         await db.insert(paperFiles).values(
@@ -506,7 +738,10 @@ papersRoute.post("/", authMiddleware, async (c) => {
             })),
         );
     } catch (error) {
-        await Promise.all(uploadedKeys.map((key) => c.env.BUCKET.delete(key)));
+        await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
+            // Ignore cleanup errors during rollback after a later failure.
+            console.error("Cleanup error (non-fatal, rollback continues)", info);
+        });
         await db.delete(papers).where(eq(papers.id, paperId));
         throw error;
     }
@@ -576,8 +811,8 @@ papersRoute.get("/:id", async (c) => {
         ...file,
         downloadUrl: `/api/papers/${paperId}/files/${file.id}/download`,
     }));
-    const publicViewCount = paper.showViewCount
-        ? await getPaperViewCount(db, paperId)
+    const publicStats = paper.showViewCount
+        ? await getPaperPublicStats(db, paperId)
         : null;
 
     return c.json({
@@ -585,9 +820,12 @@ papersRoute.get("/:id", async (c) => {
             id: paper.id,
             title: paper.title,
             abstract: paper.abstract,
+            description: paper.description,
+            descriptionUpdatedAt: toIsoUtc(paper.descriptionUpdatedAt),
             visibility: paper.visibility,
             showViewCount: paper.showViewCount,
-            publicViewCount,
+            publicViewCount: publicStats?.views ?? null,
+            publicDownloadCount: publicStats?.downloads ?? null,
             language: paper.language,
             externalUrl: paper.externalUrl,
             doi: paper.doi,
@@ -604,11 +842,73 @@ papersRoute.get("/:id", async (c) => {
     });
 });
 
-// POST /api/papers/:id/view — record a deduplicated paper view
-papersRoute.post("/:id/view", async (c) => {
+// GET /api/papers/:id/cite — generate citation text
+papersRoute.get("/:id/cite", async (c) => {
+    const paperId = c.req.param("id");
+    const formatRaw = c.req.query("format") ?? "bibtex";
+    const format = isCitationFormat(formatRaw) ? formatRaw : "bibtex";
+    const db = drizzle(c.env.DB);
+
+    const paper = await db
+        .select()
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!paper) return c.json({ error: "Not found" }, 404);
+
+    const access = await authorizePaperAccess(c, db, paper);
+    if (!access.ok) {
+        return c.json({ error: access.error }, access.status as any);
+    }
+
+    const authors = await db
+        .select({
+            name: users.name,
+            displayName: users.displayName,
+        })
+        .from(paperAuthors)
+        .innerJoin(users, eq(paperAuthors.userId, users.id))
+        .where(eq(paperAuthors.paperId, paperId))
+        .all();
+
+    const citation = buildCitation(
+        {
+            id: paper.id,
+            title: paper.title,
+            venue: paper.venue,
+            venueType: paper.venueType,
+            year: paper.year,
+            category: paper.category,
+            doi: paper.doi,
+            externalUrl: paper.externalUrl,
+        },
+        authors,
+        format,
+        c.env.FRONTEND_URL,
+    );
+
+    return c.json(citation);
+});
+
+// POST /api/papers/:id/track — record daily stats events
+papersRoute.post("/:id/track", async (c) => {
     const paperId = c.req.param("id");
     const db = drizzle(c.env.DB);
     await enableForeignKeys(db);
+
+    let body: unknown;
+    try {
+        body = await c.req.json();
+    } catch {
+        return c.json({ error: "Invalid JSON body" }, 400);
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return c.json({ error: "Invalid JSON body" }, 400);
+    }
+    const payload = body as { event?: unknown; referrer?: unknown };
+    if (!isTrackEvent(payload.event)) {
+        return c.json({ error: "event must be one of view, download, preview" }, 400);
+    }
 
     const paper = await db
         .select({ id: papers.id, visibility: papers.visibility })
@@ -622,40 +922,33 @@ papersRoute.post("/:id/view", async (c) => {
         return c.json({ error: access.error }, access.status as any);
     }
 
-    const viewerFingerprint = await buildViewerFingerprint(c, paperId);
-    const viewBucket = getViewBucket();
-    const existing = await db
-        .select({ id: paperViews.id })
-        .from(paperViews)
-        .where(
-            and(
-                eq(paperViews.paperId, paperId),
-                eq(paperViews.viewerFingerprint, viewerFingerprint),
-                eq(paperViews.viewBucket, viewBucket),
-            ),
-        )
-        .get();
-
-    if (existing) {
-        return c.json({ counted: false });
+    if (isBotUserAgent(c.req.header("User-Agent"))) {
+        return new Response(null, { status: 204 });
     }
 
-    try {
-        await db.insert(paperViews).values({
-            id: crypto.randomUUID(),
+    const referrer = normalizeReferrer(payload.referrer);
+    const date = formatDateKey(new Date());
+    const sessionHash = await buildTrackSessionHash(c, date, paperId);
+
+    await runInBackground(
+        c,
+        recordTrackEvent({
+            db: c.env.DB,
             paperId,
-            viewerFingerprint,
-            viewBucket,
-        });
-    } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (message.includes("UNIQUE") || message.includes("unique")) {
-            return c.json({ counted: false });
-        }
-        throw error;
-    }
+            event: payload.event,
+            date,
+            sessionHash,
+            referrer,
+        }).catch((error) => {
+            console.error("Failed to record paper track event", {
+                paperId,
+                event: payload.event,
+                error,
+            });
+        }),
+    );
 
-    return c.json({ counted: true }, 201);
+    return new Response(null, { status: 204 });
 });
 
 // GET /api/papers/:id/stats — author-only paper statistics
@@ -663,6 +956,10 @@ papersRoute.get("/:id/stats", authMiddleware, async (c) => {
     const paperId = c.req.param("id");
     const userId = c.get("user").sub;
     const db = drizzle(c.env.DB);
+    const days = parseTrackDays(c.req.query("days"));
+    if (days === null) {
+        return c.json({ error: "days must be one of 7, 30, 90, 365" }, 400);
+    }
 
     const paper = await db
         .select({ id: papers.id })
@@ -674,64 +971,57 @@ papersRoute.get("/:id/stats", authMiddleware, async (c) => {
     const author = await isPaperAuthor(db, paperId, userId);
     if (!author) return c.json({ error: "Forbidden" }, 403);
 
-    const since30Days = getStatsRangeStart(VIEW_STATS_RANGE_DAYS);
-    const since7Days = getStatsRangeStart(7);
+    const dateRange = getDateRange(days);
+    const sinceDate = dateRange[0];
 
-    const [totalViewsRow, last30DaysRow, last7DaysRow, dailyRows] = await Promise.all([
+    const [totalRow, dailyRows] = await Promise.all([
         db
-            .select({ count: sql<number>`count(*)` })
-            .from(paperViews)
-            .where(eq(paperViews.paperId, paperId))
-            .get(),
-        db
-            .select({ count: sql<number>`count(*)` })
-            .from(paperViews)
-            .where(
-                and(
-                    eq(paperViews.paperId, paperId),
-                    gte(paperViews.viewedAt, since30Days),
-                ),
-            )
-            .get(),
-        db
-            .select({ count: sql<number>`count(*)` })
-            .from(paperViews)
-            .where(
-                and(
-                    eq(paperViews.paperId, paperId),
-                    gte(paperViews.viewedAt, since7Days),
-                ),
-            )
+            .select({
+                views: paperStatsTotal.totalViews,
+                downloads: paperStatsTotal.totalDownloads,
+                previews: paperStatsTotal.totalPreviews,
+            })
+            .from(paperStatsTotal)
+            .where(eq(paperStatsTotal.paperId, paperId))
             .get(),
         db
             .select({
-                date: sql<string>`date(${paperViews.viewedAt})`,
-                count: sql<number>`count(*)`,
+                date: paperStatsDaily.date,
+                views: paperStatsDaily.views,
+                downloads: paperStatsDaily.downloads,
+                previews: paperStatsDaily.previews,
             })
-            .from(paperViews)
+            .from(paperStatsDaily)
             .where(
                 and(
-                    eq(paperViews.paperId, paperId),
-                    gte(paperViews.viewedAt, since30Days),
+                    eq(paperStatsDaily.paperId, paperId),
+                    gte(paperStatsDaily.date, sinceDate),
                 ),
             )
-            .groupBy(sql`date(${paperViews.viewedAt})`)
             .all(),
     ]);
 
-    const dailyViewCountMap = new Map(
-        dailyRows.map((row) => [row.date, row.count]),
+    const dailyMap = new Map(
+        dailyRows.map((row) => [row.date, row]),
     );
-    const dailyViews = getDateRange(VIEW_STATS_RANGE_DAYS).map((date) => ({
-        date,
-        count: dailyViewCountMap.get(date) ?? 0,
-    }));
+    const daily = dateRange.map((date) => {
+        const row = dailyMap.get(date);
+        return {
+            date,
+            views: row?.views ?? 0,
+            downloads: row?.downloads ?? 0,
+            previews: row?.previews ?? 0,
+        };
+    });
 
     return c.json({
-        totalViews: totalViewsRow?.count ?? 0,
-        last7DaysViews: last7DaysRow?.count ?? 0,
-        last30DaysViews: last30DaysRow?.count ?? 0,
-        dailyViews,
+        total: {
+            views: totalRow?.views ?? 0,
+            downloads: totalRow?.downloads ?? 0,
+            previews: totalRow?.previews ?? 0,
+        },
+        daily,
+        days,
     });
 });
 
@@ -989,36 +1279,22 @@ papersRoute.get("/:id/invites", authMiddleware, async (c) => {
     if (!isUploader) return c.json({ error: "Forbidden" }, 403);
 
     const inviteRows = await db
-        .select()
-        .from(coauthorInvites)
-        .where(eq(coauthorInvites.paperId, paperId))
-        .all();
-
-    const inviteeIds = [
-        ...inviteRows.reduce((acc, inv) => {
-            if (typeof inv.inviteeId === "string") {
-                acc.add(inv.inviteeId);
-            }
-            return acc;
-        }, new Set<string>()),
-    ];
-
-    const inviteeRows = inviteeIds.length
-        ? await db
-            .select({
+        .select({
+            coauthorInvites: coauthorInvites,
+            users: {
                 id: users.id,
                 name: users.name,
                 displayName: users.displayName,
-            })
-            .from(users)
-            .where(inArray(users.id, inviteeIds))
-            .all()
-        : [];
+            }
+        })
+        .from(coauthorInvites)
+        .leftJoin(users, eq(coauthorInvites.inviteeId, users.id))
+        .where(eq(coauthorInvites.paperId, paperId))
+        .all();
 
-    const inviteeMap = new Map(inviteeRows.map((row) => [row.id, row]));
-
-    const enriched = inviteRows.map((inv) => {
-        const invitee = inv.inviteeId ? inviteeMap.get(inv.inviteeId) : null;
+    const enriched = inviteRows.map((row) => {
+        const inv = row.coauthorInvites;
+        const invitee = row.users && row.users.id ? row.users : null;
         return {
             ...inv,
             inviteeName: invitee
@@ -1056,10 +1332,91 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
         .where(eq(paperFiles.paperId, paperId))
         .all();
 
-    await Promise.all(files.map((f) => c.env.BUCKET.delete(f.r2Key)));
+    const keys = files.map((f) => f.r2Key);
+    await deleteKeysInBatches(c.env.BUCKET, keys);
     await db.delete(papers).where(eq(papers.id, paperId));
 
     return c.json({ ok: true });
+});
+
+// PUT /api/papers/:id/description — update paper description
+papersRoute.put("/:id/description", authMiddleware, async (c) => {
+    const paperId = c.req.param("id");
+    const userId = c.get("user").sub;
+    let parsedBody: unknown;
+    try {
+        parsedBody = await c.req.json();
+    } catch {
+        return c.json({ error: "Invalid JSON body" }, 400);
+    }
+    if (!parsedBody || typeof parsedBody !== "object" || Array.isArray(parsedBody)) {
+        return c.json({ error: "Invalid JSON body" }, 400);
+    }
+    const body = parsedBody as Record<string, unknown>;
+
+    if (!("description" in body)) {
+        return c.json({ error: "description is required" }, 400);
+    }
+    if (!(typeof body.description === "string" || body.description === null)) {
+        return c.json({ error: "description must be a string or null" }, 400);
+    }
+
+    const normalizedDescription = typeof body.description === "string"
+        ? body.description.split("\0").join("").trim()
+        : null;
+    if (normalizedDescription && normalizedDescription.length > MAX_DESCRIPTION_LENGTH) {
+        return c.json({ error: `description must be ${MAX_DESCRIPTION_LENGTH} chars or less` }, 400);
+    }
+
+    const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
+
+    const paper = await db
+        .select({ id: papers.id })
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!paper) return c.json({ error: "Not found" }, 404);
+
+    const author = await db
+        .select({ userId: paperAuthors.userId })
+        .from(paperAuthors)
+        .where(
+            and(
+                eq(paperAuthors.paperId, paperId),
+                eq(paperAuthors.userId, userId),
+            ),
+        )
+        .get();
+    if (!author) return c.json({ error: "Forbidden" }, 403);
+
+    const descriptionUpdatedAt = normalizedDescription ? sql`(datetime('now'))` : null;
+    await db.update(papers).set({
+        description: normalizedDescription,
+        descriptionUpdatedAt,
+        ...touchUpdatedAt(),
+    }).where(eq(papers.id, paperId));
+
+    const updatedPaper = await db
+        .select({
+            id: papers.id,
+            description: papers.description,
+            descriptionUpdatedAt: papers.descriptionUpdatedAt,
+        })
+        .from(papers)
+        .where(eq(papers.id, paperId))
+        .get();
+    if (!updatedPaper) return c.json({ error: "Not found" }, 404);
+
+    const normalizedDescriptionUpdatedAt = toIsoUtc(updatedPaper.descriptionUpdatedAt);
+
+    return c.json({
+        id: updatedPaper.id,
+        description: updatedPaper.description,
+        descriptionUpdatedAt: normalizedDescriptionUpdatedAt,
+        // Backward compatibility for existing clients expecting snake_case.
+        description_updated_at: normalizedDescriptionUpdatedAt,
+    });
 });
 
 // PATCH /api/papers/:id — edit paper metadata

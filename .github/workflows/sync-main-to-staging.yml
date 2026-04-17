@@ -1,0 +1,33 @@
+name: Sync Main To Staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: sync-main-to-staging
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  open-sync-pr:
+    name: Sync Main -> Staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Attempt direct merge or create sync PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          HEAD_BRANCH: main
+          BASE_BRANCH: staging
+          SYNC_SHA: ${{ github.sha }}
+          SYNC_PR_LABELS: ${{ vars.SYNC_PR_LABELS || 'sync,automated' }}
+          SYNC_PR_ASSIGNEES: ${{ vars.SYNC_PR_ASSIGNEES || 'is0692vs' }}
+          SYNC_PR_REVIEWERS: ${{ vars.SYNC_PR_REVIEWERS || 'is0692vs' }}
+        run: bash .github/scripts/sync-main-to-staging.sh

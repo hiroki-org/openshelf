@@ -52,10 +52,11 @@ npm run typecheck        # tsc --noEmit all apps
 npm run lint             # ESLint on apps/*/src
 
 # API (apps/api)
-npm run dev                    # Start wrangler dev server (port 8787)
+npm run dev                    # Start wrangler dev server (staging env, port 8787)
 npm run db:generate           # Generate Drizzle migration
-npm run db:migrate:local      # Apply migrations to local D1
-npm run db:migrate:remote     # Apply migrations to Cloudflare D1 (production)
+npm run db:migrate:local      # Apply migrations to local D1 (staging env)
+npm run db:migrate:remote     # Apply migrations to Cloudflare D1 (staging env)
+npm run db:migrate:remote:production     # Apply migrations to Cloudflare D1 (production env)
 
 # Web (apps/web)
 npm run dev       # Start Next.js dev server (port 3000)
@@ -210,6 +211,8 @@ Tests skip real GitHub OAuth by using `/api/auth/test-token` (enabled when `ENAB
 
 Defined in `apps/api/wrangler.toml` and accessed in handlers via `c.env.DB`, `c.env.BUCKET`, etc.
 
+`apps/api/wrangler.toml` defines both `[env.staging]` and `[env.production]` bindings. Always pass `--env staging` or `--env production` for Wrangler commands that require bindings (for example, `wrangler dev`, `wrangler deploy`, and `wrangler d1 migrations apply`). Running Wrangler commands without an explicit environment will fail because no top-level bindings are defined.
+
 ---
 
 ## Agent Workflow Guidelines
@@ -229,6 +232,7 @@ Defined in `apps/api/wrangler.toml` and accessed in handlers via `c.env.DB`, `c.
    ```
 4. Push branch and open a Pull Request on GitHub
 5. Wait for CI to complete (observe via `gh pr checks`)
+6. After staging verification, run `npm run pr:promote` to open or refresh the `staging` → `main` promotion PR
 
 #### Existing Feature (Non-Destructive Changes)
 
@@ -376,7 +380,7 @@ gh pr merge 42 --squash
 2. Run `npm run db:generate`
 3. Review the generated migration in `apps/api/drizzle/`
 4. Test with `npm run db:migrate:local`
-5. Deploy with `npm run db:migrate:remote`
+5. Deploy with `npm run db:migrate:remote` (staging), then `npm run db:migrate:remote:production` (production)
 
 ### Add Frontend Component
 
@@ -401,7 +405,7 @@ Tests auto-start both frontend (port 3000) and API (port 8787).
 
 - **Frontend**: Vercel or Docker (see `apps/web/Dockerfile`)
 - **API**: Cloudflare Workers via `wrangler deploy`
-- **Database migrations**: Apply via `npm run db:migrate:remote`
+- **Database migrations**: Apply to staging with `npm run db:migrate:remote`, then apply to production with `npm run db:migrate:remote:production`
 
 See `apps/web/README.md` and `apps/api/wrangler.toml` for environment variable requirements.
 
@@ -426,9 +430,17 @@ See `apps/web/README.md` and `apps/api/wrangler.toml` for environment variable r
 - For database changes, test locally with `db:migrate:local` before planning remote migrations.
 - Keep JWT secret and GitHub OAuth credentials secure; use environment variables.
 
+### Completion Signaling Policy（完了宣言ポリシー）
+
+- **禁止 / Forbidden:** 「自律的に続行します」「continuing autonomously」等の宣言をした直後、同一フローでただちに `task_complete` を実行してはならない。
+- **必須 / Required:** 上記の宣言後は、少なくとも1つの実作業（例: ツール実行・修正適用・検証実施）を完了して結果を確認したうえでのみ `task_complete` を実行する。
+
 ### PR Workflow Reminders
 
 - **New features:** Always create a feature branch and open a PR; never commit directly to `main`.
+- **Staging-first deployment:** Treat `staging` as the first merge target for feature work. Verify there, then open a `staging` → `main` PR for production.
+- **PR retargeting:** If a PR to `main` is opened from a non-`staging` source branch, the workflow will retarget it to `staging`.
+- **main sync:** After pushes to `main`, rely on the automation that opens or reuses a `main` → `staging` sync PR.
 - **PR reviews:** Reply to _each_ conversation thread on GitHub; unresolved threads block merging.
 - **CI failures:** Investigate immediately via `gh pr checks <PR#> --watch` and fix before re-requesting review.
 - **Merge readiness checklist:** All conversations resolved + all CI passing + approval received = safe to merge.

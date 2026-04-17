@@ -122,7 +122,6 @@ describe("papers routes", () => {
         }
     });
 
-
     it("hits the token cache on subsequent calls and removes expired ones", async () => {
         const app = await createTestApp();
         const { createTestJWT } = await import("../../test/helpers");
@@ -218,7 +217,6 @@ describe("papers routes", () => {
 
         vi.useRealTimers();
     });
-
 
     it("hits the token cache on subsequent calls", async () => {
         const app = await createTestApp();
@@ -322,7 +320,6 @@ describe("papers routes", () => {
         vi.useRealTimers();
     });
 
-
     it("hits the token cache on subsequent calls", async () => {
         const app = await createTestApp();
         const paperId = "test-paper-cache";
@@ -363,8 +360,18 @@ describe("papers routes", () => {
         vi.resetModules();
         mockDb = {
             run: vi.fn(async () => undefined),
+            prepare: vi.fn(() => ({
+                bind: vi.fn(() => ({
+                    run: vi.fn(async () => ({ meta: { changes: 1 } })),
+                })),
+            })),
             select: vi.fn(() => makeQuery()),
-            insert: vi.fn(() => ({ values: vi.fn(async () => undefined) })),
+            insert: vi.fn(() => ({
+                values: vi.fn(() => ({
+                    onConflictDoUpdate: vi.fn(async () => undefined),
+                    onConflictDoNothing: vi.fn(async () => undefined),
+                })),
+            })),
             update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) })),
             delete: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
             batch: vi.fn(async (queries) => Promise.all(queries.map((q: any) => q.all ? q.all() : q)))
@@ -374,7 +381,7 @@ describe("papers routes", () => {
     it("POST /api/papers uploads multipart and creates paper", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
-        const env = createTestEnv();
+        const env = createTestEnv({ DB: mockDb as any });
 
         const form = new FormData();
         form.set("metadata", JSON.stringify({ title: "Test Paper", visibility: "private" }));
@@ -394,14 +401,77 @@ describe("papers routes", () => {
             env as any
         );
 
-
         expect(res.status).toBe(201);
+    });
+
+    it("POST /api/papers deletes uploaded files and paper record on database error", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+
+        // Mock db.insert to succeed for papers, but fail for paperFiles
+        const dbError = new Error("Mock DB Error");
+        mockDb.insert
+            .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) })) // papers insert
+            .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) })) // paperAuthors insert
+            .mockImplementationOnce(() => { throw dbError; }); // paperFiles insert
+
+        const mockDeleteWhere = vi.fn(async () => undefined);
+        mockDb.delete = vi.fn(() => ({ where: mockDeleteWhere }));
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: mockDb as any });
+
+        // Spy on BUCKET.delete
+        const bucketDeleteSpy = vi.spyOn(env.BUCKET, "delete").mockRejectedValue(new Error("Cleanup failed"));
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const form = new FormData();
+        form.set("metadata", JSON.stringify({ title: "Test Paper", visibility: "private" }));
+        form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
+        form.set("file_types_0", "paper");
+
+        const res = await app.request(
+            "http://localhost/api/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000"
+                },
+                body: form
+            },
+            env as any
+        );
+        expect(res.status).toBe(500);
+
+        // BUCKET.delete should be called with a batch including uploaded paper keys
+        expect(bucketDeleteSpy).toHaveBeenCalledTimes(1);
+        const firstDeleteCall = bucketDeleteSpy.mock.calls[0];
+        const deletedKeys = firstDeleteCall?.[0];
+        expect(deletedKeys).toEqual(
+            expect.arrayContaining([expect.stringContaining("papers/")]),
+        );
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+            "Cleanup error (non-fatal, rollback continues)",
+            expect.objectContaining({
+                chunkStart: 0,
+                chunkEndExclusive: 1,
+                chunkSize: 1,
+                chunkSample: expect.arrayContaining([expect.stringContaining("papers/")]),
+                error: "Cleanup failed",
+            }),
+        );
+
+        // db.delete should be called for papers
+        expect(mockDb.delete).toHaveBeenCalledTimes(1);
+        expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
+        consoleErrorSpy.mockRestore();
+        bucketDeleteSpy.mockRestore();
     });
 
     it("POST /api/papers rejects upload when content does not match declared MIME", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
-        const env = createTestEnv();
+        const env = createTestEnv({ DB: mockDb as any });
 
         const form = new FormData();
         form.set("metadata", JSON.stringify({ title: "Mismatched Paper", visibility: "private" }));
@@ -432,7 +502,7 @@ describe("papers routes", () => {
         mockDb.select = vi.fn(() => makeQuery({ allResult: [{ paper: { id: "paper-1", title: "P1" } }] }));
 
         const app = await createTestApp();
-        const env = createTestEnv();
+        const env = createTestEnv({ DB: mockDb as any });
         const res = await app.request(
             "http://localhost/api/papers",
             {
@@ -450,14 +520,14 @@ describe("papers routes", () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi
             .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", visibility: "private", showViewCount: true, language: "ja", doi: "10.1234/example" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", title: "P1", abstract: "A", description: "## notes", descriptionUpdatedAt: "2026-04-01 12:00:00", visibility: "private", showViewCount: true, language: "ja", doi: "10.1234/example" } }))
             .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
             .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "file-1", filename: "paper.pdf" }] }))
             .mockImplementationOnce(() => makeQuery({ allResult: [{ userId: "user-1", role: "uploader", name: "Uploader", displayName: null, avatarUrl: null }] }))
-            .mockImplementationOnce(() => makeQuery({ getResult: { count: 4 } }));
+            .mockImplementationOnce(() => makeQuery({ getResult: { views: 4, downloads: 2 } }));
 
         const app = await createTestApp();
-        const env = createTestEnv();
+        const env = createTestEnv({ DB: mockDb as any });
         const res = await app.request(
             "http://localhost/api/papers/paper-1",
             { headers: { Authorization: `Bearer ${token}` } },
@@ -469,15 +539,88 @@ describe("papers routes", () => {
         expect(body.paper.id).toBe("paper-1");
         expect(body.paper.language).toBe("ja");
         expect(body.paper.doi).toBe("10.1234/example");
+        expect(body.paper.description).toBe("## notes");
+        expect(body.paper.descriptionUpdatedAt).toBe("2026-04-01T12:00:00.000Z");
         expect(body.paper.showViewCount).toBe(true);
         expect(body.paper.publicViewCount).toBe(4);
+        expect(body.paper.publicDownloadCount).toBe(2);
         expect(mockDb.batch).toHaveBeenCalledTimes(1);
+    });
+
+    it("GET /api/papers/:id/cite returns citation in requested format", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({
+                getResult: {
+                    id: "paper-1",
+                    title: "Boundary Explorer",
+                    visibility: "private",
+                    venue: "ASE",
+                    venueType: "conference",
+                    year: 2026,
+                    category: "other",
+                    doi: null,
+                    externalUrl: null,
+                },
+            }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ name: "hiroki", displayName: "Hiroki Mukai" }] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: mockDb as any });
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/cite?format=bibtex",
+            { headers: { Authorization: `Bearer ${token}` } },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as any;
+        expect(body.format).toBe("bibtex");
+        expect(body.key).toContain("mukai2026");
+        expect(body.citation).toContain("@inproceedings");
+    });
+
+    it("GET /api/papers/:id/cite supports plain format", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({
+                getResult: {
+                    id: "paper-1",
+                    title: "Boundary Explorer",
+                    visibility: "private",
+                    venue: "ASE",
+                    venueType: "conference",
+                    year: 2026,
+                    category: "other",
+                    doi: null,
+                    externalUrl: null,
+                },
+            }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ name: "hiroki", displayName: "向井 宏樹" }] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: mockDb as any });
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/cite?format=plain",
+            { headers: { Authorization: `Bearer ${token}` } },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as any;
+        expect(body.format).toBe("plain");
+        expect(body.key).toBeNull();
+        expect(body.citation).toContain("向井 宏樹");
     });
 
     it("POST /api/papers rejects a non-boolean showViewCount", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
-        const env = createTestEnv();
+        const env = createTestEnv({ DB: mockDb as any });
 
         const form = new FormData();
         form.set(
@@ -509,59 +652,133 @@ describe("papers routes", () => {
         expect(body.error).toContain("showViewCount");
     });
 
-    it("POST /api/papers/:id/view records a view when the fingerprint is new", async () => {
-        const values = vi.fn(async () => undefined);
+    it("POST /api/papers/:id/track accepts view event", async () => {
+        const dedupRun = vi.fn(async () => ({ meta: { changes: 1 } }));
+        const dailyRun = vi.fn(async () => ({ meta: { changes: 1 } }));
+        const totalRun = vi.fn(async () => ({ meta: { changes: 1 } }));
+        const cleanupRun = vi.fn(async () => ({ meta: { changes: 0 } }));
         mockDb.select = vi
             .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public" } }))
-            .mockImplementationOnce(() => makeQuery({ getResult: null }));
-        mockDb.insert = vi.fn(() => ({ values }));
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public" } }));
+        const prepare = vi
+            .fn()
+            .mockImplementationOnce(() => ({ bind: vi.fn(() => ({ run: dedupRun })) }))
+            .mockImplementationOnce(() => ({ bind: vi.fn(() => ({ run: dailyRun })) }))
+            .mockImplementationOnce(() => ({ bind: vi.fn(() => ({ run: totalRun })) }))
+            .mockImplementationOnce(() => ({ bind: vi.fn(() => ({ run: cleanupRun })) }));
+        mockDb.prepare = prepare;
+        mockDb.batch = vi.fn(async (queries) =>
+            Promise.all(queries.map((q: any) => q.run())),
+        );
 
         const app = await createTestApp();
-        const env = createTestEnv();
+        const env = createTestEnv({ DB: mockDb as any });
         const res = await app.request(
-            "http://localhost/api/papers/paper-1/view",
+            "http://localhost/api/papers/paper-1/track",
             {
                 method: "POST",
                 headers: {
+                    "Content-Type": "application/json",
                     Origin: "http://localhost:3000",
                     "User-Agent": "Vitest",
-                    "Accept-Language": "ja-JP",
                 },
+                body: JSON.stringify({ event: "view", referrer: "https://example.com" }),
             },
             env as any,
         );
 
-        expect(res.status).toBe(201);
-        expect(values).toHaveBeenCalledTimes(1);
-        const body = (await res.json()) as any;
-        expect(body.counted).toBe(true);
+        expect(res.status).toBe(204);
+        expect(prepare).toHaveBeenCalledTimes(4);
+        expect(dedupRun).toHaveBeenCalled();
+        expect(dailyRun).toHaveBeenCalled();
+        expect(totalRun).toHaveBeenCalled();
     });
 
-    it("POST /api/papers/:id/view ignores duplicate views in the same bucket", async () => {
+    it("POST /api/papers/:id/track ignores bots", async () => {
         mockDb.select = vi
             .fn()
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public" } }))
-            .mockImplementationOnce(() => makeQuery({ getResult: { id: "view-1" } }));
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public" } }));
 
         const app = await createTestApp();
-        const env = createTestEnv();
+        const env = createTestEnv({ DB: mockDb as any });
         const res = await app.request(
-            "http://localhost/api/papers/paper-1/view",
+            "http://localhost/api/papers/paper-1/track",
             {
                 method: "POST",
                 headers: {
+                    "Content-Type": "application/json",
                     Origin: "http://localhost:3000",
-                    "User-Agent": "Vitest",
+                    "User-Agent": "googlebot",
                 },
+                body: JSON.stringify({ event: "view" }),
             },
             env as any,
         );
 
-        expect(res.status).toBe(200);
+        expect(res.status).toBe(204);
         expect(mockDb.insert).not.toHaveBeenCalled();
-        const body = (await res.json()) as any;
-        expect(body.counted).toBe(false);
+    });
+
+    it("POST /api/papers/:id/track handles duplicate dedup rows", async () => {
+        const dedupRun = vi.fn(async () => ({ meta: { changes: 0 } }));
+        const dailyRun = vi.fn(async () => ({ meta: { changes: 0 } }));
+        const totalRun = vi.fn(async () => ({ meta: { changes: 0 } }));
+        const cleanupRun = vi.fn(async () => ({ meta: { changes: 0 } }));
+        mockDb.prepare = vi
+            .fn()
+            .mockImplementationOnce(() => ({ bind: vi.fn(() => ({ run: dedupRun })) }))
+            .mockImplementationOnce(() => ({ bind: vi.fn(() => ({ run: dailyRun })) }))
+            .mockImplementationOnce(() => ({ bind: vi.fn(() => ({ run: totalRun })) }))
+            .mockImplementationOnce(() => ({ bind: vi.fn(() => ({ run: cleanupRun })) }));
+        mockDb.batch = vi.fn(async (queries) =>
+            Promise.all(queries.map((q: any) => q.run())),
+        );
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: mockDb as any });
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/track",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Origin: "http://localhost:3000",
+                    "User-Agent": "Vitest",
+                },
+                body: JSON.stringify({ event: "download" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(204);
+    });
+
+    it("POST /api/papers/:id/track returns 404 when paper does not exist", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: null }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/missing-paper/track",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Origin: "http://localhost:3000",
+                    "User-Agent": "Vitest",
+                },
+                body: JSON.stringify({ event: "view" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(404);
+        expect(mockDb.prepare).not.toHaveBeenCalled();
     });
 
     it("GET /api/papers/:id/stats returns author-only statistics", async () => {
@@ -573,14 +790,12 @@ describe("papers routes", () => {
             .fn()
             .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1" } }))
             .mockImplementationOnce(() => makeQuery({ getResult: { userId: "user-1" } }))
-            .mockImplementationOnce(() => makeQuery({ getResult: { count: 42 } }))
-            .mockImplementationOnce(() => makeQuery({ getResult: { count: 18 } }))
-            .mockImplementationOnce(() => makeQuery({ getResult: { count: 6 } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { views: 42, downloads: 18, previews: 6 } }))
             .mockImplementationOnce(() =>
                 makeQuery({
                     allResult: [
-                        { date: yesterday, count: 3 },
-                        { date: today, count: 2 },
+                        { date: yesterday, views: 3, downloads: 1, previews: 1 },
+                        { date: today, views: 2, downloads: 1, previews: 0 },
                     ],
                 }),
             );
@@ -597,11 +812,10 @@ describe("papers routes", () => {
 
         expect(res.status).toBe(200);
         const body = (await res.json()) as any;
-        expect(body.totalViews).toBe(42);
-        expect(body.last30DaysViews).toBe(18);
-        expect(body.last7DaysViews).toBe(6);
-        expect(body.dailyViews).toHaveLength(30);
-        expect(body.dailyViews.at(-1)).toEqual({ date: today, count: 2 });
+        expect(body.total).toEqual({ views: 42, downloads: 18, previews: 6 });
+        expect(body.daily).toHaveLength(30);
+        expect(body.daily.at(-1)).toEqual({ date: today, views: 2, downloads: 1, previews: 0 });
+        expect(body.days).toBe(30);
     });
 
     it("GET /api/papers/:id omits publicViewCount when showViewCount is false", async () => {
@@ -624,9 +838,10 @@ describe("papers routes", () => {
         const body = (await res.json()) as any;
         expect(body.paper.showViewCount).toBe(false);
         expect(body.paper.publicViewCount).toBeNull();
+        expect(body.paper.publicDownloadCount).toBeNull();
     });
 
-    it("POST /api/papers/:id/view returns 401 for private paper without token", async () => {
+    it("POST /api/papers/:id/track returns 401 for private paper without token", async () => {
         mockDb.select = vi
             .fn()
             .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }));
@@ -634,10 +849,14 @@ describe("papers routes", () => {
         const app = await createTestApp();
         const env = createTestEnv();
         const res = await app.request(
-            "http://localhost/api/papers/paper-1/view",
+            "http://localhost/api/papers/paper-1/track",
             {
                 method: "POST",
-                headers: { Origin: "http://localhost:3000" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Origin: "http://localhost:3000",
+                },
+                body: JSON.stringify({ event: "view" }),
             },
             env as any,
         );
@@ -645,7 +864,7 @@ describe("papers routes", () => {
         expect(res.status).toBe(401);
     });
 
-    it("POST /api/papers/:id/view returns 403 for private paper from non-author", async () => {
+    it("POST /api/papers/:id/track returns 403 for private paper from non-author", async () => {
         const token = await createTestJWT({ sub: "user-2", githubId: "456", name: "Other" });
         mockDb.select = vi
             .fn()
@@ -655,13 +874,14 @@ describe("papers routes", () => {
         const app = await createTestApp();
         const env = createTestEnv();
         const res = await app.request(
-            "http://localhost/api/papers/paper-1/view",
+            "http://localhost/api/papers/paper-1/track",
             {
                 method: "POST",
                 headers: {
                     Authorization: `Bearer ${token}`,
-                    Origin: "http://localhost:3000",
+                    "Content-Type": "application/json",
                 },
+                body: JSON.stringify({ event: "view" }),
             },
             env as any,
         );
@@ -687,6 +907,23 @@ describe("papers routes", () => {
         );
 
         expect(res.status).toBe(403);
+    });
+
+    it("GET /api/papers/:id/stats rejects invalid days", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Author" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/stats?days=14",
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toContain("days must be one of 7, 30, 90, 365");
     });
 
     it("PATCH /api/papers/:id rejects changing a non-org_only paper to org_only", async () => {
@@ -715,6 +952,93 @@ describe("papers routes", () => {
         const body = (await res.json()) as any;
         expect(body.error).toContain("org_only");
         expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it("PUT /api/papers/:id/description updates description for authors", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const where = vi.fn(async () => undefined);
+        const set = vi.fn(() => ({ where }));
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { userId: "user-1" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", description: "## Updated", descriptionUpdatedAt: "2026-04-01 12:00:00" } }));
+        mockDb.update = vi.fn(() => ({ set }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/description",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ description: "## Updated" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                description: "## Updated",
+            }),
+        );
+        const body = (await res.json()) as any;
+        expect(body.id).toBe("paper-1");
+        expect(body.description).toBe("## Updated");
+        expect(body.descriptionUpdatedAt).toBe("2026-04-01T12:00:00.000Z");
+        expect(body.description_updated_at).toBe("2026-04-01T12:00:00.000Z");
+    });
+
+    it("PUT /api/papers/:id/description rejects non-author", async () => {
+        const token = await createTestJWT({ sub: "user-2", githubId: "456", name: "Other User" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: null }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/description",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ description: "updated" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(403);
+    });
+
+    it("PUT /api/papers/:id/description validates description length", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/description",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ description: "a".repeat(50001) }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        const body = (await res.json()) as any;
+        expect(body.error).toContain("50000");
     });
 
     it("PATCH /api/papers/:id validates externalUrl like POST", async () => {
@@ -962,8 +1286,65 @@ describe("papers routes", () => {
             env as any
         );
 
-
         expect(res.status).toBe(200);
+    });
+
+    it("DELETE /api/papers/:id bounds concurrent R2 batch deletes", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const files = Array.from({ length: 2001 }, (_, index) => ({
+            r2Key: `papers/paper-1/file-${index}.pdf`,
+        }));
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: files }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const pendingDeletes: Array<() => void> = [];
+        let activeDeletes = 0;
+        let maxActiveDeletes = 0;
+        const bucketDeleteSpy = vi.spyOn(env.BUCKET, "delete").mockImplementation(
+            async () =>
+                new Promise<void>((resolve) => {
+                    activeDeletes += 1;
+                    maxActiveDeletes = Math.max(maxActiveDeletes, activeDeletes);
+                    pendingDeletes.push(() => {
+                        activeDeletes -= 1;
+                        resolve();
+                    });
+                }),
+        );
+
+        const responsePromise = app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000",
+                },
+            },
+            env as any,
+        );
+
+        await vi.waitFor(() => {
+            expect(bucketDeleteSpy).toHaveBeenCalledTimes(2);
+        });
+        expect(maxActiveDeletes).toBe(2);
+
+        pendingDeletes.shift()?.();
+        await vi.waitFor(() => {
+            expect(bucketDeleteSpy).toHaveBeenCalledTimes(3);
+        });
+        expect(maxActiveDeletes).toBe(2);
+
+        pendingDeletes.shift()?.();
+        pendingDeletes.shift()?.();
+
+        const res = await responsePromise;
+        expect(res.status).toBe(200);
+        bucketDeleteSpy.mockRestore();
     });
 
     it("GET /api/papers/:id returns 404 when paper does not exist", async () => {
@@ -974,5 +1355,64 @@ describe("papers routes", () => {
         const res = await app.request("http://localhost/api/papers/not-found", {}, env as any);
 
         expect(res.status).toBe(404);
+    });
+
+    describe("POST /api/papers/:id/invites database error handling", () => {
+        const UNIQUE_INVITE_ERROR = "UNIQUE constraint failed: coauthor_invites.paperId_inviteeId";
+
+        const setupInviteChecks = () => {
+            mockDb.select = vi
+                .fn()
+                .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-uploader", role: "uploader" } })) // isUploader check
+                .mockImplementationOnce(() => makeQuery({ getResult: null })) // alreadyAuthor check
+                .mockImplementationOnce(() => makeQuery({ getResult: { id: "user-invitee" } })); // invitee exists check
+        };
+
+        const sendInviteRequest = async (token: string, app: any, env: any) => {
+            return await app.request(
+                "http://localhost/api/papers/paper-1/invites",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ inviteeId: "user-invitee" })
+                },
+                env as any
+            );
+        };
+
+        it("POST /api/papers/:id/invites returns 409 when invite already exists", async () => {
+            const token = await createTestJWT({ sub: "user-uploader", githubId: "123", name: "Uploader" });
+            setupInviteChecks();
+
+            mockDb.insert = vi.fn().mockReturnValue({
+                values: vi.fn().mockRejectedValue(new Error(UNIQUE_INVITE_ERROR))
+            });
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+            const res = await sendInviteRequest(token, app, env);
+
+            expect(res.status).toBe(409);
+            const data = (await res.json()) as any;
+            expect(data.error).toBe("Invite already sent");
+        });
+
+        it("POST /api/papers/:id/invites returns 500 for non-UNIQUE database errors", async () => {
+            const token = await createTestJWT({ sub: "user-uploader", githubId: "123", name: "Uploader" });
+            setupInviteChecks();
+
+            mockDb.insert = vi.fn().mockReturnValue({
+                values: vi.fn().mockRejectedValue(new Error("Some other DB Error"))
+            });
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+            const res = await sendInviteRequest(token, app, env);
+
+            expect(res.status).toBe(500);
+        });
     });
 });

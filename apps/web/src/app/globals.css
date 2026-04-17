@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "react-pdf/dist/Page/TextLayer.css";
+@import "react-pdf/dist/Page/AnnotationLayer.css";
 
 :root {
   --background: #f5f7fa;
@@ -48,4 +50,13 @@ body {
   background: transparent;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.react-pdf__Page {
+  position: relative;
+}
+
+.react-pdf__Page__textContent {
+  inset: 0;
+  user-select: text;
 }

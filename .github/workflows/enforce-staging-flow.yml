@@ -1,0 +1,32 @@
+name: Enforce Staging Flow
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, edited, synchronize]
+  workflow_dispatch:
+  schedule:
+    - cron: '17 * * * *'
+
+concurrency:
+  group: enforce-staging-flow-${{ github.event.pull_request.number || github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  pull-requests: write
+  issues: write
+  contents: read
+
+jobs:
+  require-staging-source:
+    name: require-staging-source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+      - name: Enforce staging-first PR targets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          COMMENT_ON_CHANGE: ${{ github.event_name == 'pull_request_target' && '1' || '0' }}
+        run: bash .github/scripts/enforce-staging-flow.sh

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import OrgPageClient from "./org-page-client";
 import { safePath } from "@/lib/sanitization";
 
@@ -15,6 +16,10 @@ type OrgResponse = {
 const API_BASE =
   process.env.API_URL ??
   process.env.NEXT_PUBLIC_API_URL ??
+  "http://localhost:8787";
+const PUBLIC_API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ??
+  process.env.API_URL ??
   "http://localhost:8787";
 const SITE_BASE =
   process.env.SITE_URL ??
@@ -47,14 +52,9 @@ export async function generateMetadata(props: {
   params: Params | Promise<Params>;
 }): Promise<Metadata> {
   const { slug } = await Promise.resolve(props.params);
-  // Ensure slug is sanitized before any further processing
-  let safeSlug = "";
   try {
-    safeSlug = safePath(slug);
-    // safePath returns encoded, but for the rest we want normalized.
-    // Actually safePath(slug) is already safe to pass to fetchOrgMetadata.
+    safePath(slug);
   } catch {
-    // Return early or generic if invalid slug
     return { title: "OpenShelf" };
   }
 
@@ -84,10 +84,16 @@ export async function generateMetadata(props: {
     data.org.name,
     data.org.description ?? undefined,
   );
+  const feedUrl = `${PUBLIC_API_BASE}/feed/orgs/${slug}/atom.xml`;
 
   return {
     title,
     description,
+    alternates: {
+      types: {
+        "application/atom+xml": feedUrl,
+      },
+    },
     openGraph: {
       title,
       description,
@@ -113,5 +119,10 @@ export default async function OrgPage(props: {
   } catch {
     return <div className="text-center py-20">無効な識別子です</div>;
   }
-  return <OrgPageClient slug={slug} />;
+
+  return (
+    <Suspense fallback={<div className="text-center py-20">読み込み中...</div>}>
+      <OrgPageClient slug={slug} />
+    </Suspense>
+  );
 }

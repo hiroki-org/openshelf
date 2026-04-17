@@ -51,6 +51,28 @@ describe("collections routes", () => {
         expect(res.status).toBe(401);
     });
 
+
+    it("POST /api/collections returns 400 for invalid JSON body", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: "invalid json {",
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        expect(((await res.json()) as any).error).toBe("Invalid JSON body");
+    });
     it("GET /api/collections/:id returns 404 when not found", async () => {
         mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
 
@@ -406,6 +428,39 @@ describe("collections routes", () => {
         ]);
     });
 
+    it("POST /api/collections/:id/papers rejects invalid JSON", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        queueSelectResponses([
+            {
+                getResult: {
+                    id: "col-1",
+                    ownerType: "user",
+                    ownerId: "user-1",
+                    visibility: "private",
+                },
+            },
+        ]);
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections/col-1/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: "invalid-json",
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
+    });
+
     it("POST /api/collections/:id/papers adds a visible paper with the next sort order", async () => {
         const token = await createTestJWT({ sub: "user-1" });
         const collection = {
@@ -752,5 +807,43 @@ describe("collections routes", () => {
             "paper-authored",
             "paper-org",
         ]);
+    });
+
+    it("POST /api/collections/:id/papers returns 409 when paper is already in collection", async () => {
+        const token = await createTestJWT({ sub: "user-1" });
+        const collection = {
+            id: "col-1",
+            ownerType: "user",
+            ownerId: "user-1",
+            visibility: "private",
+        };
+        queueSelectResponses([
+            { getResult: collection }, // Collection query
+            { getResult: { id: "paper-1", visibility: "public" } }, // Paper query
+            { getResult: { maxOrder: 2 } }, // maxOrder query
+        ]);
+
+        mockDb.insert = vi.fn(() => ({
+            values: vi.fn().mockRejectedValue(new Error("UNIQUE constraint failed: collection_papers.collection_id, collection_papers.paper_id")),
+        }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/collections/col-1/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ paper_id: "paper-1" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(409);
+        expect(((await res.json()) as any).error).toBe("Paper already added");
     });
 });

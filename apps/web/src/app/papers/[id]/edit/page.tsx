@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from "@/components/auth-provider";
+import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
+import { MarkdownEditor } from "@/components/markdown-editor";
 import { apiFetch } from "@/lib/api";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -36,6 +38,7 @@ type PaperEditResponse = {
     abstract: string | null;
     visibility: VisibilityValue;
     showViewCount: boolean;
+    description: string | null;
     language: string | null;
     externalUrl: string | null;
     doi: string | null;
@@ -65,6 +68,10 @@ export default function PaperEditPage() {
   const [initialVisibility, setInitialVisibility] = useState<VisibilityValue | null>(null);
   const [showViewCount, setShowViewCount] = useState(false);
   const [language, setLanguage] = useState("");
+  const [description, setDescription] = useState("");
+  const [descriptionMode, setDescriptionMode] = useState<"write" | "preview">(
+    "write",
+  );
   const [externalUrl, setExternalUrl] = useState("");
   const [doi, setDoi] = useState("");
   const [venue, setVenue] = useState("");
@@ -108,6 +115,7 @@ export default function PaperEditPage() {
         setVisibility(paper.visibility);
         setInitialVisibility(paper.visibility);
         setShowViewCount(paper.showViewCount);
+        setDescription(paper.description || "");
         setLanguage(paper.language || "");
         setExternalUrl(paper.externalUrl || "");
         setDoi(paper.doi || "");
@@ -184,6 +192,24 @@ export default function PaperEditPage() {
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         throw new Error(d.error || "メタデータの更新に失敗しました");
+      }
+
+      const descriptionRes = await apiFetch(
+        `/api/papers/${encodeURIComponent(paperId)}/description`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            description: description || null,
+          }),
+        },
+      );
+      if (!descriptionRes.ok) {
+        const d = await descriptionRes.json().catch(() => ({}));
+        const reason = d.error || "Description の更新に失敗しました";
+        throw new Error(
+          `メタデータは保存されましたが、Description の保存に失敗しました。再度お試しください。（詳細: ${reason}）`,
+        );
       }
 
       router.push(`/papers/${paperId}`);
@@ -315,6 +341,32 @@ export default function PaperEditPage() {
           />
         </div>
 
+        <div>
+          <label htmlFor="description" className="mb-1 block text-sm font-medium">
+            Description
+          </label>
+          <MarkdownEditor
+            id="description"
+            value={description}
+            onChange={setDescription}
+            mode={descriptionMode}
+            onModeChange={setDescriptionMode}
+            placeholder="再現手順、関連リンク、更新履歴などを Markdown で記述できます"
+          />
+          <p className="mt-2 text-xs text-gray-500">
+            Markdown 記法ガイド:
+            {" "}
+            <a
+              href="https://www.markdownguide.org/basic-syntax/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline dark:text-blue-400"
+            >
+              Basic Syntax
+            </a>
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="category" className="mb-1 block text-sm font-medium">カテゴリ</label>
@@ -413,11 +465,10 @@ export default function PaperEditPage() {
           <label htmlFor="tags" className="mb-1 block text-sm font-medium">
             タグ <span className="text-gray-500 font-normal text-xs">（カンマ区切り）</span>
           </label>
-          <input
+          <TagAutocompleteInput
             id="tags"
-            type="text"
             value={tagsStr}
-            onChange={(e) => setTagsStr(e.target.value)}
+            onChange={setTagsStr}
             placeholder="AI, NLP, Machine Learning"
             className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
           />

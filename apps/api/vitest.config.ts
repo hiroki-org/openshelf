@@ -1,12 +1,14 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, type UserConfig } from "vitest/config";
 
-export default defineConfig({
+export default defineConfig(async (): Promise<UserConfig> => {
+    const { default: codspeedPlugin } = await import("@codspeed/vitest-plugin");
+    return {
+    plugins: [codspeedPlugin()],
     test: {
         environment: "node",
         include: ["src/**/__tests__/**/*.test.ts"],
         reporters: ["default", "junit"],
         outputFile: {
-            lcov: "./coverage/lcov.info",
             junit: "./test-report.junit.xml",
         },
         coverage: {
@@ -17,4 +19,5 @@ export default defineConfig({
             exclude: ["src/types.ts", "**/coverage/**"],
         }
     }
+    };
 });

@@ -7,11 +7,19 @@ vi.mock("../org-collection-page-client", () => ({
   ),
 }));
 
-import OrgCollectionPage, { generateMetadata } from "../page";
-
 describe("orgs/[slug]/c/[collectionSlug]/page metadata", () => {
+  const originalApiUrl = process.env.API_URL;
+  const originalPublicApiUrl = process.env.NEXT_PUBLIC_API_URL;
+
   afterEach(() => {
     cleanup();
+    if (originalApiUrl === undefined) delete process.env.API_URL;
+    else process.env.API_URL = originalApiUrl;
+
+    if (originalPublicApiUrl === undefined) delete process.env.NEXT_PUBLIC_API_URL;
+    else process.env.NEXT_PUBLIC_API_URL = originalPublicApiUrl;
+
+    vi.restoreAllMocks();
   });
 
   beforeEach(() => {
@@ -19,6 +27,11 @@ describe("orgs/[slug]/c/[collectionSlug]/page metadata", () => {
   });
 
   it("builds org collection metadata", async () => {
+    process.env.API_URL = "http://internal-api:8787";
+    process.env.NEXT_PUBLIC_API_URL = "https://public-api.example.com";
+    vi.resetModules();
+    const { generateMetadata } = await import("../page");
+
     vi.spyOn(global, "fetch")
       .mockResolvedValueOnce(
         new Response(
@@ -48,9 +61,13 @@ describe("orgs/[slug]/c/[collectionSlug]/page metadata", () => {
     });
 
     expect(metadata.title).toBe("Featured | Research Lab | OpenShelf");
+    expect(metadata.alternates?.types?.["application/atom+xml"]).toBe(
+      "https://public-api.example.com/feed/orgs/lab/collections/featured/atom.xml",
+    );
   });
 
   it("renders an invalid identifier message for invalid params", async () => {
+    const { default: OrgCollectionPage } = await import("../page");
     const view = await OrgCollectionPage({
       params: { slug: "../bad", collectionSlug: "featured" },
     });
