@@ -231,8 +231,8 @@ jobs:
         with:
           filters: |
             codspeed:
-              - "apps/api/src/**"
-              - "apps/api/vitest.config.ts"
+              - "apps/api/src/utils/file.ts"
+              - "apps/api/src/utils/__tests__/file.bench.ts"
       - name: Skip benchmarks for non-API pull requests
         if: ${{ github.event_name == 'pull_request' && steps.codspeed_changes.outputs.codspeed != 'true' }}
         run: |
