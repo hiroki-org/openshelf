@@ -8,18 +8,15 @@ const MIME_COMPATIBILITY: Record<string, readonly string[]> = {
   ],
 };
 
-const PDF_MAGIC_LENGTH = 5;
-const PNG_MAGIC_LENGTH = 8;
-const JPEG_MAGIC_LENGTH = 3;
-const OLE_MAGIC_LENGTH = 8;
-const ZIP_MAGIC_LENGTH = 4;
-const MAX_MAGIC_SIZE = Math.max(
-  PDF_MAGIC_LENGTH,
-  PNG_MAGIC_LENGTH,
-  JPEG_MAGIC_LENGTH,
-  OLE_MAGIC_LENGTH,
-  ZIP_MAGIC_LENGTH,
-);
+const MAGIC_LENGTHS = {
+  PDF: 5,
+  PNG: 8,
+  JPEG: 3,
+  OLE: 8,
+  ZIP: 4,
+} as const;
+
+const MAX_MAGIC_SIZE = Math.max(...Object.values(MAGIC_LENGTHS));
 
 // Helper function to efficiently parse ZIP Central Directory to find a specific entry
 async function hasZipEntry(file: File, targetEntry: string): Promise<boolean> {
@@ -228,7 +225,7 @@ export async function validateMagicNumbers(
 
     let detectedType: string | null = null;
     if (
-      bytes.length >= 5 &&
+      bytes.length >= MAGIC_LENGTHS.PDF &&
       bytes[0] === 0x25 &&
       bytes[1] === 0x50 &&
       bytes[2] === 0x44 &&
@@ -237,7 +234,7 @@ export async function validateMagicNumbers(
     ) {
       detectedType = "application/pdf";
     } else if (
-      bytes.length >= 8 &&
+      bytes.length >= MAGIC_LENGTHS.PNG &&
       bytes[0] === 0x89 &&
       bytes[1] === 0x50 &&
       bytes[2] === 0x4e &&
@@ -249,14 +246,14 @@ export async function validateMagicNumbers(
     ) {
       detectedType = "image/png";
     } else if (
-      bytes.length >= 3 &&
+      bytes.length >= MAGIC_LENGTHS.JPEG &&
       bytes[0] === 0xff &&
       bytes[1] === 0xd8 &&
       bytes[2] === 0xff
     ) {
       detectedType = "image/jpeg";
     } else if (
-      bytes.length >= 8 &&
+      bytes.length >= MAGIC_LENGTHS.OLE &&
       bytes[0] === 0xd0 &&
       bytes[1] === 0xcf &&
       bytes[2] === 0x11 &&
@@ -268,7 +265,7 @@ export async function validateMagicNumbers(
     ) {
       detectedType = "application/x-ole-storage";
     } else if (
-      bytes.length >= 4 &&
+      bytes.length >= MAGIC_LENGTHS.ZIP &&
       bytes[0] === 0x50 &&
       bytes[1] === 0x4b &&
       bytes[2] === 0x03 &&
