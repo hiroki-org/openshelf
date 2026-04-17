@@ -8,24 +8,6 @@ const MIME_COMPATIBILITY: Record<string, readonly string[]> = {
   ],
 };
 
-const MAGIC_NUMBER_MAP: ReadonlyArray<readonly [Readonly<Uint8Array>, string]> =
-  [
-    [Uint8Array.from([0x25, 0x50, 0x44, 0x46, 0x2d]), "application/pdf"],
-    [
-      Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-      "image/png",
-    ],
-    [Uint8Array.from([0xff, 0xd8, 0xff]), "image/jpeg"],
-    [
-      Uint8Array.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]),
-      "application/x-ole-storage",
-    ],
-    [Uint8Array.from([0x50, 0x4b, 0x03, 0x04]), "application/zip"],
-  ];
-const MAX_MAGIC_SIZE = Math.max(
-  ...MAGIC_NUMBER_MAP.map(([signature]) => signature.length),
-);
-
 // Helper function to efficiently parse ZIP Central Directory to find a specific entry
 async function hasZipEntry(file: File, targetEntry: string): Promise<boolean> {
   const CHUNK_SIZE = 65536 + 22; // Max comment size + EOCD size
@@ -228,19 +210,57 @@ export async function validateMagicNumbers(
   declaredMime: string,
 ): Promise<boolean> {
   try {
-    const buffer = await file.slice(0, MAX_MAGIC_SIZE).arrayBuffer();
+    const buffer = await file.slice(0, 8).arrayBuffer();
     const bytes = new Uint8Array(buffer);
 
     let detectedType: string | null = null;
-    if (bytes.length >= 5 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46 && bytes[4] === 0x2d) {
+    if (
+      bytes.length >= 5 &&
+      bytes[0] === 0x25 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x44 &&
+      bytes[3] === 0x46 &&
+      bytes[4] === 0x2d
+    ) {
       detectedType = "application/pdf";
-    } else if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a) {
+    } else if (
+      bytes.length >= 8 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47 &&
+      bytes[4] === 0x0d &&
+      bytes[5] === 0x0a &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0x0a
+    ) {
       detectedType = "image/png";
-    } else if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    } else if (
+      bytes.length >= 3 &&
+      bytes[0] === 0xff &&
+      bytes[1] === 0xd8 &&
+      bytes[2] === 0xff
+    ) {
       detectedType = "image/jpeg";
-    } else if (bytes.length >= 8 && bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0 && bytes[4] === 0xa1 && bytes[5] === 0xb1 && bytes[6] === 0x1a && bytes[7] === 0xe1) {
+    } else if (
+      bytes.length >= 8 &&
+      bytes[0] === 0xd0 &&
+      bytes[1] === 0xcf &&
+      bytes[2] === 0x11 &&
+      bytes[3] === 0xe0 &&
+      bytes[4] === 0xa1 &&
+      bytes[5] === 0xb1 &&
+      bytes[6] === 0x1a &&
+      bytes[7] === 0xe1
+    ) {
       detectedType = "application/x-ole-storage";
-    } else if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+    } else if (
+      bytes.length >= 4 &&
+      bytes[0] === 0x50 &&
+      bytes[1] === 0x4b &&
+      bytes[2] === 0x03 &&
+      bytes[3] === 0x04
+    ) {
       detectedType = "application/zip";
     }
 
