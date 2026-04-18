@@ -11,19 +11,19 @@ test.describe('User Profile', () => {
     await page.goto(`/users/${user.sub}`);
 
     // Check if user's name is displayed
-    await expect(page.locator('h1')).toContainText(userName);
+    await expect(page.getByRole('heading', { name: userName })).toBeVisible();
 
     // Check if feed button is visible
-    const feedButton = page.locator('button', { hasText: 'Feed' });
+    const feedButton = page.getByRole('button', { name: /Feed/i });
     await expect(feedButton).toBeVisible();
 
     // Click the feed button to show the popup
     await feedButton.click();
 
     // Check if the URL is in the textarea or the link
-    await expect(page.locator('a', { hasText: '開く' })).toBeVisible();
+    await expect(page.getByRole('link', { name: '開く' })).toBeVisible();
 
     // Check if "+ 新規作成" link is visible since it's the own profile
-    await expect(page.locator('a', { hasText: '+ 新規作成' })).toBeVisible();
+    await expect(page.getByRole('link', { name: '+ 新規作成' })).toBeVisible();
   });
 });

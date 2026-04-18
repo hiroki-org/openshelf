@@ -4,6 +4,7 @@ import path from 'path';
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3000';
 const apiURL = process.env.E2E_API_URL || 'http://localhost:8787';
 const testAuthSecret = process.env.TEST_AUTH_SECRET || 'test-secret';
+const jwtSecret = process.env.JWT_SECRET || 'test-jwt-secret';
 const isCI = !!process.env.CI;
 
 export default defineConfig({
@@ -35,7 +36,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `npm run dev -- --var ENABLE_TEST_AUTH:true --var TEST_AUTH_SECRET:${testAuthSecret} --var FRONTEND_URL:${baseURL} --var ALLOWED_ORIGINS:${baseURL} --var JWT_SECRET:test-jwt-secret`,
+      command: `npm run dev -- --var ENABLE_TEST_AUTH:true --var TEST_AUTH_SECRET:${testAuthSecret} --var FRONTEND_URL:${baseURL} --var ALLOWED_ORIGINS:${baseURL} --var JWT_SECRET:${jwtSecret}`,
       cwd: path.resolve(__dirname, '../api'),
       url: `${apiURL}/`,
       reuseExistingServer: !process.env.CI,
