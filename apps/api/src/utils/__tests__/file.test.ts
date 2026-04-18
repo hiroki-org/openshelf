@@ -223,4 +223,61 @@ describe("validateMagicNumbers", () => {
       validateMagicNumbers(modifiedPpt, "application/vnd.ms-powerpoint"),
     ).resolves.toBe(false);
   });
+
+  it("returns false when File.slice throws RangeError", async () => {
+    const errorFile = {
+      slice: () => ({
+        arrayBuffer: async () => {
+          throw new RangeError("Invalid range");
+        }
+      }),
+      size: 100,
+      type: "application/pdf"
+    } as unknown as File;
+
+    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
+  });
+
+  it("returns false when File.slice throws TypeError", async () => {
+    const errorFile = {
+      slice: () => ({
+        arrayBuffer: async () => {
+          throw new TypeError("Type error");
+        }
+      }),
+      size: 100,
+      type: "application/pdf"
+    } as unknown as File;
+
+    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
+  });
+
+  it("returns false when File.slice throws DOMException with InvalidStateError", async () => {
+    const errorFile = {
+      slice: () => ({
+        arrayBuffer: async () => {
+          throw new DOMException("Invalid state", "InvalidStateError");
+        }
+      }),
+      size: 100,
+      type: "application/pdf"
+    } as unknown as File;
+
+    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
+  });
+
+  it("throws the error when File.slice throws an unexpected error", async () => {
+    const customError = new Error("Unexpected error");
+    const errorFile = {
+      slice: () => ({
+        arrayBuffer: async () => {
+          throw customError;
+        }
+      }),
+      size: 100,
+      type: "application/pdf"
+    } as unknown as File;
+
+    await expect(validateMagicNumbers(errorFile, "application/pdf")).rejects.toThrow("Unexpected error");
+  });
 });
