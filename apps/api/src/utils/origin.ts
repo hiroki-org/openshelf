@@ -37,22 +37,19 @@ export function isAllowedOrigin(
     options: { allowWildcard?: boolean } = {},
 ): boolean {
     if (!origin) return false;
-    const allowWildcard = options.allowWildcard ?? true;
     const normalizedFrontendOrigin = frontendOrigin ? normalizeOrigin(frontendOrigin) : null;
+    if (origin === normalizedFrontendOrigin) return true;
 
-    return (
-        allowedOrigins.some((allowedOrigin) => {
-            if (allowedOrigin.includes("*")) {
-                if (!allowWildcard) {
-                    return false;
-                }
-                return matchesOriginPattern(origin, allowedOrigin);
-            }
+    const allowWildcard = options.allowWildcard ?? true;
 
-            const normalizedAllowedOrigin = normalizeOrigin(allowedOrigin);
-            return normalizedAllowedOrigin ? origin === normalizedAllowedOrigin : origin === allowedOrigin;
-        }) || origin === normalizedFrontendOrigin
-    );
+    return allowedOrigins.some((allowedOrigin) => {
+        if (allowedOrigin.includes("*")) {
+            return allowWildcard && matchesOriginPattern(origin, allowedOrigin);
+        }
+
+        const normalizedAllowedOrigin = normalizeOrigin(allowedOrigin);
+        return normalizedAllowedOrigin ? origin === normalizedAllowedOrigin : origin === allowedOrigin;
+    });
 }
 
 export function resolveAllowedOrigin(
