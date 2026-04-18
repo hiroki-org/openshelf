@@ -104,6 +104,9 @@ function toIsoString(dateStr: string): string {
 }
 
 function latestTimestamp(rows: Array<{ updatedAt: string }>, fallback: string): string {
+    if (rows.length === 0) {
+        return fallback;
+    }
     let latest = fallback;
     let latestTime = new Date(toIsoString(fallback)).getTime();
     for (const row of rows) {
