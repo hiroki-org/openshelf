@@ -1217,6 +1217,471 @@ describe("papers routes", () => {
         expect(where).toHaveBeenCalledTimes(1);
     });
 
+
+    it("PATCH /api/papers/:id updates doi, venue, venueType, year, category, and tags", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn().mockReturnThis();
+        const where = vi.fn().mockReturnThis();
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn().mockImplementation(() => ({ set, where } as any));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    doi: "10.1234/5678",
+                    venue: "Test Venue",
+                    venueType: "conference",
+                    year: 2024,
+                    category: "report",
+                    tags: ["tag1", "tag2"]
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                doi: "10.1234/5678",
+                venue: "Test Venue",
+                venueType: "conference",
+                year: 2024,
+                category: "report",
+                tags: JSON.stringify(["tag1", "tag2"])
+            }),
+        );
+    });
+
+    it("PATCH /api/papers/:id validates invalid types and values", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        let res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ venueType: "invalid_venue_type" }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ category: "invalid_category" }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ year: "2024" }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ tags: "not_an_array" }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ tags: [123] }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ tags: ["a".repeat(256)] }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ venue: 123 }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ doi: 123 }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ venue: "a".repeat(256) }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ doi: "a".repeat(256) }) }, env as any);
+        expect(res.status).toBe(400);
+    });
+
+    it("PATCH /api/papers/:id handles null and empty fields", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn().mockReturnThis();
+        const where = vi.fn().mockReturnThis();
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn().mockImplementation(() => ({ set, where } as any));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    doi: null,
+                    venue: null,
+                    venueType: null,
+                    year: null,
+                    category: null,
+                    tags: null
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                doi: null,
+                venue: null,
+                venueType: null,
+                year: null,
+                category: null,
+                tags: null
+            }),
+        );
+    });
+
+
+    it("PATCH /api/papers/:id ignores empty tags", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn().mockReturnThis();
+        const where = vi.fn().mockReturnThis();
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn().mockImplementation(() => ({ set, where } as any));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    tags: [" ", "tag2"]
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tags: JSON.stringify(["tag2"])
+            }),
+        );
+    });
+
+    it("PATCH /api/papers/:id updates correctly when tags array has only empty strings", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn().mockReturnThis();
+        const where = vi.fn().mockReturnThis();
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn().mockImplementation(() => ({ set, where } as any));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    tags: [" "]
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tags: null
+            }),
+        );
+    });
+
+
+    it("PATCH /api/papers/:id update fails when there are no valid fields", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    invalidField: "test"
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+    });
+
+    it("PATCH /api/papers/:id ignores empty array of tags and continues if no other fields", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn().mockReturnThis();
+        const where = vi.fn().mockReturnThis();
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn().mockImplementation(() => ({ set, where } as any));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    tags: []
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tags: null
+            }),
+        );
+    });
+
+    it("PATCH /api/papers/:id updates correctly when values exactly match valid enums", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn().mockReturnThis();
+        const where = vi.fn().mockReturnThis();
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn().mockImplementation(() => ({ set, where } as any));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    venueType: "journal",
+                    category: "thesis_bachelor"
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                venueType: "journal",
+                category: "thesis_bachelor"
+            }),
+        );
+    });
+
+    it("PATCH /api/papers/:id updates correctly when tags array has only empty strings", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn().mockReturnThis();
+        const where = vi.fn().mockReturnThis();
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn().mockImplementation(() => ({ set, where } as any));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    tags: [" "]
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tags: null
+            }),
+        );
+    });
+
+    it("PATCH /api/papers/:id ignores empty tags", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn().mockReturnThis();
+        const where = vi.fn().mockReturnThis();
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn().mockImplementation(() => ({ set, where } as any));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    tags: [" ", "tag2"]
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tags: JSON.stringify(["tag2"])
+            }),
+        );
+    });
+
+    it("PATCH /api/papers/:id handles null and empty fields", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn().mockReturnThis();
+        const where = vi.fn().mockReturnThis();
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn().mockImplementation(() => ({ set, where } as any));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    doi: null,
+                    venue: null,
+                    venueType: null,
+                    year: null,
+                    category: null,
+                    tags: null
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                doi: null,
+                venue: null,
+                venueType: null,
+                year: null,
+                category: null,
+                tags: null
+            }),
+        );
+    });
+
+    it("PATCH /api/papers/:id validates invalid types and values", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        let res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ venueType: "invalid_venue_type" }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ category: "invalid_category" }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ year: "2024" }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ tags: "not_an_array" }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ tags: [123] }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ tags: ["a".repeat(256)] }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ venue: 123 }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ doi: 123 }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ venue: "a".repeat(256) }) }, env as any);
+        expect(res.status).toBe(400);
+
+        res = await app.request("http://localhost/api/papers/paper-1", { method: "PATCH", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, body: JSON.stringify({ doi: "a".repeat(256) }) }, env as any);
+        expect(res.status).toBe(400);
+    });
+
+    it("PATCH /api/papers/:id updates doi, venue, venueType, year, category, and tags", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn().mockReturnThis();
+        const where = vi.fn().mockReturnThis();
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn().mockImplementation(() => ({ set, where } as any));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    doi: "10.1234/5678",
+                    venue: "Test Venue",
+                    venueType: "conference",
+                    year: 2024,
+                    category: "report",
+                    tags: ["tag1", "tag2"]
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                doi: "10.1234/5678",
+                venue: "Test Venue",
+                venueType: "conference",
+                year: 2024,
+                category: "report",
+                tags: JSON.stringify(["tag1", "tag2"])
+            }),
+        );
+    });
+
     it("GET /api/papers/:id returns 401 for private paper without Bearer token", async () => {
         mockDb.select = vi
             .fn()

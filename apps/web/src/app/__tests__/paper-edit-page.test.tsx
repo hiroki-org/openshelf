@@ -115,6 +115,7 @@ describe("PaperEditPage", () => {
   });
 
   it("redirects non-authors back to the paper page", async () => {
+    Object.defineProperty(window, "location", { value: { assign: vi.fn() }, writable: true });
     vi.mocked(apiFetch).mockResolvedValue(
       new Response(
         JSON.stringify({
