@@ -35,7 +35,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `npm run dev -- --var ENABLE_TEST_AUTH:true --var TEST_AUTH_SECRET:${testAuthSecret} --var FRONTEND_URL:${baseURL} --var ALLOWED_ORIGINS:${baseURL}`,
+      command: `npm run dev -- --var ENABLE_TEST_AUTH:true --var TEST_AUTH_SECRET:${testAuthSecret} --var FRONTEND_URL:${baseURL} --var ALLOWED_ORIGINS:${baseURL} --var JWT_SECRET:test-jwt-secret`,
       cwd: path.resolve(__dirname, '../api'),
       url: `${apiURL}/`,
       reuseExistingServer: !process.env.CI,
