@@ -34,7 +34,7 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
         return c.json({ tags: [] });
     }
 
-    let tags: string[] = [];
+    let tags: string[];
 
     if (orgSlug) {
         const org = await db
