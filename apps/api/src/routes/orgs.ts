@@ -628,7 +628,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
     const currentUserId = await getOptionalUserIdFromAuthHeader(c);
 
     const isMember = currentUserId ? await isOrgMember(db, org.id, currentUserId) : false;
-    const authoredPaperIds = new Set<string>();
+    let authoredIds: string[] = [];
     if (currentUserId) {
         const authorRows = await db
             .select({ paperId: paperAuthors.paperId })
@@ -640,12 +640,8 @@ orgsRoute.get("/:slug/papers", async (c) => {
             )
             .where(eq(paperOrgs.orgId, org.id))
             .all();
-        for (const row of authorRows) {
-            authoredPaperIds.add(row.paperId);
-        }
+        authoredIds = authorRows.map(r => r.paperId);
     }
-
-    const authoredIds = Array.from(authoredPaperIds);
     const visibilityCondition = buildOrgPapersVisibilityCondition(isMember, authoredIds);
 
     const baseFilters = [eq(paperOrgs.orgId, org.id), visibilityCondition];
