@@ -1157,6 +1157,39 @@ describe("papers routes", () => {
         expect(mockDb.select).not.toHaveBeenCalled();
     });
 
+
+    it("PATCH /api/papers/:id updates tags correctly", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const where = vi.fn(async () => undefined);
+        const set = vi.fn(() => ({ where }));
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn(() => ({ set }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ tags: [" AI", "ML ", "", "A".repeat(100), "NLP"] }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith({
+            tags: JSON.stringify(["ai", "ml", "nlp"]),
+            updatedAt: expect.anything(),
+        });
+    });
+
     it("PATCH /api/papers/:id rejects requests without valid updatable fields", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi
