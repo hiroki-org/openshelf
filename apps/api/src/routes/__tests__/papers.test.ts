@@ -404,6 +404,57 @@ describe("papers routes", () => {
         expect(res.status).toBe(201);
     });
 
+    it("POST /api/papers logs raw error object on upload failure", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+
+        const sensitiveError = new Error("S3 error: AccessKeyId=SENSITIVE_KEY");
+        (sensitiveError as any).secretInfo = "TOO_SENSITIVE";
+
+        const env = createTestEnv({
+            DB: mockDb as any,
+            BUCKET: {
+                put: vi.fn().mockRejectedValue(sensitiveError),
+                delete: vi.fn().mockResolvedValue(undefined)
+            } as any
+        });
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const form = new FormData();
+        form.set("metadata", JSON.stringify({ title: "Test Paper", visibility: "private" }));
+        form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", { type: "application/pdf" }));
+        form.set("file_types_0", "paper");
+
+        const res = await app.request(
+            "http://localhost/api/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000"
+                },
+                body: form
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(500);
+
+        // Find the "File upload errors:" call
+        const uploadErrorCall = consoleErrorSpy.mock.calls.find(call => call[0] === "File upload errors:");
+        expect(uploadErrorCall).toBeDefined();
+
+        // Verify that errors are sanitized (logged as strings, not raw Error objects)
+        const loggedObject = uploadErrorCall![1];
+        expect(typeof loggedObject.errors[0]).toBe("string");
+        expect(loggedObject.errors[0]).toBe(sensitiveError.message);
+        expect(loggedObject.errors[0]).not.toContain("TOO_SENSITIVE");
+        expect(loggedObject.errors[0].secretInfo).toBeUndefined();
+
+        consoleErrorSpy.mockRestore();
+    });
+
     it("POST /api/papers deletes uploaded files and paper record on database error", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
 
@@ -754,6 +805,51 @@ describe("papers routes", () => {
         );
 
         expect(res.status).toBe(204);
+    });
+
+    it("POST /api/papers/:id/track logs raw error on failure", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public" } }));
+
+        const trackError = new Error("D1 Error: SENSITIVE_DB_INFO");
+        (trackError as any).query = "INSERT INTO paper_stats_dedup ...";
+
+        mockDb.batch = vi.fn().mockRejectedValue(trackError);
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: mockDb as any });
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/track",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Origin: "http://localhost:3000",
+                    "User-Agent": "Vitest",
+                },
+                body: JSON.stringify({ event: "view" }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(204);
+
+        // Track event is run in background, so we need to wait for it or ensure it's completed
+        await new Promise(resolve => setTimeout(resolve, 10));
+
+        const trackErrorCall = consoleErrorSpy.mock.calls.find(call => call[0] === "Failed to record paper track event");
+        expect(trackErrorCall).toBeDefined();
+
+        // Verify that the error is sanitized
+        expect(typeof trackErrorCall![1].error).toBe("string");
+        expect(trackErrorCall![1].error).toBe(trackError.message);
+        expect(trackErrorCall![1].error).not.toContain("INSERT INTO");
+        expect(trackErrorCall![1].error.query).toBeUndefined();
+
+        consoleErrorSpy.mockRestore();
     });
 
     it("POST /api/papers/:id/track returns 404 when paper does not exist", async () => {
