@@ -1,7 +1,45 @@
 import { describe, expect, it } from "vitest";
-import { isAllowedOrigin, normalizeOrigin } from "../origin";
+import { isAllowedOrigin, matchesOriginPattern, normalizeOrigin } from "../origin";
 
 describe("origin utils", () => {
+    describe("matchesOriginPattern", () => {
+        it("returns true for global wildcard", () => {
+            expect(matchesOriginPattern("https://example.com", "*")).toBe(true);
+        });
+
+        it("returns true for exact matches without wildcard", () => {
+            expect(matchesOriginPattern("https://example.com", "https://example.com")).toBe(true);
+            expect(matchesOriginPattern("https://example.com", "https://other.com")).toBe(false);
+        });
+
+        it("matches single subdomain wildcard", () => {
+            expect(matchesOriginPattern("https://app.example.com", "https://*.example.com")).toBe(true);
+            expect(matchesOriginPattern("https://api.example.com", "https://*.example.com")).toBe(true);
+            expect(matchesOriginPattern("https://abc-123.example.com", "https://*.example.com")).toBe(true);
+        });
+
+        it("does not match across multiple subdomain levels with single wildcard", () => {
+            expect(matchesOriginPattern("https://sub.app.example.com", "https://*.example.com")).toBe(false);
+            expect(matchesOriginPattern("https://example.com", "https://*.example.com")).toBe(false);
+        });
+
+        it("matches multiple wildcards", () => {
+            expect(matchesOriginPattern("https://app.dev.example.com", "https://*.%.example.com".replace("%", "*"))).toBe(true);
+            expect(matchesOriginPattern("https://api.staging.example.com", "https://*.%.example.com".replace("%", "*"))).toBe(true);
+        });
+
+        it("escapes special regex characters in pattern", () => {
+            // The pattern has dots which should be treated literally, not as any character regex
+            expect(matchesOriginPattern("https://exampleXcom", "https://*.example.com")).toBe(false);
+            expect(matchesOriginPattern("https://app.example.com", "https://app.example.com")).toBe(true);
+        });
+
+        it("handles patterns with other special characters", () => {
+            expect(matchesOriginPattern("https://a+b.example.com", "https://a+b.example.com")).toBe(true);
+            expect(matchesOriginPattern("https://a(b).example.com", "https://a(b).example.com")).toBe(true);
+        });
+    });
+
     it("normalizes exact origins before comparison", () => {
         const origin = normalizeOrigin("https://app.example.com")!;
         const frontendOrigin = normalizeOrigin("https://frontend.example.com")!;
