@@ -2,11 +2,29 @@ const fs = require('fs');
 const path = 'apps/web/src/app/papers/[id]/__tests__/paper-detail-client.test.tsx';
 let code = fs.readFileSync(path, 'utf8');
 
-const unmountTest = `
+const replacement = `
   it("cleans up urls on unmount", async () => {
-    vi.stubGlobal("requestIdleCallback", (cb: any) => {
-      cb({ timeRemaining: () => 10, didTimeout: false });
-    });
+    const { unmount } = render(
+      <PaperDetailClient
+        paperId="test-id"
+        siteBase="http://localhost"
+      />
+    );
+    unmount();
+  });
+
+  it("cleans up urls with setTimeout fallback if requestIdleCallback is missing", async () => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal("requestIdleCallback", undefined);
+
+    const UrlMock = Object.assign(
+      class extends URL {},
+      {
+        createObjectURL: vi.fn(() => \`blob:mock-fallback\`),
+        revokeObjectURL: vi.fn(),
+      },
+    ) as typeof URL;
+    vi.stubGlobal("URL", UrlMock);
 
     const { unmount } = render(
       <PaperDetailClient
@@ -15,14 +33,11 @@ const unmountTest = `
       />
     );
 
-    // Allow the initial render and effects to run
-    await new Promise(r => setTimeout(r, 0));
     unmount();
-
-    // The test ensures the cleanup does not throw and executes successfully.
+    await new Promise(r => setTimeout(r, 10));
   });
 `;
 
-code = code.replace(/it\("cleans up urls on unmount", async \(\) => \{[\s\S]*?\/\/ That's totally fine, we just want to hit the `revokeUrlsIdle` branch on unmount!\n  \}\);/, unmountTest.trim());
+code = code.replace(/it\("cleans up urls on unmount", async \(\) => \{[\s\S]*?The test ensures the cleanup does not throw and executes successfully\.\n  \}\);/g, replacement.trim());
 
 fs.writeFileSync(path, code, 'utf8');
