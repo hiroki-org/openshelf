@@ -92,6 +92,10 @@ describe("PaperDetailClient", () => {
       },
     ) as typeof URL;
     vi.stubGlobal("URL", UrlMock);
+    vi.stubGlobal("requestIdleCallback", (cb: any) => {
+      // Execute synchronously
+      cb({ timeRemaining: () => 10, didTimeout: false });
+    });
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   });
 
@@ -99,6 +103,29 @@ describe("PaperDetailClient", () => {
     cleanup();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("cleans up urls on unmount", async () => {
+    const mockPaperObj = {
+      id: "test-id",
+      title: "Test Paper",
+      publishedAt: "2024-01-01",
+      updatedAt: "2024-01-01",
+      authors: [],
+    };
+    const { unmount } = render(
+      <PaperDetailClient
+        paperId="test-id"
+        siteBase="http://localhost"
+        paper={mockPaperObj as any}
+        isAuthor={false}
+        currentUser={null}
+        pdfFile={{ id: "pdf-1", filename: "paper.pdf" }}
+        imageFiles={[{ id: "img-1", filename: "image.png" }]}
+      />
+    );
+    unmount();
+    expect(URL.revokeObjectURL).toHaveBeenCalled();
   });
 
   it("renders author controls, previews assets, records views, and invites coauthors", async () => {
