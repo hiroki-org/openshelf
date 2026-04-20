@@ -26,7 +26,7 @@ export function matchesOriginPattern(origin: string, pattern: string): boolean {
 
     const escapedPattern = pattern
         .replace(/[|\\{}()[\]^$+?.]/g, "\\$&")
-        .replace(/\*/g, "[a-zA-Z0-9-]+");
+        .replace(/\*/g, "[^/?#]+");
     return new RegExp(`^${escapedPattern}$`).test(origin);
 }
 
@@ -37,18 +37,21 @@ export function isAllowedOrigin(
     options: { allowWildcard?: boolean } = {},
 ): boolean {
     if (!origin) return false;
+    if (origin === frontendOrigin) return true;
     const normalizedFrontendOrigin = frontendOrigin ? normalizeOrigin(frontendOrigin) : null;
     if (origin === normalizedFrontendOrigin) return true;
 
     const allowWildcard = options.allowWildcard ?? true;
 
     return allowedOrigins.some((allowedOrigin) => {
+        if (origin === allowedOrigin) return true;
+
         if (allowedOrigin.includes("*")) {
             return allowWildcard && matchesOriginPattern(origin, allowedOrigin);
         }
 
         const normalizedAllowedOrigin = normalizeOrigin(allowedOrigin);
-        return normalizedAllowedOrigin ? origin === normalizedAllowedOrigin : origin === allowedOrigin;
+        return normalizedAllowedOrigin ? origin === normalizedAllowedOrigin : false;
     });
 }
 
