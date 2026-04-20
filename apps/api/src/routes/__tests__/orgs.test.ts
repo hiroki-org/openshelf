@@ -928,6 +928,51 @@ describe("orgs routes", () => {
             await expect(res.json()).resolves.toEqual({ tags: ["AI", "NLP"] });
         });
 
+        it("filters tags by query and handles redundant tags with caching logic", async () => {
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "member" } },
+                {
+                    allResult: [
+                        {
+                            id: "paper-1",
+                            visibility: "public",
+                            tags: "[\"AI\",\"NLP\"]",
+                            authorUserId: null,
+                        },
+                        {
+                            id: "paper-2",
+                            visibility: "public",
+                            tags: "[\"AI\",\"NLP\"]", // Triggers tagCache
+                            authorUserId: null,
+                        },
+                        {
+                            id: "paper-3",
+                            visibility: "public",
+                            tags: "[\"AI\",\"Machine Learning\"]", // Triggers lowerCache for "AI"
+                            authorUserId: null,
+                        },
+                    ],
+                },
+            ]);
+
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Member" });
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/tags?q=m",
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(200);
+            // Only "Machine Learning" starts with "m"
+            await expect(res.json()).resolves.toEqual({ tags: ["Machine Learning"] });
+        });
+
         it("limits public org tag responses to 100 items", async () => {
             const manyTags = Array.from(
                 { length: 105 },
