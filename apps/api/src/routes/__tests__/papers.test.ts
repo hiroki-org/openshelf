@@ -756,6 +756,32 @@ describe("papers routes", () => {
         expect(res.status).toBe(204);
     });
 
+    it("DELETE /api/papers/:id handles R2 deletion failure", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }))
+            .mockImplementationOnce(() => makeQuery({ allResult: [{ r2Key: "papers/paper-1/paper/file.pdf" }] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: mockDb as any });
+        vi.spyOn(env.BUCKET, "delete").mockRejectedValue(new Error("R2 failure"));
+
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "DELETE",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000"
+                }
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(500);
+    });
+
     it("POST /api/papers/:id/track returns 404 when paper does not exist", async () => {
         mockDb.select = vi
             .fn()
