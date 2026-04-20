@@ -29,20 +29,23 @@ describe("origin utils", () => {
         });
 
         it("matches multiple wildcards", () => {
-            const pattern = p("https://*", "*", "example", "com");
-            expect(matchesOriginPattern("https://app.dev.example.com", pattern)).toBe(true);
-            expect(matchesOriginPattern("https://api.staging.example.com", pattern)).toBe(true);
+            expect(matchesOriginPattern("https://app.dev.example.com", "https://*.*.example.com")).toBe(true);
+            expect(matchesOriginPattern("https://api.staging.example.com", "https://*.*.example.com")).toBe(true);
         });
 
         it("escapes special regex characters in pattern", () => {
             // The pattern has dots which should be treated literally, not as any character regex
             expect(matchesOriginPattern("https://exampleXcom", p("https://*", "example", "com"))).toBe(false);
-            expect(matchesOriginPattern("https://app.example.com", "https://app.example.com")).toBe(true);
+            expect(matchesOriginPattern("https://app.example.com", p("https://app", "example", "com"))).toBe(true);
         });
 
         it("handles patterns with other special characters", () => {
-            expect(matchesOriginPattern("https://a+b.example.com", p("https://a+b", "example", "com"))).toBe(true);
-            expect(matchesOriginPattern("https://a(b).example.com", p("https://a(b)", "example", "com"))).toBe(true);
+            const plusPattern = p("https://a+b", "*", "com");
+            const parenPattern = p("https://a(b)", "*", "com");
+
+            expect(matchesOriginPattern("https://aab.dev.com", plusPattern)).toBe(false);
+            expect(matchesOriginPattern("https://a+b.dev.com", plusPattern)).toBe(true);
+            expect(matchesOriginPattern("https://a(b).dev.com", parenPattern)).toBe(true);
         });
     });
 
