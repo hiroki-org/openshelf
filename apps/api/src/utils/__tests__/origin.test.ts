@@ -37,4 +37,27 @@ describe("origin utils", () => {
         ).toBe(false);
     });
 
+    it("allows request when origin matches frontend origin directly", () => {
+        expect(
+            isAllowedOrigin(
+                "https://frontend.example.com",
+                "https://frontend.example.com",
+                ["https://other.example.com"],
+                { allowWildcard: false },
+            ),
+        ).toBe(true);
+    });
+
+    it("supports wildcard subdomain patterns with nested labels and ports", () => {
+        expect(
+            isAllowedOrigin(
+                "https://sub.app.example.com:8443",
+                normalizeOrigin("https://frontend.example.com"),
+                ["https://*.example.com:8443"],
+                { allowWildcard: true },
+            ),
+        ).toBe(true);
+    });
+
+
 });

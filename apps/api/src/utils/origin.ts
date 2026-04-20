@@ -26,7 +26,7 @@ export function matchesOriginPattern(origin: string, pattern: string): boolean {
 
     const escapedPattern = pattern
         .replace(/[|\\{}()[\]^$+?.]/g, "\\$&")
-        .replace(/\*/g, "[a-zA-Z0-9-]+");
+        .replace(/\*/g, "[^/?#]+");
     return new RegExp(`^${escapedPattern}$`).test(origin);
 }
 
