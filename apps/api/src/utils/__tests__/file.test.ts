@@ -229,10 +229,10 @@ describe("validateMagicNumbers", () => {
       slice: () => ({
         arrayBuffer: async () => {
           throw new RangeError("Invalid range");
-        }
+        },
       }),
       size: 100,
-      type: "application/pdf"
+      type: "application/pdf",
     } as unknown as File;
 
     await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
@@ -243,10 +243,10 @@ describe("validateMagicNumbers", () => {
       slice: () => ({
         arrayBuffer: async () => {
           throw new TypeError("Type error");
-        }
+        },
       }),
       size: 100,
-      type: "application/pdf"
+      type: "application/pdf",
     } as unknown as File;
 
     await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
@@ -257,13 +257,28 @@ describe("validateMagicNumbers", () => {
       slice: () => ({
         arrayBuffer: async () => {
           throw new DOMException("Invalid state", "InvalidStateError");
-        }
+        },
       }),
       size: 100,
-      type: "application/pdf"
+      type: "application/pdf",
     } as unknown as File;
 
     await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
+  });
+
+  it("throws the error when File.slice throws DOMException with non-InvalidStateError name", async () => {
+    const domError = new DOMException("Aborted", "AbortError");
+    const errorFile = {
+      slice: () => ({
+        arrayBuffer: async () => {
+          throw domError;
+        },
+      }),
+      size: 100,
+      type: "application/pdf",
+    } as unknown as File;
+
+    await expect(validateMagicNumbers(errorFile, "application/pdf")).rejects.toThrow("Aborted");
   });
 
   it("throws the error when File.slice throws an unexpected error", async () => {
@@ -272,10 +287,10 @@ describe("validateMagicNumbers", () => {
       slice: () => ({
         arrayBuffer: async () => {
           throw customError;
-        }
+        },
       }),
       size: 100,
-      type: "application/pdf"
+      type: "application/pdf",
     } as unknown as File;
 
     await expect(validateMagicNumbers(errorFile, "application/pdf")).rejects.toThrow("Unexpected error");
