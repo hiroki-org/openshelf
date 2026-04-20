@@ -135,18 +135,14 @@ async function deleteKeysInBatches(
             try {
                 await bucket.delete(chunk);
             } catch (error) {
-                const info = {
+                if (!onChunkError) throw error;
+                onChunkError({
                     chunkStart,
                     chunkEndExclusive: chunkStart + chunk.length,
                     chunkSize: chunk.length,
                     chunkSample: chunk.slice(0, 3),
                     error: error instanceof Error ? error.message : String(error),
-                };
-                if (onChunkError) {
-                    onChunkError(info);
-                    return;
-                }
-                throw error;
+                });
             }
         },
         { concurrency: MAX_CONCURRENT_R2_DELETES },
