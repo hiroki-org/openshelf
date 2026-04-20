@@ -1,12 +1,6 @@
 import { bench, describe } from "vitest";
 import { validateMagicNumbers } from "../file";
-
-const benchmarkOptions = {
-    time: 2000,
-    warmupTime: 500,
-    iterations: 25,
-    warmupIterations: 10,
-};
+import { benchmarkOptions } from "./bench-utils";
 
 describe("file extensions benchmark", () => {
     // Create dummy File objects once so the benchmark measures validation only.
