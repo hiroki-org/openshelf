@@ -127,7 +127,7 @@ describe("badge utils", () => {
         it("omits year if null", () => {
             expect(buildBadgeMessage("Some Title", null, "default")).toBe("Some Title");
         });
-        it("omits year if 0 (falsy check)", () => {
+        it("omits year if year is 0", () => {
             expect(buildBadgeMessage("Some Title", 0, "default")).toBe("Some Title");
         });
         it("truncates long titles with year", () => {
@@ -188,10 +188,13 @@ describe("badge utils", () => {
 
     describe("buildNotFoundBadge", () => {
         it("returns SVG and JSON for not found badge", () => {
+        // NOTE: color and style options are intentionally ignored by buildNotFoundBadge.
+        // It always uses the default NOT_FOUND_COLOR (#9f9f9f) and default style layout.
+
             const result = buildNotFoundBadge({
                 style: "default",
                 label: "MyLabel",
-                color: "123", // color/style options are intentionally ignored; always uses NOT_FOUND_COLOR
+                color: "123",
             });
             expect(result.svg).toContain("📄 MyLabel");
             expect(result.svg).toContain("not found");
