@@ -118,7 +118,6 @@ function normalizeReferrer(value: unknown): string | null {
     return trimmed.slice(0, MAX_REFERRER_LENGTH);
 }
 
-
 async function deleteKeysInBatches(
     bucket: Env["BUCKET"],
     keys: string[],
