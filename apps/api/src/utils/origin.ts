@@ -37,19 +37,18 @@ export function isAllowedOrigin(
     options: { allowWildcard?: boolean } = {},
 ): boolean {
     if (!origin) return false;
-    if (origin === frontendOrigin) return true;
+    if (frontendOrigin && origin === frontendOrigin) return true;
     const normalizedFrontendOrigin = frontendOrigin ? normalizeOrigin(frontendOrigin) : null;
-    if (origin === normalizedFrontendOrigin) return true;
+    if (normalizedFrontendOrigin && origin === normalizedFrontendOrigin) return true;
 
     const allowWildcard = options.allowWildcard ?? true;
 
     return allowedOrigins.some((allowedOrigin) => {
-        if (origin === allowedOrigin) return true;
-
         if (allowedOrigin.includes("*")) {
             return allowWildcard && matchesOriginPattern(origin, allowedOrigin);
         }
 
+        if (origin === allowedOrigin) return true;
         const normalizedAllowedOrigin = normalizeOrigin(allowedOrigin);
         return normalizedAllowedOrigin ? origin === normalizedAllowedOrigin : false;
     });
