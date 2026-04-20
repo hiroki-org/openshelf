@@ -451,14 +451,8 @@ describe("papers routes", () => {
             expect.arrayContaining([expect.stringContaining("papers/")]),
         );
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-            "Cleanup error (non-fatal, rollback continues)",
-            expect.objectContaining({
-                chunkStart: 0,
-                chunkEndExclusive: 1,
-                chunkSize: 1,
-                chunkSample: expect.arrayContaining([expect.stringContaining("papers/")]),
-                error: "Cleanup failed",
-            }),
+            "Cleanup error (non-fatal, rollback continues):",
+            "Cleanup failed",
         );
 
         // db.delete should be called for papers
@@ -466,6 +460,68 @@ describe("papers routes", () => {
         expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
         consoleErrorSpy.mockRestore();
         bucketDeleteSpy.mockRestore();
+    });
+
+    it("POST /api/papers logs sanitized errors (both Error instance and string) on upload failure", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+
+        const sensitiveError = new Error("S3 error: AccessKeyId=SENSITIVE_KEY");
+        (sensitiveError as any).secretInfo = "TOO_SENSITIVE";
+        const stringError = "Some string-based upload error";
+
+        let callCount = 0;
+        const env = createTestEnv({
+            DB: mockDb as any,
+            BUCKET: {
+                put: vi.fn().mockImplementation(() => {
+                    callCount++;
+                    if (callCount === 1) return Promise.reject(sensitiveError);
+                    return Promise.reject(stringError);
+                }),
+                delete: vi.fn().mockResolvedValue(undefined)
+            } as any
+        });
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const form = new FormData();
+        form.set("metadata", JSON.stringify({ title: "Test Paper", visibility: "private" }));
+        form.set("files_0", new File(["%PDF-1.4\n%dummy-pdf"], "paper1.pdf", { type: "application/pdf" }));
+        form.set("file_types_0", "paper");
+        form.set("files_1", new File(["%PDF-1.4\n%dummy-pdf"], "paper2.pdf", { type: "application/pdf" }));
+        form.set("file_types_1", "paper");
+
+        const res = await app.request(
+            "http://localhost/api/papers",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Origin: "http://localhost:3000"
+                },
+                body: form
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(500);
+
+        const uploadErrorCall = consoleErrorSpy.mock.calls.find(call => call[0] === "File upload errors:");
+        expect(uploadErrorCall).toBeDefined();
+
+        const loggedObject = uploadErrorCall![1];
+        expect(loggedObject.errors).toHaveLength(2);
+
+        // Verify Error instance is sanitized
+        const errorLog = loggedObject.errors.find((e: any) => e === sensitiveError.message);
+        expect(errorLog).toBeDefined();
+
+        // Verify string error is preserved as string
+        const stringLog = loggedObject.errors.find((e: any) => e === stringError);
+        expect(stringLog).toBeDefined();
+
+        consoleErrorSpy.mockRestore();
     });
 
     it("POST /api/papers rejects upload when content does not match declared MIME", async () => {
@@ -717,6 +773,82 @@ describe("papers routes", () => {
 
         expect(res.status).toBe(204);
         expect(mockDb.insert).not.toHaveBeenCalled();
+    });
+
+    it("POST /api/papers/:id/track logs sanitized error on failure (Error instance)", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public" } }));
+
+        const trackError = new Error("D1 Error: SENSITIVE_DB_INFO");
+        (trackError as any).query = "INSERT INTO paper_stats_dedup ...";
+
+        mockDb.batch = vi.fn().mockRejectedValue(trackError);
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: mockDb as any });
+        await app.request(
+            "http://localhost/api/papers/paper-1/track",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Origin: "http://localhost:3000",
+                    "User-Agent": "Vitest",
+                },
+                body: JSON.stringify({ event: "view" }),
+            },
+            env as any,
+        );
+
+        try {
+            await vi.waitFor(() => {
+                const call = consoleErrorSpy.mock.calls.find(c => c[0] === "Failed to record paper track event");
+                if (!call) throw new Error("Log not found");
+                expect(call[1].error).toBe(trackError.message);
+            });
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
+    });
+
+    it("POST /api/papers/:id/track logs sanitized error on failure (string error)", async () => {
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public" } }));
+
+        const trackError = "Batch failed for some reason";
+        mockDb.batch = vi.fn().mockRejectedValue(trackError);
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: mockDb as any });
+        await app.request(
+            "http://localhost/api/papers/paper-1/track",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Origin: "http://localhost:3000",
+                    "User-Agent": "Vitest",
+                },
+                body: JSON.stringify({ event: "view" }),
+            },
+            env as any,
+        );
+
+        try {
+            await vi.waitFor(() => {
+                const call = consoleErrorSpy.mock.calls.find(c => c[0] === "Failed to record paper track event");
+                if (!call) throw new Error("Log not found");
+                expect(call[1].error).toBe(trackError);
+            });
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
     });
 
     it("POST /api/papers/:id/track handles duplicate dedup rows", async () => {
