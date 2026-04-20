@@ -113,7 +113,7 @@ describe("badge utils", () => {
             expect(estimateTextWidth("-")).toBe(5);
         });
         it("estimates total width", () => {
-            expect(estimateTextWidth("aA1 あ😀 ")).toBe(6+7+6+5+11+12+5);
+            expect(estimateTextWidth("aA1 あ😀 ")).toBe(52);
         });
     });
 
@@ -126,6 +126,9 @@ describe("badge utils", () => {
         });
         it("omits year if null", () => {
             expect(buildBadgeMessage("Some Title", null, "default")).toBe("Some Title");
+        });
+        it("omits year if 0 (falsy check)", () => {
+            expect(buildBadgeMessage("Some Title", 0, "default")).toBe("Some Title");
         });
         it("truncates long titles with year", () => {
             const title = "This is a very long title that should definitely be truncated";
@@ -188,7 +191,7 @@ describe("badge utils", () => {
             const result = buildNotFoundBadge({
                 style: "default",
                 label: "MyLabel",
-                color: "123",
+                color: "123", // color/style options are intentionally ignored; always uses NOT_FOUND_COLOR
             });
             expect(result.svg).toContain("📄 MyLabel");
             expect(result.svg).toContain("not found");
