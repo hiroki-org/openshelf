@@ -120,6 +120,32 @@ function formatCount(value: number | null | undefined): string {
   return new Intl.NumberFormat().format(value ?? 0);
 }
 
+
+function revokeUrlsIdle(urls: string[]) {
+  if (urls.length === 0) return;
+  const urlsToRevoke = [...urls];
+
+  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+    const revokeChunk = (deadline: IdleDeadline) => {
+      while (urlsToRevoke.length > 0 && deadline.timeRemaining() > 0) {
+        const url = urlsToRevoke.pop();
+        if (url) URL.revokeObjectURL(url);
+      }
+      if (urlsToRevoke.length > 0) {
+        window.requestIdleCallback(revokeChunk);
+      }
+    };
+    window.requestIdleCallback(revokeChunk);
+  } else {
+    // Fallback for Safari / environments without requestIdleCallback
+    setTimeout(() => {
+      for (const url of urlsToRevoke) {
+        URL.revokeObjectURL(url);
+      }
+    }, 0);
+  }
+}
+
 export default function PaperDetailClient({
   paperId,
   siteBase,
@@ -389,7 +415,7 @@ export default function PaperDetailClient({
       );
 
       if (cancelled) {
-        for (const url of createdUrls) URL.revokeObjectURL(url);
+        revokeUrlsIdle(createdUrls);
         return;
       }
 
@@ -415,9 +441,7 @@ export default function PaperDetailClient({
 
     return () => {
       cancelled = true;
-      for (const url of createdUrls) {
-        URL.revokeObjectURL(url);
-      }
+      revokeUrlsIdle(createdUrls);
     };
   }, [paperId, imageFiles, trackEvent]);
 
