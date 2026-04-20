@@ -2,6 +2,19 @@ import { describe, expect, it } from "vitest";
 import { isAllowedOrigin, matchesOriginPattern, normalizeOrigin } from "../origin";
 
 describe("origin utils", () => {
+    it("allows request when origin matches the normalized frontend origin", () => {
+        const origin = normalizeOrigin("https://frontend.example.com/")!;
+
+        expect(
+            isAllowedOrigin(
+                origin,
+                "https://frontend.example.com",
+                ["https://app.example.com"],
+                { allowWildcard: false },
+            ),
+        ).toBe(true);
+    });
+
     describe("matchesOriginPattern", () => {
         // Construct pattern with dots using string join to bypass CodeQL literal string analysis
         const p = (...parts: string[]) => parts.join(".");
