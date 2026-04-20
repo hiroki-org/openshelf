@@ -24,8 +24,8 @@ describe("origin utils", () => {
         });
 
         it("matches multiple wildcards", () => {
-            expect(matchesOriginPattern("https://app.dev.example.com", "https://*.%.example.com".replace("%", "*"))).toBe(true);
-            expect(matchesOriginPattern("https://api.staging.example.com", "https://*.%.example.com".replace("%", "*"))).toBe(true);
+            expect(matchesOriginPattern("https://app.dev.example.com", "https://*.%.example.com".replace(/%/g, "*"))).toBe(true);
+            expect(matchesOriginPattern("https://api.staging.example.com", "https://*.%.example.com".replace(/%/g, "*"))).toBe(true);
         });
 
         it("escapes special regex characters in pattern", () => {
