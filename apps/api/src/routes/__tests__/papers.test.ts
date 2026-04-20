@@ -803,13 +803,15 @@ describe("papers routes", () => {
             env as any,
         );
 
-        await new Promise(resolve => setTimeout(resolve, 10));
-
-        const trackErrorCall = consoleErrorSpy.mock.calls.find(call => call[0] === "Failed to record paper track event");
-        expect(trackErrorCall).toBeDefined();
-        expect(trackErrorCall![1].error).toBe(trackError.message);
-
-        consoleErrorSpy.mockRestore();
+        try {
+            await vi.waitFor(() => {
+                const call = consoleErrorSpy.mock.calls.find(c => c[0] === "Failed to record paper track event");
+                if (!call) throw new Error("Log not found");
+                expect(call[1].error).toBe(trackError.message);
+            });
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
     });
 
     it("POST /api/papers/:id/track logs sanitized error on failure (string error)", async () => {
@@ -822,27 +824,27 @@ describe("papers routes", () => {
 
         const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-        try {
-            const app = await createTestApp();
-            const env = createTestEnv({ DB: mockDb as any });
-            await app.request(
-                "http://localhost/api/papers/paper-1/track",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Origin: "http://localhost:3000",
-                        "User-Agent": "Vitest",
-                    },
-                    body: JSON.stringify({ event: "view" }),
+        const app = await createTestApp();
+        const env = createTestEnv({ DB: mockDb as any });
+        await app.request(
+            "http://localhost/api/papers/paper-1/track",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Origin: "http://localhost:3000",
+                    "User-Agent": "Vitest",
                 },
-                env as any,
-            );
+                body: JSON.stringify({ event: "view" }),
+            },
+            env as any,
+        );
 
+        try {
             await vi.waitFor(() => {
-                const trackErrorCall = consoleErrorSpy.mock.calls.find(call => call[0] === "Failed to record paper track event");
-                expect(trackErrorCall).toBeDefined();
-                expect(trackErrorCall![1].error).toBe(trackError);
+                const call = consoleErrorSpy.mock.calls.find(c => c[0] === "Failed to record paper track event");
+                if (!call) throw new Error("Log not found");
+                expect(call[1].error).toBe(trackError);
             });
         } finally {
             consoleErrorSpy.mockRestore();

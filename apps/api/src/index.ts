@@ -20,12 +20,16 @@ app.use(
     "/api/*",
     cors({
         origin: (origin, c) => {
-            const allowedOrigins = parseOriginList(c.env.ALLOWED_ORIGINS);
-            const requestOrigin = normalizeOrigin(origin ?? undefined);
-            const frontendOrigin = normalizeOrigin(c.env.FRONTEND_URL);
+            try {
+                const allowedOrigins = parseOriginList(c.env.ALLOWED_ORIGINS);
+                const requestOrigin = normalizeOrigin(origin ?? undefined);
+                const frontendOrigin = normalizeOrigin(c.env.FRONTEND_URL);
 
-            if (isAllowedOrigin(requestOrigin, frontendOrigin, allowedOrigins)) {
-                return origin;
+                if (isAllowedOrigin(requestOrigin, frontendOrigin, allowedOrigins)) {
+                    return origin;
+                }
+            } catch (err) {
+                console.error("CORS origin check error:", err instanceof Error ? err.message : String(err));
             }
 
             return undefined;
