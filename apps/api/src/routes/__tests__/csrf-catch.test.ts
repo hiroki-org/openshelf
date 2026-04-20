@@ -33,7 +33,7 @@ describe("CSRF configuration catch blocks", () => {
             env as any
         );
 
-        expect(consoleErrorMock).toHaveBeenCalledWith("CSRF check error: CSRF mocked error");
+        expect(consoleErrorMock).toHaveBeenCalledWith("CSRF check error: Error: CSRF mocked error");
 
         console.error = originalConsoleError;
         vi.doUnmock("../../utils/origin");
@@ -66,7 +66,7 @@ describe("CSRF configuration catch blocks", () => {
             env as any
         );
 
-        expect(consoleErrorMock).toHaveBeenCalledWith("CSRF check error: CSRF mocked string error");
+        expect(consoleErrorMock).toHaveBeenCalledWith("CSRF check error: non-Error exception during CSRF check");
 
         console.error = originalConsoleError;
         vi.doUnmock("../../utils/origin");

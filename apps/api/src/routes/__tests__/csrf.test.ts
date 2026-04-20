@@ -108,7 +108,7 @@ describe("CSRF configuration", () => {
             env as any
         );
 
-        expect(consoleErrorMock).toHaveBeenCalledWith("CSRF check error: Mocked environment error");
+        expect(consoleErrorMock).toHaveBeenCalledWith("CSRF check error: Error: Mocked environment error");
 
         console.error = originalConsoleError;
     });
