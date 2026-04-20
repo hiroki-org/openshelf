@@ -1581,7 +1581,9 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             for (const tag of body.tags) {
                 if (typeof tag !== "string") return c.json({ error: "each tag must be a string" }, 400);
                 const normalizedTag = tag.trim();
-                if (normalizedTag.length === 0) continue;
+                if (normalizedTag.length === 0) {
+                    continue;
+                }
                 if (normalizedTag.length > MAX_TAG_LENGTH) return c.json({ error: `each tag must be ${MAX_TAG_LENGTH} chars or less` }, 400);
                 normalizedTags.push(normalizedTag);
             }
