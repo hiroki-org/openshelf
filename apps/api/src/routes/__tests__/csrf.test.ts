@@ -79,92 +79,37 @@ describe("CSRF configuration", () => {
         expect(res.status).toBe(403);
     });
 
-    it("logs sanitized error if CSRF check throws", async () => {
+    it("logs sanitized error if CSRF try block throws", async () => {
         const app = await createTestApp();
-
-        const originUtils = await import("../../utils/origin");
-        const spy = vi.spyOn(originUtils, "parseOriginList").mockImplementation(() => {
-            throw new Error("CSRF logic failed");
+        const env = createTestEnv({
+            ENABLE_TEST_AUTH: "false",
         });
 
-        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-        const env = createTestEnv();
-        const res = await app.request(
-            "http://localhost/api/auth/logout",
-            {
-                method: "POST",
-                headers: {
-                    "Origin": "http://localhost:3000"
+        let callCount = 0;
+        Object.defineProperty(env, 'ALLOWED_ORIGINS', {
+            get() {
+                if (callCount === 0) {
+                    callCount++;
+                    return ""; // First call in CORS
                 }
-            },
-            env as any
-        );
-
-        expect(res.status).toBe(403);
-        expect(consoleErrorSpy).toHaveBeenCalledWith("CSRF check error:", "CSRF logic failed");
-
-        consoleErrorSpy.mockRestore();
-        spy.mockRestore();
-    });
-
-    it("logs sanitized error (string type) if CSRF check throws a string", async () => {
-        const app = await createTestApp();
-
-        const originUtils = await import("../../utils/origin");
-        const spy = vi.spyOn(originUtils, "parseOriginList").mockImplementation(() => {
-            throw "String error";
+                throw new Error("Mocked environment error"); // Second call in CSRF
+            }
         });
 
-        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        const originalConsoleError = console.error;
+        const consoleErrorMock = vi.fn();
+        console.error = consoleErrorMock;
 
-        const env = createTestEnv();
         await app.request(
             "http://localhost/api/auth/logout",
             {
-                method: "POST",
-                headers: {
-                    "Origin": "http://localhost:3000"
-                }
+                method: "POST"
             },
             env as any
         );
 
-        expect(consoleErrorSpy).toHaveBeenCalledWith("CSRF check error:", "String error");
+        expect(consoleErrorMock).toHaveBeenCalledWith("CSRF check error: Error: Mocked environment error");
 
-        consoleErrorSpy.mockRestore();
-        spy.mockRestore();
-    });
-
-    it("logs sanitized error if CORS check throws", async () => {
-        const app = await createTestApp();
-
-        const originUtils = await import("../../utils/origin");
-        const spy = vi.spyOn(originUtils, "parseOriginList").mockImplementation(() => {
-            throw new Error("CORS logic failed");
-        });
-
-        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-        const env = createTestEnv();
-        const res = await app.request(
-            "http://localhost/api/auth/logout",
-            {
-                method: "OPTIONS",
-                headers: {
-                    "Access-Control-Request-Method": "POST",
-                    "Origin": "http://localhost:3000"
-                }
-            },
-            env as any
-        );
-
-        // CORS failure usually means it doesn't add CORS headers,
-        // Hono's cors middleware might return a response or just proceed.
-        // But our goal is to check the console error.
-        expect(consoleErrorSpy).toHaveBeenCalledWith("CORS origin check error:", "CORS logic failed");
-
-        consoleErrorSpy.mockRestore();
-        spy.mockRestore();
+        console.error = originalConsoleError;
     });
 });

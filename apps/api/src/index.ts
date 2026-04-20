@@ -74,7 +74,8 @@ app.use("/api/*", async (c, next) => {
 
         console.error(`CSRF check failed: origin=${origin}, referer=${referer}, frontendOrigin=${frontendOrigin}`);
     } catch (err) {
-        console.error("CSRF check error:", err instanceof Error ? err.message : String(err));
+        const errorMessage = err instanceof Error ? `${err.name}: ${err.message}` : "non-Error exception during CSRF check";
+        console.error(`CSRF check error: ${errorMessage}`);
     }
 
     return c.text("Forbidden", 403);
