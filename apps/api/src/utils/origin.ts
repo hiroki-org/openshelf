@@ -24,10 +24,11 @@ export function matchesOriginPattern(origin: string, pattern: string): boolean {
     if (pattern === "*") return true;
     if (!pattern.includes("*")) return origin === pattern;
 
-    const escapedPattern = pattern
-        .replace(/[|\\{}()[\]^$+?.]/g, "\\$&")
-        .replace(/\*/g, "[a-zA-Z0-9-]+");
-    return new RegExp(`^${escapedPattern}$`).test(origin);
+    const parts = pattern.split("*");
+    const escapedParts = parts.map((part) => part.replace(/[|\\{}()[\]^$+?.]/g, "\\$&"));
+    const regexSource = `^${escapedParts.join("[a-zA-Z0-9-]+")}$`;
+
+    return new RegExp(regexSource).test(origin);
 }
 
 export function isAllowedOrigin(
