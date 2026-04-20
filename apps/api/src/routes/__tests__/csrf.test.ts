@@ -78,4 +78,68 @@ describe("CSRF configuration", () => {
         );
         expect(res.status).toBe(403);
     });
+
+    it("logs sanitized error if CSRF check throws", async () => {
+        const app = await createTestApp();
+        // Passing an object instead of a string to ALLOWED_ORIGINS to trigger a throw in .split()
+        const env = createTestEnv({
+            ALLOWED_ORIGINS: { invalid: "not a string" } as any
+        });
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const res = await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: {
+                    "Origin": "http://localhost:3000"
+                }
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(403); // Middleware returns Forbidden after catching
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+            "CSRF check error:",
+            expect.stringContaining("split is not a function")
+        );
+
+        consoleErrorSpy.mockRestore();
+    });
+
+    it("logs sanitized error (string type) if CSRF check throws a string", async () => {
+        const app = await createTestApp();
+
+        // We mock parseOriginList to throw a string.
+        // Since named imports are sometimes hard to mock after the fact,
+        // we can trigger a non-Error throw by making something it calls throw.
+        // But parseOriginList is quite simple.
+
+        // Let's try to mock the whole module for this test.
+        // Actually, in Vitest we can just do:
+        const originUtils = await import("../../utils/origin");
+        const spy = vi.spyOn(originUtils, "parseOriginList").mockImplementation(() => {
+            throw "String error";
+        });
+
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+        const env = createTestEnv();
+        await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST",
+                headers: {
+                    "Origin": "http://localhost:3000"
+                }
+            },
+            env as any
+        );
+
+        expect(consoleErrorSpy).toHaveBeenCalledWith("CSRF check error:", "String error");
+
+        consoleErrorSpy.mockRestore();
+        spy.mockRestore();
+    });
 });

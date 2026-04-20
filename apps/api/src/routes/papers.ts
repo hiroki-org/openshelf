@@ -742,7 +742,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
     } catch (error) {
         await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
             // Ignore cleanup errors during rollback after a later failure.
-            console.error("Cleanup error (non-fatal, rollback continues)", info);
+            console.error("Cleanup error (non-fatal, rollback continues):", info.error);
         });
         await db.delete(papers).where(eq(papers.id, paperId));
         throw error;
