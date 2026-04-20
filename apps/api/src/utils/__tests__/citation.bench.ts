@@ -1,12 +1,6 @@
 import { bench, describe } from "vitest";
 import { buildCitation } from "../citation";
-
-const benchmarkOptions = {
-    time: 2000,
-    warmupTime: 500,
-    iterations: 25,
-    warmupIterations: 10,
-};
+import { benchmarkOptions } from "./bench-utils";
 
 describe("citation benchmark", () => {
     const paperBase = {
@@ -31,6 +25,10 @@ describe("citation benchmark", () => {
         buildCitation(paperBase, authors, "bibtex", frontendUrl);
     }, benchmarkOptions);
 
+    bench("buildCitation biblatex", () => {
+        buildCitation(paperBase, authors, "biblatex", frontendUrl);
+    }, benchmarkOptions);
+
     bench("buildCitation apa", () => {
         buildCitation(paperBase, authors, "apa", frontendUrl);
     }, benchmarkOptions);
@@ -41,5 +39,9 @@ describe("citation benchmark", () => {
 
     bench("buildCitation mla", () => {
         buildCitation(paperBase, authors, "mla", frontendUrl);
+    }, benchmarkOptions);
+
+    bench("buildCitation plain", () => {
+        buildCitation(paperBase, authors, "plain", frontendUrl);
     }, benchmarkOptions);
 });

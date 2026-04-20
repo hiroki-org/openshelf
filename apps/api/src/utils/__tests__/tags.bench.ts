@@ -1,12 +1,6 @@
 import { bench, describe } from "vitest";
 import { parseStoredTags } from "../tags";
-
-const benchmarkOptions = {
-    time: 2000,
-    warmupTime: 500,
-    iterations: 25,
-    warmupIterations: 10,
-};
+import { benchmarkOptions } from "./bench-utils";
 
 describe("tags benchmark", () => {
     bench("parseStoredTags with valid JSON array", () => {

@@ -1,12 +1,6 @@
 import { bench, describe } from "vitest";
 import { buildBadgeSvg, estimateTextWidth } from "../badge";
-
-const benchmarkOptions = {
-    time: 2000,
-    warmupTime: 500,
-    iterations: 25,
-    warmupIterations: 10,
-};
+import { benchmarkOptions } from "./bench-utils";
 
 describe("badge benchmark", () => {
     bench("buildBadgeSvg", () => {

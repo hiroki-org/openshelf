@@ -1,12 +1,6 @@
 import { bench, describe } from "vitest";
 import { isAllowedOrigin } from "../origin";
-
-const benchmarkOptions = {
-    time: 2000,
-    warmupTime: 500,
-    iterations: 25,
-    warmupIterations: 10,
-};
+import { benchmarkOptions } from "./bench-utils";
 
 describe("origin benchmark", () => {
     const allowedOrigins = [
