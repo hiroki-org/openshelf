@@ -104,12 +104,12 @@ function toIsoString(dateStr: string): string {
 }
 
 function latestTimestamp(rows: Array<{ updatedAt: string }>, fallback: string): string {
-    const fallbackIso = toIsoString(fallback);
+    const fallbackTime = new Date(toIsoString(fallback)).getTime();
     if (rows.length === 0) {
         return fallback;
     }
     let latest = fallback;
-    let latestTime = new Date(fallbackIso).getTime();
+    let latestTime = fallbackTime;
     for (const row of rows) {
         const rowTime = new Date(toIsoString(row.updatedAt)).getTime();
         if (rowTime > latestTime) {
