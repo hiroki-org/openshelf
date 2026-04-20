@@ -125,24 +125,33 @@ function revokeUrlsIdle(urls: string[]) {
   if (urls.length === 0) return;
   const urlsToRevoke = [...urls];
 
-  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+  if (typeof window !== "undefined" && typeof window.requestIdleCallback === "function") {
     const revokeChunk = (deadline: IdleDeadline) => {
-      while (urlsToRevoke.length > 0 && deadline.timeRemaining() > 0) {
+      while (
+        urlsToRevoke.length > 0 &&
+        (deadline.timeRemaining() > 0 || deadline.didTimeout)
+      ) {
         const url = urlsToRevoke.pop();
         if (url) URL.revokeObjectURL(url);
       }
       if (urlsToRevoke.length > 0) {
-        window.requestIdleCallback(revokeChunk);
+        window.requestIdleCallback(revokeChunk, { timeout: 5000 });
       }
     };
-    window.requestIdleCallback(revokeChunk);
+    window.requestIdleCallback(revokeChunk, { timeout: 5000 });
   } else {
     // Fallback for Safari / environments without requestIdleCallback
-    setTimeout(() => {
-      for (const url of urlsToRevoke) {
-        URL.revokeObjectURL(url);
+    const revokeChunkFallback = () => {
+      const start = Date.now();
+      while (urlsToRevoke.length > 0 && Date.now() - start < 10) {
+        const url = urlsToRevoke.pop();
+        if (url) URL.revokeObjectURL(url);
       }
-    }, 0);
+      if (urlsToRevoke.length > 0) {
+        setTimeout(revokeChunkFallback, 0);
+      }
+    };
+    setTimeout(revokeChunkFallback, 0);
   }
 }
 
