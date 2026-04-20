@@ -24,13 +24,11 @@ export function matchesOriginPattern(origin: string, pattern: string): boolean {
     if (pattern === "*") return true;
     if (!pattern.includes("*")) return origin === pattern;
 
-    // First escape all regex special characters, including *
-    const escapedPattern = pattern
-        .replace(/[|\\{}()[\]^$+?.*]/g, "\\$&")
-        // Then convert the escaped wildcard \* back to the desired subdomain regex
-        .replace(/\\\*/g, "[a-zA-Z0-9-]+");
+    const parts = pattern.split("*");
+    const escapedParts = parts.map((part) => part.replace(/[|\\{}()[\]^$+?.]/g, "\\$&"));
+    const regexSource = `^${escapedParts.join("[a-zA-Z0-9-]+")}$`;
 
-    return new RegExp(`^${escapedPattern}$`).test(origin);
+    return new RegExp(regexSource).test(origin);
 }
 
 export function isAllowedOrigin(
