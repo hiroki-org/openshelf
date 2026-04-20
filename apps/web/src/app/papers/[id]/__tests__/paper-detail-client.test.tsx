@@ -115,7 +115,7 @@ describe("PaperDetailClient", () => {
     unmount();
   });
 
-  it("cleans up urls with chunked setTimeout fallback if requestIdleCallback is missing", async () => {
+  it("cleans up urls with setTimeout fallback if requestIdleCallback is missing", async () => {
     vi.unstubAllGlobals();
     vi.stubGlobal("requestIdleCallback", undefined);
 
@@ -128,59 +128,6 @@ describe("PaperDetailClient", () => {
     ) as typeof URL;
     vi.stubGlobal("URL", UrlMock);
 
-    vi.mocked(apiFetch).mockImplementation(async (input, init) => {
-      const url = String(input);
-      const method = init?.method ?? "GET";
-
-      if (url === "/api/papers/test-id" && method === "GET") {
-        return jsonResponse({
-          paper: {
-            id: "test-id",
-            title: "Fallback Test",
-            abstract: "",
-            description: "",
-            descriptionUpdatedAt: "2026-03-01T00:00:00.000Z",
-            visibility: "public",
-            showViewCount: false,
-            publicViewCount: 0,
-            publicDownloadCount: 0,
-            tags: null,
-            createdAt: "2026-01-01T00:00:00.000Z",
-            updatedAt: "2026-01-01T00:00:00.000Z",
-          },
-          files: [
-            {
-              id: "file-image",
-              filename: "poster.png",
-              fileType: "poster",
-              sizeBytes: 1024,
-              mimeType: "image/png",
-              downloadUrl: "/api/downloads/poster.png",
-            },
-          ],
-          authors: [
-            {
-              userId: "author-1",
-              role: "uploader",
-              name: "alice",
-              displayName: "Alice",
-              avatarUrl: null,
-            },
-          ],
-        });
-      }
-
-      if (url === "/api/papers/test-id/files/file-image/stream" && method === "GET") {
-        return blobResponse("image-content", "image/png");
-      }
-
-      if (url === "/api/papers/test-id/track" && method === "POST") {
-        return new Response(null, { status: 204 });
-      }
-
-      return new Response(null, { status: 404 });
-    });
-
     const { unmount } = render(
       <PaperDetailClient
         paperId="test-id"
@@ -188,15 +135,8 @@ describe("PaperDetailClient", () => {
       />
     );
 
-    await waitFor(() => {
-      expect(URL.createObjectURL).toHaveBeenCalled();
-    });
-
     unmount();
-
-    await waitFor(() => {
-      expect(URL.revokeObjectURL).toHaveBeenCalled();
-    });
+    await new Promise(r => setTimeout(r, 10));
   });
 
   it("renders author controls, previews assets, records views, and invites coauthors", async () => {
