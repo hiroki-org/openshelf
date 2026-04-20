@@ -822,29 +822,31 @@ describe("papers routes", () => {
 
         const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-        const app = await createTestApp();
-        const env = createTestEnv({ DB: mockDb as any });
-        await app.request(
-            "http://localhost/api/papers/paper-1/track",
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Origin: "http://localhost:3000",
-                    "User-Agent": "Vitest",
+        try {
+            const app = await createTestApp();
+            const env = createTestEnv({ DB: mockDb as any });
+            await app.request(
+                "http://localhost/api/papers/paper-1/track",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Origin: "http://localhost:3000",
+                        "User-Agent": "Vitest",
+                    },
+                    body: JSON.stringify({ event: "view" }),
                 },
-                body: JSON.stringify({ event: "view" }),
-            },
-            env as any,
-        );
+                env as any,
+            );
 
-        await new Promise(resolve => setTimeout(resolve, 10));
-
-        const trackErrorCall = consoleErrorSpy.mock.calls.find(call => call[0] === "Failed to record paper track event");
-        expect(trackErrorCall).toBeDefined();
-        expect(trackErrorCall![1].error).toBe(trackError);
-
-        consoleErrorSpy.mockRestore();
+            await vi.waitFor(() => {
+                const trackErrorCall = consoleErrorSpy.mock.calls.find(call => call[0] === "Failed to record paper track event");
+                expect(trackErrorCall).toBeDefined();
+                expect(trackErrorCall![1].error).toBe(trackError);
+            });
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
     });
 
     it("POST /api/papers/:id/track handles duplicate dedup rows", async () => {
