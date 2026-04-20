@@ -628,19 +628,18 @@ orgsRoute.get("/:slug/papers", async (c) => {
     const currentUserId = await getOptionalUserIdFromAuthHeader(c);
 
     const isMember = currentUserId ? await isOrgMember(db, org.id, currentUserId) : false;
-    const authoredIds: string[] = currentUserId
-        ? (
-            await db
-                .select({ paperId: paperAuthors.paperId })
-                .from(paperOrgs)
-                .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
-                .innerJoin(
-                    paperAuthors,
-                    and(eq(paperAuthors.paperId, papers.id), eq(paperAuthors.userId, currentUserId)),
-                )
-                .where(eq(paperOrgs.orgId, org.id))
-                .all()
-        ).map(r => r.paperId)
+    const authoredIds = currentUserId
+        ? (await db
+              .select({ paperId: paperAuthors.paperId })
+              .from(paperOrgs)
+              .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+              .innerJoin(
+                  paperAuthors,
+                  and(eq(paperAuthors.paperId, papers.id), eq(paperAuthors.userId, currentUserId)),
+              )
+              .where(eq(paperOrgs.orgId, org.id))
+              .all()
+          ).map(r => r.paperId)
         : [];
     const visibilityCondition = buildOrgPapersVisibilityCondition(isMember, authoredIds);
 
