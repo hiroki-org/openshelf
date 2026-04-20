@@ -14,6 +14,7 @@ import feedRoute from "./routes/feed";
 import { isAllowedOrigin, normalizeOrigin, parseOriginList } from "./utils/origin";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
+let timingSafeFallbackSecret: string | null = null;
 
 // CORS
 app.use(
@@ -47,7 +48,9 @@ app.use("/api/*", async (c, next) => {
     const authHeader = c.req.header("Authorization");
     const testAuthHeader = c.req.header("x-test-auth-secret");
     const testAuthEnabled = c.env.ENABLE_TEST_AUTH === "true" && !!c.env.TEST_AUTH_SECRET;
-    const expectedSecret = c.env.TEST_AUTH_SECRET || "DUMMY_SECRET_FOR_TIMING_EQUAL";
+    // Fallback is used only for timing-safe comparison when TEST_AUTH_SECRET is unset.
+    timingSafeFallbackSecret ??= crypto.randomUUID();
+    const expectedSecret = c.env.TEST_AUTH_SECRET || timingSafeFallbackSecret;
     const providedSecret = typeof testAuthHeader === "string" ? testAuthHeader : "";
     const isSecretValid = await timingSafeEqual(providedSecret, expectedSecret);
     const isTestEnv = testAuthEnabled && isSecretValid;
