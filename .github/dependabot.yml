@@ -1,31 +1,42 @@
 version: 2
+multi-ecosystem-groups:
+  infrastructure:
+    schedule:
+      interval: "weekly"
+
 updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 20
+    open-pull-requests-limit: 4
     commit-message:
       prefix: "chore"
       include: "scope"
+    groups:
+      npm-production:
+        dependency-type: "production"
+        patterns:
+          - "*"
+      npm-development:
+        dependency-type: "development"
+        patterns:
+          - "*"
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule:
-      interval: "weekly"
+    patterns:
+      - "*"
+    multi-ecosystem-group: "infrastructure"
     commit-message:
       prefix: "chore"
       include: "scope"
   - package-ecosystem: "docker"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
-  - package-ecosystem: "docker"
-    directory: "/apps/web"
-    schedule:
-      interval: "weekly"
+    directories:
+      - "/"
+      - "/apps/web"
+    patterns:
+      - "*"
+    multi-ecosystem-group: "infrastructure"
     commit-message:
       prefix: "chore"
       include: "scope"
