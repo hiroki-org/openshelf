@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createTestApp, createTestEnv } from "../../test/helpers";
 
 describe("CSRF configuration", () => {
@@ -77,5 +77,39 @@ describe("CSRF configuration", () => {
             env as any
         );
         expect(res.status).toBe(403);
+    });
+
+    it("logs sanitized error if CSRF try block throws", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            ENABLE_TEST_AUTH: "false",
+        });
+
+        let callCount = 0;
+        Object.defineProperty(env, 'ALLOWED_ORIGINS', {
+            get() {
+                if (callCount === 0) {
+                    callCount++;
+                    return ""; // First call in CORS
+                }
+                throw new Error("Mocked environment error"); // Second call in CSRF
+            }
+        });
+
+        const originalConsoleError = console.error;
+        const consoleErrorMock = vi.fn();
+        console.error = consoleErrorMock;
+
+        await app.request(
+            "http://localhost/api/auth/logout",
+            {
+                method: "POST"
+            },
+            env as any
+        );
+
+        expect(consoleErrorMock).toHaveBeenCalledWith("CSRF check error: Error: Mocked environment error");
+
+        console.error = originalConsoleError;
     });
 });

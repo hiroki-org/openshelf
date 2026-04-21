@@ -24,10 +24,11 @@ export function matchesOriginPattern(origin: string, pattern: string): boolean {
     if (pattern === "*") return true;
     if (!pattern.includes("*")) return origin === pattern;
 
-    const escapedPattern = pattern
-        .replace(/[|\\{}()[\]^$+?.]/g, "\\$&")
-        .replace(/\*/g, "[a-zA-Z0-9-]+");
-    return new RegExp(`^${escapedPattern}$`).test(origin);
+    const parts = pattern.split("*");
+    const escapedParts = parts.map((part) => part.replace(/[|\\{}()[\]^$+?.]/g, "\\$&"));
+    const regexSource = `^${escapedParts.join("[a-zA-Z0-9-]+")}$`;
+
+    return new RegExp(regexSource).test(origin);
 }
 
 export function isAllowedOrigin(
@@ -37,22 +38,21 @@ export function isAllowedOrigin(
     options: { allowWildcard?: boolean } = {},
 ): boolean {
     if (!origin) return false;
-    const allowWildcard = options.allowWildcard ?? true;
+    if (frontendOrigin && origin === frontendOrigin) return true;
     const normalizedFrontendOrigin = frontendOrigin ? normalizeOrigin(frontendOrigin) : null;
+    if (normalizedFrontendOrigin && origin === normalizedFrontendOrigin) return true;
 
-    return (
-        allowedOrigins.some((allowedOrigin) => {
-            if (allowedOrigin.includes("*")) {
-                if (!allowWildcard) {
-                    return false;
-                }
-                return matchesOriginPattern(origin, allowedOrigin);
-            }
+    const allowWildcard = options.allowWildcard ?? true;
 
-            const normalizedAllowedOrigin = normalizeOrigin(allowedOrigin);
-            return normalizedAllowedOrigin ? origin === normalizedAllowedOrigin : origin === allowedOrigin;
-        }) || origin === normalizedFrontendOrigin
-    );
+    return allowedOrigins.some((allowedOrigin) => {
+        if (allowedOrigin.includes("*")) {
+            return allowWildcard && matchesOriginPattern(origin, allowedOrigin);
+        }
+
+        if (origin === allowedOrigin) return true;
+        const normalizedAllowedOrigin = normalizeOrigin(allowedOrigin);
+        return normalizedAllowedOrigin ? origin === normalizedAllowedOrigin : false;
+    });
 }
 
 export function resolveAllowedOrigin(
