@@ -17,7 +17,7 @@ testAuth.use("*", async (c, next) => {
 
     const testSecret = c.req.header("x-test-auth-secret");
     const providedTestSecret = typeof testSecret === "string" ? testSecret : "";
-    const expectedTestSecret = c.env.TEST_AUTH_SECRET;
+    const expectedTestSecret = c.env.TEST_AUTH_SECRET || "";
 
     if (!(await timingSafeEqual(providedTestSecret, expectedTestSecret))) {
         return c.json({ error: "Unauthorized (E2E)" }, 401);
