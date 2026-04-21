@@ -1582,7 +1582,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
                 if (normalizedTag.length > MAX_TAG_LENGTH) {
                     return c.json({ error: `each tag must be ${MAX_TAG_LENGTH} chars or less` }, 400);
                 }
-                if (normalizedTag.length > 0 && !normalizedTags.includes(normalizedTag)) {
+                if (normalizedTag.length > 0) {
                     normalizedTags.push(normalizedTag);
                 }
             }
