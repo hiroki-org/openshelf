@@ -13,14 +13,14 @@ updates:
       npm-production-minor-patch:
         dependency-type: "production"
         patterns:
-          - "*"
+          - "**"
         update-types:
           - "minor"
           - "patch"
       npm-development-minor-patch:
         dependency-type: "development"
         patterns:
-          - "*"
+          - "**"
         update-types:
           - "minor"
           - "patch"
@@ -34,10 +34,7 @@ updates:
     groups:
       github-actions-minor-patch:
         patterns:
-          - "*"
-        update-types:
-          - "minor"
-          - "patch"
+          - "**"
   - package-ecosystem: "docker"
     directories:
       - "/"
@@ -50,7 +47,7 @@ updates:
     groups:
       docker-minor-patch:
         patterns:
-          - "*"
+          - "**"
         update-types:
           - "minor"
           - "patch"
