@@ -92,6 +92,10 @@ describe("PaperDetailClient", () => {
       },
     ) as typeof URL;
     vi.stubGlobal("URL", UrlMock);
+    vi.stubGlobal("requestIdleCallback", (cb: any) => {
+      // Execute synchronously
+      cb({ timeRemaining: () => 10, didTimeout: false });
+    });
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   });
 
@@ -99,6 +103,76 @@ describe("PaperDetailClient", () => {
     cleanup();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("cleans up urls on unmount", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/papers/test-id" && method === "GET") {
+        return jsonResponse({
+          paper: {
+            id: "test-id",
+            title: "Test Paper",
+            abstract: null,
+            description: null,
+            descriptionUpdatedAt: null,
+            visibility: "public",
+            showViewCount: false,
+            publicViewCount: 0,
+            publicDownloadCount: 0,
+            externalUrl: null,
+            venue: null,
+            venueType: null,
+            year: 2024,
+            category: null,
+            tags: null,
+            createdAt: "2024-01-01T00:00:00.000Z",
+            updatedAt: "2024-01-01T00:00:00.000Z",
+          },
+          files: [
+            {
+              id: "file-image",
+              filename: "poster.png",
+              fileType: "poster",
+              sizeBytes: 2048,
+              mimeType: "image/png",
+              downloadUrl: "/api/downloads/poster.png",
+            },
+          ],
+          authors: [],
+        });
+      }
+
+      if (url === "/api/papers/test-id/files/file-image/stream" && method === "GET") {
+        return blobResponse("image", "image/png");
+      }
+
+      if (url === "/api/papers/test-id/track" && method === "POST") {
+        return new Response(null, { status: 204 });
+      }
+
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    const { unmount } = render(
+      <PaperDetailClient
+        paperId="test-id"
+        siteBase="http://localhost"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByAltText("poster.png")).toHaveAttribute(
+        "src",
+        expect.stringMatching(/^blob:mock-/),
+      );
+    });
+
+    unmount();
+
+    expect(URL.revokeObjectURL).toHaveBeenCalled();
   });
 
   it("renders author controls, previews assets, records views, and invites coauthors", async () => {

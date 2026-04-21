@@ -135,18 +135,14 @@ async function deleteKeysInBatches(
             try {
                 await bucket.delete(chunk);
             } catch (error) {
-                const info = {
+                if (!onChunkError) throw error;
+                onChunkError({
                     chunkStart,
                     chunkEndExclusive: chunkStart + chunk.length,
                     chunkSize: chunk.length,
                     chunkSample: chunk.slice(0, 3),
                     error: error instanceof Error ? error.message : String(error),
-                };
-                if (onChunkError) {
-                    onChunkError(info);
-                    return;
-                }
-                throw error;
+                });
             }
         },
         { concurrency: MAX_CONCURRENT_R2_DELETES },
@@ -711,7 +707,9 @@ papersRoute.post("/", authMiddleware, async (c) => {
         }
 
         if (errors.length > 0) {
-            console.error("File upload errors:", { errors });
+            console.error("File upload errors:", {
+                errors: errors.map((e) => (e instanceof Error ? e.message : String(e))),
+            });
             throw errors[0] ?? new Error("An unknown upload error occurred.");
         }
 
@@ -740,7 +738,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
     } catch (error) {
         await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
             // Ignore cleanup errors during rollback after a later failure.
-            console.error("Cleanup error (non-fatal, rollback continues)", info);
+            console.error("Cleanup error (non-fatal, rollback continues):", info.error);
         });
         await db.delete(papers).where(eq(papers.id, paperId));
         throw error;
@@ -943,7 +941,7 @@ papersRoute.post("/:id/track", async (c) => {
             console.error("Failed to record paper track event", {
                 paperId,
                 event: payload.event,
-                error,
+                error: error instanceof Error ? error.message : String(error),
             });
         }),
     );

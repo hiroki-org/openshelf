@@ -109,10 +109,13 @@ describe("Home page", () => {
     await waitFor(() => {
       expect(screen.getByText("最近の成果物")).toBeInTheDocument();
     });
-
-    const paperLinks = screen.getAllByRole("link").filter((link) => {
-      const href = link.getAttribute("href") ?? "";
-      return href.startsWith("/papers/");
+    let paperLinks: HTMLElement[] = [];
+    await waitFor(() => {
+      paperLinks = screen.getAllByRole("link").filter((link) => {
+        const href = link.getAttribute("href") ?? "";
+        return href.startsWith("/papers/");
+      });
+      expect(paperLinks).toHaveLength(2);
     });
 
     expect(paperLinks[0]).toHaveTextContent("Newer paper");
