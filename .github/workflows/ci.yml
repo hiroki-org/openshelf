@@ -227,7 +227,7 @@ jobs:
       - run: npm ci
       - name: Detect benchmark-relevant changes
         id: codspeed_changes
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
             codspeed:
