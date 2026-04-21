@@ -16,7 +16,7 @@ export default defineConfig(async (): Promise<UserConfig> => {
             reporter: ["text", "lcov"],
             reportsDirectory: "./coverage",
             include: ["src/**/*.ts"],
-            exclude: ["src/types.ts", "**/coverage/**"],
+            exclude: ["**/*.bench.ts", "src/**/bench-utils.ts", "src/types.ts", "**/coverage/**"],
         }
     }
     };
