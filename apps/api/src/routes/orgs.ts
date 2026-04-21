@@ -200,6 +200,9 @@ orgsRoute.get("/:slug/tags", async (c) => {
     if (orgPapers.length === 0) return c.json({ tags: [] });
 
     const counts = new Map<string, number>();
+    const tagCache = new Map<string, string[]>();
+    const lowerCache = new Map<string, string>();
+
     for (const paper of orgPapers) {
         const isAuthor = paper.authorUserId === currentUserId;
         const isVisible = paper.visibility === "public"
@@ -207,8 +210,22 @@ orgsRoute.get("/:slug/tags", async (c) => {
             || (paper.visibility === "private" && isAuthor);
         if (!isVisible) continue;
 
-        for (const tag of parseStoredTags(paper.tags)) {
-            if (query && !tag.toLowerCase().startsWith(query)) continue;
+        const rawTags = paper.tags ?? "";
+        let tags = tagCache.get(rawTags);
+        if (tags === undefined) {
+            tags = parseStoredTags(rawTags);
+            tagCache.set(rawTags, tags);
+        }
+
+        for (const tag of tags) {
+            if (query) {
+                let lower = lowerCache.get(tag);
+                if (lower === undefined) {
+                    lower = tag.toLowerCase();
+                    lowerCache.set(tag, lower);
+                }
+                if (!lower.startsWith(query)) continue;
+            }
             counts.set(tag, (counts.get(tag) ?? 0) + 1);
         }
     }
@@ -628,24 +645,19 @@ orgsRoute.get("/:slug/papers", async (c) => {
     const currentUserId = await getOptionalUserIdFromAuthHeader(c);
 
     const isMember = currentUserId ? await isOrgMember(db, org.id, currentUserId) : false;
-    const authoredPaperIds = new Set<string>();
-    if (currentUserId) {
-        const authorRows = await db
-            .select({ paperId: paperAuthors.paperId })
-            .from(paperOrgs)
-            .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
-            .innerJoin(
-                paperAuthors,
-                and(eq(paperAuthors.paperId, papers.id), eq(paperAuthors.userId, currentUserId)),
-            )
-            .where(eq(paperOrgs.orgId, org.id))
-            .all();
-        for (const row of authorRows) {
-            authoredPaperIds.add(row.paperId);
-        }
-    }
-
-    const authoredIds = Array.from(authoredPaperIds);
+    const authoredIds = currentUserId
+        ? (await db
+              .select({ paperId: paperAuthors.paperId })
+              .from(paperOrgs)
+              .innerJoin(papers, eq(paperOrgs.paperId, papers.id))
+              .innerJoin(
+                  paperAuthors,
+                  and(eq(paperAuthors.paperId, papers.id), eq(paperAuthors.userId, currentUserId)),
+              )
+              .where(eq(paperOrgs.orgId, org.id))
+              .all()
+          ).map(r => r.paperId)
+        : [];
     const visibilityCondition = buildOrgPapersVisibilityCondition(isMember, authoredIds);
 
     const baseFilters = [eq(paperOrgs.orgId, org.id), visibilityCondition];
