@@ -47,7 +47,7 @@ app.use("/api/*", async (c, next) => {
     const authHeader = c.req.header("Authorization");
     const testAuthHeader = c.req.header("x-test-auth-secret");
     const testAuthEnabled = c.env.ENABLE_TEST_AUTH === "true" && !!c.env.TEST_AUTH_SECRET;
-    const expectedSecret = c.env.TEST_AUTH_SECRET || "DUMMY_SECRET_FOR_TIMING_EQUAL";
+    const expectedSecret = c.env.TEST_AUTH_SECRET || crypto.randomUUID();
     const providedSecret = typeof testAuthHeader === "string" ? testAuthHeader : "";
     const isSecretValid = await timingSafeEqual(providedSecret, expectedSecret);
     const isTestEnv = testAuthEnabled && isSecretValid;
