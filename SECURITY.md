@@ -2,20 +2,13 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
-
 | Version | Supported          |
 | ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| 1.0.x   | :white_check_mark: |
+| < 1.0   | :x:                |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Please report security vulnerabilities through [GitHub Security Advisories](https://github.com/Hiroki-org/OpenShelf/security/advisories/new) or by sending an email to security@openshelf.org.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+We will respond to your report within 48 hours and provide regular updates on the investigation and remediation process. Please include a summary, impact, reproduction steps, affected versions, and reporter contact in your report. Accepted vulnerabilities will be fixed and publicly disclosed in coordination with you. If a reported issue is determined not to be a security vulnerability, we will provide an explanation.
