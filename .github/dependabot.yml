@@ -1,11 +1,4 @@
 version: 2
-multi-ecosystem-groups:
-  infrastructure:
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
 
 updates:
   - package-ecosystem: "npm"
@@ -17,23 +10,44 @@ updates:
       prefix: "chore"
       include: "scope"
     groups:
-      npm-production:
+      npm-production-minor-patch:
         dependency-type: "production"
         patterns:
-          - "*"
-      npm-development:
+          - "**"
+        update-types:
+          - "minor"
+          - "patch"
+      npm-development-minor-patch:
         dependency-type: "development"
         patterns:
-          - "*"
+          - "**"
+        update-types:
+          - "minor"
+          - "patch"
   - package-ecosystem: "github-actions"
     directory: "/"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "infrastructure"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      github-actions-minor-patch:
+        patterns:
+          - "**"
   - package-ecosystem: "docker"
     directories:
       - "/"
       - "/apps/web"
-    patterns:
-      - "*"
-    multi-ecosystem-group: "infrastructure"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      docker-minor-patch:
+        patterns:
+          - "**"
+        update-types:
+          - "minor"
+          - "patch"
