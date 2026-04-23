@@ -15,6 +15,7 @@ coverage:
         target: 70%
 
 ignore:
+  - "**/__tests__/**"
   - "**/*.bench.ts"
   - "**/*.bench.tsx"
 
