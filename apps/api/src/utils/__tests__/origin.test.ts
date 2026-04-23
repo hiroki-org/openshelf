@@ -50,7 +50,7 @@ describe("origin utils", () => {
         it("escapes special regex characters in pattern", () => {
             // The pattern has dots which should be treated literally, not as any character regex
             expect(matchesOriginPattern("https://exampleXcom", p("https://*", "example", "com"))).toBe(false);
-            expect(matchesOriginPattern("https://app.example.com", "https://app\\.example\\.com")).toBe(true);
+            expect(matchesOriginPattern("https://app.example.com", p("https://app", "example", "com"))).toBe(true);
         });
 
         it("handles patterns with other special characters", () => {
