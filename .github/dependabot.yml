@@ -3,6 +3,9 @@ multi-ecosystem-groups:
   infrastructure:
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
 
 updates:
   - package-ecosystem: "npm"
@@ -27,9 +30,6 @@ updates:
     patterns:
       - "*"
     multi-ecosystem-group: "infrastructure"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
   - package-ecosystem: "docker"
     directories:
       - "/"
@@ -37,6 +37,3 @@ updates:
     patterns:
       - "*"
     multi-ecosystem-group: "infrastructure"
-    commit-message:
-      prefix: "chore"
-      include: "scope"
