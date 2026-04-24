@@ -239,7 +239,8 @@ jobs:
           echo "Skipping CodSpeed: no benchmark-relevant API changes in this pull request."
       - name: Run benchmarks
         if: ${{ github.event_name != 'pull_request' || steps.codspeed_changes.outputs.codspeed == 'true' }}
-        uses: CodSpeedHQ/action@v3
+        uses: CodSpeedHQ/action@v4
         with:
+          mode: simulation
           run: npx vitest bench --run --config apps/api/vitest.config.ts --passWithNoTests
           token: ${{ secrets.CODSPEED_TOKEN }}
