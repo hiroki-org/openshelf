@@ -36,7 +36,14 @@
     "micromatch": {
       "picomatch": "^2.3.2"
     },
-    "picomatch@^4.0.0": "^4.0.4"
+    "picomatch@^4.0.0": "^4.0.4",
+    "next": {
+      "postcss": "8.5.12"
+    },
+    "postcss": "8.5.12"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "postcss": "8.5.12"
+  }
 }
