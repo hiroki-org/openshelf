@@ -23,6 +23,7 @@
     "@vitest/coverage-v8": "^3.2.4",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^10.2.1",
+    "postcss": "^8.5.12",
     "typescript": "^6.0.3",
     "vitest": "^3.2.4"
   },
@@ -36,7 +37,11 @@
     "micromatch": {
       "picomatch": "^2.3.2"
     },
-    "picomatch@^4.0.0": "^4.0.4"
+    "picomatch@^4.0.0": "^4.0.4",
+    "next": {
+      "postcss": "^8.5.12"
+    },
+    "postcss": "^8.5.12"
   },
   "license": "MIT"
 }
