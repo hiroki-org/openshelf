@@ -155,18 +155,21 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
         return;
       }
 
-      const orgData = await orgRes.json();
+      const [orgData, membersData, collectionsData] = await Promise.all([
+        orgRes.json(),
+        membersRes.ok ? membersRes.json() : Promise.resolve(null),
+        collectionsRes.ok ? collectionsRes.json() : Promise.resolve(null),
+      ]);
+
       setOrg(orgData.org);
       setMemberCount(orgData.memberCount ?? 0);
       setOrgPaperCount(orgData.paperCount ?? 0);
 
-      if (membersRes.ok) {
-        const membersData = await membersRes.json();
+      if (membersRes.ok && membersData) {
         setMembers(membersData.members);
       }
 
-      if (collectionsRes.ok) {
-        const collectionsData = await collectionsRes.json();
+      if (collectionsRes.ok && collectionsData) {
         setCollections(collectionsData.collections ?? []);
       }
     } catch {

@@ -71,8 +71,12 @@ export default function OrgCollectionPageClient({
         apiFetch(`/api/orgs/${safePath(slug)}/members`),
       ]);
 
-      if (papersRes.ok) {
-        const papersData = await papersRes.json();
+      const [papersData, membersData] = await Promise.all([
+        papersRes.ok ? papersRes.json() : Promise.resolve(null),
+        membersRes.ok ? membersRes.json() : Promise.resolve(null),
+      ]);
+
+      if (papersRes.ok && papersData) {
         setPapers(
           (papersData.papers ?? [])
             .slice()
@@ -80,8 +84,7 @@ export default function OrgCollectionPageClient({
         );
       }
 
-      if (membersRes.ok) {
-        const membersData = await membersRes.json();
+      if (membersRes.ok && membersData) {
         setMembers(membersData.members ?? []);
       }
     } catch {

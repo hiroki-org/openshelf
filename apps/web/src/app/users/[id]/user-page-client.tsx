@@ -53,24 +53,27 @@ export default function UserPageClient({ id, initialUser = null }: UserPageClien
         ]);
         if (cancelled) return;
 
-        if (!initialUser) {
-          if (!profileRes || !profileRes.ok) {
-            setError(
-              profileRes?.status === 404
-                ? "ユーザーが見つかりません"
-                : "ユーザー情報の取得に失敗しました",
-            );
-            return;
-          }
+        if (!initialUser && (!profileRes || !profileRes.ok)) {
+          setError(
+            profileRes?.status === 404
+              ? "ユーザーが見つかりません"
+              : "ユーザー情報の取得に失敗しました",
+          );
+          return;
+        }
 
-          const profileData = await profileRes.json();
-          if (cancelled) return;
+        const [profileData, collectionsData] = await Promise.all([
+          !initialUser && profileRes?.ok ? profileRes.json() : Promise.resolve(null),
+          collectionsRes.ok ? collectionsRes.json() : Promise.resolve(null),
+        ]);
+
+        if (cancelled) return;
+
+        if (!initialUser && profileData) {
           setProfile(profileData.user);
         }
 
-        if (collectionsRes.ok) {
-          const collectionsData = await collectionsRes.json();
-          if (cancelled) return;
+        if (collectionsRes.ok && collectionsData) {
           setCollections(collectionsData.collections ?? []);
         }
       } catch {
