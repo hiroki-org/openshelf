@@ -75,9 +75,6 @@ function formatDateKey(date: Date): string {
     return date.toISOString().slice(0, 10);
 }
 
-function formatDbDateTime(date: Date): string {
-    return date.toISOString().slice(0, 19).replace("T", " ");
-}
 
 function toIsoUtc(value: string | null | undefined): string | null {
     if (!value) return null;
