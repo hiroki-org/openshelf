@@ -17,11 +17,11 @@ import {
 import type { Env, JwtPayload, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { parseStoredTags } from "../utils/tags";
+import { ID_MAX_LENGTH } from "../utils/constants";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 const ORG_TAGS_LIMIT = 100;
 const ORG_PAPERS_PAGE_SIZE = 20;
-const ID_MAX_LENGTH = 128;
 
 function normalizeFilterValue(value: string | undefined): string | null {
   if (typeof value !== "string") return null;
