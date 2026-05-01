@@ -138,8 +138,7 @@ describe("invites routes", () => {
         );
 
         expect(res.status).toBe(400);
-        const body = await res.json() as any;
-        expect(body).toEqual({ error: "Invalid JSON body" });
+        await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
     });
 
     it("POST /api/papers/:id/invites returns 400 when inviting self", async () => {
