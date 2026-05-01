@@ -1056,7 +1056,6 @@ describe("collections routes", () => {
             { getResult: { id: "c1", visibility: "public", ownerType: "user", ownerId: "u1" } },
             { allResult: [{ id: "p1", visibility: "private" }, { id: "p2", visibility: "public" }] },
             { allResult: [{ paperId: "p1" }] },
-            { allResult: [] },
         ]);
         const app = await createTestApp();
         const env = createTestEnv();
@@ -1065,7 +1064,7 @@ describe("collections routes", () => {
             headers: { Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}` },
         }, env);
         expect(res.status).toBe(200);
-        const data = await res.json();
+        const data = (await res.json()) as { papers: Array<{ id: string }> };
         expect(data.papers.length).toBe(2);
         const ids = data.papers.map((p) => p.id);
         expect(ids).toContain("p1");
@@ -1086,7 +1085,7 @@ describe("collections routes", () => {
             headers: { Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}` },
         }, env);
         expect(res.status).toBe(200);
-        const data = await res.json();
+        const data = (await res.json()) as { papers: Array<{ id: string }> };
         expect(data.papers.length).toBe(1);
         expect(data.papers[0].id).toBe("p1");
     });
@@ -1104,7 +1103,7 @@ describe("collections routes", () => {
             headers: { Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}` },
         }, env);
         expect(res.status).toBe(200);
-        const data = await res.json();
+        const data = (await res.json()) as { papers: Array<{ id: string }> };
         expect(data.papers.length).toBe(1);
         expect(data.papers[0].id).toBe("p2");
     });
