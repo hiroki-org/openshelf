@@ -320,7 +320,7 @@ describe("PdfViewer", () => {
   });
 
   it("handles text extraction errors gracefully during search", async () => {
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       render(<PdfViewer fileUrl="https://example.com/search-error.pdf" />);
       const [documentProps] = mockDocument.mock.calls[
@@ -353,7 +353,7 @@ describe("PdfViewer", () => {
         // Should still find the match on page 3 despite page 2 failing
         expect(screen.getByText("1 / 1")).toBeInTheDocument();
         expect(consoleSpy).toHaveBeenCalledWith(
-          "Failed to extract text for page 2:",
+          "Failed to extract text for page 2: Error: Extraction failed",
           expect.any(Error)
         );
       });
