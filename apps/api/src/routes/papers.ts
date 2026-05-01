@@ -1574,7 +1574,6 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             const tags = body.tags;
             const len = tags.length;
             let hasChanges = false;
-            let validCount = 0;
 
             // Fast pass to check if the array is already perfectly clean
             for (let i = 0; i < len; i++) {
@@ -1587,19 +1586,17 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
                     hasChanges = true;
                     continue;
                 }
-                // Check if string has leading or trailing space characters that require trimming
-                if (tag.charCodeAt(0) <= 32 || tag.charCodeAt(tagLen - 1) <= 32) {
+                if (tag.trim() !== tag) {
                     hasChanges = true;
                     continue;
                 }
                 if (tagLen > MAX_TAG_LENGTH) {
                     return c.json({ error: `each tag must be ${MAX_TAG_LENGTH} chars or less` }, 400);
                 }
-                validCount++;
             }
 
             if (!hasChanges) {
-                updates.tags = validCount > 0 ? JSON.stringify(tags) : null;
+                updates.tags = len > 0 ? JSON.stringify(tags) : null;
             } else {
                 // Fallback path: allocate new array and trim
                 const normalizedTags: string[] = [];
