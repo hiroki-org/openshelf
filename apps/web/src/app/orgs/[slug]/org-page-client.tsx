@@ -134,7 +134,7 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
           }
         }
       }
-      if (!("page" in changes)) {
+      if (!Object.prototype.hasOwnProperty.call(changes, "page")) {
         params.delete("page");
       }
       const query = params.toString();
