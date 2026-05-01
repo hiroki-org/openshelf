@@ -72,17 +72,17 @@ describe("orgs routes", () => {
 
 
             const res = await app.request(
-                    "http://localhost/api/orgs",
-                    {
-                        method: "POST",
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({ name: "Lab", slug: "lab" }),
+                "http://localhost/api/orgs",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
                     },
-                    env as any,
-                );
+                    body: JSON.stringify({ name: "Lab", slug: "lab" }),
+                },
+                env as any,
+            );
             expect(res.status).toBe(500);
             const text = await res.text();
             expect(text).toContain("Internal Server Error");
