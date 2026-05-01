@@ -1176,13 +1176,25 @@ describe("papers routes", () => {
         expect(res.status).toBe(403);
     });
 
-    it("PUT /api/papers/:id/description handles invalid JSON body", async () => {
+    it.each([
+        {
+            name: "malformed JSON",
+            body: '{"description": "missing brace"',
+        },
+        {
+            name: "JSON array",
+            body: JSON.stringify([{ description: "updated" }]),
+        },
+        {
+            name: "non-object JSON",
+            body: JSON.stringify("just a string"),
+        },
+    ])("PUT /api/papers/:id/description rejects $name", async ({ body }) => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
         const env = createTestEnv();
 
-        // Test malformed JSON
-        let res = await app.request(
+        const res = await app.request(
             "http://localhost/api/papers/paper-1/description",
             {
                 method: "PUT",
@@ -1190,47 +1202,13 @@ describe("papers routes", () => {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json",
                 },
-                body: '{"description": "missing brace"',
+                body,
             },
             env as any,
         );
-        expect(res.status).toBe(400);
-        let body = (await res.json()) as any;
-        expect(body.error).toBe("Invalid JSON body");
 
-        // Test JSON array instead of object
-        res = await app.request(
-            "http://localhost/api/papers/paper-1/description",
-            {
-                method: "PUT",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify([{ description: "updated" }]),
-            },
-            env as any,
-        );
         expect(res.status).toBe(400);
-        body = (await res.json()) as any;
-        expect(body.error).toBe("Invalid JSON body");
-
-        // Test non-object JSON
-        res = await app.request(
-            "http://localhost/api/papers/paper-1/description",
-            {
-                method: "PUT",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify("just a string"),
-            },
-            env as any,
-        );
-        expect(res.status).toBe(400);
-        body = (await res.json()) as any;
-        expect(body.error).toBe("Invalid JSON body");
+        await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
     });
 
     it("PUT /api/papers/:id/description validates description length", async () => {
