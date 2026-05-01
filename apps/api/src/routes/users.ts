@@ -66,15 +66,23 @@ usersRoute.put("/me", authMiddleware, updateMeHandler);
 
 
 // Simple in-memory cache for user search
+type UserSearchResult = {
+    id: string;
+    name: string;
+    displayName: string | null;
+    githubId: string;
+    avatarUrl: string | null;
+};
+
 type CachedSearchResult = {
-    data: any[];
+    data: UserSearchResult[];
     timestamp: number;
 };
 const searchCache = new Map<string, CachedSearchResult>();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
 const MAX_CACHE_SIZE = 1000;
 
-function getCachedResults(key: string): any[] | null {
+function getCachedResults(key: string): UserSearchResult[] | null {
     const cached = searchCache.get(key);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
         return cached.data;
@@ -82,7 +90,7 @@ function getCachedResults(key: string): any[] | null {
     return null;
 }
 
-function setCachedResults(key: string, data: any[]) {
+function setCachedResults(key: string, data: UserSearchResult[]) {
     searchCache.delete(key);
 
     // Prune expired entries in insertion order and stop once the cache reaches fresh data.
