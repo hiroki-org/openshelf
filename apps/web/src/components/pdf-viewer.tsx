@@ -312,8 +312,9 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           if (pageText.includes(query)) {
             matches.push(page);
           }
-        } catch {
-          // Ignore extraction failures and continue searching other pages.
+        } catch (error) {
+          const message = error instanceof Error ? String(error) : String(error);
+          console.warn(`Failed to extract text for page ${page}:`, message);
         }
       }
       if (cancelled) return;
