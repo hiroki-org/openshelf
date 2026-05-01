@@ -1178,7 +1178,7 @@ describe("papers routes", () => {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ tags: [" AI", "ML ", "", "A".repeat(100), "NLP", "ai"] }),
+                body: JSON.stringify({ tags: [" AI", "ML ", "NLP", "ai"] }),
             },
             env as any,
         );
@@ -1190,12 +1190,14 @@ describe("papers routes", () => {
         });
     });
 
-    it("PATCH /api/papers/:id rejects when all tags are invalid", async () => {
+    it("PATCH /api/papers/:id rejects invalid tag items", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn();
         mockDb.select = vi
             .fn()
             .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
             .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn(() => ({ set }));
 
         const app = await createTestApp();
         const env = createTestEnv();
@@ -1207,14 +1209,14 @@ describe("papers routes", () => {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ tags: ["", "A".repeat(100), 123, null] }),
+                body: JSON.stringify({ tags: ["ai", "A".repeat(100)] }),
             },
             env as any,
         );
 
         expect(res.status).toBe(400);
-        const data = (await res.json()) as any;
-        expect(data.error).toContain("invalid");
+        await expect(res.json()).resolves.toEqual({ error: "tags must be 64 chars or less" });
+        expect(mockDb.update).not.toHaveBeenCalled();
     });
 
     it("PATCH /api/papers/:id deduplicates mixed-case tags after normalization", async () => {

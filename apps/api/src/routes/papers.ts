@@ -1573,27 +1573,19 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
     }
     if ("tags" in body) {
         if (Array.isArray(body.tags)) {
-            const invalidTags: string[] = [];
             const normalizedTags: string[] = [];
             for (const tag of body.tags) {
                 if (typeof tag !== "string") {
-                    invalidTags.push(String(tag));
-                    continue;
+                    return c.json({ error: "tags must contain only strings" }, 400);
                 }
                 const normalizedTag = tag.trim().toLowerCase();
                 if (normalizedTag.length === 0) {
-                    invalidTags.push(tag);
-                    continue;
+                    return c.json({ error: "tags must not contain empty values" }, 400);
                 }
                 if (normalizedTag.length > MAX_TAG_LENGTH) {
-                    invalidTags.push(tag);
-                    continue;
+                    return c.json({ error: `tags must be ${MAX_TAG_LENGTH} chars or less` }, 400);
                 }
                 normalizedTags.push(normalizedTag);
-            }
-
-            if (invalidTags.length > 0 && normalizedTags.length === 0) {
-                return c.json({ error: "All tags are invalid (non-string, empty, or exceed max length)" }, 400);
             }
 
             const uniqueTags = [...new Set(normalizedTags)];
