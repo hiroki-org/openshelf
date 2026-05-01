@@ -123,15 +123,18 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
 
   const updateFilters = useCallback(
     (changes: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      for (const [key, value] of Object.entries(changes)) {
-        if (!value) {
-          params.delete(key);
-        } else {
-          params.set(key, value);
+      const params = new URLSearchParams(searchParams);
+      for (const key in changes) {
+        if (Object.prototype.hasOwnProperty.call(changes, key)) {
+          const value = changes[key];
+          if (!value) {
+            params.delete(key);
+          } else {
+            params.set(key, value);
+          }
         }
       }
-      if (!Object.prototype.hasOwnProperty.call(changes, "page")) {
+      if (!("page" in changes)) {
         params.delete("page");
       }
       const query = params.toString();
