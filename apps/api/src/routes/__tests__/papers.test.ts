@@ -1177,19 +1177,10 @@ describe("papers routes", () => {
     });
 
     it.each([
-        {
-            name: "malformed JSON",
-            body: '{"description": "missing brace"',
-        },
-        {
-            name: "JSON array",
-            body: JSON.stringify([{ description: "updated" }]),
-        },
-        {
-            name: "non-object JSON",
-            body: JSON.stringify("just a string"),
-        },
-    ])("PUT /api/papers/:id/description rejects $name", async ({ body }) => {
+        { name: "malformed JSON", body: '{"description": "missing brace"' },
+        { name: "JSON array", body: JSON.stringify([{ description: "updated" }]) },
+        { name: "non-object JSON", body: JSON.stringify("just a string") },
+    ])("PUT /api/papers/:id/description handles invalid JSON body: $name", async ({ body }) => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
         const env = createTestEnv();
@@ -1206,7 +1197,6 @@ describe("papers routes", () => {
             },
             env as any,
         );
-
         expect(res.status).toBe(400);
         await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
     });
