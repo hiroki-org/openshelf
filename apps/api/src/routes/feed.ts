@@ -104,13 +104,16 @@ function toIsoString(dateStr: string): string {
 }
 
 function latestTimestamp(rows: Array<{ updatedAt: string }>, fallback: string): string {
-    // Normalize before comparing because fallback and row timestamps can use different formats.
-    let latest = toIsoString(fallback);
+    if (rows.length === 0) {
+        return fallback;
+    }
+
+    // Database timestamps should already be ISO-like or parseable directly via string comparison.
+    let latest = fallback;
 
     for (const row of rows) {
-        const updatedAt = toIsoString(row.updatedAt);
-        if (updatedAt > latest) {
-            latest = updatedAt;
+        if (row.updatedAt > latest) {
+            latest = row.updatedAt;
         }
     }
     return latest;
@@ -330,7 +333,7 @@ async function buildFeedResponse(
             link: meta.link,
             selfLink: meta.selfLink,
             id: meta.id,
-            updated: latestTimestamp(papersRows, meta.updatedFallback),
+            updated: toIsoString(latestTimestamp(papersRows, meta.updatedFallback)),
             authorName: meta.authorName,
         },
         entries,
