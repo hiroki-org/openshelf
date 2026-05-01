@@ -289,7 +289,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     void (async () => {
       const matches: number[] = [];
       for (let page = 1; page <= doc.numPages; page += 1) {
-        if (cancelled) return;
         try {
           let pageText = searchTextCacheRef.current.get(page);
           if (pageText === undefined) {
@@ -314,10 +313,8 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             matches.push(page);
           }
         } catch (error) {
-          const message = error instanceof Error
-            ? `${error.name}: ${error.message}`
-            : String(error);
-          console.warn(`Failed to extract text for page ${page}: ${message}`, error);
+          const message = error instanceof Error ? String(error) : String(error);
+          console.warn(`Failed to extract text for page ${page}:`, message);
         }
       }
       if (cancelled) return;

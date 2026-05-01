@@ -353,8 +353,8 @@ describe("PdfViewer", () => {
         // Should still find the match on page 3 despite page 2 failing
         expect(screen.getByText("1 / 1")).toBeInTheDocument();
         expect(consoleSpy).toHaveBeenCalledWith(
-          "Failed to extract text for page 2: Error: Extraction failed",
-          expect.any(Error)
+          "Failed to extract text for page 2:",
+          expect.any(String)
         );
       });
     } finally {
