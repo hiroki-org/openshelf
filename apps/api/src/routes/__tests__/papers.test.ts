@@ -1158,7 +1158,7 @@ describe("papers routes", () => {
     });
 
 
-    it("PATCH /api/papers/:id updates tags correctly", async () => {
+    it("PATCH /api/papers/:id updates tags correctly with normalization and deduplication", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const where = vi.fn(async () => undefined);
         const set = vi.fn(() => ({ where }));
@@ -1178,7 +1178,7 @@ describe("papers routes", () => {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ tags: [" AI", "ML ", "", "A".repeat(100), "NLP"] }),
+                body: JSON.stringify({ tags: [" AI", "ML ", "", "A".repeat(100), "NLP", "ai"] }),
             },
             env as any,
         );
@@ -1186,6 +1186,65 @@ describe("papers routes", () => {
         expect(res.status).toBe(200);
         expect(set).toHaveBeenCalledWith({
             tags: JSON.stringify(["ai", "ml", "nlp"]),
+            updatedAt: expect.anything(),
+        });
+    });
+
+    it("PATCH /api/papers/:id rejects when all tags are invalid", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ tags: ["", "A".repeat(100), 123, null] }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        const data = (await res.json()) as any;
+        expect(data.error).toContain("invalid");
+    });
+
+    it("PATCH /api/papers/:id deduplicates mixed-case tags after normalization", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const where = vi.fn(async () => undefined);
+        const set = vi.fn(() => ({ where }));
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn(() => ({ set }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ tags: ["AI", "ai", "Ai", "aI"] }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith({
+            tags: JSON.stringify(["ai"]),
             updatedAt: expect.anything(),
         });
     });
