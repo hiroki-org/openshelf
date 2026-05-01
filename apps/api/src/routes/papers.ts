@@ -1571,19 +1571,48 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
     }
     if ("tags" in body) {
         if (Array.isArray(body.tags)) {
-            const normalizedTags: string[] = [];
-            for (const tag of body.tags) {
+            const tags = body.tags;
+            const len = tags.length;
+            let hasChanges = false;
+            let validCount = 0;
+
+            // Fast pass to check if the array is already perfectly clean
+            for (let i = 0; i < len; i++) {
+                const tag = tags[i];
                 if (typeof tag !== "string") {
                     return c.json({ error: "each tag must be a string" }, 400);
                 }
-                const normalizedTag = tag.trim();
-                if (normalizedTag.length === 0) continue;
-                if (normalizedTag.length > MAX_TAG_LENGTH) {
+                const tagLen = tag.length;
+                if (tagLen === 0) {
+                    hasChanges = true;
+                    continue;
+                }
+                // Check if string has leading or trailing space characters that require trimming
+                if (tag.charCodeAt(0) <= 32 || tag.charCodeAt(tagLen - 1) <= 32) {
+                    hasChanges = true;
+                    continue;
+                }
+                if (tagLen > MAX_TAG_LENGTH) {
                     return c.json({ error: `each tag must be ${MAX_TAG_LENGTH} chars or less` }, 400);
                 }
-                normalizedTags.push(normalizedTag);
+                validCount++;
             }
-            updates.tags = normalizedTags.length > 0 ? JSON.stringify(normalizedTags) : null;
+
+            if (!hasChanges) {
+                updates.tags = validCount > 0 ? JSON.stringify(tags) : null;
+            } else {
+                // Fallback path: allocate new array and trim
+                const normalizedTags: string[] = [];
+                for (let i = 0; i < len; i++) {
+                    const tag = tags[i].trim();
+                    if (tag.length === 0) continue;
+                    if (tag.length > MAX_TAG_LENGTH) {
+                        return c.json({ error: `each tag must be ${MAX_TAG_LENGTH} chars or less` }, 400);
+                    }
+                    normalizedTags.push(tag);
+                }
+                updates.tags = normalizedTags.length > 0 ? JSON.stringify(normalizedTags) : null;
+            }
         } else if (body.tags === null) {
             updates.tags = null;
         } else {
