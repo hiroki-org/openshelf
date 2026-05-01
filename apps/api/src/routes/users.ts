@@ -1,7 +1,7 @@
 import { Hono, Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, like, or, and, ne } from "drizzle-orm";
-import { users, enableForeignKeys } from "../db/schema";
+import { users, enableForeignKeys, touchUpdatedAt } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 
@@ -52,7 +52,7 @@ const updateMeHandler = async (
 
   await db
     .update(users)
-    .set({ displayName: trimmed })
+    .set({ displayName: trimmed, ...touchUpdatedAt() })
     .where(eq(users.id, userId));
 
   const user = await db.select().from(users).where(eq(users.id, userId)).get();
