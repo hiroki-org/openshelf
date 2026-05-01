@@ -1176,6 +1176,31 @@ describe("papers routes", () => {
         expect(res.status).toBe(403);
     });
 
+    it.each([
+        { name: "malformed JSON", body: '{"description": "missing brace"' },
+        { name: "JSON array", body: JSON.stringify([{ description: "updated" }]) },
+        { name: "non-object JSON", body: JSON.stringify("just a string") },
+    ])("PUT /api/papers/:id/description handles invalid JSON body: $name", async ({ body }) => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/description",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body,
+            },
+            env as any,
+        );
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
+    });
+
     it("PUT /api/papers/:id/description validates description length", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
 
