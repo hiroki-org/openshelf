@@ -118,6 +118,30 @@ describe("invites routes", () => {
         expect(res.status).toBe(200);
     });
 
+    it("PUT /api/invites/:id returns 400 for invalid JSON", async () => {
+        const token = await createTestJWT({ sub: "user-2", githubId: "456", name: "Invitee" });
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/invites/inv-1",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: "{ invalid }"
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        const body = await res.json() as any;
+        expect(body).toEqual({ error: "Invalid JSON body" });
+    });
+
     it("POST /api/papers/:id/invites returns 400 when inviting self", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi.fn().mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
