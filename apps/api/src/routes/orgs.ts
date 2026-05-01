@@ -21,6 +21,7 @@ import { parseStoredTags } from "../utils/tags";
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 const ORG_TAGS_LIMIT = 100;
 const ORG_PAPERS_PAGE_SIZE = 20;
+const ID_MAX_LENGTH = 128;
 
 function normalizeFilterValue(value: string | undefined): string | null {
   if (typeof value !== "string") return null;
@@ -31,6 +32,19 @@ function normalizeFilterValue(value: string | undefined): string | null {
 
 function isValidCategory(value: string): value is CategoryType {
   return VALID_CATEGORIES.includes(value as CategoryType);
+}
+
+function normalizeBoundedId(
+  value: unknown,
+  field: string,
+): { value?: string; error?: string } {
+  if (typeof value !== "string") return { error: `${field} is required` };
+  const trimmed = value.trim();
+  if (!trimmed) return { error: `${field} is required` };
+  if (trimmed.length > ID_MAX_LENGTH) {
+    return { error: `${field} must be ${ID_MAX_LENGTH} characters or less` };
+  }
+  return { value: trimmed };
 }
 
 function buildOrgPapersVisibilityCondition(
@@ -513,10 +527,11 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
   };
   const payload = body as AddMemberBody;
 
-  const targetUserId = payload.userId as string;
-  if (typeof targetUserId !== "string" || !targetUserId.trim()) {
-    return c.json({ error: "userId is required" }, 400);
+  const targetUserIdResult = normalizeBoundedId(payload.userId, "userId");
+  if (targetUserIdResult.error) {
+    return c.json({ error: targetUserIdResult.error }, 400);
   }
+  const targetUserId = targetUserIdResult.value as string;
 
   const rawRole = payload.role ?? "member";
   if (!MEMBER_ROLES.includes(rawRole as any)) {
@@ -528,18 +543,18 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
   const targetUser = await db
     .select()
     .from(users)
-    .where(eq(users.id, targetUserId.trim()))
+    .where(eq(users.id, targetUserId))
     .get();
   if (!targetUser) return c.json({ error: "User not found" }, 404);
 
   // Check not already a member
-  const existing = await getOrgMembership(db, org.id, targetUserId.trim());
+  const existing = await getOrgMembership(db, org.id, targetUserId);
   if (existing) return c.json({ error: "User is already a member" }, 409);
 
   try {
     await db.insert(orgMembers).values({
       orgId: org.id,
-      userId: targetUserId.trim(),
+      userId: targetUserId,
       role,
     });
   } catch (err: unknown) {
@@ -556,7 +571,11 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
 // PATCH /api/orgs/:slug/members/:userId — change role
 orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
   const slug = c.req.param("slug");
-  const targetUserId = c.req.param("userId");
+  const targetUserIdResult = normalizeBoundedId(c.req.param("userId"), "userId");
+  if (targetUserIdResult.error) {
+    return c.json({ error: targetUserIdResult.error }, 400);
+  }
+  const targetUserId = targetUserIdResult.value as string;
   const db = drizzle(c.env.DB);
   await enableForeignKeys(db);
   const userId = c.get("user").sub;
@@ -630,7 +649,11 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
 // DELETE /api/orgs/:slug/members/:userId — remove member
 orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
   const slug = c.req.param("slug");
-  const targetUserId = c.req.param("userId");
+  const targetUserIdResult = normalizeBoundedId(c.req.param("userId"), "userId");
+  if (targetUserIdResult.error) {
+    return c.json({ error: targetUserIdResult.error }, 400);
+  }
+  const targetUserId = targetUserIdResult.value as string;
   const db = drizzle(c.env.DB);
   await enableForeignKeys(db);
   const userId = c.get("user").sub;
@@ -962,22 +985,23 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
   };
   const payload = body as AddPaperBody;
 
-  const paperId = payload.paperId as string;
-  if (typeof paperId !== "string" || !paperId.trim()) {
-    return c.json({ error: "paperId is required" }, 400);
+  const paperIdResult = normalizeBoundedId(payload.paperId, "paperId");
+  if (paperIdResult.error) {
+    return c.json({ error: paperIdResult.error }, 400);
   }
+  const paperId = paperIdResult.value as string;
 
   // Check paper exists
   const paper = await db
     .select()
     .from(papers)
-    .where(eq(papers.id, paperId.trim()))
+    .where(eq(papers.id, paperId))
     .get();
   if (!paper) return c.json({ error: "Paper not found" }, 404);
 
   // Check permission: must be admin OR paper author
   const isAdmin = await requireOrgAdmin(db, org.id, userId);
-  const isAuthor = await isPaperAuthor(db, paperId.trim(), userId);
+  const isAuthor = await isPaperAuthor(db, paperId, userId);
 
   if (!isAdmin.ok && !isAuthor) {
     return c.json(
@@ -991,7 +1015,7 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
     .select()
     .from(paperOrgs)
     .where(
-      and(eq(paperOrgs.paperId, paperId.trim()), eq(paperOrgs.orgId, org.id)),
+      and(eq(paperOrgs.paperId, paperId), eq(paperOrgs.orgId, org.id)),
     )
     .get();
   if (existing)
@@ -999,7 +1023,7 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
 
   try {
     await db.insert(paperOrgs).values({
-      paperId: paperId.trim(),
+      paperId,
       orgId: org.id,
     });
   } catch (err: unknown) {
@@ -1019,7 +1043,11 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
 // DELETE /api/orgs/:slug/papers/:paperId — remove paper from org
 orgsRoute.delete("/:slug/papers/:paperId", authMiddleware, async (c) => {
   const slug = c.req.param("slug");
-  const paperId = c.req.param("paperId");
+  const paperIdResult = normalizeBoundedId(c.req.param("paperId"), "paperId");
+  if (paperIdResult.error) {
+    return c.json({ error: paperIdResult.error }, 400);
+  }
+  const paperId = paperIdResult.value as string;
   const db = drizzle(c.env.DB);
   await enableForeignKeys(db);
   const userId = c.get("user").sub;

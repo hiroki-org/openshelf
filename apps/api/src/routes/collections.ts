@@ -19,6 +19,7 @@ import type { Env, Variables } from "../types";
 const collectionsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 const VALID_VISIBILITY = ["public", "org_only", "private"] as const;
+const ID_MAX_LENGTH = 128;
 
 type Visibility = (typeof VALID_VISIBILITY)[number];
 type CurrentUser = { id: string } | null;
@@ -47,6 +48,13 @@ function validateDescription(description: unknown): string | null {
   if (description.trim().length > 500)
     return "description must be 500 characters or less";
   return null;
+}
+
+function normalizePaperId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const id = value.trim();
+  if (!id || id.length > ID_MAX_LENGTH) return null;
+  return id;
 }
 
 function parseVisibility(value: unknown): Visibility | null {
@@ -515,9 +523,8 @@ collectionsRoute.post("/collections/:id/papers", authMiddleware, async (c) => {
   };
   const payload = body as AddPaperToCollectionBody;
 
-  const paperId =
-    typeof payload.paper_id === "string" ? payload.paper_id.trim() : "";
-  if (!paperId) return c.json({ error: "paper_id is required" }, 400);
+  const paperId = normalizePaperId(payload.paper_id);
+  if (!paperId) return c.json({ error: "paper_id is invalid or too long" }, 400);
 
   const paper = await db
     .select()
@@ -572,12 +579,17 @@ collectionsRoute.delete(
       return c.json({ error: "Forbidden" }, 403);
     }
 
+    const paperId = normalizePaperId(c.req.param("paperId"));
+    if (!paperId) {
+      return c.json({ error: "paper_id is invalid or too long" }, 400);
+    }
+
     const result = await db
       .delete(collectionPapers)
       .where(
         and(
           eq(collectionPapers.collectionId, collection.id),
-          eq(collectionPapers.paperId, c.req.param("paperId")),
+          eq(collectionPapers.paperId, paperId),
         ),
       );
 
@@ -619,19 +631,18 @@ collectionsRoute.patch("/collections/:id/papers", authMiddleware, async (c) => {
   };
   const payload = body as BatchAddPapersToCollectionBody;
 
-  const paperIds = Array.isArray(payload.paper_ids) ? payload.paper_ids : [];
+  const paperIds = Array.isArray(payload.paper_ids)
+    ? payload.paper_ids.map(normalizePaperId)
+    : [];
   if (paperIds.length === 0)
     return c.json({ error: "paper_ids is required" }, 400);
-  if (
-    paperIds.some(
-      (v: unknown) => typeof v !== "string" || (v as string).trim() === "",
-    )
-  ) {
+  if (paperIds.some((id) => !id)) {
     return c.json(
-      { error: "paper_ids must be an array of non-empty strings" },
+      { error: "paper_ids must be an array of valid strings" },
       400,
     );
   }
+  const normalizedPaperIds = paperIds as string[];
 
   const existingRows = await db
     .select({ paperId: collectionPapers.paperId })
@@ -640,22 +651,22 @@ collectionsRoute.patch("/collections/:id/papers", authMiddleware, async (c) => {
     .all();
 
   const existingSet = new Set(existingRows.map((r) => r.paperId));
-  const uniqueInput = new Set(paperIds);
-  if (uniqueInput.size !== paperIds.length) {
+  const uniqueInput = new Set(normalizedPaperIds);
+  if (uniqueInput.size !== normalizedPaperIds.length) {
     return c.json({ error: "paper_ids must not contain duplicates" }, 400);
   }
-  if (paperIds.length !== existingRows.length) {
+  if (normalizedPaperIds.length !== existingRows.length) {
     return c.json(
       { error: "paper_ids must include all papers in collection" },
       400,
     );
   }
-  if (paperIds.some((id: string) => !existingSet.has(id))) {
+  if (normalizedPaperIds.some((id) => !existingSet.has(id))) {
     return c.json({ error: "paper_ids contains paper not in collection" }, 400);
   }
 
   // Atomically apply all sort order changes via D1 batch
-  const updateStatements = paperIds.map((pid: string, i: number) =>
+  const updateStatements = normalizedPaperIds.map((pid, i) =>
     db
       .update(collectionPapers)
       .set({ sortOrder: i })
