@@ -62,10 +62,15 @@ export default function UserPageClient({ id, initialUser = null }: UserPageClien
           return;
         }
 
-        const [profileData, collectionsData] = await Promise.all([
-          !initialUser && profileRes?.ok ? profileRes.json() : Promise.resolve(null),
-          collectionsRes.ok ? collectionsRes.json() : Promise.resolve(null),
-        ]);
+        const profileData = !initialUser && profileRes?.ok
+          ? await profileRes.json()
+          : null;
+
+        if (cancelled) return;
+
+        const collectionsData = collectionsRes.ok
+          ? await collectionsRes.json()
+          : null;
 
         if (cancelled) return;
 

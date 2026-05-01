@@ -94,8 +94,13 @@ export default function OrgSettingsPage() {
         return;
       }
 
-      const [orgData, membersData, papersData] = await Promise.all([
-        orgRes.json(),
+      const orgData = await orgRes.json();
+      setOrg(orgData.org);
+      setEditName(orgData.org.name);
+      setEditSlug(orgData.org.slug);
+      setEditDescription(orgData.org.description ?? "");
+
+      const [membersData, papersData] = await Promise.all([
         membersRes.ok ? membersRes.json() : Promise.resolve(null),
         papersRes.ok ? papersRes.json() : Promise.resolve(null),
       ]);
@@ -105,10 +110,6 @@ export default function OrgSettingsPage() {
         return;
       }
 
-      setOrg(orgData.org);
-      setEditName(orgData.org.name);
-      setEditSlug(orgData.org.slug);
-      setEditDescription(orgData.org.description ?? "");
       setMembers(membersData.members);
 
       if (papersRes.ok && papersData) {
