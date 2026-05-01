@@ -104,17 +104,16 @@ function toIsoString(dateStr: string): string {
 }
 
 function latestTimestamp(rows: Array<{ updatedAt: string }>, fallback: string): string {
-    const fallbackTime = new Date(toIsoString(fallback)).getTime();
     if (rows.length === 0) {
         return fallback;
     }
+
+    // Database timestamps should already be ISO-like or parseable directly via string comparison.
     let latest = fallback;
-    let latestTime = fallbackTime;
+
     for (const row of rows) {
-        const rowTime = new Date(toIsoString(row.updatedAt)).getTime();
-        if (rowTime > latestTime) {
+        if (row.updatedAt > latest) {
             latest = row.updatedAt;
-            latestTime = rowTime;
         }
     }
     return latest;

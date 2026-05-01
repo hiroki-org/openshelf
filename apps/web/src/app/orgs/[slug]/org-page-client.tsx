@@ -123,7 +123,7 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
 
   const updateFilters = useCallback(
     (changes: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParams);
       for (const [key, value] of Object.entries(changes)) {
         if (!value) {
           params.delete(key);
