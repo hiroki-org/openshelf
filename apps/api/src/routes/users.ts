@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, like, or, and, ne } from "drizzle-orm";
+import type { InferSelectModel } from "drizzle-orm";
 import { users, enableForeignKeys } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -66,13 +67,10 @@ usersRoute.put("/me", authMiddleware, updateMeHandler);
 
 
 // Simple in-memory cache for user search
-type UserSearchResult = {
-    id: string;
-    name: string;
-    displayName: string | null;
-    githubId: string;
-    avatarUrl: string | null;
-};
+type UserSearchResult = Pick<
+    InferSelectModel<typeof users>,
+    "id" | "name" | "displayName" | "githubId" | "avatarUrl"
+>;
 
 type CachedSearchResult = {
     data: UserSearchResult[];
