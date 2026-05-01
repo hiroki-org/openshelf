@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, like, or, and, ne } from "drizzle-orm";
-import type { InferSelectModel } from "drizzle-orm";
+import { eq, like, or, and, ne, type InferSelectModel } from "drizzle-orm";
 import { users, enableForeignKeys } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
