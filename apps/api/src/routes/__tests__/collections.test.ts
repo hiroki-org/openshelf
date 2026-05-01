@@ -1120,7 +1120,7 @@ describe("collections routes", () => {
             body: JSON.stringify({ paper_ids: ["p1", "  ", 123] }),
         }, env);
         expect(res.status).toBe(400);
-        expect(await res.json()).toEqual({ error: "paper_ids must be an array of non-empty strings" });
+        expect(await res.json()).toEqual({ error: "paper_ids must be an array of valid strings" });
     });
     it("POST /api/collections/:id/papers adds a visible paper with the next sort order", async () => {
         const token = await createTestJWT({ sub: "user-1" });
