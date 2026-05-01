@@ -140,4 +140,28 @@ describe("invites routes", () => {
 
         expect(res.status).toBe(400);
     });
+
+    it("PUT /api/invites/:id returns 400 for invalid JSON body", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        // Malformed JSON should fail before invite lookup or authorization.
+        const res = await app.request(
+            "http://localhost/api/invites/inv-1",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: "{"
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
+        expect(mockDb.select).not.toHaveBeenCalled();
+    });
 });
