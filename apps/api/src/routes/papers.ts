@@ -1580,7 +1580,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
                 }
                 const normalizedTag = tag.trim().toLowerCase();
                 if (normalizedTag.length === 0) {
-                    return c.json({ error: "tags must not contain empty values" }, 400);
+                    continue;
                 }
                 if (normalizedTag.length > MAX_TAG_LENGTH) {
                     return c.json({ error: `tags must be ${MAX_TAG_LENGTH} chars or less` }, 400);
