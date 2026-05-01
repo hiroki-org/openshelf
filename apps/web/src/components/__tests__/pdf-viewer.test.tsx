@@ -361,4 +361,45 @@ describe("PdfViewer", () => {
       consoleSpy.mockRestore();
     }
   });
+
+  it("handles text extraction errors gracefully during search when error is not an Error instance", async () => {
+    const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      render(<PdfViewer fileUrl="https://example.com/search-error-string.pdf" />);
+      const [documentProps] = mockDocument.mock.calls[
+        mockDocument.mock.calls.length - 1
+      ] as [MockDocumentProps];
+
+      await act(async () => {
+        const mockDoc = createMockPdfDocument(["alpha", "beta target", "gamma target"]);
+        mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+          if (pageNumber === 2) {
+            return {
+              getTextContent: vi.fn().mockRejectedValue("String error"),
+            };
+          }
+          return {
+            getTextContent: vi.fn(async () => ({
+              items: [{ str: ["alpha", "beta target", "gamma target"][pageNumber - 1] ?? "" }],
+            })),
+          };
+        });
+        documentProps.onLoadSuccess?.(mockDoc);
+      });
+
+      fireEvent.change(screen.getByRole("searchbox", { name: "PDF内検索" }), {
+        target: { value: "target" },
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("1 / 1")).toBeInTheDocument();
+        expect(consoleSpy).toHaveBeenCalledWith(
+          "Failed to extract text for page 2:",
+          "String error"
+        );
+      });
+    } finally {
+      consoleSpy.mockRestore();
+    }
+  });
 });
