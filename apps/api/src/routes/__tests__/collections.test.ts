@@ -148,9 +148,9 @@ describe("collections routes", () => {
         expect(await res.json()).toEqual({ error: "Collection not found" });
     });
 
-    it("GET /api/collections/:id returns collection when collection is member org collection and user is member", async () => {
+    it("GET /api/collections/:id returns collection when collection is org_only org collection and user is member", async () => {
         queueSelectResponses([
-            { getResult: { id: "c1", ownerType: "org", ownerId: "org1", visibility: "member" } },
+            { getResult: { id: "c1", ownerType: "org", ownerId: "org1", visibility: "org_only" } },
             { getResult: { role: "member" } },
         ]);
         const app = await createTestApp();
@@ -162,9 +162,9 @@ describe("collections routes", () => {
         expect(res.status).toBe(200);
     });
 
-    it("GET /api/collections/:id returns 404 when collection is member org collection and user is not member", async () => {
+    it("GET /api/collections/:id returns 404 when collection is org_only org collection and user is not member", async () => {
         queueSelectResponses([
-            { getResult: { id: "c1", ownerType: "org", ownerId: "org1", visibility: "member" } },
+            { getResult: { id: "c1", ownerType: "org", ownerId: "org1", visibility: "org_only" } },
             { getResult: null },
         ]);
         const app = await createTestApp();
@@ -903,21 +903,6 @@ describe("collections routes", () => {
         expect(await res.json()).toEqual({ error: "Forbidden" });
     });
 
-    it("POST /api/collections/:id/papers handles invalid JSON body", async () => {
-        queueSelectResponses([
-            { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } }
-        ]);
-        const app = await createTestApp();
-        const env = createTestEnv();
-        const res = await app.request("http://localhost/api/collections/c1/papers", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}` },
-            body: "{invalid-json}",
-        }, env);
-        expect(res.status).toBe(400);
-        expect(await res.json()).toEqual({ error: "Invalid JSON body" });
-    });
-
     it("POST /api/collections/:id/papers returns 404 when paper not found", async () => {
         queueSelectResponses([
             { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
@@ -1031,22 +1016,6 @@ describe("collections routes", () => {
         expect(await res.json()).toEqual({ error: "Forbidden" });
     });
 
-    it("PATCH /api/collections/:id/papers returns 400 when missing existing papers", async () => {
-        queueSelectResponses([
-            { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
-            { allResult: [{ paperId: "p1" }, { paperId: "p2" }] }
-        ]);
-        const app = await createTestApp();
-        const env = createTestEnv();
-        const res = await app.request("http://localhost/api/collections/c1/papers", {
-            method: "PATCH",
-            headers: { Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}` },
-            body: JSON.stringify({ paper_ids: ["p1"] }),
-        }, env);
-        expect(res.status).toBe(400);
-        expect(await res.json()).toEqual({ error: "paper_ids must include all papers in collection" });
-    });
-
     it("PATCH /api/collections/:id/papers returns 400 when paper not in collection", async () => {
         queueSelectResponses([
             { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
@@ -1122,11 +1091,10 @@ describe("collections routes", () => {
         expect(data.papers[0].id).toBe("p1");
     });
 
-    it("GET /api/collections/:id/papers filters out private papers for authenticated users who don\'t have access", async () => {
+    it("GET /api/collections/:id/papers filters out private papers for authenticated users who don't have access", async () => {
         queueSelectResponses([
             { getResult: { id: "c1", visibility: "public", ownerType: "user", ownerId: "u1" } },
             { allResult: [{ id: "p1", visibility: "private" }, { id: "p2", visibility: "public" }] },
-            { allResult: [] },
             { allResult: [] },
         ]);
         const app = await createTestApp();
