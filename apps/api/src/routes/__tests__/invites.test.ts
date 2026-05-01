@@ -118,7 +118,7 @@ describe("invites routes", () => {
         expect(res.status).toBe(200);
     });
 
-        it("PUT /api/invites/:id returns 400 for invalid JSON", async () => {
+    it("PUT /api/invites/:id returns 400 for invalid JSON", async () => {
         const token = await createTestJWT({ sub: "user-2", githubId: "456", name: "Invitee" });
 
         const app = await createTestApp();
