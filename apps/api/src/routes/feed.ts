@@ -104,22 +104,13 @@ function toIsoString(dateStr: string): string {
 }
 
 function latestTimestamp(rows: Array<{ updatedAt: string }>, fallback: string): string {
-    if (rows.length === 0) {
-        return fallback;
-    }
-
-    // As per rationale, ISO timestamps sort alphabetically,
-    // so we can compare the string directly.
-    // However, to account for "toIsoString" normalization logic if strings aren't strictly ISO
-    // We should parse the strings to standard ISO first if needed. But the rationale says:
-    // "Given ISO timestamps sort alphabetically, date conversions inside the loop are unnecessary string comparisions can be used directly."
-    // This implies we can assume they are ISO timestamps already. Let's do a strict string comparison.
-
-    let latest = fallback;
+    // Normalize before comparing because fallback and row timestamps can use different formats.
+    let latest = toIsoString(fallback);
 
     for (const row of rows) {
-        if (row.updatedAt > latest) {
-            latest = row.updatedAt;
+        const updatedAt = toIsoString(row.updatedAt);
+        if (updatedAt > latest) {
+            latest = updatedAt;
         }
     }
     return latest;
@@ -339,7 +330,7 @@ async function buildFeedResponse(
             link: meta.link,
             selfLink: meta.selfLink,
             id: meta.id,
-            updated: toIsoString(latestTimestamp(papersRows, meta.updatedFallback)),
+            updated: latestTimestamp(papersRows, meta.updatedFallback),
             authorName: meta.authorName,
         },
         entries,
