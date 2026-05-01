@@ -214,6 +214,8 @@ collectionsRoute.post("/collections", authMiddleware, async (c) => {
     description?: unknown;
     visibility?: unknown;
     owner_org_id?: unknown;
+    org_slug?: unknown;
+    owner_id?: unknown;
   };
   const payload = body as CreateCollectionBody;
 
@@ -244,12 +246,12 @@ collectionsRoute.post("/collections", authMiddleware, async (c) => {
   let ownerOrgSlug: string | null = null;
   if (ownerType === "org") {
     const inputOrgSlug =
-      typeof (body as any)?.org_slug === "string"
-        ? (body as any).org_slug.trim().toLowerCase()
+      typeof payload.org_slug === "string"
+        ? payload.org_slug.trim().toLowerCase()
         : "";
     const inputOwnerId =
-      typeof (body as any)?.owner_id === "string"
-        ? (body as any).owner_id.trim()
+      typeof payload.owner_id === "string"
+        ? payload.owner_id.trim()
         : "";
 
     let org = null;
@@ -278,10 +280,10 @@ collectionsRoute.post("/collections", authMiddleware, async (c) => {
       ownerType,
       ownerId,
       orgSlug: ownerOrgSlug,
-      name: ((body as any).name as string).trim(),
+      name: (payload.name as string).trim(),
       slug,
-      description: (body as any)?.description
-        ? ((body as any).description as string).trim()
+      description: payload.description
+        ? (payload.description as string).trim()
         : null,
       visibility,
     });
@@ -363,7 +365,7 @@ collectionsRoute.patch("/collections/:id", authMiddleware, async (c) => {
   if (payload.slug !== undefined) {
     const e = validateSlug(payload.slug);
     if (e) return c.json({ error: e }, 400);
-    updates.slug = ((body as any).slug as string).trim().toLowerCase();
+    updates.slug = (payload.slug as string).trim().toLowerCase();
   }
 
   if (payload.description !== undefined) {
@@ -375,10 +377,11 @@ collectionsRoute.patch("/collections/:id", authMiddleware, async (c) => {
   }
 
   if (payload.visibility !== undefined) {
-    if (!VALID_VISIBILITY.includes((body as any).visibility)) {
+    const visibility = parseVisibility(payload.visibility);
+    if (!visibility) {
       return c.json({ error: "Invalid visibility" }, 400);
     }
-    updates.visibility = (body as any).visibility;
+    updates.visibility = visibility;
   }
 
   if (Object.keys(updates).length === 0) {

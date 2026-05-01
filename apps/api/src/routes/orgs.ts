@@ -71,6 +71,11 @@ function hasJwtSub(value: unknown): value is Pick<JwtPayload, "sub"> {
 }
 
 const MEMBER_ROLES = ["admin", "member"] as const;
+type MemberRole = (typeof MEMBER_ROLES)[number];
+
+function isMemberRole(value: unknown): value is MemberRole {
+  return typeof value === "string" && MEMBER_ROLES.includes(value as MemberRole);
+}
 
 const escapeLikeLiteral = (str: string) => {
   return str.replace(/[\\%_]/g, "\\$&");
@@ -518,8 +523,8 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     return c.json({ error: "userId is required" }, 400);
   }
 
-  const role = (payload.role as "admin" | "member") ?? "member";
-  if (!["admin", "member"].includes(role)) {
+  const role = payload.role ?? "member";
+  if (!isMemberRole(role)) {
     return c.json({ error: "role must be 'admin' or 'member'" }, 400);
   }
 
@@ -588,8 +593,8 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
     return c.json({ error: "Forbidden: admin cannot modify owner role" }, 403);
   }
 
-  const newRole = payload.role as "admin" | "member";
-  if (!MEMBER_ROLES.includes(newRole)) {
+  const newRole = payload.role;
+  if (!isMemberRole(newRole)) {
     return c.json({ error: "role must be 'admin' or 'member'" }, 400);
   }
 
