@@ -43,8 +43,10 @@ async function fetchCollectionMetadata(id: string, collectionSlug: string) {
     ]);
     if (!userRes.ok || !collectionsRes.ok) return null;
 
-    const userData = (await userRes.json()) as UserResponse;
-    const collectionsData = (await collectionsRes.json()) as CollectionsResponse;
+    const [userData, collectionsData] = await Promise.all([
+      userRes.json() as Promise<UserResponse>,
+      collectionsRes.json() as Promise<CollectionsResponse>,
+    ]);
     const collection = collectionsData.collections.find(
       (item) => item.slug === collectionSlug,
     );

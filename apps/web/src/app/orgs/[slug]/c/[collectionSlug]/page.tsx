@@ -45,9 +45,10 @@ async function fetchCollectionMetadata(slug: string, collectionSlug: string) {
 
     if (!orgRes.ok || !collectionsRes.ok) return null;
 
-    const orgData = (await orgRes.json()) as OrgResponse;
-    const collectionsData =
-      (await collectionsRes.json()) as CollectionsResponse;
+    const [orgData, collectionsData] = await Promise.all([
+      orgRes.json() as Promise<OrgResponse>,
+      collectionsRes.json() as Promise<CollectionsResponse>,
+    ]);
     const collection = collectionsData.collections.find(
       (item) => item.slug === collectionSlug,
     );
