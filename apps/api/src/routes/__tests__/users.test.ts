@@ -163,7 +163,12 @@ describe("users routes", () => {
         );
 
         expect(res.status).toBe(200);
-        expect(setValues).toHaveBeenCalledWith({ displayName: null });
+        expect(setValues).toHaveBeenCalledWith(
+            expect.objectContaining({
+                displayName: null,
+                updatedAt: expect.anything(),
+            }),
+        );
     });
 
     it("GET /api/users/search returns cached results on repeat queries", async () => {
