@@ -20,7 +20,7 @@ export const toast = {
 };
 
 function addToast(message: string, type: ToastType) {
-  const id = Math.random().toString(36).substring(2, 9);
+  const id = crypto.randomUUID();
   const newToast = { id, message, type };
   toasts = [...toasts, newToast];
   notify();
@@ -48,10 +48,14 @@ export function ToastContainer() {
   }, []);
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
+    <div
+      className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"
+      aria-live="polite"
+    >
       {currentToasts.map((t) => (
         <div
           key={t.id}
+          role={t.type === "error" ? "alert" : "status"}
           className={`px-4 py-2 rounded-md shadow-lg text-white text-sm transition-all animate-in fade-in slide-in-from-right-4 pointer-events-auto ${
             t.type === "success"
               ? "bg-green-600"
