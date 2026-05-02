@@ -163,8 +163,8 @@ describe("PaperDetailClient", () => {
       />,
     );
 
-    await waitFor(() => {
-      expect(screen.getByAltText("poster.png")).toHaveAttribute(
+    await waitFor(async () => {
+      expect(await screen.findByAltText("poster.png")).toHaveAttribute(
         "src",
         expect.stringMatching(/^blob:mock-/),
       );
@@ -357,7 +357,7 @@ describe("PaperDetailClient", () => {
       await screen.findByText("公開表示中の閲覧・ダウンロード数"),
     ).toBeInTheDocument();
 
-    await waitFor(() => {
+    await waitFor(async () => {
       expect(apiFetch).toHaveBeenCalledWith(
         "/api/papers/paper-1/track",
         expect.objectContaining({
@@ -371,7 +371,7 @@ describe("PaperDetailClient", () => {
       "data-url",
       expect.stringMatching(/^blob:mock-/),
     );
-    expect(screen.getByAltText("poster.png")).toHaveAttribute(
+    expect(await screen.findByAltText("poster.png")).toHaveAttribute(
       "src",
       expect.stringMatching(/^blob:mock-/),
     );
@@ -404,7 +404,7 @@ describe("PaperDetailClient", () => {
     expect(slideRow).not.toBeNull();
     fireEvent.click(within(slideRow!).getByRole("button", { name: "ダウンロード" }));
 
-    await waitFor(() => {
+    await waitFor(async () => {
       expect(URL.createObjectURL).toHaveBeenCalled();
     });
 
@@ -415,7 +415,7 @@ describe("PaperDetailClient", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "招待" }));
 
-    await waitFor(() => {
+    await waitFor(async () => {
       expect(toastSuccess).toHaveBeenCalledWith("招待を送信しました");
     });
 
@@ -578,7 +578,7 @@ describe("PaperDetailClient", () => {
     );
 
     await screen.findByRole("heading", { name: "Private Tracking" });
-    await waitFor(() => {
+    await waitFor(async () => {
       expect(apiFetch).toHaveBeenCalledWith(
         "/api/papers/paper-1/track",
         expect.objectContaining({ method: "POST" }),
@@ -675,7 +675,7 @@ describe("PaperDetailClient", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "ダウンロードする" }));
 
-    await waitFor(() => {
+    await waitFor(async () => {
       expect(toastError).toHaveBeenCalledWith(
         "このファイルをダウンロードする権限がありません",
       );
