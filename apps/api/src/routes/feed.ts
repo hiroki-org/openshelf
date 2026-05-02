@@ -205,11 +205,13 @@ function buildAtomFeed(meta: FeedMeta, entries: FeedEntry[]): string {
         lines.push(`    <published>${escapeXml(entry.published)}</published>`);
         lines.push(`    <updated>${escapeXml(entry.updated)}</updated>`);
         lines.push(`    <summary>${escapeXml(entry.summary)}</summary>`);
-        lines.push(
-            entry.authors
-                .map((author) => `    <author><name>${escapeXml(author)}</name></author>`)
-                .join("\n")
-        );
+        if (entry.authors.length > 0) {
+            lines.push(
+                entry.authors
+                    .map((author) => `    <author><name>${escapeXml(author)}</name></author>`)
+                    .join("\n")
+            );
+        }
         if (entry.category) {
             lines.push(`    <category term="${escapeXml(entry.category)}"/>`);
         }
