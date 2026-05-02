@@ -1176,6 +1176,31 @@ describe("papers routes", () => {
         expect(res.status).toBe(403);
     });
 
+    it.each([
+        { name: "malformed JSON", body: '{"description": "missing brace"' },
+        { name: "JSON array", body: JSON.stringify([{ description: "updated" }]) },
+        { name: "non-object JSON", body: JSON.stringify("just a string") },
+    ])("PUT /api/papers/:id/description handles invalid JSON body: $name", async ({ body }) => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1/description",
+            {
+                method: "PUT",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body,
+            },
+            env as any,
+        );
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
+    });
+
     it("PUT /api/papers/:id/description validates description length", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
 
@@ -1313,6 +1338,100 @@ describe("papers routes", () => {
         const body = (await res.json()) as any;
         expect(body.error).toContain("Invalid JSON body");
         expect(mockDb.select).not.toHaveBeenCalled();
+    });
+
+
+    it("PATCH /api/papers/:id updates tags correctly with normalization and deduplication", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const where = vi.fn(async () => undefined);
+        const set = vi.fn(() => ({ where }));
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn(() => ({ set }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ tags: [" AI", "ML ", "NLP", "ai"] }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith({
+            tags: JSON.stringify(["ai", "ml", "nlp"]),
+            updatedAt: expect.anything(),
+        });
+    });
+
+    it("PATCH /api/papers/:id rejects invalid tag items", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn();
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn(() => ({ set }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ tags: ["ai", "A".repeat(100)] }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "tags must be 64 chars or less" });
+        expect(mockDb.update).not.toHaveBeenCalled();
+    });
+
+    it("PATCH /api/papers/:id deduplicates mixed-case tags after normalization", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const where = vi.fn(async () => undefined);
+        const set = vi.fn(() => ({ where }));
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn(() => ({ set }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ tags: ["AI", "ai", "Ai", "aI"] }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith({
+            tags: JSON.stringify(["ai"]),
+            updatedAt: expect.anything(),
+        });
     });
 
     it("PATCH /api/papers/:id rejects requests without valid updatable fields", async () => {
@@ -2039,3 +2158,301 @@ describe("papers routes", () => {
         });
     });
 });
+
+    describe("Error handling and untested branches", () => {
+        let app: any;
+        let env: any;
+        let token: string;
+
+        beforeEach(async () => {
+            app = await createTestApp();
+            env = createTestEnv();
+            const { createTestJWT } = await import("../../test/helpers");
+            token = await createTestJWT({ sub: "user-test", githubId: "123", name: "Test" });
+        });
+
+        it("POST /api/papers/:id/invites handles malformed JSON body", async () => {
+            const res = await app.request("http://localhost/api/papers/paper-1/invites", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: "{"
+            }, env as any);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+        });
+
+        it("POST /api/papers/:id/invites handles missing invitee info", async () => {
+            const res = await app.request("http://localhost/api/papers/paper-1/invites", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: "{}"
+            }, env as any);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "inviteeId or inviteeEmail is required" });
+        });
+
+        it("DELETE /api/papers/:id handles R2 batch deletion chunking failures", async () => {
+            const { makeQuery } = await import("../../test/helpers");
+            mockDb.select = vi.fn()
+                .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } })) // isAuthor
+                .mockImplementationOnce(() => makeQuery({ allResult: [{ id: "file-1", r2Key: "fake-key" }] })); // get files
+
+            const fakeBucket = {
+                delete: vi.fn().mockRejectedValue(new Error("AWS batch error")),
+            };
+            env.BUCKET = fakeBucket;
+
+            const { createTestJWT } = await import("../../test/helpers");
+            const testToken = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+            const res = await app.request("http://localhost/api/papers/paper-1", {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${testToken}` }
+            }, env as any);
+            expect(res.status).toBe(500); // Throws an error up instead of being captured transparently
+            await vi.waitFor(() => {
+                expect(fakeBucket.delete).toHaveBeenCalled();
+            });
+        });
+
+        it("GET /api/papers/:id/stats handles invalid date ranges and 0 defaults", async () => {
+            const { makeQuery } = await import("../../test/helpers");
+            mockDb.select = vi.fn()
+                .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public" } })) // paper fetch
+                .mockImplementationOnce(() => makeQuery({ getResult: { userId: "user-test" } })) // isAuthor
+                .mockImplementationOnce(() => makeQuery({ getResult: null })) // totalRow
+                .mockImplementationOnce(() => makeQuery({ allResult: [] })); // dailyRows
+
+            const res = await app.request("http://localhost/api/papers/paper-1/stats?days=7", {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}` }
+            }, env as any);
+
+            expect(res.status).toBe(200);
+            const json = await res.json() as any;
+            expect(json.total.views).toBe(0);
+        });
+
+        it("GET /api/papers/:id/files/:fileId/stream returns 404 if file is not in R2", async () => {
+            const { makeQuery } = await import("../../test/helpers");
+            mockDb.select = vi.fn()
+                .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public" } })) // paper fetch
+                .mockImplementationOnce(() => makeQuery({ getResult: { id: "file-1", r2Key: "fake-key" } })); // get file
+
+            env.BUCKET = {
+                get: vi.fn().mockResolvedValue(null),
+            };
+
+            const res = await app.request("http://localhost/api/papers/paper-1/files/file-1/stream", {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}` }
+            }, env as any);
+
+            expect(res.status).toBe(404);
+            expect(await res.json()).toEqual({ error: "File not found in storage" });
+        });
+
+        it("POST /api/papers handles malformed files_ metadata correctly", async () => {
+            const formData = new FormData();
+            formData.append("metadata", JSON.stringify({
+                title: "Test Paper",
+                abstract: "Abstract",
+                visibility: "public",
+                showViewCount: true,
+                language: "en",
+                externalUrl: "https://example.com",
+                doi: null,
+                venue: null,
+                venueType: null,
+                year: null,
+                category: null,
+                tags: []
+            }));
+            formData.append("files_0", "not a file"); // string
+
+            const res = await app.request("http://localhost/api/papers", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData
+            }, env as any);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "Field files_0 is not a valid file" });
+        });
+
+        it("POST /api/papers handles file sizes exceeding the maximum limit", async () => {
+            const formData = new FormData();
+            formData.append("metadata", JSON.stringify({
+                title: "Test Paper",
+                abstract: "Abstract",
+                visibility: "public",
+                showViewCount: true,
+                language: "en",
+                externalUrl: "https://example.com",
+                doi: null,
+                venue: null,
+                venueType: null,
+                year: null,
+                category: null,
+                tags: []
+            }));
+            const file = new File([new ArrayBuffer(50 * 1024 * 1024 + 1)], "bigfile.pdf", { type: "application/pdf" });
+            formData.append("files_0", file);
+
+            const res = await app.request("http://localhost/api/papers", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData
+            }, env as any);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "File bigfile.pdf exceeds 50 MB limit" });
+        });
+
+        it("POST /api/papers handles missing/invalid metadata JSON correctly", async () => {
+            const formData = new FormData();
+            formData.append("metadata", "{"); // invalid JSON
+
+            const res = await app.request("http://localhost/api/papers", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData
+            }, env as any);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "Invalid metadata JSON" });
+        });
+
+        it("generateSignedPreviewUrl catches and returns null", async () => {
+            const fakeBucket = {
+                createSignedUrl: vi.fn().mockRejectedValue(new Error("AWS error")),
+            };
+            env.BUCKET = fakeBucket;
+
+            const { makeQuery } = await import("../../test/helpers");
+            mockDb.select = vi.fn()
+                .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public", showViewCount: false } }))
+                .mockImplementationOnce(() => makeQuery({ getResult: { id: "file-1", r2Key: "fake-key", mimeType: "application/pdf", filename: "test.pdf" } }));
+
+            const res = await app.request("http://localhost/api/papers/paper-1/files/file-1/preview", {}, env as any);
+            expect(res.status).toBe(200);
+            const json = await res.json() as any;
+            expect(json.url).toBe("/api/papers/paper-1/files/file-1/stream"); // Falls back to stream
+        });
+
+        it("generateSignedPreviewUrl handles presign falling back to stream when no sign function exists", async () => {
+            const fakeBucket = {
+                // no methods
+            };
+            env.BUCKET = fakeBucket;
+
+            const { makeQuery } = await import("../../test/helpers");
+            mockDb.select = vi.fn()
+                .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public", showViewCount: false } }))
+                .mockImplementationOnce(() => makeQuery({ getResult: { id: "file-1", r2Key: "fake-key", mimeType: "application/pdf", filename: "test.pdf" } }));
+
+            const res = await app.request("http://localhost/api/papers/paper-1/files/file-1/preview", {}, env as any);
+            expect(res.status).toBe(200);
+            const json = await res.json() as any;
+            expect(json.url).toBe("/api/papers/paper-1/files/file-1/stream"); // Falls back to stream
+        });
+
+        it("generateSignedPreviewUrl presign succeeds", async () => {
+            const fakeBucket = {
+                presign: vi.fn().mockResolvedValue("https://fake-presigned-url"),
+            };
+            env.BUCKET = fakeBucket;
+
+            const { makeQuery } = await import("../../test/helpers");
+            mockDb.select = vi.fn()
+                .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public", showViewCount: false } }))
+                .mockImplementationOnce(() => makeQuery({ getResult: { id: "file-1", r2Key: "fake-key", mimeType: "application/pdf", filename: "test.pdf" } }));
+
+            const res = await app.request("http://localhost/api/papers/paper-1/files/file-1/preview", {}, env as any);
+            expect(res.status).toBe(200);
+            const json = await res.json() as any;
+            expect(json.url).toBe("https://fake-presigned-url");
+        });
+
+        it("PUT /api/papers/:id/description handles malformed JSON body", async () => {
+            const res = await app.request("http://localhost/api/papers/paper-1/description", {
+                method: "PUT",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: "{"
+            }, env as any);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+        });
+
+        it("PUT /api/papers/:id/description handles non-object JSON body", async () => {
+            const res = await app.request("http://localhost/api/papers/paper-1/description", {
+                method: "PUT",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: "[]"
+            }, env as any);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+        });
+
+        it("PATCH /api/papers/:id handles malformed JSON body", async () => {
+            const res = await app.request("http://localhost/api/papers/paper-1", {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: "{"
+            }, env as any);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+        });
+
+        it("PATCH /api/papers/:id handles non-object JSON body", async () => {
+            const res = await app.request("http://localhost/api/papers/paper-1", {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                body: "[]"
+            }, env as any);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+        });
+
+        it("POST /api/papers/:id/track handles missing json payload", async () => {
+            const res = await app.request("http://localhost/api/papers/paper-1/track", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Origin": "http://localhost:3000" },
+                body: "{"
+            }, env as any);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+        });
+
+        it("POST /api/papers/:id/track handles non-object JSON body", async () => {
+            const res = await app.request("http://localhost/api/papers/paper-1/track", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Origin": "http://localhost:3000" },
+                body: "[]"
+            }, env as any);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+        });
+
+        it("POST /api/papers/:id/track captures parsing errors in promise", async () => {
+            const { makeQuery } = await import("../../test/helpers");
+            mockDb.select = vi.fn()
+                .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "public" } }));
+            mockDb.prepare = vi.fn().mockImplementation(() => ({
+                bind: vi.fn().mockReturnThis(),
+                all: vi.fn().mockRejectedValue(new Error("Track DB failure"))
+            }));
+
+            const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+            const res = await app.request("http://localhost/api/papers/paper-1/track", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Origin": "http://localhost:3000" },
+                body: JSON.stringify({ event: "view" })
+            }, env as any);
+
+            expect(res.status).toBe(204);
+
+            await vi.waitFor(() => {
+                expect(consoleErrorSpy).toHaveBeenCalled();
+            });
+
+            consoleErrorSpy.mockRestore();
+        });
+    });

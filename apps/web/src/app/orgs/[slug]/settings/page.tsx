@@ -94,22 +94,25 @@ export default function OrgSettingsPage() {
         return;
       }
 
-      const orgData = await orgRes.json();
+      const [orgData, membersData, papersData] = await Promise.all([
+        orgRes.json(),
+        membersRes.ok ? membersRes.json() : Promise.resolve(null),
+        papersRes.ok ? papersRes.json() : Promise.resolve(null),
+      ]);
+
       setOrg(orgData.org);
       setEditName(orgData.org.name);
       setEditSlug(orgData.org.slug);
       setEditDescription(orgData.org.description ?? "");
 
-      if (membersRes.ok) {
-        const membersData = await membersRes.json();
-        setMembers(membersData.members);
-      } else {
+      if (!membersRes.ok || !membersData) {
         setError("メンバー情報の取得に失敗しました");
         return;
       }
 
-      if (papersRes.ok) {
-        const papersData = await papersRes.json();
+      setMembers(membersData.members);
+
+      if (papersRes.ok && papersData) {
         setOrgPapers(papersData.papers);
       }
     } catch {

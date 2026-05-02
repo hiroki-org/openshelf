@@ -1,4 +1,5 @@
 import { Hono, type Context } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, gte, sql } from "drizzle-orm";
 import {
@@ -74,9 +75,6 @@ function formatDateKey(date: Date): string {
     return date.toISOString().slice(0, 10);
 }
 
-function formatDbDateTime(date: Date): string {
-    return date.toISOString().slice(0, 19).replace("T", " ");
-}
 
 function toIsoUtc(value: string | null | undefined): string | null {
     if (!value) return null;
@@ -341,7 +339,7 @@ async function authorizePaperAccess(
     c: Context<{ Bindings: Env; Variables: Variables }>,
     db: ReturnType<typeof drizzle>,
     paper: { visibility: string; id: string },
-) {
+): Promise<{ ok: true; user?: { sub: string } } | { ok: false; status: ContentfulStatusCode; error: string }> {
     if (paper.visibility === "public") return { ok: true };
 
     const authHeader = c.req.header("Authorization");
@@ -781,7 +779,7 @@ papersRoute.get("/:id", async (c) => {
 
     const access = await authorizePaperAccess(c, db, paper);
     if (!access.ok) {
-        return c.json({ error: access.error }, access.status as any);
+        return c.json({ error: access.error }, access.status);
     }
 
     const [rawFiles, authors] = (await db.batch([
@@ -856,7 +854,7 @@ papersRoute.get("/:id/cite", async (c) => {
 
     const access = await authorizePaperAccess(c, db, paper);
     if (!access.ok) {
-        return c.json({ error: access.error }, access.status as any);
+        return c.json({ error: access.error }, access.status);
     }
 
     const authors = await db
@@ -917,7 +915,7 @@ papersRoute.post("/:id/track", async (c) => {
 
     const access = await authorizePaperAccess(c, db, paper);
     if (!access.ok) {
-        return c.json({ error: access.error }, access.status as any);
+        return c.json({ error: access.error }, access.status);
     }
 
     if (isBotUserAgent(c.req.header("User-Agent"))) {
@@ -1038,7 +1036,7 @@ papersRoute.get("/:id/files/:fileId/download", async (c) => {
 
     const access = await authorizePaperAccess(c, db, paper);
     if (!access.ok) {
-        return c.json({ error: access.error }, access.status as any);
+        return c.json({ error: access.error }, access.status);
     }
 
     const file = await db
@@ -1084,7 +1082,7 @@ papersRoute.get("/:id/files/:fileId/preview", async (c) => {
 
     const access = await authorizePaperAccess(c, db, paper);
     if (!access.ok) {
-        return c.json({ error: access.error }, access.status as any);
+        return c.json({ error: access.error }, access.status);
     }
 
     const file = await db
@@ -1119,7 +1117,7 @@ papersRoute.get("/:id/files/:fileId/stream", async (c) => {
 
     const access = await authorizePaperAccess(c, db, paper);
     if (!access.ok) {
-        return c.json({ error: access.error }, access.status as any);
+        return c.json({ error: access.error }, access.status);
     }
 
     const file = await db
@@ -1580,7 +1578,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             for (let i = 0; i < len; i++) {
                 const tag = tags[i];
                 if (typeof tag !== "string") {
-                    return c.json({ error: "each tag must be a string" }, 400);
+                    return c.json({ error: "tags must contain only strings" }, 400);
                 }
                 const tagLen = tag.length;
                 if (tagLen === 0) {
@@ -1592,8 +1590,20 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
                     hasChanges = true;
                     continue;
                 }
+                // Check if string requires lowercase conversion
+                if (tag !== tag.toLowerCase()) {
+                    hasChanges = true;
+                    continue;
+                }
                 if (tagLen > MAX_TAG_LENGTH) {
-                    return c.json({ error: `each tag must be ${MAX_TAG_LENGTH} chars or less` }, 400);
+                    return c.json({ error: `tags must be ${MAX_TAG_LENGTH} chars or less` }, 400);
+                }
+                // Check for duplicates
+                for (let j = 0; j < i; j++) {
+                    if (tags[j] === tag) {
+                        hasChanges = true;
+                        break;
+                    }
                 }
                 validCount++;
             }
@@ -1604,14 +1614,15 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
                 // Fallback path: allocate new array and trim
                 const normalizedTags: string[] = [];
                 for (let i = 0; i < len; i++) {
-                    const tag = tags[i].trim();
+                    const tag = tags[i].trim().toLowerCase();
                     if (tag.length === 0) continue;
                     if (tag.length > MAX_TAG_LENGTH) {
-                        return c.json({ error: `each tag must be ${MAX_TAG_LENGTH} chars or less` }, 400);
+                        return c.json({ error: `tags must be ${MAX_TAG_LENGTH} chars or less` }, 400);
                     }
                     normalizedTags.push(tag);
                 }
-                updates.tags = normalizedTags.length > 0 ? JSON.stringify(normalizedTags) : null;
+                const uniqueTags = [...new Set(normalizedTags)];
+                updates.tags = uniqueTags.length > 0 ? JSON.stringify(uniqueTags) : null;
             }
         } else if (body.tags === null) {
             updates.tags = null;

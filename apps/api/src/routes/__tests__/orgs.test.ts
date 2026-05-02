@@ -33,6 +33,61 @@ describe("orgs routes", () => {
 
     // ─── POST /api/orgs ────────────────────────────────────────
     describe("POST /api/orgs", () => {
+        it("returns 400 for invalid description", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ name: "Lab", slug: "lab", description: 123 }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "description must be a string" });
+        });
+
+        it("throws generic error during insert if not UNIQUE constraint", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+
+            mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+
+            mockDb.insert = vi.fn()
+                .mockImplementationOnce(() => ({
+                    values: vi.fn(async () => {
+                        throw new Error("Some other DB error");
+                    })
+                }));
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+
+            const res = await app.request(
+                    "http://localhost/api/orgs",
+                    {
+                        method: "POST",
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ name: "Lab", slug: "lab" }),
+                    },
+                    env as any,
+                );
+            expect(res.status).toBe(500);
+            const text = await res.text();
+            expect(text).toContain("Internal Server Error");
+        });
+
         it("returns 409 for UNIQUE constraint violation race condition", async () => {
             const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
 
@@ -262,6 +317,142 @@ describe("orgs routes", () => {
     });
 
     describe("PATCH /api/orgs/:slug", () => {
+        it("returns 400 when no fields to update", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab", name: "My Lab", description: null } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "owner" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab",
+                {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({}),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "No fields to update" });
+        });
+
+        it("returns 400 for invalid slug", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab", name: "My Lab", description: null } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "owner" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab",
+                {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ slug: "ab" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "slug must be 3–40 characters" });
+        });
+
+        it("returns 409 if new slug already in use", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab", name: "My Lab", description: null } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "owner" } },
+                { getResult: { id: "org-2", slug: "taken-lab" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab",
+                {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ slug: "taken-lab" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(409);
+            await expect(res.json()).resolves.toEqual({ error: "slug already in use" });
+        });
+
+        it("returns 400 for invalid name update", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab", name: "My Lab", description: null } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "owner" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab",
+                {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ name: "" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "name is required" });
+        });
+
+        it("returns 400 for invalid description update", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab", name: "My Lab", description: null } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "owner" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab",
+                {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ description: 123 }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "description must be a string" });
+        });
+
         it("updates the org for admins", async () => {
             const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
             queueSelectResponses([
@@ -387,6 +578,150 @@ describe("orgs routes", () => {
 
     // ─── Member management ────────────────────────────────────
     describe("POST /api/orgs/:slug/members", () => {
+        it("returns 400 for invalid JSON body", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/members",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: "{",
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
+        });
+
+        it("returns 400 for missing userId", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/members",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ role: "member" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "userId is required" });
+        });
+
+        it("returns 400 for invalid role", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/members",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ userId: "user-2", role: "superadmin" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "role must be 'admin' or 'member'" });
+        });
+
+        it("returns 404 when target user is not found", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
+                { getResult: null },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/members",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ userId: "user-2", role: "member" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(404);
+            await expect(res.json()).resolves.toEqual({ error: "User not found" });
+        });
+
+        it("throws generic error during insert if not UNIQUE constraint", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
+                { getResult: { id: "user-2" } },
+                { getResult: null },
+            ]);
+
+            mockDb.insert = vi.fn()
+                .mockImplementationOnce(() => ({
+                    values: vi.fn(async () => {
+                        throw new Error("Some other DB error");
+                    })
+                }));
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/members",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ userId: "user-2", role: "member" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(500);
+        });
+
         it("returns 403 without auth (CSRF blocks before auth middleware)", async () => {
             const app = await createTestApp();
             const env = createTestEnv();
@@ -435,6 +770,65 @@ describe("orgs routes", () => {
     });
 
     describe("PATCH /api/orgs/:slug/members/:userId", () => {
+        it("returns 400 for invalid JSON body", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            const org = { id: "org-1", slug: "my-lab" };
+
+            queueSelectResponses([
+                { getResult: org },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/members/user-2",
+                {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: "{",
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
+        });
+
+        it("returns 404 when the target membership does not exist", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            const org = { id: "org-1", slug: "my-lab" };
+
+            queueSelectResponses([
+                { getResult: org },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
+                { getResult: null },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/members/user-2",
+                {
+                    method: "PATCH",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ role: "member" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(404);
+            await expect(res.json()).resolves.toEqual({ error: "Member not found" });
+        });
+
         it("returns 200 when an owner modifies another owner role", async () => {
             const token = await createTestJWT({ sub: "owner-1", githubId: "123", name: "Owner 1" });
             const org = { id: "org-1", slug: "my-lab" };
@@ -580,6 +974,150 @@ describe("orgs routes", () => {
 
     // ─── Paper association ────────────────────────────────────
     describe("POST /api/orgs/:slug/papers", () => {
+        it("returns 400 for invalid JSON body", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: "{",
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
+        });
+
+        it("returns 400 for missing paperId", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "paperId is required" });
+        });
+
+        it("returns 404 when paper is not found", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: null }, // paper
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ paperId: "paper-1" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(404);
+            await expect(res.json()).resolves.toEqual({ error: "Paper not found" });
+        });
+
+        it("returns 403 when not org admin or paper author", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { id: "paper-1" } }, // paper
+                { getResult: null }, // not org admin
+                { getResult: null }, // not paper author
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ paperId: "paper-1" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(403);
+            await expect(res.json()).resolves.toEqual({ error: "Forbidden: must be org admin or paper author" });
+        });
+
+        it("throws generic error during insert if not UNIQUE constraint", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { id: "paper-1", title: "Paper" } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
+                { getResult: null }, // author check
+                { getResult: null }, // not already associated
+            ]);
+
+            mockDb.insert = vi.fn()
+                .mockImplementationOnce(() => ({
+                    values: vi.fn(async () => {
+                        throw new Error("Some other DB error");
+                    })
+                }));
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers",
+                {
+                    method: "POST",
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ paperId: "paper-1" }),
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(500);
+        });
+
         it("returns 403 without auth (CSRF blocks before auth middleware)", async () => {
             const app = await createTestApp();
             const env = createTestEnv();
@@ -850,8 +1388,73 @@ describe("orgs routes", () => {
             });
             expect(body.filterOptions.years).toEqual([{ value: 2023, count: 1 }]);
         });
-    });
 
+        it("returns 400 for invalid venue query", async () => {
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers?venue=" + "a".repeat(101),
+                {},
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "venue must be 100 characters or less" });
+        });
+
+        it("returns 400 for invalid category query", async () => {
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers?category=invalid",
+                {},
+                env as any,
+            );
+
+            expect(res.status).toBe(400);
+            await expect(res.json()).resolves.toEqual({ error: "Invalid category" });
+        });
+
+        it("returns properly filtered papers for non-members who are authors", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Author" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: null }, // not a member
+                {
+                    allResult: [{ paperId: "paper-org" }, { paperId: "paper-private" }], // authored papers
+                },
+                {
+                    allResult: [
+                        { id: "paper-public", visibility: "public" },
+                        { id: "paper-org", visibility: "org_only" },
+                        { id: "paper-private", visibility: "private" },
+                    ],
+                },
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers",
+                { headers: { Authorization: `Bearer ${token}` } },
+                env as any,
+            );
+
+            expect(res.status).toBe(200);
+            const body = (await res.json()) as any;
+            expect(body.papers).toBeDefined();
+        });
 
         it("returns 400 for invalid page query", async () => {
             queueSelectResponses([
@@ -888,8 +1491,30 @@ describe("orgs routes", () => {
             expect(res.status).toBe(400);
             await expect(res.json()).resolves.toEqual({ error: "Invalid year" });
         });
+    });
 
     describe("GET /api/orgs/:slug/tags", () => {
+        it("handles invalid JWT payload in hasJwtSub", async () => {
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            // Setup jwt.verify to return an invalid object instead of a valid token
+            const token = await createTestJWT({ invalid: true });
+
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { allResult: [] }, // org papers
+            ]);
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/tags",
+                { headers: { Authorization: `Bearer ${token}` } },
+                env as any,
+            );
+
+            expect(res.status).toBe(200);
+        });
+
         it("returns tags from visible org papers", async () => {
             queueSelectResponses([
                 { getResult: { id: "org-1", slug: "my-lab" } },
@@ -1072,6 +1697,59 @@ describe("orgs routes", () => {
     });
 
     describe("DELETE /api/orgs/:slug/papers/:paperId", () => {
+        it("deletes the association for admins", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Admin" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
+                { getResult: null }, // not author
+                { getResult: { paperId: "paper-1", orgId: "org-1" } }, // existing association
+            ]);
+
+            const deleteWhere = vi.fn(async () => ({ meta: { changes: 1 } }));
+            mockDb.delete = vi.fn(() => ({ where: deleteWhere }));
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers/paper-1",
+                {
+                    method: "DELETE",
+                    headers: { Authorization: `Bearer ${token}` },
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(200);
+            await expect(res.json()).resolves.toEqual({ ok: true });
+            expect(deleteWhere).toHaveBeenCalled();
+        });
+
+        it("returns 403 when not org admin or paper author", async () => {
+            const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+            queueSelectResponses([
+                { getResult: { id: "org-1", slug: "my-lab" } },
+                { getResult: null }, // not admin
+                { getResult: null }, // not paper author
+            ]);
+
+            const app = await createTestApp();
+            const env = createTestEnv();
+
+            const res = await app.request(
+                "http://localhost/api/orgs/my-lab/papers/paper-1",
+                {
+                    method: "DELETE",
+                    headers: { Authorization: `Bearer ${token}` },
+                },
+                env as any,
+            );
+
+            expect(res.status).toBe(403);
+            await expect(res.json()).resolves.toEqual({ error: "Forbidden: must be org admin or paper author" });
+        });
+
         it("returns 404 when the association does not exist", async () => {
             const token = await createTestJWT({ sub: "user-2", githubId: "456", name: "Author" });
             queueSelectResponses([

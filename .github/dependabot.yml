@@ -28,11 +28,14 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 4
     commit-message:
       prefix: "chore"
       include: "scope"
     groups:
-      github-actions-minor-patch:
+      # github-actions ecosystem does not support update-types filtering,
+      # so this group captures ALL version bumps (including major).
+      github-actions-all:
         patterns:
           - "**"
   - package-ecosystem: "docker"
@@ -41,6 +44,7 @@ updates:
       - "/apps/web"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 4
     commit-message:
       prefix: "chore"
       include: "scope"
