@@ -1573,6 +1573,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             const len = tags.length;
             let hasChanges = false;
             let validCount = 0;
+            const seen = new Set<string>();
 
             // Fast pass to check if the array is already perfectly clean
             for (let i = 0; i < len; i++) {
@@ -1599,11 +1600,10 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
                     return c.json({ error: `tags must be ${MAX_TAG_LENGTH} chars or less` }, 400);
                 }
                 // Check for duplicates
-                for (let j = 0; j < i; j++) {
-                    if (tags[j] === tag) {
-                        hasChanges = true;
-                        break;
-                    }
+                if (seen.has(tag)) {
+                    hasChanges = true;
+                } else {
+                    seen.add(tag);
                 }
                 validCount++;
             }
