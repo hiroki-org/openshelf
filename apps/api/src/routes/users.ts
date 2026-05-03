@@ -86,7 +86,6 @@ function getCachedResults(key: string): UserSearchResult[] | null {
 }
 
 function setCachedResults(key: string, data: UserSearchResult[]) {
-  // Re-insert to refresh insertion order (move to newest position)
   searchCache.delete(key);
 
   // Evict the oldest entry if the cache has reached its maximum size (FIFO)
