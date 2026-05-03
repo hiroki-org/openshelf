@@ -68,16 +68,16 @@ export function ToastContainer() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
-      <div role="alert" aria-live="assertive" aria-atomic="false">
+      <div aria-live="assertive" aria-atomic="false" className="flex flex-col gap-2">
         {errorToasts.map((t) => (
-          <div key={t.id} className={toastClass(t.type)}>
+          <div key={t.id} role="alert" className={toastClass(t.type)}>
             {t.message}
           </div>
         ))}
       </div>
-      <div role="status" aria-live="polite" aria-atomic="false">
+      <div aria-live="polite" aria-atomic="false" className="flex flex-col gap-2">
         {otherToasts.map((t) => (
-          <div key={t.id} className={toastClass(t.type)}>
+          <div key={t.id} role="status" className={toastClass(t.type)}>
             {t.message}
           </div>
         ))}
