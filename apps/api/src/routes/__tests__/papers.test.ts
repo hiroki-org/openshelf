@@ -1537,6 +1537,38 @@ describe("papers routes", () => {
         );
     });
 
+    it("PATCH /api/papers/:id ignores duplicate valid tags in the fast pass", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const set = vi.fn().mockReturnThis();
+        const where = vi.fn().mockReturnThis();
+        mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+        mockDb.update = vi.fn().mockImplementation(() => ({ set, where } as any));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    tags: ["tag2", "tag2"]
+                }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(200);
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tags: JSON.stringify(["tag2"])
+            }),
+        );
+    });
+
     it("PATCH /api/papers/:id validates invalid types and values", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
@@ -1636,7 +1668,7 @@ describe("papers routes", () => {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    tags: [" ", "tag2"]
+                    tags: [" ", "tag2", ""]
                 }),
             },
             env as any,
