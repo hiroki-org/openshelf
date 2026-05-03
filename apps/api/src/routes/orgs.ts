@@ -263,10 +263,11 @@ orgsRoute.get("/:slug/tags", async (c) => {
       if (query) {
         const filtered: string[] = [];
         for (const tag of tags) {
-          let matches = matchCache.get(tag);
+          const lower = tag.toLowerCase();
+          let matches = matchCache.get(lower);
           if (matches === undefined) {
-            matches = tag.toLowerCase().startsWith(query);
-            matchCache.set(tag, matches);
+            matches = lower.startsWith(query);
+            matchCache.set(lower, matches);
           }
           if (matches) filtered.push(tag);
         }
