@@ -39,7 +39,12 @@ function urlEncode(value: string): string {
 }
 
 function sanitizeUrl(url: string): string {
-  return url.startsWith("http://") || url.startsWith("https://") ? url : "#";
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:" ? url : "#";
+  } catch {
+    return "#";
+  }
 }
 
 export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
