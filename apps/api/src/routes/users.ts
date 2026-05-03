@@ -80,6 +80,8 @@ const MAX_CACHE_SIZE = 1000;
 function getCachedResults(key: string): UserSearchResult[] | null {
   const cached = searchCache.get(key);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    searchCache.delete(key);
+    searchCache.set(key, cached);
     return cached.data;
   }
   return null;
@@ -88,11 +90,19 @@ function getCachedResults(key: string): UserSearchResult[] | null {
 function setCachedResults(key: string, data: UserSearchResult[]) {
   searchCache.delete(key);
 
-  // O(1) eviction for LRU cache management
   if (searchCache.size >= MAX_CACHE_SIZE) {
-    const oldestKey = searchCache.keys().next().value;
-    if (oldestKey !== undefined) {
-      searchCache.delete(oldestKey);
+    const now = Date.now();
+    for (const [k, v] of searchCache.entries()) {
+      if (now - v.timestamp > CACHE_TTL_MS) {
+        searchCache.delete(k);
+      }
+    }
+
+    if (searchCache.size >= MAX_CACHE_SIZE) {
+      const oldestKey = searchCache.keys().next().value;
+      if (oldestKey !== undefined) {
+        searchCache.delete(oldestKey);
+      }
     }
   }
   searchCache.set(key, { data, timestamp: Date.now() });
