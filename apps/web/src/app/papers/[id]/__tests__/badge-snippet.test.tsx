@@ -85,4 +85,20 @@ describe("BadgeSnippet", () => {
       ),
     ).toBeInTheDocument();
   });
+
+  it("escapes malicious siteBase in HTML snippet to prevent XSS", () => {
+    render(
+      <BadgeSnippet
+        paperId="paper-1"
+        title="Paper Title"
+        siteBase='https://openshelf.example"><script>alert(1)</script>'
+      />,
+    );
+
+    expect(
+      screen.getByText((text) =>
+        text.includes('href="https://openshelf.example&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;/papers/paper-1"')
+      )
+    ).toBeInTheDocument();
+  });
 });
