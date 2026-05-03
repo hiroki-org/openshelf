@@ -96,7 +96,7 @@ describe("CSRF configuration", () => {
             }
         });
 
-        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(vi.fn());
 
         try {
             await app.request(
