@@ -5,7 +5,7 @@ import {
     createTestJWT,
     makeQuery,
 } from "../../test/helpers";
-import usersRoute from "../users";
+
 
 let mockDb: any;
 
