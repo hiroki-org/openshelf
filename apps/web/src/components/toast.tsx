@@ -23,7 +23,7 @@ function generateId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
-  return Math.random().toString(36).substring(2, 9);
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
 function addToast(message: string, type: ToastType) {
@@ -68,14 +68,14 @@ export function ToastContainer() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none">
-      <div aria-live="assertive" aria-atomic="false">
+      <div role="alert" aria-live="assertive" aria-atomic="false">
         {errorToasts.map((t) => (
           <div key={t.id} className={toastClass(t.type)}>
             {t.message}
           </div>
         ))}
       </div>
-      <div aria-live="polite" aria-atomic="false">
+      <div role="status" aria-live="polite" aria-atomic="false">
         {otherToasts.map((t) => (
           <div key={t.id} className={toastClass(t.type)}>
             {t.message}
