@@ -101,4 +101,21 @@ describe("BadgeSnippet", () => {
       )
     ).toBeInTheDocument();
   });
+
+  it("replaces javascript: siteBase with # in HTML snippet to prevent protocol injection", () => {
+    render(
+      <BadgeSnippet
+        paperId="paper-1"
+        title="Paper Title"
+        siteBase="javascript:alert(document.cookie)//"
+      />,
+    );
+
+    expect(
+      screen.getByText((text) => text.includes('href="#"'))
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText((text) => text.includes("href=\"javascript:"))
+    ).toBeNull();
+  });
 });

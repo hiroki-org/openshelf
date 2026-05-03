@@ -38,6 +38,10 @@ function urlEncode(value: string): string {
   return encodeURIComponent(value);
 }
 
+function sanitizeUrl(url: string): string {
+  return url.startsWith("http://") || url.startsWith("https://") ? url : "#";
+}
+
 export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
   const { snippets, badgePreviewUrl } = useMemo(() => {
     const normalizedSiteBase =
@@ -64,7 +68,7 @@ export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
       {
         key: "html",
         label: "HTML",
-        value: `<a href="${escapeHtmlAttribute(paperUrl)}"><img src="${escapeHtmlAttribute(badgeSvgUrl)}" alt="OpenShelf badge for ${escapeHtmlAttribute(title)}" /></a>`,
+        value: `<a href="${escapeHtmlAttribute(sanitizeUrl(paperUrl))}"><img src="${escapeHtmlAttribute(badgeSvgUrl)}" alt="OpenShelf badge for ${escapeHtmlAttribute(title)}" /></a>`,
       },
       {
         key: "shields",
