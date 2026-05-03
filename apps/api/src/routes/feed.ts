@@ -286,16 +286,34 @@ function buildPaperEntries(
     const frontendBase = normalizeBaseUrl(frontendBaseUrl);
     const apiBase = normalizeBaseUrl(apiBaseUrl);
     const fallback = fallbackAuthorName.trim() || "OpenShelf";
+    const fallbackArray = [fallback];
 
-    return papersRows.map((paper) => {
-        const authors = (authorsByPaperId.get(paper.id) ?? []).map(authorLabel);
-        const entryAuthors = authors.length > 0 ? authors : [fallback];
-        const enclosure = filesByPaperId.get(paper.id)?.[0];
+    const len = papersRows.length;
+    const entries: FeedEntry[] = new Array(len);
 
-        return {
+    for (let i = 0; i < len; i++) {
+        const paper = papersRows[i];
+        const paperId = paper.id;
+
+        const authorsRow = authorsByPaperId.get(paperId);
+        let entryAuthors;
+        if (authorsRow !== undefined && authorsRow.length > 0) {
+            const authorsLen = authorsRow.length;
+            entryAuthors = new Array(authorsLen);
+            for (let j = 0; j < authorsLen; j++) {
+                entryAuthors[j] = authorLabel(authorsRow[j]);
+            }
+        } else {
+            entryAuthors = fallbackArray;
+        }
+
+        const filesRow = filesByPaperId.get(paperId);
+        const enclosure = filesRow !== undefined && filesRow.length > 0 ? filesRow[0] : undefined;
+
+        entries[i] = {
             title: paper.title,
-            link: `${frontendBase}/papers/${encodeURIComponent(paper.id)}`,
-            id: `urn:openshelf:paper:${paper.id}`,
+            link: `${frontendBase}/papers/${encodeURIComponent(paperId)}`,
+            id: `urn:openshelf:paper:${paperId}`,
             published: toIsoString(paper.createdAt),
             updated: toIsoString(paper.updatedAt),
             summary: paper.abstract ?? "",
@@ -303,13 +321,15 @@ function buildPaperEntries(
             category: paper.category ?? undefined,
             enclosure: enclosure
                 ? {
-                      href: `${apiBase}/api/papers/${encodeURIComponent(paper.id)}/files/${encodeURIComponent(enclosure.id)}/stream`,
+                      href: `${apiBase}/api/papers/${encodeURIComponent(paperId)}/files/${encodeURIComponent(enclosure.id)}/stream`,
                       type: enclosure.mimeType ?? "application/pdf",
                       length: enclosure.sizeBytes,
                   }
                 : undefined,
         };
-    });
+    }
+
+    return entries;
 }
 
 async function buildFeedResponse(
