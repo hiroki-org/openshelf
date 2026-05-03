@@ -2175,7 +2175,7 @@ describe("papers routes", () => {
             const res = await app.request("http://localhost/api/papers/paper-1/invites", {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                body: "{"
+                body: ""
             }, env as any);
             expect(res.status).toBe(400);
             expect(await res.json()).toEqual({ error: "Invalid JSON body" });
@@ -2374,7 +2374,7 @@ describe("papers routes", () => {
             const res = await app.request("http://localhost/api/papers/paper-1/description", {
                 method: "PUT",
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                body: "{"
+                body: ""
             }, env as any);
             expect(res.status).toBe(400);
             expect(await res.json()).toEqual({ error: "Invalid JSON body" });
@@ -2394,7 +2394,7 @@ describe("papers routes", () => {
             const res = await app.request("http://localhost/api/papers/paper-1", {
                 method: "PATCH",
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                body: "{"
+                body: ""
             }, env as any);
             expect(res.status).toBe(400);
             expect(await res.json()).toEqual({ error: "Invalid JSON body" });
@@ -2411,6 +2411,16 @@ describe("papers routes", () => {
         });
 
         it("POST /api/papers/:id/track handles missing json payload", async () => {
+            const res = await app.request("http://localhost/api/papers/paper-1/track", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Origin": "http://localhost:3000" },
+                body: ""
+            }, env as any);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+        });
+
+        it("POST /api/papers/:id/track handles invalid json payload", async () => {
             const res = await app.request("http://localhost/api/papers/paper-1/track", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Origin": "http://localhost:3000" },
