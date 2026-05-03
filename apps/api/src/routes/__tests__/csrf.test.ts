@@ -96,20 +96,20 @@ describe("CSRF configuration", () => {
             }
         });
 
-        const originalConsoleError = console.error;
-        const consoleErrorMock = vi.fn();
-        console.error = consoleErrorMock;
+        const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
-        await app.request(
-            "http://localhost/api/auth/logout",
-            {
-                method: "POST"
-            },
-            env as any
-        );
+        try {
+            await app.request(
+                "http://localhost/api/auth/logout",
+                {
+                    method: "POST"
+                },
+                env as any
+            );
 
-        expect(consoleErrorMock).toHaveBeenCalledWith("CSRF check error: Error: Mocked environment error");
-
-        console.error = originalConsoleError;
+            expect(consoleErrorSpy).toHaveBeenCalledWith("CSRF check error: Error: Mocked environment error");
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
     });
 });
