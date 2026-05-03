@@ -2171,7 +2171,7 @@ describe("papers routes", () => {
             token = await createTestJWT({ sub: "user-test", githubId: "123", name: "Test" });
         });
 
-        it("POST /api/papers/:id/invites handles missing JSON body", async () => {
+        it("POST /api/papers/:id/invites handles malformed JSON body", async () => {
             const res = await app.request("http://localhost/api/papers/paper-1/invites", {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -2370,7 +2370,7 @@ describe("papers routes", () => {
             expect(json.url).toBe("https://fake-presigned-url");
         });
 
-        it("PUT /api/papers/:id/description handles missing JSON body", async () => {
+        it("PUT /api/papers/:id/description handles malformed JSON body", async () => {
             const res = await app.request("http://localhost/api/papers/paper-1/description", {
                 method: "PUT",
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -2390,7 +2390,7 @@ describe("papers routes", () => {
             expect(await res.json()).toEqual({ error: "Invalid JSON body" });
         });
 
-        it("PATCH /api/papers/:id handles missing JSON body", async () => {
+        it("PATCH /api/papers/:id handles malformed JSON body", async () => {
             const res = await app.request("http://localhost/api/papers/paper-1", {
                 method: "PATCH",
                 headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
