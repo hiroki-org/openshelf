@@ -286,7 +286,7 @@ function buildPaperEntries(
     const frontendBase = normalizeBaseUrl(frontendBaseUrl);
     const apiBase = normalizeBaseUrl(apiBaseUrl);
     const fallback = fallbackAuthorName.trim() || "OpenShelf";
-    const fallbackArray = [fallback];
+
 
     const len = papersRows.length;
     const entries: FeedEntry[] = new Array(len);
@@ -304,7 +304,7 @@ function buildPaperEntries(
                 entryAuthors[j] = authorLabel(authorsRow[j]);
             }
         } else {
-            entryAuthors = fallbackArray;
+            entryAuthors = [fallback];
         }
 
         const filesRow = filesByPaperId.get(paperId);
