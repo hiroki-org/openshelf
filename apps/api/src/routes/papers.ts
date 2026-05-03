@@ -1601,10 +1601,9 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
                 }
                 // Check for duplicates
                 if (seen.has(tag)) {
-                    hasChanges = true;
-                } else {
-                    seen.add(tag);
+                    return c.json({ error: "tags must not contain duplicates" }, 400);
                 }
+                seen.add(tag);
                 validCount++;
             }
 
@@ -1613,16 +1612,20 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             } else {
                 // Fallback path: allocate new array and trim
                 const normalizedTags: string[] = [];
+                const normalizedSeen = new Set<string>();
                 for (let i = 0; i < len; i++) {
                     const tag = tags[i].trim().toLowerCase();
                     if (tag.length === 0) continue;
                     if (tag.length > MAX_TAG_LENGTH) {
                         return c.json({ error: `tags must be ${MAX_TAG_LENGTH} chars or less` }, 400);
                     }
+                    if (normalizedSeen.has(tag)) {
+                        return c.json({ error: "tags must not contain duplicates" }, 400);
+                    }
+                    normalizedSeen.add(tag);
                     normalizedTags.push(tag);
                 }
-                const uniqueTags = [...new Set(normalizedTags)];
-                updates.tags = uniqueTags.length > 0 ? JSON.stringify(uniqueTags) : null;
+                updates.tags = normalizedTags.length > 0 ? JSON.stringify(normalizedTags) : null;
             }
         } else if (body.tags === null) {
             updates.tags = null;

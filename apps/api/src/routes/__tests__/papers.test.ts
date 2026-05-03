@@ -1341,7 +1341,7 @@ describe("papers routes", () => {
     });
 
 
-    it("PATCH /api/papers/:id updates tags correctly with normalization and deduplication", async () => {
+    it("PATCH /api/papers/:id updates tags correctly with normalization", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const where = vi.fn(async () => undefined);
         const set = vi.fn(() => ({ where }));
@@ -1361,7 +1361,7 @@ describe("papers routes", () => {
                     Authorization: `Bearer ${token}`,
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ tags: [" AI", "ML ", "NLP", "ai"] }),
+                body: JSON.stringify({ tags: [" AI", "ML ", "NLP"] }),
             },
             env as any,
         );
@@ -1371,6 +1371,32 @@ describe("papers routes", () => {
             tags: JSON.stringify(["ai", "ml", "nlp"]),
             updatedAt: expect.anything(),
         });
+    });
+
+    it("PATCH /api/papers/:id rejects tags that produce duplicates after normalization", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        mockDb.select = vi
+            .fn()
+            .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
+            .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+        const res = await app.request(
+            "http://localhost/api/papers/paper-1",
+            {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ tags: [" AI", "ML ", "NLP", "ai"] }),
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ error: "tags must not contain duplicates" });
     });
 
     it("PATCH /api/papers/:id rejects invalid tag items", async () => {
@@ -1402,15 +1428,12 @@ describe("papers routes", () => {
         expect(mockDb.update).not.toHaveBeenCalled();
     });
 
-    it("PATCH /api/papers/:id deduplicates mixed-case tags after normalization", async () => {
+    it("PATCH /api/papers/:id rejects tags that become duplicates after normalization", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
-        const where = vi.fn(async () => undefined);
-        const set = vi.fn(() => ({ where }));
         mockDb.select = vi
             .fn()
             .mockImplementationOnce(() => makeQuery({ getResult: { id: "paper-1", visibility: "private" } }))
             .mockImplementationOnce(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
-        mockDb.update = vi.fn(() => ({ set }));
 
         const app = await createTestApp();
         const env = createTestEnv();
@@ -1427,11 +1450,8 @@ describe("papers routes", () => {
             env as any,
         );
 
-        expect(res.status).toBe(200);
-        expect(set).toHaveBeenCalledWith({
-            tags: JSON.stringify(["ai"]),
-            updatedAt: expect.anything(),
-        });
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ error: "tags must not contain duplicates" });
     });
 
     it("PATCH /api/papers/:id rejects requests without valid updatable fields", async () => {
@@ -1537,12 +1557,9 @@ describe("papers routes", () => {
         );
     });
 
-    it("PATCH /api/papers/:id ignores duplicate valid tags in the fast pass", async () => {
+    it("PATCH /api/papers/:id rejects duplicate valid tags in the fast pass", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
-        const set = vi.fn().mockReturnThis();
-        const where = vi.fn().mockReturnThis();
         mockDb.select = vi.fn().mockImplementation(() => makeQuery({ getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" } }));
-        mockDb.update = vi.fn().mockImplementation(() => ({ set, where } as any));
 
         const app = await createTestApp();
         const env = createTestEnv();
@@ -1561,12 +1578,8 @@ describe("papers routes", () => {
             env as any,
         );
 
-        expect(res.status).toBe(200);
-        expect(set).toHaveBeenCalledWith(
-            expect.objectContaining({
-                tags: JSON.stringify(["tag2"])
-            }),
-        );
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ error: "tags must not contain duplicates" });
     });
 
     it("PATCH /api/papers/:id validates invalid types and values", async () => {
@@ -1887,7 +1900,7 @@ describe("papers routes", () => {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    tags: [" test", "a".repeat(256)]
+                    tags: [" test", ` ${"a".repeat(256)}`]
                 }),
             },
             env as any,
