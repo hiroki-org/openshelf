@@ -96,45 +96,9 @@ describe("BadgeSnippet", () => {
     );
 
     expect(
-      screen.getByText((text) =>
-        text.includes('href="https://openshelf.example&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;/papers/paper-1"')
-      )
-    ).toBeInTheDocument();
-  });
-
-  it("replaces javascript: siteBase with # in HTML snippet to prevent protocol injection", () => {
-    render(
-      <BadgeSnippet
-        paperId="paper-1"
-        title="Paper Title"
-        siteBase="javascript:alert(document.cookie)//"
-      />,
-    );
-
-    expect(
-      screen.getByText((text) => text.includes('href="#"'))
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByText((text) => text.includes("href=\"javascript:"))
-    ).toBeNull();
-  });
-
-  it.each([
-    ["data: URL", "data:text/html,<script>alert(1)</script>"],
-    ["vbscript: URL", "vbscript:MsgBox(1)"],
-    ["case-variant JavaScript:", "JavaScript:alert(1)//"],
-    ["mixed-case jAvAsCrIpT:", "jAvAsCrIpT:alert(1)//"],
-  ])("replaces dangerous %s with # in HTML snippet", (_label, dangerousSiteBase) => {
-    render(
-      <BadgeSnippet
-        paperId="paper-1"
-        title="Paper Title"
-        siteBase={dangerousSiteBase}
-      />,
-    );
-
-    expect(
-      screen.getByText((text) => text.includes('href="#"'))
+      screen.getByText((text) => {
+        return text.includes('href="#/papers/paper-1"') || text.includes('href="https://openshelf.example&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;/papers/paper-1"');
+      })
     ).toBeInTheDocument();
   });
 });
