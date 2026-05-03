@@ -235,7 +235,6 @@ describe("users routes", () => {
         expect(res.status).toBe(404);
         expect(((await res.json()) as any).error).toBe("User not found");
     });
-});
 
     it("GET /api/users/search cache evicts oldest entry when MAX_CACHE_SIZE is reached", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
@@ -350,3 +349,5 @@ describe("users routes", () => {
         const data = await res.json() as any;
         expect(data.error).toBe("displayName must be 50 chars or less");
     });
+
+});
