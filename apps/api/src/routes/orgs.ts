@@ -246,7 +246,7 @@ orgsRoute.get("/:slug/tags", async (c) => {
 
   const counts = new Map<string, number>();
   const tagCache = new Map<string, string[]>();
-  const lowerCache = new Map<string, string>();
+  const matchCache = new Map<string, boolean>();
 
   for (const paper of orgPapers) {
     const isAuthor = paper.authorUserId === currentUserId;
@@ -260,18 +260,22 @@ orgsRoute.get("/:slug/tags", async (c) => {
     let tags = tagCache.get(rawTags);
     if (tags === undefined) {
       tags = parseStoredTags(rawTags);
+      if (query) {
+        const filtered: string[] = [];
+        for (const tag of tags) {
+          let matches = matchCache.get(tag);
+          if (matches === undefined) {
+            matches = tag.toLowerCase().startsWith(query);
+            matchCache.set(tag, matches);
+          }
+          if (matches) filtered.push(tag);
+        }
+        tags = filtered;
+      }
       tagCache.set(rawTags, tags);
     }
 
     for (const tag of tags) {
-      if (query) {
-        let lower = lowerCache.get(tag);
-        if (lower === undefined) {
-          lower = tag.toLowerCase();
-          lowerCache.set(tag, lower);
-        }
-        if (!lower.startsWith(query)) continue;
-      }
       counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
   }
