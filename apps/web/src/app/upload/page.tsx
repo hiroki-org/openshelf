@@ -425,6 +425,7 @@ export default function UploadPage() {
                     <button
                       type="button"
                       onClick={() => removeFile(i)}
+                      aria-label="ファイルを削除"
                       className="flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
                     >
                       <span>✕</span>
