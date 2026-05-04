@@ -25,7 +25,7 @@ auth.get("/github", async (c) => {
         [requestSignalOrigin, requestedFrontendOrigin],
         c.env.FRONTEND_URL,
         parseOriginList(c.env.ALLOWED_ORIGINS),
-        { allowWildcard: false },
+        { allowWildcard: false }
     );
 
     // Opportunistically clean up expired states to prevent unbounded growth.
@@ -240,7 +240,7 @@ auth.get("/github/callback", async (c) => {
         [flowOrigin],
         c.env.FRONTEND_URL,
         parseOriginList(c.env.ALLOWED_ORIGINS),
-        { allowWildcard: false },
+        { allowWildcard: false }
     );
     if (!frontendUrl) {
         console.error("FATAL: FRONTEND_URL environment variable is not set.");

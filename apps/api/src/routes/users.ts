@@ -65,44 +65,43 @@ usersRoute.put("/me", authMiddleware, updateMeHandler);
 
 // Simple in-memory cache for user search
 type UserSearchResult = Pick<
-  InferSelectModel<typeof users>,
-  "id" | "name" | "displayName" | "githubId" | "avatarUrl"
+    InferSelectModel<typeof users>,
+    "id" | "name" | "displayName" | "githubId" | "avatarUrl"
 >;
 
 type CachedSearchResult = {
-  data: UserSearchResult[];
-  timestamp: number;
+    data: UserSearchResult[];
+    timestamp: number;
 };
 const searchCache = new Map<string, CachedSearchResult>();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
 const MAX_CACHE_SIZE = 1000;
 
 function getCachedResults(key: string): UserSearchResult[] | null {
-  const cached = searchCache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    searchCache.delete(key);
-    searchCache.set(key, cached);
-    return cached.data;
-  }
-  return null;
+    const cached = searchCache.get(key);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+        return cached.data;
+    }
+    return null;
 }
 
 function setCachedResults(key: string, data: UserSearchResult[]) {
-  searchCache.delete(key);
+    searchCache.delete(key);
 
+  // Prune expired entries in insertion order and stop once the cache reaches fresh data.
   if (searchCache.size >= MAX_CACHE_SIZE) {
     const now = Date.now();
     for (const [k, v] of searchCache.entries()) {
       if (now - v.timestamp > CACHE_TTL_MS) {
         searchCache.delete(k);
+      } else {
+        break;
       }
     }
 
+    // if still too large, clear to prevent memory leak
     if (searchCache.size >= MAX_CACHE_SIZE) {
-      const oldestKey = searchCache.keys().next().value;
-      if (oldestKey !== undefined) {
-        searchCache.delete(oldestKey);
-      }
+      searchCache.clear();
     }
   }
   searchCache.set(key, { data, timestamp: Date.now() });
