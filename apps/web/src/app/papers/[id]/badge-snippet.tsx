@@ -80,7 +80,7 @@ export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
       {
         key: "shields",
         label: "shields.io",
-        value: `[![OpenShelf Badge](${shieldsImageUrl})](${paperUrl})`,
+        value: `[![OpenShelf Badge](${shieldsImageUrl})](${safePaperUrl})`,
       },
     ];
     return { snippets: items, badgePreviewUrl: badgeSvgUrl };
