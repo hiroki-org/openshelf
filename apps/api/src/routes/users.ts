@@ -78,30 +78,25 @@ const CACHE_TTL_MS = 60 * 1000; // 1 minute
 const MAX_CACHE_SIZE = 1000;
 
 function getCachedResults(key: string): UserSearchResult[] | null {
-    const cached = searchCache.get(key);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-        return cached.data;
-    }
+  const cached = searchCache.get(key);
+  if (!cached) return null;
+
+  if (Date.now() - cached.timestamp >= CACHE_TTL_MS) {
+    searchCache.delete(key);
     return null;
+  }
+
+  return cached.data;
 }
 
 function setCachedResults(key: string, data: UserSearchResult[]) {
-    searchCache.delete(key);
+  searchCache.delete(key);
 
-  // Prune expired entries in insertion order and stop once the cache reaches fresh data.
+  // Evict the oldest entry if the cache has reached its maximum size (FIFO)
   if (searchCache.size >= MAX_CACHE_SIZE) {
-    const now = Date.now();
-    for (const [k, v] of searchCache.entries()) {
-      if (now - v.timestamp > CACHE_TTL_MS) {
-        searchCache.delete(k);
-      } else {
-        break;
-      }
-    }
-
-    // if still too large, clear to prevent memory leak
-    if (searchCache.size >= MAX_CACHE_SIZE) {
-      searchCache.clear();
+    const oldestKey = searchCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      searchCache.delete(oldestKey);
     }
   }
   searchCache.set(key, { data, timestamp: Date.now() });

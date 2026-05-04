@@ -6,6 +6,7 @@ import {
     makeQuery,
 } from "../../test/helpers";
 
+
 let mockDb: any;
 
 vi.mock("drizzle-orm/d1", () => ({
@@ -234,5 +235,40 @@ describe("users routes", () => {
 
         expect(res.status).toBe(404);
         expect(((await res.json()) as any).error).toBe("User not found");
+    });
+
+    it("GET /api/users/search evicts the oldest item when MAX_CACHE_SIZE is reached", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
+        mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Alice", githubId: "alice" }] }));
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        // MAX_CACHE_SIZE is 1000
+        for (let i = 0; i < 1002; i++) {
+            await app.request(
+                `http://localhost/api/users/search?q=ali${i}`,
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                },
+                env as any
+            );
+        }
+
+        // The first item `ali0` should be evicted. We mock DB to return Bob if it fetches, otherwise cache.
+        mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-3", name: "Bob", githubId: "bob" }] }));
+
+        const res = await app.request(
+            "http://localhost/api/users/search?q=ali0",
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            },
+            env as any
+        );
+
+        expect(res.status).toBe(200);
+        const body = (await res.json()) as any;
+        expect(body.users).toHaveLength(1);
+        expect(body.users[0].name).toBe("Bob"); // Fetched from DB since cache was evicted
     });
 });
