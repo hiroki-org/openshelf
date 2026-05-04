@@ -64,11 +64,12 @@ export function resolveAllowedOrigin(
     candidates: Array<string | undefined>,
     frontendUrl: string,
     allowedOrigins: string[],
+    options: { allowWildcard?: boolean } = {},
 ): string {
     const frontendOrigin = normalizeOrigin(frontendUrl);
     for (const candidate of candidates) {
         const normalized = normalizeOrigin(candidate);
-        if (isAllowedOrigin(normalized, frontendOrigin, allowedOrigins)) {
+        if (isAllowedOrigin(normalized, frontendOrigin, allowedOrigins, options)) {
             return normalized as string;
         }
     }
