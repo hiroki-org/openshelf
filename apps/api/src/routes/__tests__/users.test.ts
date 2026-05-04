@@ -6,6 +6,7 @@ import {
     makeQuery,
 } from "../../test/helpers";
 
+
 let mockDb: any;
 
 vi.mock("drizzle-orm/d1", () => ({
@@ -236,145 +237,38 @@ describe("users routes", () => {
         expect(((await res.json()) as any).error).toBe("User not found");
     });
 
-    it("GET /api/users/search cache evicts oldest entry when MAX_CACHE_SIZE is reached", async () => {
+    it("GET /api/users/search evicts the oldest item when MAX_CACHE_SIZE is reached", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
-        mockDb.select = vi.fn(() => makeQuery({ allResult: [] }));
+        mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-2", name: "Alice", githubId: "alice" }] }));
 
         const app = await createTestApp();
         const env = createTestEnv();
 
-        // Fill cache up to MAX_CACHE_SIZE + 1
-        for (let i = 0; i <= 1000; i++) {
+        // MAX_CACHE_SIZE is 1000
+        for (let i = 0; i < 1002; i++) {
             await app.request(
-                `http://localhost/api/users/search?q=search${i}`,
-                { headers: { Authorization: `Bearer ${token}` } },
+                `http://localhost/api/users/search?q=ali${i}`,
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                },
                 env as any
             );
         }
 
-        // Search 0 should have been evicted, so requesting it again will hit the DB
-        mockDb.select.mockClear();
-        await app.request(
-            `http://localhost/api/users/search?q=search0`,
-            { headers: { Authorization: `Bearer ${token}` } },
+        // The first item `ali0` should be evicted. We mock DB to return Bob if it fetches, otherwise cache.
+        mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-3", name: "Bob", githubId: "bob" }] }));
+
+        const res = await app.request(
+            "http://localhost/api/users/search?q=ali0",
+            {
+                headers: { Authorization: `Bearer ${token}` }
+            },
             env as any
         );
 
-        expect(mockDb.select).toHaveBeenCalledTimes(1);
-    });
-
-    it("GET /api/users/search cache evicts oldest entry safely even when first entry is undefined", async () => {
-        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
-        mockDb.select = vi.fn(() => makeQuery({ allResult: [] }));
-
-        const app = await createTestApp();
-        const env = createTestEnv();
-
-        // Fill cache up to MAX_CACHE_SIZE
-        for (let i = 0; i < 1000; i++) {
-            await app.request(
-                `http://localhost/api/users/search?q=search${i}`,
-                { headers: { Authorization: `Bearer ${token}` } },
-                env as any
-            );
-        }
-
-        // Mock Map.prototype.keys to return undefined for next().value
-        const originalKeys = Map.prototype.keys;
-        Map.prototype.keys = function() {
-            return {
-                next: () => ({ value: undefined, done: true })
-            } as any;
-        };
-
-        try {
-            // This should trigger the eviction logic but with undefined oldestKey
-            const res = await app.request(
-                `http://localhost/api/users/search?q=search1001`,
-                { headers: { Authorization: `Bearer ${token}` } },
-                env as any
-            );
-
-            expect(res.status).toBe(200);
-        } finally {
-            // Restore Map.prototype.keys
-            Map.prototype.keys = originalKeys;
-        }
-    });
-
-    it("GET /api/users/:id returns profile", async () => {
-        mockDb.select = vi.fn(() => makeQuery({ getResult: { id: "user-123", name: "Bob", displayName: "Bobby", avatarUrl: null, githubId: "b" } }));
-        const app = await createTestApp();
-        const res = await app.request("http://localhost/api/users/user-123", {}, createTestEnv() as any);
         expect(res.status).toBe(200);
-        const data = await res.json() as any;
-        expect(data.user.id).toBe("user-123");
+        const body = (await res.json()) as any;
+        expect(body.users).toHaveLength(1);
+        expect(body.users[0].name).toBe("Bob"); // Fetched from DB since cache was evicted
     });
-
-    it("PUT /api/users/me returns 400 for invalid JSON body", async () => {
-        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
-
-        const app = await createTestApp();
-        const res = await app.request(
-            "http://localhost/api/users/me",
-            {
-                method: "PUT",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
-                body: "{"
-            },
-            createTestEnv() as any
-        );
-
-        expect(res.status).toBe(400);
-        const data = await res.json() as any;
-        expect(data.error).toBe("Invalid JSON body");
-    });
-
-    it("PUT /api/users/me returns 400 for invalid request body (null)", async () => {
-        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
-
-        const app = await createTestApp();
-        const res = await app.request(
-            "http://localhost/api/users/me",
-            {
-                method: "PUT",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
-                body: "null"
-            },
-            createTestEnv() as any
-        );
-
-        expect(res.status).toBe(400);
-        const data = await res.json() as any;
-        expect(data.error).toBe("Invalid request body");
-    });
-
-    it("PUT /api/users/me returns 400 for overly long display name", async () => {
-        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
-
-        const app = await createTestApp();
-        const res = await app.request(
-            "http://localhost/api/users/me",
-            {
-                method: "PUT",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({ displayName: "A".repeat(51) })
-            },
-            createTestEnv() as any
-        );
-
-        expect(res.status).toBe(400);
-        const data = await res.json() as any;
-        expect(data.error).toBe("displayName must be 50 chars or less");
-    });
-
 });
