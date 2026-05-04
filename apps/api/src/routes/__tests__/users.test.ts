@@ -270,9 +270,36 @@ describe("users routes", () => {
         const app = await createTestApp();
         const env = createTestEnv();
 
-        // Let's create an environment where next().value returns undefined.
-        // We'll mock the Map temporarily.
-        // Actually it's easier just to let the coverage happen since we have the basic evict test covering lines 93-97.
+        // Fill cache up to MAX_CACHE_SIZE
+        for (let i = 0; i < 1000; i++) {
+            await app.request(
+                `http://localhost/api/users/search?q=search${i}`,
+                { headers: { Authorization: `Bearer ${token}` } },
+                env as any
+            );
+        }
+
+        // Mock Map.prototype.keys to return undefined for next().value
+        const originalKeys = Map.prototype.keys;
+        Map.prototype.keys = function() {
+            return {
+                next: () => ({ value: undefined, done: true })
+            } as any;
+        };
+
+        try {
+            // This should trigger the eviction logic but with undefined oldestKey
+            const res = await app.request(
+                `http://localhost/api/users/search?q=search1001`,
+                { headers: { Authorization: `Bearer ${token}` } },
+                env as any
+            );
+
+            expect(res.status).toBe(200);
+        } finally {
+            // Restore Map.prototype.keys
+            Map.prototype.keys = originalKeys;
+        }
     });
 
     it("GET /api/users/:id returns profile", async () => {
