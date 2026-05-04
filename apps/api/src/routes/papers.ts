@@ -1573,6 +1573,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             const len = tags.length;
             let hasChanges = false;
             let validCount = 0;
+            const seen = new Set<string>();
 
             // Fast pass to check if the array is already perfectly clean
             for (let i = 0; i < len; i++) {
@@ -1599,11 +1600,10 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
                     return c.json({ error: `tags must be ${MAX_TAG_LENGTH} chars or less` }, 400);
                 }
                 // Check for duplicates
-                for (let j = 0; j < i; j++) {
-                    if (tags[j] === tag) {
-                        hasChanges = true;
-                        break;
-                    }
+                if (seen.has(tag)) {
+                    hasChanges = true;
+                } else {
+                    seen.add(tag);
                 }
                 validCount++;
             }
@@ -1613,16 +1613,19 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
             } else {
                 // Fallback path: allocate new array and trim
                 const normalizedTags: string[] = [];
+                const fallbackSeen = new Set<string>();
                 for (let i = 0; i < len; i++) {
                     const tag = tags[i].trim().toLowerCase();
                     if (tag.length === 0) continue;
                     if (tag.length > MAX_TAG_LENGTH) {
                         return c.json({ error: `tags must be ${MAX_TAG_LENGTH} chars or less` }, 400);
                     }
-                    normalizedTags.push(tag);
+                    if (!fallbackSeen.has(tag)) {
+                        fallbackSeen.add(tag);
+                        normalizedTags.push(tag);
+                    }
                 }
-                const uniqueTags = [...new Set(normalizedTags)];
-                updates.tags = uniqueTags.length > 0 ? JSON.stringify(uniqueTags) : null;
+                updates.tags = normalizedTags.length > 0 ? JSON.stringify(normalizedTags) : null;
             }
         } else if (body.tags === null) {
             updates.tags = null;
