@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAllowedOrigin, matchesOriginPattern, normalizeOrigin, resolveAllowedOrigin } from "../origin";
+import { isAllowedOrigin, matchesOriginPattern, normalizeOrigin } from "../origin";
 
 describe("origin utils", () => {
     it("allows request when origin matches the normalized frontend origin", () => {
@@ -92,58 +92,6 @@ describe("origin utils", () => {
                 { allowWildcard: true },
             ),
         ).toBe(false);
-    });
-
-    describe("resolveAllowedOrigin", () => {
-        it("returns the exact match from allowed origins", () => {
-            expect(
-                resolveAllowedOrigin(
-                    ["https://app.example.com"],
-                    "https://frontend.example.com",
-                    ["https://app.example.com", "https://other.example.com"]
-                )
-            ).toBe("https://app.example.com");
-        });
-
-        it("returns frontendUrl as fallback if no matches", () => {
-            expect(
-                resolveAllowedOrigin(
-                    ["https://evil.com"],
-                    "https://frontend.example.com",
-                    ["https://app.example.com"]
-                )
-            ).toBe("https://frontend.example.com");
-        });
-
-        it("respects allowWildcard: false option and falls back to frontendUrl", () => {
-            expect(
-                resolveAllowedOrigin(
-                    ["https://malicious.example.com"],
-                    "https://frontend.example.com",
-                    ["https://*.example.com"],
-                    { allowWildcard: false }
-                )
-            ).toBe("https://frontend.example.com");
-        });
-
-        it("matches wildcard pattern if allowWildcard: true is explicitly passed or defaulted", () => {
-            expect(
-                resolveAllowedOrigin(
-                    ["https://app.example.com"],
-                    "https://frontend.example.com",
-                    ["https://*.example.com"]
-                )
-            ).toBe("https://app.example.com");
-
-            expect(
-                resolveAllowedOrigin(
-                    ["https://app.example.com"],
-                    "https://frontend.example.com",
-                    ["https://*.example.com"],
-                    { allowWildcard: true }
-                )
-            ).toBe("https://app.example.com");
-        });
     });
 
 });
