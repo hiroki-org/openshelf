@@ -48,4 +48,27 @@ describe("toast", () => {
 
     consoleSpy.mockRestore();
   });
+
+  it("generates IDs when crypto.randomUUID is not available", () => {
+    // Mock crypto.randomUUID to be undefined
+    const originalCrypto = global.crypto;
+    Object.defineProperty(global, "crypto", {
+      value: { ...originalCrypto, randomUUID: undefined },
+      writable: true,
+    });
+
+    render(<ToastContainer />);
+
+    act(() => {
+      toast.success("no-crypto-toast");
+    });
+
+    expect(screen.getAllByText("no-crypto-toast")[0]).toBeInTheDocument();
+
+    // Restore crypto
+    Object.defineProperty(global, "crypto", {
+      value: originalCrypto,
+      writable: true,
+    });
+  });
 });

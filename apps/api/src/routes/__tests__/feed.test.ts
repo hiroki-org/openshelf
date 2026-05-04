@@ -692,4 +692,18 @@ describe("feed routes", () => {
         expect(res.status).toBe(400);
         await expect(res.json()).resolves.toEqual({ error: "invalid slug" });
     });
+
+    it("GET /feed/users/:id/collections/:cSlug/atom.xml returns 404 for private or non-existent user collection", async () => {
+        const res = await (await createTestApp()).request(`http://localhost/feed/users/user1/collections/private-coll/atom.xml`, {
+            method: "GET",
+        }, createTestEnv() as any);
+        expect(res.status).toBe(404);
+    });
+
+    it("GET /feed/orgs/:slug/collections/:cSlug/atom.xml returns 404 for private or non-existent org collection", async () => {
+        const res = await (await createTestApp()).request(`http://localhost/feed/orgs/org1/collections/private-coll/atom.xml`, {
+            method: "GET",
+        }, createTestEnv() as any);
+        expect(res.status).toBe(404);
+    });
 });
