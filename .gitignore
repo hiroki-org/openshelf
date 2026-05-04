@@ -52,7 +52,3 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
-pr_description.txt
-pr_description.txt
-patch_*.js
-check_*.sh
