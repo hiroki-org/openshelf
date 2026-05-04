@@ -78,11 +78,15 @@ const CACHE_TTL_MS = 60 * 1000; // 1 minute
 const MAX_CACHE_SIZE = 1000;
 
 function getCachedResults(key: string): UserSearchResult[] | null {
-    const cached = searchCache.get(key);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-        return cached.data;
-    }
+  const cached = searchCache.get(key);
+  if (!cached) return null;
+
+  if (Date.now() - cached.timestamp >= CACHE_TTL_MS) {
+    searchCache.delete(key);
     return null;
+  }
+
+  return cached.data;
 }
 
 function setCachedResults(key: string, data: UserSearchResult[]) {
