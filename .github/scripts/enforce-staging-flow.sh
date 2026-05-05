@@ -8,8 +8,24 @@ COMMENT_ON_CHANGE=${COMMENT_ON_CHANGE:-0}
 OPEN_PR_LIMIT=${OPEN_PR_LIMIT:-100}
 MAX_STACK_COMPARE_CANDIDATES=${MAX_STACK_COMPARE_CANDIDATES:-50}
 
+with_retry() {
+  local max_retries=3
+  local count=0
+  local wait=5
+  while [ $count -lt $max_retries ]; do
+    if "$@"; then
+      return 0
+    fi
+    count=$((count + 1))
+    echo "Command failed. Retrying in $wait seconds ($count/$max_retries)..." >&2
+    sleep $wait
+  done
+  echo "Command failed after $max_retries attempts: $*" >&2
+  return 1
+}
+
 open_pr_rows=$(
-  gh pr list \
+  with_retry gh pr list \
     --repo "$GH_REPO" \
     --state open \
     --limit "$OPEN_PR_LIMIT" \
@@ -47,7 +63,7 @@ find_stacked_base() {
 
     local compare_line
     compare_line=$(
-      gh api "repos/$GH_REPO/compare/$candidate_head_enc...$head_branch_enc" \
+      with_retry gh api "repos/$GH_REPO/compare/$candidate_head_enc...$head_branch_enc" \
         --jq '"\(.status) \(.ahead_by) \(.behind_by)"' 2>/dev/null || true
     )
 
@@ -86,13 +102,13 @@ comment_on_change() {
   fi
 
   if [ "$target_base" = "staging" ]; then
-    gh pr comment "$pr_number" \
+    with_retry gh pr comment "$pr_number" \
       --repo "$GH_REPO" \
       --body 'このリポジトリでは staging 先行フローを採用しています。PR のターゲットを `staging` に変更しました。staging で動作確認後、`staging` → `main` の PR を作成してください。'
     return 0
   fi
 
-  gh pr comment "$pr_number" \
+  with_retry gh pr comment "$pr_number" \
     --repo "$GH_REPO" \
     --body "stacked PR を検知したため、ベースブランチを \`$target_base\` に変更しました。"
 }
@@ -125,7 +141,7 @@ process_pr() {
   fi
 
   echo "Retargeting PR #$pr_number from $base_branch to $target_base"
-  gh pr edit "$pr_number" --repo "$GH_REPO" --base "$target_base"
+  with_retry gh pr edit "$pr_number" --repo "$GH_REPO" --base "$target_base"
   comment_on_change "$pr_number" "$target_base"
 }
 
