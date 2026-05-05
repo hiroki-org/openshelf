@@ -28,6 +28,14 @@ describe("BadgeSnippet", () => {
     vi.unstubAllGlobals();
   });
 
+  function getSnippetCode(label: string): string {
+    const panel = screen.getByText(label).closest("div")?.parentElement;
+    expect(panel).not.toBeNull();
+    const code = panel!.querySelector("code");
+    expect(code).not.toBeNull();
+    return code!.textContent || "";
+  }
+
   it("renders preview and all snippet formats", () => {
     render(
       <BadgeSnippet
@@ -84,5 +92,43 @@ describe("BadgeSnippet", () => {
         ),
       ),
     ).toBeInTheDocument();
+  });
+
+  it("escapes attributes in HTML snippet", () => {
+    render(
+      <BadgeSnippet
+        paperId="paper-1"
+        title="Paper Title"
+        siteBase="https://openshelf.example"
+      />,
+    );
+
+    const codeContent = getSnippetCode("HTML");
+    expect(codeContent).toContain('href="https://openshelf.example/papers/paper-1"');
+    expect(codeContent).toContain('src="http://localhost:8787/badge/paper-1?style=default&amp;label=OpenShelf"');
+  });
+
+  it("sanitizes malicious URLs in siteBase", () => {
+    const maliciousBases = [
+      "javascript:alert(1)",
+      "JavaScript:alert(1)",
+      "data:text/html,<script>alert(1)</script>",
+      "vbscript:msgbox(1)",
+    ];
+
+    for (const base of maliciousBases) {
+      render(
+        <BadgeSnippet
+          paperId="paper-1"
+          title="Paper"
+          siteBase={base}
+        />,
+      );
+
+      const codeContent = getSnippetCode("HTML");
+      expect(codeContent).toContain('href="#"');
+
+      cleanup();
+    }
   });
 });

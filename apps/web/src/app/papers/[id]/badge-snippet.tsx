@@ -38,6 +38,21 @@ function urlEncode(value: string): string {
   return encodeURIComponent(value);
 }
 
+function sanitizeUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return url;
+    }
+    return "#";
+  } catch {
+    if (url.startsWith("/")) {
+      return url;
+    }
+    return "#";
+  }
+}
+
 export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
   const { snippets, badgePreviewUrl } = useMemo(() => {
     const normalizedSiteBase =
@@ -55,21 +70,23 @@ export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
       shieldsEndpointUrl,
     )}`;
 
+    const safePaperUrl = sanitizeUrl(paperUrl);
+
     const items: SnippetItem[] = [
       {
         key: "markdown",
         label: "Markdown",
-        value: `[![OpenShelf Badge](${badgeSvgUrl})](${paperUrl})`,
+        value: `[![OpenShelf Badge](${badgeSvgUrl})](${safePaperUrl})`,
       },
       {
         key: "html",
         label: "HTML",
-        value: `<a href="${paperUrl}"><img src="${badgeSvgUrl}" alt="OpenShelf badge for ${escapeHtmlAttribute(title)}" /></a>`,
+        value: `<a href="${escapeHtmlAttribute(safePaperUrl)}"><img src="${escapeHtmlAttribute(badgeSvgUrl)}" alt="OpenShelf badge for ${escapeHtmlAttribute(title)}" /></a>`,
       },
       {
         key: "shields",
         label: "shields.io",
-        value: `[![OpenShelf Badge](${shieldsImageUrl})](${paperUrl})`,
+        value: `[![OpenShelf Badge](${shieldsImageUrl})](${safePaperUrl})`,
       },
     ];
     return { snippets: items, badgePreviewUrl: badgeSvgUrl };

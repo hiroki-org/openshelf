@@ -79,12 +79,15 @@ const MAX_CACHE_SIZE = 1000;
 
 function getCachedResults(key: string): UserSearchResult[] | null {
   const cached = searchCache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+  if (!cached) return null;
+  if (Date.now() - cached.timestamp >= CACHE_TTL_MS) {
     searchCache.delete(key);
-    searchCache.set(key, cached);
-    return cached.data;
+    return null;
   }
-  return null;
+  // Delete and re-set to maintain LRU order
+  searchCache.delete(key);
+  searchCache.set(key, cached);
+  return cached.data;
 }
 
 function setCachedResults(key: string, data: UserSearchResult[]) {
