@@ -30,7 +30,9 @@ type PdfDocumentProxy = {
   getPage: (pageNumber: number) => Promise<PdfPageProxy>;
 };
 
-const ZOOM_PRESETS = [0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2] as const;
+const ZOOM_PRESETS = [
+  0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2,
+] as const;
 const MIN_ZOOM = ZOOM_PRESETS[0];
 const MAX_ZOOM = ZOOM_PRESETS[ZOOM_PRESETS.length - 1];
 const CONTINUOUS_BUFFER = 2;
@@ -71,7 +73,10 @@ const options = {
 export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pageNodesRef = useRef<Map<number, HTMLDivElement>>(new Map());
-  const pinchStateRef = useRef<{ startDistance: number; startZoom: number } | null>(null);
+  const pinchStateRef = useRef<{
+    startDistance: number;
+    startZoom: number;
+  } | null>(null);
   const pdfDocumentRef = useRef<PdfDocumentProxy | null>(null);
   const searchTextCacheRef = useRef<Map<number, string>>(new Map());
   const isProgrammaticNavRef = useRef(false);
@@ -91,7 +96,10 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const [isPinching, setIsPinching] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
       return;
     }
 
@@ -123,7 +131,9 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       touchEvent.preventDefault();
     };
 
-    node.addEventListener("touchmove", handleNativeTouchMove, { passive: false });
+    node.addEventListener("touchmove", handleNativeTouchMove, {
+      passive: false,
+    });
     return () => {
       node.removeEventListener("touchmove", handleNativeTouchMove);
     };
@@ -141,10 +151,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const activePage = viewMode === "continuous" ? visiblePage : pageNumber;
   const canPrev = activePage > 1;
   const canNext = numPages > 0 && activePage < numPages;
-  const searchMatchSet = useMemo(
-    () => new Set(searchMatches),
-    [searchMatches],
-  );
+  const searchMatchSet = useMemo(() => new Set(searchMatches), [searchMatches]);
   const pages = useMemo(
     () => Array.from({ length: numPages }, (_, index) => index + 1),
     [numPages],
@@ -170,11 +177,14 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     [],
   );
 
-  const scrollToPage = useCallback((targetPage: number, behavior: ScrollBehavior = "smooth") => {
-    const node = pageNodesRef.current.get(targetPage);
-    if (!node) return;
-    node.scrollIntoView({ behavior, block: "start" });
-  }, []);
+  const scrollToPage = useCallback(
+    (targetPage: number, behavior: ScrollBehavior = "smooth") => {
+      const node = pageNodesRef.current.get(targetPage);
+      if (!node) return;
+      node.scrollIntoView({ behavior, block: "start" });
+    },
+    [],
+  );
 
   const goToPage = useCallback(
     (targetPage: number) => {
@@ -302,7 +312,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
                   "str" in item &&
                   typeof (item as { str?: unknown }).str === "string"
                 ) {
-                  return ((item as { str: string }).str).toLowerCase();
+                  return (item as { str: string }).str.toLowerCase();
                 }
                 return "";
               })
@@ -313,7 +323,8 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             matches.push(page);
           }
         } catch (error) {
-          const message = error instanceof Error ? String(error) : String(error);
+          const message =
+            error instanceof Error ? String(error) : String(error);
           console.warn(`Failed to extract text for page ${page}:`, message);
         }
       }
@@ -395,42 +406,43 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => goToPage(activePage - 1)}
-              disabled={!canPrev}
-              className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
-            >
-              前へ
-            </button>
-            <span className="text-xs text-gray-600 dark:text-gray-300">
-              {activePage} / {numPages || "-"}
-            </span>
-            <button
-              type="button"
-              onClick={() => goToPage(activePage + 1)}
-              disabled={!canNext}
-              className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
-            >
+          <button
+            type="button"
+            onClick={() => goToPage(activePage - 1)}
+            disabled={!canPrev}
+            className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+          >
+            前へ
+          </button>
+          <span className="text-xs text-gray-600 dark:text-gray-300">
+            {activePage} / {numPages || "-"}
+          </span>
+          <button
+            type="button"
+            onClick={() => goToPage(activePage + 1)}
+            disabled={!canNext}
+            className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+          >
             次へ
           </button>
         </div>
 
         <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
-                if (currentIndex > 0) setZoom(ZOOM_PRESETS[currentIndex - 1]);
-              }}
-              disabled={zoom <= MIN_ZOOM}
-              className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+          <button
+            type="button"
+            aria-label="縮小"
+            onClick={() => {
+              const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
+              if (currentIndex > 0) setZoom(ZOOM_PRESETS[currentIndex - 1]);
+            }}
+            disabled={zoom <= MIN_ZOOM}
+            className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             -
           </button>
 
           <select
-            aria-label="PDF zoom"
+            aria-label="ズーム倍率"
             value={snapZoom(zoom)}
             onChange={(e) => setZoom(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
@@ -442,79 +454,78 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             ))}
           </select>
 
-            <button
-              type="button"
-              onClick={() => {
-                const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
-                if (currentIndex < ZOOM_PRESETS.length - 1) {
-                  setZoom(ZOOM_PRESETS[currentIndex + 1]);
-                }
-              }}
-              disabled={zoom >= MAX_ZOOM}
-              className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+          <button
+            type="button"
+            aria-label="拡大"
+            onClick={() => {
+              const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
+              if (currentIndex < ZOOM_PRESETS.length - 1) {
+                setZoom(ZOOM_PRESETS[currentIndex + 1]);
+              }
+            }}
+            disabled={zoom >= MAX_ZOOM}
+            className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             +
           </button>
 
-            <button
-              type="button"
-              onClick={toggleFullScreen}
-              className="rounded bg-gray-800 px-2 py-1 text-xs text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-900"
-            >
-              全画面
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                setViewMode((mode) =>
-                  mode === "paged" ? "continuous" : "paged",
-                )
-              }
-              className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600"
-            >
-              {viewMode === "paged" ? "連続スクロール" : "ページ送り"}
-            </button>
-          </div>
-        </div>
-
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <input
-            aria-label="PDF内検索"
-            type="search"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="検索語を入力"
-            className="min-w-[180px] flex-1 rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
-          />
           <button
             type="button"
-            disabled={searchMatches.length === 0}
-            onClick={() => moveMatchCursor(-1)}
-            className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+            onClick={toggleFullScreen}
+            className="rounded bg-gray-800 px-2 py-1 text-xs text-white hover:bg-gray-700 dark:bg-gray-200 dark:text-gray-900"
           >
-            前の一致
+            全画面
           </button>
+
           <button
             type="button"
-            disabled={searchMatches.length === 0}
-            onClick={() => moveMatchCursor(1)}
-            className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+            onClick={() =>
+              setViewMode((mode) => (mode === "paged" ? "continuous" : "paged"))
+            }
+            className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600"
           >
-            次の一致
+            {viewMode === "paged" ? "連続スクロール" : "ページ送り"}
           </button>
-          <span
-            aria-live="polite"
-            aria-atomic="true"
-            className="text-xs text-gray-500 dark:text-gray-300"
-          >
-            {searchQuery.trim().length === 0
-              ? ""
-              : searchMatches.length === 0
-                ? "一致なし"
-                : `${activeMatchIndex + 1} / ${searchMatches.length}`}
-          </span>
         </div>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          aria-label="PDF内検索"
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="検索語を入力"
+          className="min-w-[180px] flex-1 rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
+        />
+        <button
+          type="button"
+          disabled={searchMatches.length === 0}
+          onClick={() => moveMatchCursor(-1)}
+          className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+        >
+          前の一致
+        </button>
+        <button
+          type="button"
+          disabled={searchMatches.length === 0}
+          onClick={() => moveMatchCursor(1)}
+          className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
+        >
+          次の一致
+        </button>
+        <span
+          aria-live="polite"
+          aria-atomic="true"
+          className="text-xs text-gray-500 dark:text-gray-300"
+        >
+          {searchQuery.trim().length === 0
+            ? ""
+            : searchMatches.length === 0
+              ? "一致なし"
+              : `${activeMatchIndex + 1} / ${searchMatches.length}`}
+        </span>
+      </div>
 
       <div
         ref={containerRef}
@@ -563,7 +574,8 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
               <div className="flex flex-col items-center gap-4 py-1">
                 {pages.map((targetPage) => {
                   const isVisibleByBuffer =
-                    targetPage >= renderRange.start && targetPage <= renderRange.end;
+                    targetPage >= renderRange.start &&
+                    targetPage <= renderRange.end;
                   const isSearchMatch = searchMatchSet.has(targetPage);
                   const isActiveSearchMatch = activeMatchPage === targetPage;
                   const shouldRender = isVisibleByBuffer || isActiveSearchMatch;
