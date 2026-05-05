@@ -25,10 +25,6 @@ app.use(
   "*",
   secureHeaders({
     referrerPolicy: "strict-origin-when-cross-origin",
-    contentSecurityPolicy: {
-      defaultSrc: ["'none'"],
-      frameAncestors: ["'none'"],
-    },
   }),
 );
 
@@ -46,8 +42,10 @@ app.use(
           return origin;
         }
       } catch (err) {
-        const errorMessage = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-        console.error(`CORS origin check error: ${errorMessage}`);
+        console.error(
+          "CORS origin check error:",
+          err instanceof Error ? err.message : String(err),
+        );
       }
 
       return undefined;
