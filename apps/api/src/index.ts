@@ -21,7 +21,16 @@ import {
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 // Security headers
-app.use("*", secureHeaders());
+app.use(
+  "*",
+  secureHeaders({
+    referrerPolicy: "strict-origin-when-cross-origin",
+    contentSecurityPolicy: {
+      defaultSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+    },
+  }),
+);
 
 // CORS
 app.use(
@@ -37,10 +46,9 @@ app.use(
           return origin;
         }
       } catch (err) {
-        console.error(
-          "CORS origin check error:",
-          err instanceof Error ? err.message : String(err),
-        );
+        const errorMessage =
+          err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+        console.error(`CORS origin check error: ${errorMessage}`);
       }
 
       return undefined;
