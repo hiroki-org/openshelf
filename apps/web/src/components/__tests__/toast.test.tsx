@@ -34,6 +34,16 @@ describe("toast", () => {
     expect(screen.queryByText("fyi")).not.toBeInTheDocument();
   });
 
+
+  it("ToastContainer has correct accessibility attributes", () => {
+    const { container } = render(<ToastContainer />);
+    const toastWrapper = container.firstChild;
+
+    expect(toastWrapper).toHaveAttribute("aria-live", "polite");
+    expect(toastWrapper).not.toHaveAttribute("role", "status");
+    expect(toastWrapper).not.toHaveAttribute("aria-atomic");
+  });
+
   it("removes listener on unmount", () => {
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const { unmount, container } = render(<ToastContainer />);
