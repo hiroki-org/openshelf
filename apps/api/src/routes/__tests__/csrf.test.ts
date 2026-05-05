@@ -40,6 +40,7 @@ describe("CSRF configuration", () => {
             env as any
         );
         expect(res.status).toBe(403);
+        expect(await res.json()).toEqual({ error: "Forbidden" });
     });
 
     it("blocks CSRF if ENABLE_TEST_AUTH is false", async () => {

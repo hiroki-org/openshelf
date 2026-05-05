@@ -113,7 +113,7 @@ app.use("/api/*", async (c, next) => {
     console.error(`CSRF check error: ${errorMessage}`);
   }
 
-  return c.text("Forbidden", 403);
+  return c.json({ error: "Forbidden" }, 403);
 });
 
 // Routes
