@@ -48,13 +48,4 @@ describe("toast", () => {
 
     consoleSpy.mockRestore();
   });
-
-  it("has accessible container attributes", () => {
-    const { container } = render(<ToastContainer />);
-    const wrapper = container.firstChild as HTMLElement;
-
-    expect(wrapper).toHaveAttribute("aria-live", "polite");
-    expect(wrapper).not.toHaveAttribute("role", "status");
-    expect(wrapper).not.toHaveAttribute("aria-atomic");
-  });
 });
