@@ -1,6 +1,6 @@
-import { defineConfig, type UserConfig } from "vitest/config";
+import { defineConfig, type ViteUserConfig } from "vitest/config";
 
-export default defineConfig(async (): Promise<UserConfig> => {
+export default defineConfig(async (): Promise<ViteUserConfig> => {
     const { default: codspeedPlugin } = await import("@codspeed/vitest-plugin");
     return {
     plugins: [codspeedPlugin()],
