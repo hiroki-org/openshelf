@@ -1,6 +1,6 @@
 import { Hono, Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, like, or, and, ne, type InferSelectModel } from "drizzle-orm";
+import { eq, like, or, and, ne, sql, type InferSelectModel } from "drizzle-orm";
 import { users, enableForeignKeys, touchUpdatedAt } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -102,6 +102,10 @@ function setCachedResults(key: string, data: UserSearchResult[]) {
   searchCache.set(key, { data, timestamp: Date.now() });
 }
 
+const escapeLikeLiteral = (str: string) => {
+  return str.replace(/[\\%_]/g, "\\$&");
+};
+
 // GET /api/users/search?q=xxx — search users for coauthor invite
 usersRoute.get("/search", authMiddleware, async (c) => {
   const q = c.req.query("q");
@@ -128,7 +132,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     .from(users)
     .where(
       and(
-        or(like(users.name, `%${q}%`), like(users.githubId, `%${q}%`)),
+        or(sql`${users.name} LIKE ${`%${escapeLikeLiteral(q)}%`} ESCAPE '\\'`, sql`${users.githubId} LIKE ${`%${escapeLikeLiteral(q)}%`} ESCAPE '\\'`),
         ne(users.id, currentUserId),
       ),
     )
