@@ -16,7 +16,8 @@ describe("orgs/[slug]/c/[collectionSlug]/page metadata", () => {
     if (originalApiUrl === undefined) delete process.env.API_URL;
     else process.env.API_URL = originalApiUrl;
 
-    if (originalPublicApiUrl === undefined) delete process.env.NEXT_PUBLIC_API_URL;
+    if (originalPublicApiUrl === undefined)
+      delete process.env.NEXT_PUBLIC_API_URL;
     else process.env.NEXT_PUBLIC_API_URL = originalPublicApiUrl;
 
     vi.restoreAllMocks();
