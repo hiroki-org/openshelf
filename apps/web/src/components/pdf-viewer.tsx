@@ -324,7 +324,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           }
         } catch (error) {
           const message =
-            error instanceof Error ? String(error) : String(error);
+            error instanceof Error ? error.message : String(error);
           console.warn(`Failed to extract text for page ${page}:`, message);
         }
       }
