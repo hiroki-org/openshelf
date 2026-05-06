@@ -24,6 +24,7 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use(
   "*",
   secureHeaders({
+    xFrameOptions: "DENY",
     referrerPolicy: "strict-origin-when-cross-origin",
     contentSecurityPolicy: {
       defaultSrc: ["'none'"],
