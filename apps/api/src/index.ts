@@ -42,7 +42,11 @@ app.use(
         const requestOrigin = normalizeOrigin(origin ?? undefined);
         const frontendOrigin = normalizeOrigin(c.env.FRONTEND_URL);
 
-        if (isAllowedOrigin(requestOrigin, frontendOrigin, allowedOrigins)) {
+        if (
+          isAllowedOrigin(requestOrigin, frontendOrigin, allowedOrigins, {
+            allowWildcard: false,
+          })
+        ) {
           return origin;
         }
       } catch (err) {
