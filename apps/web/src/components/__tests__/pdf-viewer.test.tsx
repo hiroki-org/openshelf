@@ -292,6 +292,12 @@ describe("PdfViewer", () => {
       );
       expect(renderedPages).toContain(3);
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "前の一致" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    });
   });
 
   it("syncs pinch zoom with zoom controls on touch devices", async () => {
@@ -317,6 +323,19 @@ describe("PdfViewer", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "ズームイン" }));
     expect(zoomSelect.value).toBe("2");
+
+    fireEvent.click(screen.getByRole("button", { name: "ズームアウト" }));
+    expect(zoomSelect.value).toBe("1.75");
+
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "前へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "連続スクロール" }));
+
+    // Mock requestFullscreen
+    const container = screen.getByTestId("pdf-viewer-surface");
+    container.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    fireEvent.click(screen.getByRole("button", { name: "全画面" }));
+    expect(container.requestFullscreen).toHaveBeenCalled();
   });
 
   it("handles text extraction errors gracefully during search", async () => {
