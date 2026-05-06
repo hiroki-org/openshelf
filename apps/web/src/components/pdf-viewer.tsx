@@ -420,7 +420,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             <button
               type="button"
               aria-label="縮小"
-              title="縮小"
               onClick={() => {
                 const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
                 if (currentIndex > 0) setZoom(ZOOM_PRESETS[currentIndex - 1]);
@@ -432,7 +431,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           </button>
 
           <select
-            aria-label="PDF zoom"
+            aria-label="ズーム倍率"
             value={snapZoom(zoom)}
             onChange={(e) => setZoom(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
@@ -447,7 +446,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             <button
               type="button"
               aria-label="拡大"
-              title="拡大"
               onClick={() => {
                 const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
                 if (currentIndex < ZOOM_PRESETS.length - 1) {
