@@ -391,6 +391,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   return (
     <div
       data-testid="pdf-viewer"
+      data-url={fileUrl}
       className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
