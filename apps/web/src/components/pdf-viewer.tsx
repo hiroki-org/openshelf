@@ -62,6 +62,11 @@ function touchDistance(
   return Math.sqrt(dx * dx + dy * dy);
 }
 
+function getNextButtonTitle(canNext: boolean, numPages: number) {
+  if (canNext) return undefined;
+  return numPages === 0 ? "読み込み中です" : "最後のページです";
+}
+
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const options = {
@@ -152,10 +157,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const canPrev = activePage > 1;
   const canNext = numPages > 0 && activePage < numPages;
   const prevButtonTitle = canPrev ? undefined : "最初のページです";
-  let nextButtonTitle: string | undefined;
-  if (!canNext) {
-    nextButtonTitle = numPages === 0 ? "読み込み中です" : "最後のページです";
-  }
+  const nextButtonTitle = getNextButtonTitle(canNext, numPages);
   const zoomOutButtonTitle =
     zoom <= MIN_ZOOM ? "これ以上縮小できません" : undefined;
   const zoomInButtonTitle =
