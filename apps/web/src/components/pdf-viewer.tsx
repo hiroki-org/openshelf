@@ -63,7 +63,7 @@ function touchDistance(
 }
 
 /**
- * Returns the disabled-state explanation for the next-page button.
+ * Returns the title text for the next-page button when it is disabled.
  * `numPages === 0` means the PDF has not finished loading yet, while a non-zero
  * page count with `canNext === false` means the viewer is already on the last page.
  */
