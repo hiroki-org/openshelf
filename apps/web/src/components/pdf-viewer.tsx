@@ -152,11 +152,10 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const canPrev = activePage > 1;
   const canNext = numPages > 0 && activePage < numPages;
   const prevButtonTitle = canPrev ? undefined : "最初のページです";
-  const nextButtonTitle = canNext
-    ? undefined
-    : numPages === 0
-      ? "読み込み中です"
-      : "最後のページです";
+  let nextButtonTitle: string | undefined;
+  if (!canNext) {
+    nextButtonTitle = numPages === 0 ? "読み込み中です" : "最後のページです";
+  }
   const zoomOutButtonTitle =
     zoom <= MIN_ZOOM ? "これ以上縮小できません" : undefined;
   const zoomInButtonTitle =
