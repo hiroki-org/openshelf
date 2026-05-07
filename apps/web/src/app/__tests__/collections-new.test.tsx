@@ -168,4 +168,52 @@ describe("NewCollectionPage", () => {
     await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
     expect(submit).not.toBeDisabled();
   });
+
+  it("redirects guests to home", () => {
+    authState = { user: null, loading: false };
+
+    render(<NewCollectionPage />);
+
+    expect(push).toHaveBeenCalledWith("/");
+  });
+
+  it("marks invalid slug formats and keeps submit disabled", async () => {
+    render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Lab Picks" },
+    });
+    fireEvent.change(screen.getByLabelText("slug"), {
+      target: { value: "bad--slug" },
+    });
+
+    expect(await screen.findByText("※ 3-40文字, 英小文字/数字/ハイフン")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "作成" })).toBeDisabled();
+  });
+
+  it("shows API error when create fails", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      if (url === "/api/collections" && init?.method === "POST") {
+        return new Response(JSON.stringify({ error: "already exists" }), {
+          status: 409,
+        });
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Lab Picks" },
+    });
+
+    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+
+    expect(await screen.findByText("already exists")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+  });
 });
