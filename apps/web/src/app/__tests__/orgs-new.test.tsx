@@ -121,17 +121,20 @@ describe("NewOrgPage", () => {
       throw new Error(`Unexpected request: ${String(url)}`);
     });
 
-    render(<NewOrgPage />);
-    fireEvent.change(screen.getByLabelText(/組織名/i), {
-      target: { value: "Research Lab" },
-    });
+    try {
+      render(<NewOrgPage />);
+      fireEvent.change(screen.getByLabelText(/組織名/i), {
+        target: { value: "Research Lab" },
+      });
 
-    await act(async () => {
-      vi.advanceTimersByTime(400);
-      await Promise.resolve();
-    });
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+        await Promise.resolve();
+      });
+    } finally {
+      vi.useRealTimers();
+    }
 
-    vi.useRealTimers();
     fireEvent.click(screen.getByRole("button", { name: "作成" }));
 
     expect(await screen.findByText("slug taken")).toBeInTheDocument();

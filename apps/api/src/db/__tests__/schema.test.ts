@@ -55,8 +55,10 @@ describe("db schema", () => {
   });
 
   it("enableForeignKeys executes PRAGMA query", async () => {
+    type DbArg = Parameters<typeof enableForeignKeys>[0];
     const run = vi.fn().mockResolvedValue(undefined);
-    await enableForeignKeys({ run } as any);
+    const db = { run } as unknown as DbArg;
+    await enableForeignKeys(db);
     expect(run).toHaveBeenCalledTimes(1);
   });
 });

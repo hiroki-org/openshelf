@@ -41,7 +41,6 @@ describe("AuthProvider", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
-    vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.example.com");
   });
 
   it("sets user when token exists and /api/auth/me succeeds", async () => {
@@ -165,26 +164,28 @@ describe("AuthProvider", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const originalLocation = window.location;
 
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: { ...originalLocation, href: "https://app.example.com/current" },
-    });
+    try {
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: { ...originalLocation, href: "https://app.example.com/current" },
+      });
 
-    render(
-      <AuthProvider>
-        <Consumer />
-      </AuthProvider>,
-    );
+      render(
+        <AuthProvider>
+          <Consumer />
+        </AuthProvider>,
+      );
 
-    fireEvent.click(screen.getByRole("button", { name: "login" }));
+      fireEvent.click(screen.getByRole("button", { name: "login" }));
 
-    expect(errorSpy).toHaveBeenCalled();
-    expect(window.location.href).toBe("https://app.example.com/current");
-
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: originalLocation,
-    });
+      expect(errorSpy).toHaveBeenCalled();
+      expect(window.location.href).toBe("https://app.example.com/current");
+    } finally {
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: originalLocation,
+      });
+    }
   });
 
   it("refresh re-fetches user data", async () => {
