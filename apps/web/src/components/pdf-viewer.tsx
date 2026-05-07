@@ -419,6 +419,8 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
         <div className="flex items-center gap-2">
             <button
               type="button"
+              aria-label="ズーム縮小"
+              title="ズーム縮小"
               onClick={() => {
                 const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
                 if (currentIndex > 0) setZoom(ZOOM_PRESETS[currentIndex - 1]);
@@ -444,6 +446,8 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
             <button
               type="button"
+              aria-label="ズーム拡大"
+              title="ズーム拡大"
               onClick={() => {
                 const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
                 if (currentIndex < ZOOM_PRESETS.length - 1) {
