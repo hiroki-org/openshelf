@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CiteButton } from "../cite-button";
 import { apiFetch } from "@/lib/api";
@@ -56,9 +50,7 @@ describe("CiteButton", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "BibTeX" }));
 
     await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith(
-        "/api/papers/paper-1/cite?format=bibtex",
-      );
+      expect(apiFetch).toHaveBeenCalledWith("/api/papers/paper-1/cite?format=bibtex");
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
         "@inproceedings{mukai2026boundary,...}",
       );
@@ -67,9 +59,7 @@ describe("CiteButton", () => {
   });
 
   it("shows error toast when API request fails", async () => {
-    vi.mocked(apiFetch).mockResolvedValue(
-      new Response("error", { status: 500 }),
-    );
+    vi.mocked(apiFetch).mockResolvedValue(new Response("error", { status: 500 }));
 
     render(<CiteButton paperId="paper-1" />);
     fireEvent.click(screen.getByRole("button", { name: /📋 Cite/ }));

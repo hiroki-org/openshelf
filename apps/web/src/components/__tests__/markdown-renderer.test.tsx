@@ -2,6 +2,7 @@ import { render, screen, cleanup } from "@testing-library/react";
 import { describe, it, expect, afterEach } from "vitest";
 import { MarkdownRenderer } from "../markdown-renderer";
 
+
 afterEach(() => {
   cleanup();
 });
@@ -14,7 +15,7 @@ describe("MarkdownRenderer", () => {
 
   it("applies className prop to container", () => {
     const { container } = render(
-      <MarkdownRenderer markdown="Text" className="custom-class" />,
+      <MarkdownRenderer markdown="Text" className="custom-class" />
     );
     expect(container.firstElementChild).toHaveClass("custom-class");
   });
@@ -36,9 +37,7 @@ describe("MarkdownRenderer", () => {
   });
 
   it("renders custom images with lazy loading", () => {
-    render(
-      <MarkdownRenderer markdown="![Alt text](https://example.com/image.png)" />,
-    );
+    render(<MarkdownRenderer markdown="![Alt text](https://example.com/image.png)" />);
     const img = screen.getByRole("img", { name: "Alt text" });
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute("src", "https://example.com/image.png");
@@ -59,15 +58,11 @@ describe("MarkdownRenderer", () => {
     const { container } = render(<MarkdownRenderer markdown={markdown} />);
     const pre = container.querySelector("pre");
     expect(pre).toBeInTheDocument();
-    expect(pre).toHaveClass(
-      "overflow-x-auto rounded-md bg-gray-950 p-3 text-sm text-gray-100",
-    );
+    expect(pre).toHaveClass("overflow-x-auto rounded-md bg-gray-950 p-3 text-sm text-gray-100");
     const code = container.querySelector("code");
     expect(code).toBeInTheDocument();
     expect(code).toHaveClass("language-javascript");
-    expect(
-      container.querySelector('span[class^="hljs"], span[class*=" hljs"]'),
-    ).toBeInTheDocument();
+    expect(container.querySelector("span[class^=\"hljs\"], span[class*=\" hljs\"]")).toBeInTheDocument();
   });
 
   it("supports GitHub Flavored Markdown (tables)", () => {
@@ -102,9 +97,7 @@ describe("MarkdownRenderer", () => {
 [Safe link](javascript:alert('xss'))
 <a href="javascript:alert('xss')">Unsafe anchor</a>
     `;
-    const { container } = render(
-      <MarkdownRenderer markdown={unsafeMarkdown} />,
-    );
+    const { container } = render(<MarkdownRenderer markdown={unsafeMarkdown} />);
 
     expect(screen.getByRole("heading", { name: "Title" })).toBeInTheDocument();
 

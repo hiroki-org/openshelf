@@ -116,9 +116,7 @@ describe("AuthProvider", () => {
   });
 
   it("buildLoginUrl includes the current frontend origin", () => {
-    expect(
-      buildLoginUrl("https://api.example.com", "https://frontend.example.com"),
-    ).toBe(
+    expect(buildLoginUrl("https://api.example.com", "https://frontend.example.com")).toBe(
       "https://api.example.com/api/auth/github?frontend_origin=https%3A%2F%2Ffrontend.example.com",
     );
   });

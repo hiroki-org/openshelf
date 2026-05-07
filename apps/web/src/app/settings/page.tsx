@@ -37,8 +37,7 @@ export default function SettingsPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          displayName:
-            trimmedDisplayName.length > 0 ? trimmedDisplayName : null,
+          displayName: trimmedDisplayName.length > 0 ? trimmedDisplayName : null,
         }),
       });
 

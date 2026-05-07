@@ -1,4 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import PaperEditPage from "../papers/[id]/edit/page";
 import { apiFetch } from "@/lib/api";
@@ -110,10 +115,7 @@ describe("PaperEditPage", () => {
   });
 
   it("redirects non-authors back to the paper page", async () => {
-    Object.defineProperty(window, "location", {
-      value: { assign: vi.fn() },
-      writable: true,
-    });
+    Object.defineProperty(window, "location", { value: { assign: vi.fn() }, writable: true });
     vi.mocked(apiFetch).mockResolvedValue(
       new Response(
         JSON.stringify({

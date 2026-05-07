@@ -120,6 +120,7 @@ function formatCount(value: number | null | undefined): string {
   return new Intl.NumberFormat().format(value ?? 0);
 }
 
+
 function revokeUrlsIdle(urls: string[]) {
   if (urls.length === 0) return;
   const urlsToRevoke = [...urls];
@@ -237,7 +238,9 @@ export default function PaperDetailClient({
   const fetchInvites = useCallback(async () => {
     if (!isUploader) return;
     try {
-      const res = await apiFetch(`/api/papers/${safePath(paperId)}/invites`);
+      const res = await apiFetch(
+        `/api/papers/${safePath(paperId)}/invites`,
+      );
       if (res.ok) {
         const data = await res.json();
         setInvites(data.invites);
@@ -466,11 +469,14 @@ export default function PaperDetailClient({
   const handleInvite = async (inviteeId: string) => {
     setInviting(true);
     try {
-      const res = await apiFetch(`/api/papers/${safePath(paperId)}/invites`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ inviteeId }),
-      });
+      const res = await apiFetch(
+        `/api/papers/${safePath(paperId)}/invites`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ inviteeId }),
+        },
+      );
       if (res.ok) {
         setShowInvite(false);
         setSearchQuery("");
@@ -549,13 +555,11 @@ export default function PaperDetailClient({
   const showExternalLink =
     paper.externalUrl && isValidExternalUrl(paper.externalUrl);
   const summaryViews =
-    paper.showViewCount || !isAuthor
-      ? paper.publicViewCount
-      : (stats?.total.views ?? null);
+    paper.showViewCount || !isAuthor ? paper.publicViewCount : stats?.total.views ?? null;
   const summaryDownloads =
     paper.showViewCount || !isAuthor
       ? paper.publicDownloadCount
-      : (stats?.total.downloads ?? null);
+      : stats?.total.downloads ?? null;
 
   return (
     <div className="max-w-3xl">
@@ -618,11 +622,7 @@ export default function PaperDetailClient({
           <p className="text-lg font-semibold tabular-nums">
             👁️ {summaryViews === null ? "..." : formatCount(summaryViews)} views
             {" · "}
-            📥{" "}
-            {summaryDownloads === null
-              ? "..."
-              : formatCount(summaryDownloads)}{" "}
-            downloads
+            📥 {summaryDownloads === null ? "..." : formatCount(summaryDownloads)} downloads
           </p>
         </div>
       )}
@@ -636,9 +636,7 @@ export default function PaperDetailClient({
 
       {paper.description && (
         <section className="mb-6">
-          <h2 className="text-sm font-medium text-gray-500 mb-2">
-            Description
-          </h2>
+          <h2 className="text-sm font-medium text-gray-500 mb-2">Description</h2>
           <MarkdownRenderer
             markdown={paper.description}
             className="prose prose-sm max-w-none dark:prose-invert"
@@ -736,9 +734,7 @@ export default function PaperDetailClient({
                           ? 4
                           : Math.max(
                               4,
-                              Math.round(
-                                (entry.views / maxDailyViewCount) * 120,
-                              ),
+                              Math.round((entry.views / maxDailyViewCount) * 120),
                             );
 
                       return (

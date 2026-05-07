@@ -53,9 +53,10 @@ describe("NewOrgPage", () => {
       }
 
       if (url === "/api/orgs" && init?.method === "POST") {
-        return new Response(JSON.stringify({ org: { slug: "research-lab" } }), {
-          status: 201,
-        });
+        return new Response(
+          JSON.stringify({ org: { slug: "research-lab" } }),
+          { status: 201 },
+        );
       }
 
       throw new Error(`Unexpected request: ${String(url)}`);

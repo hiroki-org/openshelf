@@ -115,9 +115,7 @@ export default function InvitesPage() {
 
       {fetching ? (
         <div className="rounded-3xl border border-gray-200 bg-white px-6 py-12 text-center shadow-sm dark:border-gray-800 dark:bg-gray-950">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            読み込み中...
-          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">読み込み中...</p>
         </div>
       ) : invites.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center dark:border-gray-700 dark:bg-gray-900/60">
@@ -181,7 +179,9 @@ export default function InvitesPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="shrink-0 text-xs text-gray-400">対応済み</div>
+                  <div className="shrink-0 text-xs text-gray-400">
+                    対応済み
+                  </div>
                 )}
               </div>
             </li>

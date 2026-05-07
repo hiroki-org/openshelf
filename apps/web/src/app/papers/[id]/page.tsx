@@ -43,10 +43,7 @@ async function fetchPaperMetadata(
 
 function toDescription(value: string | null | undefined): string | undefined {
   if (!value) return undefined;
-  const plainText = value
-    .replace(/[`*_#[\]()~>|-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  const plainText = value.replace(/[`*_#[\]()~>|-]/g, " ").replace(/\s+/g, " ").trim();
   return [...plainText].slice(0, 160).join("");
 }
 

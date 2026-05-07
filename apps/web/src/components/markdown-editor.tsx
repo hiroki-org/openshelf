@@ -114,9 +114,7 @@ export function MarkdownEditor({
               className="prose prose-sm max-w-none dark:prose-invert"
             />
           ) : (
-            <p className="text-sm text-gray-500">
-              プレビューする内容がありません
-            </p>
+            <p className="text-sm text-gray-500">プレビューする内容がありません</p>
           )}
         </div>
       )}

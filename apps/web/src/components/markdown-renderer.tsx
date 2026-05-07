@@ -26,10 +26,7 @@ const sanitizeSchema = {
   },
 };
 
-export function MarkdownRenderer({
-  markdown,
-  className,
-}: MarkdownRendererProps) {
+export function MarkdownRenderer({ markdown, className }: MarkdownRendererProps) {
   return (
     <div className={className}>
       <ReactMarkdown
@@ -45,12 +42,7 @@ export function MarkdownRenderer({
             />
           ),
           img: ({ ...props }) => (
-            <img
-              {...props}
-              alt={props.alt ?? ""}
-              loading="lazy"
-              className="max-w-full rounded-md"
-            />
+            <img {...props} alt={props.alt ?? ""} loading="lazy" className="max-w-full rounded-md" />
           ),
           code: ({ className, ...props }) => (
             <code
@@ -66,23 +58,14 @@ export function MarkdownRenderer({
           ),
           table: ({ ...props }) => (
             <div className="overflow-x-auto">
-              <table
-                className="min-w-full border-collapse border border-gray-300 dark:border-gray-700"
-                {...props}
-              />
+              <table className="min-w-full border-collapse border border-gray-300 dark:border-gray-700" {...props} />
             </div>
           ),
           th: ({ ...props }) => (
-            <th
-              className="border border-gray-300 px-2 py-1 text-left dark:border-gray-700"
-              {...props}
-            />
+            <th className="border border-gray-300 px-2 py-1 text-left dark:border-gray-700" {...props} />
           ),
           td: ({ ...props }) => (
-            <td
-              className="border border-gray-300 px-2 py-1 dark:border-gray-700"
-              {...props}
-            />
+            <td className="border border-gray-300 px-2 py-1 dark:border-gray-700" {...props} />
           ),
         }}
       >

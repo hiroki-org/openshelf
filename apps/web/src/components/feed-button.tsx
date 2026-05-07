@@ -39,7 +39,10 @@ export function FeedButton({
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
-      if (target instanceof Node && !containerRef.current?.contains(target)) {
+      if (
+        target instanceof Node &&
+        !containerRef.current?.contains(target)
+      ) {
         setOpen(false);
         triggerRef.current?.focus();
       }

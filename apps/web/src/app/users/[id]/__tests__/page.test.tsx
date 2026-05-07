@@ -1,4 +1,9 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import UserPage from "../page";
 import { apiFetch } from "@/lib/api";
@@ -91,9 +96,7 @@ describe("UserPage", () => {
       }
 
       if (url === "/api/users/user-1/collections") {
-        return new Response(JSON.stringify({ collections: [] }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
       }
 
       throw new Error(`Unexpected request: ${String(url)}`);
@@ -106,9 +109,7 @@ describe("UserPage", () => {
     const view = await UserPage({ params: { id: "user-1" } });
     render(view);
 
-    expect(
-      await screen.findByText("ユーザーが見つかりません"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("ユーザーが見つかりません")).toBeInTheDocument();
   });
 
   it("shows generic profile error for non-404 profile responses", async () => {
@@ -122,9 +123,7 @@ describe("UserPage", () => {
       }
 
       if (url === "/api/users/user-1/collections") {
-        return new Response(JSON.stringify({ collections: [] }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
       }
 
       throw new Error(`Unexpected request: ${String(url)}`);
@@ -133,8 +132,6 @@ describe("UserPage", () => {
     const view = await UserPage({ params: { id: "user-1" } });
     render(view);
 
-    expect(
-      await screen.findByText("ユーザー情報の取得に失敗しました"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("ユーザー情報の取得に失敗しました")).toBeInTheDocument();
   });
 });

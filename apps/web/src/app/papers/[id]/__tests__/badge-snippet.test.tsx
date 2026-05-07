@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BadgeSnippet } from "../badge-snippet";
 
@@ -46,9 +40,7 @@ describe("BadgeSnippet", () => {
     expect(screen.getByText("Markdown")).toBeInTheDocument();
     expect(screen.getByText("HTML")).toBeInTheDocument();
     expect(screen.getByText("shields.io")).toBeInTheDocument();
-    expect(
-      screen.getByAltText("OpenShelf badge preview for Paper Title"),
-    ).toHaveAttribute(
+    expect(screen.getByAltText("OpenShelf badge preview for Paper Title")).toHaveAttribute(
       "src",
       expect.stringContaining("/badge/paper-1?style=default&label=OpenShelf"),
     );
@@ -104,14 +96,9 @@ describe("BadgeSnippet", () => {
     );
 
     expect(
-      screen.getByText(
-        (text) =>
-          text.includes('href="#"') ||
-          text.includes('href="#/papers/paper-1"') ||
-          text.includes(
-            'href="https://openshelf.example&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;/papers/paper-1"',
-          ),
-      ),
+      screen.getByText((text) =>
+        text.includes('href="#"') || text.includes('href="#/papers/paper-1"') || text.includes('href="https://openshelf.example&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;/papers/paper-1"')
+      )
     ).toBeInTheDocument();
   });
 
@@ -125,7 +112,7 @@ describe("BadgeSnippet", () => {
     );
 
     expect(
-      screen.getByText((text) => text.includes('href="#"')),
+      screen.getByText((text) => text.includes('href="#"'))
     ).toBeInTheDocument();
   });
 
@@ -139,7 +126,7 @@ describe("BadgeSnippet", () => {
     );
 
     expect(
-      screen.getByText((text) => text.includes('href="#"')),
+      screen.getByText((text) => text.includes('href="#"'))
     ).toBeInTheDocument();
   });
 
@@ -153,7 +140,7 @@ describe("BadgeSnippet", () => {
     );
 
     expect(
-      screen.getByText((text) => text.includes('href="#"')),
+      screen.getByText((text) => text.includes('href="#"'))
     ).toBeInTheDocument();
   });
 
@@ -167,7 +154,7 @@ describe("BadgeSnippet", () => {
     );
 
     expect(
-      screen.getByText((text) => text.includes('href="#"')),
+      screen.getByText((text) => text.includes('href="#"'))
     ).toBeInTheDocument();
   });
 });

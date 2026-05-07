@@ -49,9 +49,7 @@ describe("NewCollectionPage", () => {
     vi.useFakeTimers();
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
       if (url === "/api/users/user-1/collections") {
-        return new Response(JSON.stringify({ collections: [] }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
       }
 
       if (url === "/api/collections" && init?.method === "POST") {
@@ -90,9 +88,7 @@ describe("NewCollectionPage", () => {
   it("keeps submit disabled while slug check is still idle (debounce not finished)", async () => {
     vi.mocked(apiFetch).mockImplementation(async (url) => {
       if (url === "/api/users/user-1/collections") {
-        return new Response(JSON.stringify({ collections: [] }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
       }
 
       throw new Error(`Unexpected request: ${String(url)}`);
@@ -107,24 +103,18 @@ describe("NewCollectionPage", () => {
     const submit = screen.getByRole("button", { name: "作成" });
     expect(submit).toBeDisabled();
 
-    await waitFor(() =>
-      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
     expect(submit).not.toBeDisabled();
   });
 
   it("resets slug availability when switching from user to org ownership", async () => {
     vi.mocked(apiFetch).mockImplementation(async (url) => {
       if (url === "/api/users/user-1/collections") {
-        return new Response(JSON.stringify({ collections: [] }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
       }
 
       if (url === "/api/orgs/example-org/collections") {
-        return new Response(JSON.stringify({ collections: [] }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
       }
 
       throw new Error(`Unexpected request: ${String(url)}`);
@@ -137,9 +127,7 @@ describe("NewCollectionPage", () => {
     });
 
     const submit = screen.getByRole("button", { name: "作成" });
-    await waitFor(() =>
-      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
     expect(submit).not.toBeDisabled();
 
     fireEvent.click(screen.getByLabelText(/^org$/));
@@ -150,18 +138,14 @@ describe("NewCollectionPage", () => {
       target: { value: "example-org" },
     });
 
-    await waitFor(() =>
-      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
     expect(submit).not.toBeDisabled();
   });
 
   it("requires an org slug for org-owned collections", async () => {
     vi.mocked(apiFetch).mockImplementation(async (url) => {
       if (url === "/api/orgs/example-org/collections") {
-        return new Response(JSON.stringify({ collections: [] }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
       }
 
       throw new Error(`Unexpected request: ${String(url)}`);
@@ -181,9 +165,7 @@ describe("NewCollectionPage", () => {
       target: { value: "example-org" },
     });
 
-    await waitFor(() =>
-      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
     expect(submit).not.toBeDisabled();
   });
 });

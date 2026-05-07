@@ -22,9 +22,7 @@ type CiteButtonProps = {
 
 export function CiteButton({ paperId }: CiteButtonProps) {
   const [open, setOpen] = useState(false);
-  const [loadingFormat, setLoadingFormat] = useState<CitationFormat | null>(
-    null,
-  );
+  const [loadingFormat, setLoadingFormat] = useState<CitationFormat | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {

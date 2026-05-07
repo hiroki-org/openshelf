@@ -1,4 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import InvitesPage from "../page";
 import { apiFetch } from "@/lib/api";
@@ -69,7 +74,10 @@ describe("InvitesPage", () => {
         );
       }
 
-      if (url === "/api/invites/invite-1" && init?.method === "PATCH") {
+      if (
+        url === "/api/invites/invite-1" &&
+        init?.method === "PATCH"
+      ) {
         const body = JSON.parse(String(init?.body ?? "{}"));
         if (body.action !== "accept") {
           return new Response(JSON.stringify({ error: "Invalid action" }), {

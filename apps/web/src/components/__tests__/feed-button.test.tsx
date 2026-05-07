@@ -1,10 +1,4 @@
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FeedButton } from "../feed-button";
 
@@ -57,9 +51,7 @@ describe("FeedButton", () => {
     fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("textbox", { name: "フィード URL" }),
-      ).toHaveFocus();
+      expect(screen.getByRole("textbox", { name: "フィード URL" })).toHaveFocus();
     });
   });
 
@@ -67,9 +59,7 @@ describe("FeedButton", () => {
     render(<FeedButton url="https://api.example/feed.xml" />);
 
     fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
-    expect(
-      screen.getByRole("dialog", { name: "フィード URL" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "フィード URL" })).toBeInTheDocument();
 
     fireEvent.pointerDown(document.body);
 
@@ -86,9 +76,7 @@ describe("FeedButton", () => {
     const trigger = screen.getByRole("button", { name: "📡 Feed" });
     fireEvent.click(trigger);
 
-    const textbox = await screen.findByRole("textbox", {
-      name: "フィード URL",
-    });
+    const textbox = await screen.findByRole("textbox", { name: "フィード URL" });
     const link = screen.getByRole("link", { name: "開く" });
 
     textbox.focus();
@@ -101,9 +89,7 @@ describe("FeedButton", () => {
     fireEvent.keyDown(document, { key: "Escape" });
 
     await waitFor(() => {
-      expect(
-        screen.queryByRole("dialog", { name: "フィード URL" }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "フィード URL" })).not.toBeInTheDocument();
       expect(trigger).toHaveFocus();
     });
   });

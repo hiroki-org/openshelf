@@ -65,8 +65,7 @@ export default function PaperEditPage() {
   const [title, setTitle] = useState("");
   const [abstract, setAbstract] = useState("");
   const [visibility, setVisibility] = useState<VisibilityValue>("private");
-  const [initialVisibility, setInitialVisibility] =
-    useState<VisibilityValue | null>(null);
+  const [initialVisibility, setInitialVisibility] = useState<VisibilityValue | null>(null);
   const [showViewCount, setShowViewCount] = useState(false);
   const [language, setLanguage] = useState("");
   const [description, setDescription] = useState("");
@@ -92,9 +91,7 @@ export default function PaperEditPage() {
 
     const fetchPaper = async () => {
       try {
-        const res = await apiFetch(
-          `/api/papers/${encodeURIComponent(paperId)}`,
-        );
+        const res = await apiFetch(`/api/papers/${encodeURIComponent(paperId)}`);
         if (!res.ok) {
           if (res.status === 401 || res.status === 403) {
             router.replace("/");
@@ -107,9 +104,7 @@ export default function PaperEditPage() {
         const paper = data.paper;
 
         // Ensure user is an author
-        const isAuthor = data.authors.some(
-          (author) => author.userId === user.id,
-        );
+        const isAuthor = data.authors.some((author) => author.userId === user.id);
         if (!isAuthor) {
           router.replace(`/papers/${paperId}`);
           return;
@@ -131,20 +126,18 @@ export default function PaperEditPage() {
 
         let initialTags = "";
         if (paper.tags) {
-          try {
-            const parsed = JSON.parse(paper.tags);
-            if (Array.isArray(parsed)) {
-              initialTags = parsed.join(", ");
+            try {
+                const parsed = JSON.parse(paper.tags);
+                if (Array.isArray(parsed)) {
+                    initialTags = parsed.join(", ");
+                }
+            } catch {
+                initialTags = String(paper.tags);
             }
-          } catch {
-            initialTags = String(paper.tags);
-          }
         }
         setTagsStr(initialTags);
       } catch (err: unknown) {
-        setError(
-          err instanceof Error ? err.message : "予期せぬエラーが発生しました",
-        );
+        setError(err instanceof Error ? err.message : "予期せぬエラーが発生しました");
       } finally {
         setLoading(false);
       }
@@ -308,14 +301,16 @@ export default function PaperEditPage() {
           )}
           <p className="mt-1 text-xs text-gray-500">
             {visibility === "private" && "あなたと共著者のみが閲覧可能です。"}
-            {visibility === "org_only" &&
-              "所属組織のメンバーのみが閲覧可能です。"}
+            {visibility === "org_only" && "所属組織のメンバーのみが閲覧可能です。"}
             {visibility === "public" && "誰でも閲覧可能です。"}
           </p>
         </fieldset>
 
         <div className="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-          <label htmlFor="show-view-count" className="flex items-start gap-3">
+          <label
+            htmlFor="show-view-count"
+            className="flex items-start gap-3"
+          >
             <input
               id="show-view-count"
               type="checkbox"
@@ -335,9 +330,7 @@ export default function PaperEditPage() {
         </div>
 
         <div>
-          <label htmlFor="abstract" className="mb-1 block text-sm font-medium">
-            概要
-          </label>
+          <label htmlFor="abstract" className="mb-1 block text-sm font-medium">概要</label>
           <textarea
             id="abstract"
             value={abstract}
@@ -349,10 +342,7 @@ export default function PaperEditPage() {
         </div>
 
         <div>
-          <label
-            htmlFor="description"
-            className="mb-1 block text-sm font-medium"
-          >
+          <label htmlFor="description" className="mb-1 block text-sm font-medium">
             Description
           </label>
           <MarkdownEditor
@@ -364,7 +354,8 @@ export default function PaperEditPage() {
             placeholder="再現手順、関連リンク、更新履歴などを Markdown で記述できます"
           />
           <p className="mt-2 text-xs text-gray-500">
-            Markdown 記法ガイド:{" "}
+            Markdown 記法ガイド:
+            {" "}
             <a
               href="https://www.markdownguide.org/basic-syntax/"
               target="_blank"
@@ -378,12 +369,7 @@ export default function PaperEditPage() {
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label
-              htmlFor="category"
-              className="mb-1 block text-sm font-medium"
-            >
-              カテゴリ
-            </label>
+            <label htmlFor="category" className="mb-1 block text-sm font-medium">カテゴリ</label>
             <select
               id="category"
               value={category}
@@ -399,9 +385,7 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label htmlFor="year" className="mb-1 block text-sm font-medium">
-              発表年
-            </label>
+            <label htmlFor="year" className="mb-1 block text-sm font-medium">発表年</label>
             <input
               id="year"
               type="number"
@@ -413,9 +397,7 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label htmlFor="venue" className="mb-1 block text-sm font-medium">
-              発表場所（学会名など）
-            </label>
+            <label htmlFor="venue" className="mb-1 block text-sm font-medium">発表場所（学会名など）</label>
             <input
               id="venue"
               type="text"
@@ -427,12 +409,7 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="venue-type"
-              className="mb-1 block text-sm font-medium"
-            >
-              発表種別
-            </label>
+            <label htmlFor="venue-type" className="mb-1 block text-sm font-medium">発表種別</label>
             <select
               id="venue-type"
               value={venueType}
@@ -448,12 +425,7 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="language"
-              className="mb-1 block text-sm font-medium"
-            >
-              言語
-            </label>
+            <label htmlFor="language" className="mb-1 block text-sm font-medium">言語</label>
             <input
               id="language"
               type="text"
@@ -465,9 +437,7 @@ export default function PaperEditPage() {
           </div>
 
           <div>
-            <label htmlFor="doi" className="mb-1 block text-sm font-medium">
-              DOI
-            </label>
+            <label htmlFor="doi" className="mb-1 block text-sm font-medium">DOI</label>
             <input
               id="doi"
               type="text"
@@ -480,12 +450,7 @@ export default function PaperEditPage() {
         </div>
 
         <div>
-          <label
-            htmlFor="external-url"
-            className="mb-1 block text-sm font-medium"
-          >
-            外部リンク
-          </label>
+          <label htmlFor="external-url" className="mb-1 block text-sm font-medium">外部リンク</label>
           <input
             id="external-url"
             type="url"
@@ -498,10 +463,7 @@ export default function PaperEditPage() {
 
         <div>
           <label htmlFor="tags" className="mb-1 block text-sm font-medium">
-            タグ{" "}
-            <span className="text-gray-500 font-normal text-xs">
-              （カンマ区切り）
-            </span>
+            タグ <span className="text-gray-500 font-normal text-xs">（カンマ区切り）</span>
           </label>
           <TagAutocompleteInput
             id="tags"

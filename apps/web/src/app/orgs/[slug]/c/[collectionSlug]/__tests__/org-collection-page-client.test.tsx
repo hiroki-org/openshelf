@@ -1,4 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OrgCollectionPageClient from "../org-collection-page-client";
 import { apiFetch } from "@/lib/api";
@@ -61,12 +66,9 @@ describe("OrgCollectionPageClient", () => {
       const method = (init?.method ?? "GET").toUpperCase();
 
       if (url === "/api/orgs/lab/collections") {
-        return new Response(
-          JSON.stringify({ collections: state.collections }),
-          {
-            status: 200,
-          },
-        );
+        return new Response(JSON.stringify({ collections: state.collections }), {
+          status: 200,
+        });
       }
       if (url === "/api/collections/col-1/papers" && method === "GET") {
         return new Response(JSON.stringify({ papers: state.papers }), {

@@ -303,7 +303,7 @@ describe("PdfViewer", () => {
   it("syncs pinch zoom with zoom controls on touch devices", async () => {
     render(<PdfViewer fileUrl="https://example.com/pinch.pdf" />);
     const surface = screen.getByTestId("pdf-viewer-surface");
-    const zoomSelect = screen.getByLabelText("PDF zoom") as HTMLSelectElement;
+    const zoomSelect = screen.getByLabelText("ズーム倍率") as HTMLSelectElement;
 
     fireEvent.touchStart(surface, {
       touches: [
@@ -321,12 +321,12 @@ describe("PdfViewer", () => {
 
     expect(zoomSelect.value).toBe("1.75");
 
-    fireEvent.click(screen.getByRole("button", { name: "ズームイン" }));
+    fireEvent.click(screen.getByRole("button", { name: "拡大" }));
     expect(zoomSelect.value).toBe("2");
 
-    fireEvent.click(screen.getByRole("button", { name: "ズームアウト" }));
+    fireEvent.click(screen.getByRole("button", { name: "縮小" }));
     expect(zoomSelect.value).toBe("1.75");
-
+ 
     fireEvent.click(screen.getByRole("button", { name: "次へ" }));
     fireEvent.click(screen.getByRole("button", { name: "前へ" }));
     fireEvent.click(screen.getByRole("button", { name: "連続スクロール" }));
@@ -336,6 +336,47 @@ describe("PdfViewer", () => {
     container.requestFullscreen = vi.fn().mockResolvedValue(undefined);
     fireEvent.click(screen.getByRole("button", { name: "全画面" }));
     expect(container.requestFullscreen).toHaveBeenCalled();
+  });
+
+  it("adds disabled-state explanations without duplicating enabled control labels", async () => {
+    render(<PdfViewer fileUrl="https://example.com/tooltips.pdf" />);
+
+    const prevButton = screen.getByRole("button", { name: "前へ" });
+    const nextButton = screen.getByRole("button", { name: "次へ" });
+    const zoomOutButton = screen.getByRole("button", { name: "縮小" });
+    const zoomInButton = screen.getByRole("button", { name: "拡大" });
+    const previousMatchButton = screen.getByRole("button", { name: "前の一致" });
+    const nextMatchButton = screen.getByRole("button", { name: "次の一致" });
+
+    expect(prevButton).toHaveAttribute("title", "最初のページです");
+    expect(nextButton).toHaveAttribute("title", "読み込み中です");
+    expect(zoomOutButton).not.toHaveAttribute("title");
+    expect(zoomInButton).not.toHaveAttribute("title");
+    expect(previousMatchButton).toHaveAttribute("title", "検索結果がありません");
+    expect(nextMatchButton).toHaveAttribute("title", "検索結果がありません");
+
+    fireEvent.change(screen.getByLabelText("ズーム倍率"), {
+      target: { value: "0.5" },
+    });
+    expect(zoomOutButton).toHaveAttribute("title", "これ以上縮小できません");
+
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      documentProps.onLoadSuccess?.(createMockPdfDocument(["alpha", "beta"]));
+    });
+
+    await waitFor(() => {
+      expect(nextButton).not.toHaveAttribute("title");
+    });
+
+    fireEvent.click(nextButton);
+
+    await waitFor(() => {
+      expect(nextButton).toHaveAttribute("title", "最後のページです");
+    });
   });
 
   it("handles text extraction errors gracefully during search", async () => {

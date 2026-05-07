@@ -151,6 +151,18 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const activePage = viewMode === "continuous" ? visiblePage : pageNumber;
   const canPrev = activePage > 1;
   const canNext = numPages > 0 && activePage < numPages;
+  const prevButtonTitle = canPrev ? undefined : "最初のページです";
+  const nextButtonTitle = canNext
+    ? undefined
+    : numPages === 0
+      ? "読み込み中です"
+      : "最後のページです";
+  const zoomOutButtonTitle =
+    zoom <= MIN_ZOOM ? "これ以上縮小できません" : undefined;
+  const zoomInButtonTitle =
+    zoom >= MAX_ZOOM ? "これ以上拡大できません" : undefined;
+  const searchNavigationTitle =
+    searchMatches.length === 0 ? "検索結果がありません" : undefined;
   const searchMatchSet = useMemo(() => new Set(searchMatches), [searchMatches]);
   const pages = useMemo(
     () => Array.from({ length: numPages }, (_, index) => index + 1),
@@ -410,7 +422,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             type="button"
             onClick={() => goToPage(activePage - 1)}
             disabled={!canPrev}
-            title={!canPrev ? "最初のページです" : "前のページへ"}
+            title={prevButtonTitle}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             前へ
@@ -422,7 +434,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             type="button"
             onClick={() => goToPage(activePage + 1)}
             disabled={!canNext}
-            title={!canNext ? "最後のページです" : "次のページへ"}
+            title={nextButtonTitle}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             次へ
@@ -432,20 +444,20 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            aria-label="縮小"
             onClick={() => {
               const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
               if (currentIndex > 0) setZoom(ZOOM_PRESETS[currentIndex - 1]);
             }}
             disabled={zoom <= MIN_ZOOM}
-            aria-label="ズームアウト"
-            title={zoom <= MIN_ZOOM ? "これ以上縮小できません" : "ズームアウト"}
+            title={zoomOutButtonTitle}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             -
           </button>
 
           <select
-            aria-label="PDF zoom"
+            aria-label="ズーム倍率"
             value={snapZoom(zoom)}
             onChange={(e) => setZoom(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
@@ -459,6 +471,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
           <button
             type="button"
+            aria-label="拡大"
             onClick={() => {
               const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
               if (currentIndex < ZOOM_PRESETS.length - 1) {
@@ -466,8 +479,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
               }
             }}
             disabled={zoom >= MAX_ZOOM}
-            aria-label="ズームイン"
-            title={zoom >= MAX_ZOOM ? "これ以上拡大できません" : "ズームイン"}
+            title={zoomInButtonTitle}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             +
@@ -506,9 +518,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           type="button"
           disabled={searchMatches.length === 0}
           onClick={() => moveMatchCursor(-1)}
-          title={
-            searchMatches.length === 0 ? "検索結果がありません" : "前の一致へ"
-          }
+          title={searchNavigationTitle}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
           前の一致
@@ -517,9 +527,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           type="button"
           disabled={searchMatches.length === 0}
           onClick={() => moveMatchCursor(1)}
-          title={
-            searchMatches.length === 0 ? "検索結果がありません" : "次の一致へ"
-          }
+          title={searchNavigationTitle}
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
           次の一致
