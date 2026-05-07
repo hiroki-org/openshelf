@@ -102,9 +102,9 @@ function setCachedResults(key: string, data: UserSearchResult[]) {
   searchCache.set(key, { data, timestamp: Date.now() });
 }
 
-function escapeLikeLiteral(str: string): string {
+const escapeLikeLiteral = (str: string) => {
   return str.replace(/[\\%_]/g, "\\$&");
-}
+};
 
 // GET /api/users/search?q=xxx — search users for coauthor invite
 usersRoute.get("/search", authMiddleware, async (c) => {
@@ -120,7 +120,8 @@ usersRoute.get("/search", authMiddleware, async (c) => {
   }
 
   const db = drizzle(c.env.DB);
-  const searchPattern = `%${escapeLikeLiteral(q)}%`;
+
+  const escapedQuery = `%${escapeLikeLiteral(q)}%`;
 
   const results = await db
     .select({
@@ -134,8 +135,8 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     .where(
       and(
         or(
-          sql`${users.name} LIKE ${searchPattern} ESCAPE '\\'`,
-          sql`${users.githubId} LIKE ${searchPattern} ESCAPE '\\'`,
+          sql`${users.name} LIKE ${escapedQuery} ESCAPE '\\'`,
+          sql`${users.githubId} LIKE ${escapedQuery} ESCAPE '\\'`
         ),
         ne(users.id, currentUserId),
       ),
