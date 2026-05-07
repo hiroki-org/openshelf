@@ -391,7 +391,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   return (
     <div
       data-testid="pdf-viewer"
-      data-url={fileUrl}
       className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900"
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -420,6 +419,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
         <div className="flex items-center gap-2">
             <button
               type="button"
+              aria-label="縮小"
               onClick={() => {
                 const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
                 if (currentIndex > 0) setZoom(ZOOM_PRESETS[currentIndex - 1]);
@@ -431,7 +431,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           </button>
 
           <select
-            aria-label="PDF zoom"
+            aria-label="ズーム倍率"
             value={snapZoom(zoom)}
             onChange={(e) => setZoom(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
@@ -445,6 +445,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
             <button
               type="button"
+              aria-label="拡大"
               onClick={() => {
                 const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
                 if (currentIndex < ZOOM_PRESETS.length - 1) {
