@@ -59,7 +59,9 @@ describe("UploadPage", () => {
     fireEvent.change(screen.getByLabelText(/タイトル/i), {
       target: { value: "My paper" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "論文をアップロードする" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "論文をアップロードする" }),
+    );
 
     expect(
       await screen.findByText("ファイルを1つ以上添付してください"),
@@ -69,10 +71,9 @@ describe("UploadPage", () => {
 
   it("submits metadata and attached files", async () => {
     vi.mocked(apiFetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({ paper: { id: "paper-1" } }),
-        { status: 200 },
-      ),
+      new Response(JSON.stringify({ paper: { id: "paper-1" } }), {
+        status: 200,
+      }),
     );
 
     render(<UploadPage />);
@@ -98,11 +99,15 @@ describe("UploadPage", () => {
     const input = screen.getByLabelText("アップロードファイル");
     fireEvent.change(input, {
       target: {
-        files: [new File(["%PDF-1.7"], "paper.pdf", { type: "application/pdf" })],
+        files: [
+          new File(["%PDF-1.7"], "paper.pdf", { type: "application/pdf" }),
+        ],
       },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "論文をアップロードする" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "論文をアップロードする" }),
+    );
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(

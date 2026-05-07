@@ -41,7 +41,9 @@ describe("MarkdownEditor", () => {
     expect(textarea).toHaveValue("Initial content");
 
     // Preview panel is not displayed
-    expect(screen.queryByTestId("mock-markdown-renderer")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("mock-markdown-renderer"),
+    ).not.toBeInTheDocument();
   });
 
   it("renders in preview mode correctly", () => {
@@ -140,7 +142,11 @@ describe("MarkdownEditor", () => {
   it("renders placeholder text when preview is empty", () => {
     render(<MarkdownEditor {...defaultProps} value="   " mode="preview" />);
 
-    expect(screen.queryByTestId("mock-markdown-renderer")).not.toBeInTheDocument();
-    expect(screen.getByText("プレビューする内容がありません")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("mock-markdown-renderer"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("プレビューする内容がありません"),
+    ).toBeInTheDocument();
   });
 });

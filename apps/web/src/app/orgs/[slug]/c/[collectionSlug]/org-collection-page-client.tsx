@@ -52,9 +52,7 @@ export default function OrgCollectionPageClient({
 
   const reload = useCallback(async () => {
     try {
-      const listRes = await apiFetch(
-        `/api/orgs/${safePath(slug)}/collections`,
-      );
+      const listRes = await apiFetch(`/api/orgs/${safePath(slug)}/collections`);
       const listData = listRes.ok ? await listRes.json() : { collections: [] };
       const found =
         (listData.collections ?? []).find(
