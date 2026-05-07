@@ -1,11 +1,16 @@
 import { Hono, Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, like, or, and, ne, type InferSelectModel } from "drizzle-orm";
+import { eq, sql, or, and, ne, type InferSelectModel } from "drizzle-orm";
 import { users, enableForeignKeys, touchUpdatedAt } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 
 const usersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
+
+// Security: Escape wildcards to prevent Algorithmic Complexity DoS (Wildcard Injection)
+const escapeLikeLiteral = (str: string) => {
+  return str.replace(/[\\%_]/g, "\\$&");
+};
 
 // GET /api/users/me — current profile
 usersRoute.get("/me", authMiddleware, async (c) => {
@@ -65,13 +70,13 @@ usersRoute.put("/me", authMiddleware, updateMeHandler);
 
 // Simple in-memory cache for user search
 type UserSearchResult = Pick<
-    InferSelectModel<typeof users>,
-    "id" | "name" | "displayName" | "githubId" | "avatarUrl"
+  InferSelectModel<typeof users>,
+  "id" | "name" | "displayName" | "githubId" | "avatarUrl"
 >;
 
 type CachedSearchResult = {
-    data: UserSearchResult[];
-    timestamp: number;
+  data: UserSearchResult[];
+  timestamp: number;
 };
 const searchCache = new Map<string, CachedSearchResult>();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
@@ -128,7 +133,11 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     .from(users)
     .where(
       and(
-        or(like(users.name, `%${q}%`), like(users.githubId, `%${q}%`)),
+        or(
+          sql`${users.name} LIKE ${`%${escapeLikeLiteral(q)}%`} ESCAPE '\\'`,
+          sql`${users.githubId} LIKE ${`%${escapeLikeLiteral(q)}%`} ESCAPE '\\'`,
+        ),
+
         ne(users.id, currentUserId),
       ),
     )
