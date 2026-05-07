@@ -215,6 +215,7 @@ describe("AuthProvider", () => {
     );
 
     await waitFor(() => {
+      expect(screen.getByTestId("loading").textContent).toBe("false");
       expect(screen.getByTestId("user").textContent).toBe("null");
     });
 
