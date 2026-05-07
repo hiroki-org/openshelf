@@ -424,6 +424,8 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
                 if (currentIndex > 0) setZoom(ZOOM_PRESETS[currentIndex - 1]);
               }}
               disabled={zoom <= MIN_ZOOM}
+              aria-label="縮小"
+              title="縮小"
               className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             -
@@ -451,6 +453,8 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
                 }
               }}
               disabled={zoom >= MAX_ZOOM}
+              aria-label="拡大"
+              title="拡大"
               className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             +
