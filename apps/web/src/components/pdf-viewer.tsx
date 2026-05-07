@@ -443,7 +443,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           </button>
 
           <select
-            aria-label="ズーム倍率"
+            aria-label="PDF zoom"
             value={snapZoom(zoom)}
             onChange={(e) => setZoom(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
