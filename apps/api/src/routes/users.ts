@@ -1,6 +1,6 @@
 import { Hono, Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, like, or, and, ne, sql, type InferSelectModel } from "drizzle-orm";
+import { eq, or, and, ne, sql, type InferSelectModel } from "drizzle-orm";
 import { users, enableForeignKeys, touchUpdatedAt } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -120,6 +120,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
   }
 
   const db = drizzle(c.env.DB);
+  const searchPattern = `%${escapeLikeLiteral(q)}%`;
 
   const results = await db
     .select({
@@ -133,8 +134,8 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     .where(
       and(
         or(
-          sql`${users.name} LIKE ${`%${escapeLikeLiteral(q)}%`} ESCAPE '\\'`,
-          sql`${users.githubId} LIKE ${`%${escapeLikeLiteral(q)}%`} ESCAPE '\\'`,
+          sql`${users.name} LIKE ${searchPattern} ESCAPE '\\'`,
+          sql`${users.githubId} LIKE ${searchPattern} ESCAPE '\\'`,
         ),
         ne(users.id, currentUserId),
       ),
