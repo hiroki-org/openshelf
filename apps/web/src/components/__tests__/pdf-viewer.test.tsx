@@ -338,7 +338,7 @@ describe("PdfViewer", () => {
     expect(container.requestFullscreen).toHaveBeenCalled();
   });
 
-  it("adds disabled-state explanations without duplicating enabled control labels", async () => {
+  it("shows disabled-state tooltips without enabled-state duplication", async () => {
     render(<PdfViewer fileUrl="https://example.com/tooltips.pdf" />);
 
     const prevButton = screen.getByRole("button", { name: "前へ" });
