@@ -323,8 +323,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             matches.push(page);
           }
         } catch (error) {
-          const message =
-            error instanceof Error ? String(error) : String(error);
+          const message = error instanceof Error ? error.message : String(error);
           console.warn(`Failed to extract text for page ${page}:`, message);
         }
       }
@@ -431,7 +430,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           <button
             type="button"
             aria-label="縮小"
-            title="縮小"
             onClick={() => {
               const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
               if (currentIndex > 0) setZoom(ZOOM_PRESETS[currentIndex - 1]);
@@ -458,7 +456,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           <button
             type="button"
             aria-label="拡大"
-            title="拡大"
             onClick={() => {
               const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
               if (currentIndex < ZOOM_PRESETS.length - 1) {
