@@ -324,7 +324,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           }
         } catch (error) {
           const message =
-            error instanceof Error ? String(error) : String(error);
+            error instanceof Error ? error.name + ": " + error.message : String(error);
           console.warn(`Failed to extract text for page ${page}:`, message);
         }
       }
@@ -437,7 +437,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             disabled={zoom <= MIN_ZOOM}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
             aria-label="縮小"
-            title="縮小"
           >
             -
           </button>
@@ -466,7 +465,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             disabled={zoom >= MAX_ZOOM}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
             aria-label="拡大"
-            title="拡大"
           >
             +
           </button>
