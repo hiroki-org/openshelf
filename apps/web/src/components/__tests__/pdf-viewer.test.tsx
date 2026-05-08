@@ -317,6 +317,9 @@ describe("PdfViewer", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "拡大" }));
     expect(zoomSelect.value).toBe("2");
+
+    fireEvent.click(screen.getByRole("button", { name: "縮小" }));
+    expect(zoomSelect.value).toBe("1.75");
   });
 
   it("handles text extraction errors gracefully during search", async () => {
