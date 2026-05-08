@@ -86,13 +86,17 @@ Shared tooling reference: `../../AGENTS.md` and `../../docs/agent-tooling.md`.
 
 - **Initial Auth Check**: `gh --version && gh auth status`
 - **CI status watch**: `gh pr checks <PR_NUMBER> --required --watch --interval 10`
-- **Fetch Review Threads (GraphQL Example)**:
+- **Fetch Review Threads (GraphQL Example, paginated)**:
   ```bash
   gh api graphql -f query='
-    query($owner: String!, $repo: String!, $pr: Int!) {
+    query($owner: String!, $repo: String!, $pr: Int!, $after: String) {
       repository(owner: $owner, name: $repo) {
         pullRequest(number: $pr) {
-          reviewThreads(first: 100) { # Specify pagination if over 100
+          reviewThreads(first: 100, after: $after) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
             nodes {
               id
               isResolved
@@ -101,8 +105,10 @@ Shared tooling reference: `../../AGENTS.md` and `../../docs/agent-tooling.md`.
           }
         }
       }
-    }' -f owner="OWNER" -f repo="REPO" -F pr=123
+    }' -f owner="OWNER" -f repo="REPO" -F pr=123 -F after=null
   ```
+
+  - Repeat requests while `pageInfo.hasNextPage == true`, passing `pageInfo.endCursor` to `after`.
 - **Resolve a Thread (GraphQL Example)**:
   ```bash
   gh api graphql -f query='
