@@ -80,6 +80,7 @@ Shared tooling reference: `../../AGENTS.md` and `../../docs/agent-tooling.md`.
    - After each push, wait for CI to complete (e.g. `gh pr checks --watch`).
    - Re-fetch CI/check status and newly added review threads.
 8. **Repeat** until stop conditions are satisfied or iteration cap is reached.
+   - Log iteration progress concisely (e.g. "Iteration X: Processed N threads, Pushed commit: Y, Remaining: Z").
 
 ## Tooling & Command Patterns
 
@@ -91,7 +92,7 @@ Shared tooling reference: `../../AGENTS.md` and `../../docs/agent-tooling.md`.
     query($owner: String!, $repo: String!, $pr: Int!) {
       repository(owner: $owner, name: $repo) {
         pullRequest(number: $pr) {
-          reviewThreads(first: 50) {
+          reviewThreads(first: 100) { # Specify pagination if over 100
             nodes {
               id
               isResolved
@@ -121,14 +122,14 @@ Shared tooling reference: `../../AGENTS.md` and `../../docs/agent-tooling.md`.
 
 ## Final Report Format (Mandatory)
 
-Whenever you complete a PR Review Closure Loop, or if you abort due to an error/timeout, you MUST output a final report in the following format. Do not omit any fields.
+Whenever you complete a PR Review Closure Loop, or if you abort due to an error/timeout, you MUST output a final report in the following format. Do not omit any fields. If a field cannot be populated due to an early exit, explicitly use `N/A` or `0`.
 
 ```md
 ### PR Review Closure Report
 
 - **対象 PR URL**: <PR URL>
-- **gh version**: <output of gh --version>
-- **gh auth status の結果**: <Logged in... / Failed>
+- **gh version**: <version string from gh --version> (Use single line/summary)
+- **gh auth status の結果**: <summary of gh auth status> (Use single line/summary)
 - **取得した review thread 数**: <count>
 - **resolve 前の unresolved thread 数**: <count>
 - **resolve 後の unresolved thread 数**: <count>
