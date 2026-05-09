@@ -26,7 +26,10 @@ function splitEditingState(value: string): {
     return { committed: [], currentRaw: "", currentTrimmed: "" };
   }
   const currentRaw = parts[parts.length - 1];
-  const committed = parts.slice(0, -1).map((tag) => tag.trim()).filter(Boolean);
+  const committed = parts
+    .slice(0, -1)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
   return { committed, currentRaw, currentTrimmed: currentRaw.trim() };
 }
 
@@ -77,7 +80,9 @@ export function TagAutocompleteInput({
       try {
         const params = new URLSearchParams({ q: currentTrimmed });
         if (orgSlug) params.set("orgSlug", orgSlug);
-        const response = await apiFetch(`/api/tags/suggest?${params.toString()}`);
+        const response = await apiFetch(
+          `/api/tags/suggest?${params.toString()}`,
+        );
         if (requestIdRef.current !== requestId) return;
         if (!response.ok) {
           setSuggestions([]);
