@@ -458,7 +458,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           <button
             type="button"
             aria-label="拡大"
-            title="拡大"
             onClick={() => {
               const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
               if (currentIndex < ZOOM_PRESETS.length - 1) {
