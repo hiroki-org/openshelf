@@ -130,6 +130,8 @@ describe("NewOrgPage", () => {
         vi.advanceTimersByTime(400);
         await Promise.resolve();
       });
+
+      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument();
     } finally {
       vi.useRealTimers();
     }
