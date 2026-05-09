@@ -65,13 +65,13 @@ usersRoute.put("/me", authMiddleware, updateMeHandler);
 
 // Simple in-memory cache for user search
 type UserSearchResult = Pick<
-    InferSelectModel<typeof users>,
-    "id" | "name" | "displayName" | "githubId" | "avatarUrl"
+  InferSelectModel<typeof users>,
+  "id" | "name" | "displayName" | "githubId" | "avatarUrl"
 >;
 
 type CachedSearchResult = {
-    data: UserSearchResult[];
-    timestamp: number;
+  data: UserSearchResult[];
+  timestamp: number;
 };
 const searchCache = new Map<string, CachedSearchResult>();
 const CACHE_TTL_MS = 60 * 1000; // 1 minute
