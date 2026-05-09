@@ -27,7 +27,10 @@ type UserPageClientProps = {
   initialUser?: UserProfile | null;
 };
 
-export default function UserPageClient({ id, initialUser = null }: UserPageClientProps) {
+export default function UserPageClient({
+  id,
+  initialUser = null,
+}: UserPageClientProps) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(initialUser);
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -63,7 +66,9 @@ export default function UserPageClient({ id, initialUser = null }: UserPageClien
         }
 
         const [profileData, collectionsData] = await Promise.all([
-          !initialUser && profileRes?.ok ? profileRes.json() : Promise.resolve(null),
+          !initialUser && profileRes?.ok
+            ? profileRes.json()
+            : Promise.resolve(null),
           collectionsRes.ok ? collectionsRes.json() : Promise.resolve(null),
         ]);
 

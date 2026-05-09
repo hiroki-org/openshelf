@@ -211,9 +211,9 @@ describe("PdfViewer", () => {
       ).toBeInTheDocument();
     });
 
-    const [documentProps] = mockDocument.mock.calls[mockDocument.mock.calls.length - 1] as [
-      MockDocumentProps,
-    ];
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
     mockPage.mockClear();
     await act(async () => {
       documentProps.onLoadSuccess?.(
@@ -265,9 +265,9 @@ describe("PdfViewer", () => {
 
   it("supports custom search navigation across pages", async () => {
     render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
-    const [documentProps] = mockDocument.mock.calls[mockDocument.mock.calls.length - 1] as [
-      MockDocumentProps,
-    ];
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
 
     await act(async () => {
       documentProps.onLoadSuccess?.(
@@ -292,6 +292,12 @@ describe("PdfViewer", () => {
       );
       expect(renderedPages).toContain(3);
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "前の一致" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    });
   });
 
   it("syncs pinch zoom with zoom controls on touch devices", async () => {
@@ -305,18 +311,55 @@ describe("PdfViewer", () => {
         { clientX: 100, clientY: 0 },
       ],
     });
+
+    // Invalid touchMove (not 2 touches)
+    fireEvent.touchMove(surface, { touches: [{ clientX: 0, clientY: 0 }] });
+
+    // Invalid touchMove (distance <= 0)
+    fireEvent.touchMove(surface, {
+      touches: [
+        { clientX: 0, clientY: 0 },
+        { clientX: 0, clientY: 0 },
+      ],
+    });
+
     fireEvent.touchMove(surface, {
       touches: [
         { clientX: 0, clientY: 0 },
         { clientX: 180, clientY: 0 },
       ],
     });
+
+    // Invalid touchEnd (>= 2 touches)
+    fireEvent.touchEnd(surface, {
+      touches: [
+        { clientX: 0, clientY: 0 },
+        { clientX: 180, clientY: 0 },
+      ],
+    });
+
+    fireEvent.touchEnd(surface, { touches: [] });
+
+    // Invalid touchEnd (no pinch state)
     fireEvent.touchEnd(surface, { touches: [] });
 
     expect(zoomSelect.value).toBe("1.75");
 
-    fireEvent.click(screen.getByRole("button", { name: "+" }));
+    fireEvent.click(screen.getByRole("button", { name: "ズームイン" }));
     expect(zoomSelect.value).toBe("2");
+
+    fireEvent.click(screen.getByRole("button", { name: "ズームアウト" }));
+    expect(zoomSelect.value).toBe("1.75");
+
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "前へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "連続スクロール" }));
+
+    // Mock requestFullscreen
+    const container = screen.getByTestId("pdf-viewer-surface");
+    container.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    fireEvent.click(screen.getByRole("button", { name: "全画面" }));
+    expect(container.requestFullscreen).toHaveBeenCalled();
   });
 
   it("handles text extraction errors gracefully during search", async () => {
@@ -328,17 +371,29 @@ describe("PdfViewer", () => {
       ] as [MockDocumentProps];
 
       await act(async () => {
-        const mockDoc = createMockPdfDocument(["alpha", "beta target", "gamma target"]);
+        const mockDoc = createMockPdfDocument([
+          "alpha",
+          "beta target",
+          "gamma target",
+        ]);
         // Override page 2 to throw an error
         mockDoc.getPage = vi.fn(async (pageNumber: number) => {
           if (pageNumber === 2) {
             return {
-              getTextContent: vi.fn().mockRejectedValue(new Error("Extraction failed")),
+              getTextContent: vi
+                .fn()
+                .mockRejectedValue(new Error("Extraction failed")),
             };
           }
           return {
             getTextContent: vi.fn(async () => ({
-              items: [{ str: ["alpha", "beta target", "gamma target"][pageNumber - 1] ?? "" }],
+              items: [
+                {
+                  str:
+                    ["alpha", "beta target", "gamma target"][pageNumber - 1] ??
+                    "",
+                },
+              ],
             })),
           };
         });
@@ -354,7 +409,7 @@ describe("PdfViewer", () => {
         expect(screen.getByText("1 / 1")).toBeInTheDocument();
         expect(consoleSpy).toHaveBeenCalledWith(
           "Failed to extract text for page 2:",
-          expect.any(String)
+          expect.any(String),
         );
       });
     } finally {
@@ -365,13 +420,19 @@ describe("PdfViewer", () => {
   it("handles text extraction errors gracefully during search when error is not an Error instance", async () => {
     const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
-      render(<PdfViewer fileUrl="https://example.com/search-error-string.pdf" />);
+      render(
+        <PdfViewer fileUrl="https://example.com/search-error-string.pdf" />,
+      );
       const [documentProps] = mockDocument.mock.calls[
         mockDocument.mock.calls.length - 1
       ] as [MockDocumentProps];
 
       await act(async () => {
-        const mockDoc = createMockPdfDocument(["alpha", "beta target", "gamma target"]);
+        const mockDoc = createMockPdfDocument([
+          "alpha",
+          "beta target",
+          "gamma target",
+        ]);
         mockDoc.getPage = vi.fn(async (pageNumber: number) => {
           if (pageNumber === 2) {
             return {
@@ -380,7 +441,13 @@ describe("PdfViewer", () => {
           }
           return {
             getTextContent: vi.fn(async () => ({
-              items: [{ str: ["alpha", "beta target", "gamma target"][pageNumber - 1] ?? "" }],
+              items: [
+                {
+                  str:
+                    ["alpha", "beta target", "gamma target"][pageNumber - 1] ??
+                    "",
+                },
+              ],
             })),
           };
         });
@@ -395,7 +462,7 @@ describe("PdfViewer", () => {
         expect(screen.getByText("1 / 1")).toBeInTheDocument();
         expect(consoleSpy).toHaveBeenCalledWith(
           "Failed to extract text for page 2:",
-          "String error"
+          "String error",
         );
       });
     } finally {

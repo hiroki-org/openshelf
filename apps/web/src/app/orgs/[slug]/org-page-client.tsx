@@ -114,12 +114,20 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
   );
 
   const selectedYearParam = searchParams.get("year");
-  const selectedYear = selectedYearParam === "all" ? "" : (selectedYearParam ?? "");
+  const selectedYear =
+    selectedYearParam === "all" ? "" : (selectedYearParam ?? "");
   const selectedVenue = searchParams.get("venue") ?? "";
   const selectedCategory = searchParams.get("category") ?? "";
-  const selectedPage = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const selectedPage = Math.max(
+    1,
+    Number.parseInt(searchParams.get("page") ?? "1", 10) || 1,
+  );
   const autoYearEnabled = selectedYearParam === null;
-  const displayedYear = autoYearEnabled ? (appliedYear ? String(appliedYear) : "") : selectedYear;
+  const displayedYear = autoYearEnabled
+    ? appliedYear
+      ? String(appliedYear)
+      : ""
+    : selectedYear;
 
   const updateFilters = useCallback(
     (changes: Record<string, string | null>) => {
@@ -226,7 +234,15 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
     } finally {
       setLoading(false);
     }
-  }, [autoYearEnabled, selectedCategory, selectedPage, selectedVenue, selectedYear, selectedYearParam, slug]);
+  }, [
+    autoYearEnabled,
+    selectedCategory,
+    selectedPage,
+    selectedVenue,
+    selectedYear,
+    selectedYearParam,
+    slug,
+  ]);
 
   useEffect(() => {
     fetchOrgMeta();
@@ -360,45 +376,68 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
         <div className="mb-4 rounded-md border p-3 dark:border-gray-700">
           <div className="grid gap-3 md:grid-cols-3">
             <label className="text-sm">
-              <span className="mb-1 block text-gray-600 dark:text-gray-400">年度</span>
+              <span className="mb-1 block text-gray-600 dark:text-gray-400">
+                年度
+              </span>
               <select
                 className="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900"
                 value={displayedYear}
-                onChange={(e) => updateFilters({ year: e.target.value ? e.target.value : "all" })}
+                onChange={(e) =>
+                  updateFilters({
+                    year: e.target.value ? e.target.value : "all",
+                  })
+                }
               >
                 <option value="">全て</option>
                 {yearOptions.map((option) => (
-                  <option key={String(option.value)} value={String(option.value)}>
+                  <option
+                    key={String(option.value)}
+                    value={String(option.value)}
+                  >
                     {option.value} ({option.count})
                   </option>
                 ))}
               </select>
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-gray-600 dark:text-gray-400">Venue</span>
+              <span className="mb-1 block text-gray-600 dark:text-gray-400">
+                Venue
+              </span>
               <select
                 className="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900"
                 value={selectedVenue}
-                onChange={(e) => updateFilters({ venue: e.target.value || null })}
+                onChange={(e) =>
+                  updateFilters({ venue: e.target.value || null })
+                }
               >
                 <option value="">全て</option>
                 {venueOptions.map((option) => (
-                  <option key={String(option.value)} value={String(option.value)}>
+                  <option
+                    key={String(option.value)}
+                    value={String(option.value)}
+                  >
                     {option.value} ({option.count})
                   </option>
                 ))}
               </select>
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-gray-600 dark:text-gray-400">カテゴリ</span>
+              <span className="mb-1 block text-gray-600 dark:text-gray-400">
+                カテゴリ
+              </span>
               <select
                 className="w-full rounded border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-900"
                 value={selectedCategory}
-                onChange={(e) => updateFilters({ category: e.target.value || null })}
+                onChange={(e) =>
+                  updateFilters({ category: e.target.value || null })
+                }
               >
                 <option value="">全て</option>
                 {categoryOptions.map((option) => (
-                  <option key={String(option.value)} value={String(option.value)}>
+                  <option
+                    key={String(option.value)}
+                    value={String(option.value)}
+                  >
                     {option.value} ({option.count})
                   </option>
                 ))}
