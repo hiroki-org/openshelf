@@ -24,6 +24,7 @@ const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 app.use(
   "*",
   secureHeaders({
+    xFrameOptions: "DENY",
     referrerPolicy: "strict-origin-when-cross-origin",
     contentSecurityPolicy: {
       defaultSrc: ["'none'"],
@@ -42,7 +43,11 @@ app.use(
         const requestOrigin = normalizeOrigin(origin ?? undefined);
         const frontendOrigin = normalizeOrigin(c.env.FRONTEND_URL);
 
-        if (isAllowedOrigin(requestOrigin, frontendOrigin, allowedOrigins)) {
+        if (
+          isAllowedOrigin(requestOrigin, frontendOrigin, allowedOrigins, {
+            allowWildcard: false,
+          })
+        ) {
           return origin;
         }
       } catch (err) {
