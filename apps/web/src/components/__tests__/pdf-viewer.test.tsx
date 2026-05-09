@@ -211,9 +211,9 @@ describe("PdfViewer", () => {
       ).toBeInTheDocument();
     });
 
-    const [documentProps] = mockDocument.mock.calls[mockDocument.mock.calls.length - 1] as [
-      MockDocumentProps,
-    ];
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
     mockPage.mockClear();
     await act(async () => {
       documentProps.onLoadSuccess?.(
@@ -265,9 +265,9 @@ describe("PdfViewer", () => {
 
   it("supports custom search navigation across pages", async () => {
     render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
-    const [documentProps] = mockDocument.mock.calls[mockDocument.mock.calls.length - 1] as [
-      MockDocumentProps,
-    ];
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
 
     await act(async () => {
       documentProps.onLoadSuccess?.(
@@ -328,17 +328,29 @@ describe("PdfViewer", () => {
       ] as [MockDocumentProps];
 
       await act(async () => {
-        const mockDoc = createMockPdfDocument(["alpha", "beta target", "gamma target"]);
+        const mockDoc = createMockPdfDocument([
+          "alpha",
+          "beta target",
+          "gamma target",
+        ]);
         // Override page 2 to throw an error
         mockDoc.getPage = vi.fn(async (pageNumber: number) => {
           if (pageNumber === 2) {
             return {
-              getTextContent: vi.fn().mockRejectedValue(new Error("Extraction failed")),
+              getTextContent: vi
+                .fn()
+                .mockRejectedValue(new Error("Extraction failed")),
             };
           }
           return {
             getTextContent: vi.fn(async () => ({
-              items: [{ str: ["alpha", "beta target", "gamma target"][pageNumber - 1] ?? "" }],
+              items: [
+                {
+                  str:
+                    ["alpha", "beta target", "gamma target"][pageNumber - 1] ??
+                    "",
+                },
+              ],
             })),
           };
         });
@@ -354,7 +366,7 @@ describe("PdfViewer", () => {
         expect(screen.getByText("1 / 1")).toBeInTheDocument();
         expect(consoleSpy).toHaveBeenCalledWith(
           "Failed to extract text for page 2:",
-          expect.any(String)
+          expect.any(String),
         );
       });
     } finally {
@@ -365,13 +377,19 @@ describe("PdfViewer", () => {
   it("handles text extraction errors gracefully during search when error is not an Error instance", async () => {
     const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
-      render(<PdfViewer fileUrl="https://example.com/search-error-string.pdf" />);
+      render(
+        <PdfViewer fileUrl="https://example.com/search-error-string.pdf" />,
+      );
       const [documentProps] = mockDocument.mock.calls[
         mockDocument.mock.calls.length - 1
       ] as [MockDocumentProps];
 
       await act(async () => {
-        const mockDoc = createMockPdfDocument(["alpha", "beta target", "gamma target"]);
+        const mockDoc = createMockPdfDocument([
+          "alpha",
+          "beta target",
+          "gamma target",
+        ]);
         mockDoc.getPage = vi.fn(async (pageNumber: number) => {
           if (pageNumber === 2) {
             return {
@@ -380,7 +398,13 @@ describe("PdfViewer", () => {
           }
           return {
             getTextContent: vi.fn(async () => ({
-              items: [{ str: ["alpha", "beta target", "gamma target"][pageNumber - 1] ?? "" }],
+              items: [
+                {
+                  str:
+                    ["alpha", "beta target", "gamma target"][pageNumber - 1] ??
+                    "",
+                },
+              ],
             })),
           };
         });
@@ -395,7 +419,7 @@ describe("PdfViewer", () => {
         expect(screen.getByText("1 / 1")).toBeInTheDocument();
         expect(consoleSpy).toHaveBeenCalledWith(
           "Failed to extract text for page 2:",
-          "String error"
+          "String error",
         );
       });
     } finally {
