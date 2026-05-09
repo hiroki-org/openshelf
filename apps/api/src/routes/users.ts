@@ -110,6 +110,7 @@ function escapeLikeLiteral(str: string): string {
 usersRoute.get("/search", authMiddleware, async (c) => {
   const q = c.req.query("q");
   if (!q || q.length < 2) return c.json({ users: [] });
+  if (q.length > 100) return c.json({ error: "query too long" }, 400);
 
   const currentUserId = c.get("user").sub;
   const cacheKey = `${q}-${currentUserId}`;
