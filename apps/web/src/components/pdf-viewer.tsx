@@ -619,9 +619,3 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     </div>
   );
 }
-     ))}
-        </Document>
-      </div>
-    </div>
-  );
-}
