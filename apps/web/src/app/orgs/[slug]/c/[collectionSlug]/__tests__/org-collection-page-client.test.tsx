@@ -1,9 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OrgCollectionPageClient from "../org-collection-page-client";
 import { apiFetch } from "@/lib/api";
@@ -66,9 +61,12 @@ describe("OrgCollectionPageClient", () => {
       const method = (init?.method ?? "GET").toUpperCase();
 
       if (url === "/api/orgs/lab/collections") {
-        return new Response(JSON.stringify({ collections: state.collections }), {
-          status: 200,
-        });
+        return new Response(
+          JSON.stringify({ collections: state.collections }),
+          {
+            status: 200,
+          },
+        );
       }
       if (url === "/api/collections/col-1/papers" && method === "GET") {
         return new Response(JSON.stringify({ papers: state.papers }), {
@@ -96,7 +94,7 @@ describe("OrgCollectionPageClient", () => {
     });
     expect(screen.getByRole("button", { name: "📡 Feed" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole("button", { name: "↓" })[0]);
+    fireEvent.click(screen.getAllByRole("button", { name: "下に移動" })[0]);
 
     await waitFor(() => {
       const links = screen.getAllByRole("link").filter((link) => {
