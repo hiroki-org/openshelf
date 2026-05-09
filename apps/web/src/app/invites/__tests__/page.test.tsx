@@ -1,9 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import InvitesPage from "../page";
 import { apiFetch } from "@/lib/api";
@@ -74,10 +69,7 @@ describe("InvitesPage", () => {
         );
       }
 
-      if (
-        url === "/api/invites/invite-1" &&
-        init?.method === "PATCH"
-      ) {
+      if (url === "/api/invites/invite-1" && init?.method === "PATCH") {
         const body = JSON.parse(String(init?.body ?? "{}"));
         if (body.action !== "accept") {
           return new Response(JSON.stringify({ error: "Invalid action" }), {
@@ -98,6 +90,60 @@ describe("InvitesPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText("承認済み")).toBeInTheDocument();
+    });
+  });
+
+  it("redirects guests to home", () => {
+    authState = { user: null, loading: false };
+
+    render(<InvitesPage />);
+
+    expect(push).toHaveBeenCalledWith("/");
+  });
+
+  it("shows empty state when invite fetch fails", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response("{}", { status: 500 }));
+
+    render(<InvitesPage />);
+
+    expect(await screen.findByText("招待はありません")).toBeInTheDocument();
+  });
+
+  it("declines a pending invite and updates the status", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/invites/received") {
+        return new Response(
+          JSON.stringify({
+            invites: [
+              {
+                id: "invite-1",
+                paperId: "paper-1",
+                paperTitle: "Paper title",
+                inviterId: "user-2",
+                inviterName: "Bob",
+                status: "pending",
+                createdAt: "2026-03-01T00:00:00Z",
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (url === "/api/invites/invite-1" && init?.method === "PATCH") {
+        return new Response("{}", { status: 200 });
+      }
+
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<InvitesPage />);
+
+    expect(await screen.findByText("Paper title")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "拒否" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("拒否済み")).toBeInTheDocument();
     });
   });
 });

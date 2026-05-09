@@ -37,9 +37,8 @@ describe("users/[id]/c/[collectionSlug]/page metadata", () => {
     process.env.NEXT_PUBLIC_API_URL = "https://public-api.example.com";
     vi.resetModules();
 
-    const { default: UserCollectionPage, generateMetadata } = await import(
-      "../page"
-    );
+    const { default: UserCollectionPage, generateMetadata } =
+      await import("../page");
 
     vi.spyOn(global, "fetch")
       .mockResolvedValueOnce(

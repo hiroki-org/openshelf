@@ -106,10 +106,15 @@ function setCachedResults(key: string, data: UserSearchResult[]) {
   searchCache.set(key, { data, timestamp: Date.now() });
 }
 
+function escapeLikeLiteral(str: string): string {
+  return str.replace(/[\\%_]/g, "\\$&");
+}
+
 // GET /api/users/search?q=xxx — search users for coauthor invite
 usersRoute.get("/search", authMiddleware, async (c) => {
   const q = c.req.query("q");
   if (!q || q.length < 2) return c.json({ users: [] });
+  if (q.length > 100) return c.json({ error: "query too long" }, 400);
 
   const currentUserId = c.get("user").sub;
   const cacheKey = `${q}-${currentUserId}`;
@@ -120,6 +125,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
   }
 
   const db = drizzle(c.env.DB);
+  const searchPattern = `%${escapeLikeLiteral(q)}%`;
 
   const results = await db
     .select({
@@ -133,8 +139,8 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     .where(
       and(
         or(
-          sql`${users.name} LIKE ${`%${escapeLikeLiteral(q)}%`} ESCAPE '\\'`,
-          sql`${users.githubId} LIKE ${`%${escapeLikeLiteral(q)}%`} ESCAPE '\\'`,
+          sql`${users.name} LIKE ${searchPattern} ESCAPE '\\' COLLATE NOCASE`,
+          sql`${users.githubId} LIKE ${searchPattern} ESCAPE '\\' COLLATE NOCASE`
         ),
         ne(users.id, currentUserId),
       ),

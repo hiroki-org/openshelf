@@ -53,10 +53,9 @@ describe("NewOrgPage", () => {
       }
 
       if (url === "/api/orgs" && init?.method === "POST") {
-        return new Response(
-          JSON.stringify({ org: { slug: "research-lab" } }),
-          { status: 201 },
-        );
+        return new Response(JSON.stringify({ org: { slug: "research-lab" } }), {
+          status: 201,
+        });
       }
 
       throw new Error(`Unexpected request: ${String(url)}`);
@@ -83,5 +82,63 @@ describe("NewOrgPage", () => {
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith("/orgs/research-lab");
     });
+  });
+
+  it("redirects guests to home", () => {
+    authState = { user: null, loading: false };
+
+    render(<NewOrgPage />);
+
+    expect(push).toHaveBeenCalledWith("/");
+  });
+
+  it("shows invalid slug feedback for malformed slug", async () => {
+    render(<NewOrgPage />);
+
+    fireEvent.change(screen.getByLabelText(/組織名/i), {
+      target: { value: "Research Lab" },
+    });
+    fireEvent.change(screen.getByLabelText(/スラッグ/i), {
+      target: { value: "bad--slug" },
+    });
+
+    expect(
+      await screen.findByText("※ 3〜40文字、英小文字・数字・ハイフンのみ"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "作成" })).toBeDisabled();
+  });
+
+  it("shows server error when org creation fails", async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/orgs/research-lab") {
+        return new Response("{}", { status: 404 });
+      }
+      if (url === "/api/orgs" && init?.method === "POST") {
+        return new Response(JSON.stringify({ error: "slug taken" }), { status: 409 });
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    try {
+      render(<NewOrgPage />);
+      fireEvent.change(screen.getByLabelText(/組織名/i), {
+        target: { value: "Research Lab" },
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(400);
+        await Promise.resolve();
+      });
+
+      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+
+    expect(await screen.findByText("slug taken")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
   });
 });

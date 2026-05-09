@@ -1,4 +1,11 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TagAutocompleteInput } from "../tag-autocomplete-input";
 import { apiFetch } from "@/lib/api";
@@ -45,9 +52,12 @@ describe("TagAutocompleteInput", () => {
     const input = screen.getByPlaceholderText("タグ");
     fireEvent.change(input, { target: { value: "Ma" } });
 
-    await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledWith("/api/tags/suggest?q=Ma");
-    }, { timeout: 600 });
+    await waitFor(
+      () => {
+        expect(apiFetch).toHaveBeenCalledWith("/api/tags/suggest?q=Ma");
+      },
+      { timeout: 600 },
+    );
   });
 
   it("uses cached results for the same prefix and supports keyboard selection", async () => {
@@ -62,22 +72,31 @@ describe("TagAutocompleteInput", () => {
       <TagAutocompleteInput id="paper-tags" value="Ma" onChange={onChange} />,
     );
 
-    await waitFor(() => {
-      expect(apiFetch).toHaveBeenCalledTimes(1);
-    }, { timeout: 600 });
+    await waitFor(
+      () => {
+        expect(apiFetch).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 600 },
+    );
 
     const input = screen.getByRole("textbox");
     fireEvent.focus(input);
-    expect(await screen.findByRole("option", { name: "Machine Learning" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: "Machine Learning" }),
+    ).toBeInTheDocument();
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(onChange).toHaveBeenCalledWith("Machine Learning, ");
 
-    rerender(<TagAutocompleteInput id="paper-tags" value="Ma" onChange={onChange} />);
+    rerender(
+      <TagAutocompleteInput id="paper-tags" value="Ma" onChange={onChange} />,
+    );
     await new Promise((resolve) => setTimeout(resolve, DEBOUNCE_WAIT_MS));
     expect(apiFetch).toHaveBeenCalledTimes(1);
     fireEvent.focus(screen.getByRole("textbox"));
-    expect(screen.getByRole("option", { name: "Machine Learning" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Machine Learning" }),
+    ).toBeInTheDocument();
   });
 
   it("closes the dropdown with Escape and exposes the active descendant", async () => {
@@ -87,10 +106,14 @@ describe("TagAutocompleteInput", () => {
       }),
     );
 
-    render(<TagAutocompleteInput id="paper-tags" value="Ma" onChange={vi.fn()} />);
+    render(
+      <TagAutocompleteInput id="paper-tags" value="Ma" onChange={vi.fn()} />,
+    );
 
     const input = screen.getByRole("textbox");
-    expect(await screen.findByRole("option", { name: "Machine Learning" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("option", { name: "Machine Learning" }),
+    ).toBeInTheDocument();
     expect(input).toHaveAttribute(
       "aria-activedescendant",
       "paper-tags-suggestions-option-0",
@@ -132,7 +155,9 @@ describe("TagAutocompleteInput", () => {
     });
     expect(apiFetch).toHaveBeenNthCalledWith(1, "/api/tags/suggest?q=Ma");
 
-    rerender(<TagAutocompleteInput id="paper-tags" value="Mat" onChange={vi.fn()} />);
+    rerender(
+      <TagAutocompleteInput id="paper-tags" value="Mat" onChange={vi.fn()} />,
+    );
 
     await act(async () => {
       vi.advanceTimersByTime(DEBOUNCE_WAIT_MS);
@@ -157,13 +182,19 @@ describe("TagAutocompleteInput", () => {
       await Promise.resolve();
     });
 
-    expect(screen.queryByRole("option", { name: "Machine Learning" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "Machine Learning" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Math" })).toBeInTheDocument();
   });
 
   it("renders chips only for committed tags", () => {
     render(
-      <TagAutocompleteInput id="paper-tags" value="AI, Ma" onChange={vi.fn()} />,
+      <TagAutocompleteInput
+        id="paper-tags"
+        value="AI, Ma"
+        onChange={vi.fn()}
+      />,
     );
 
     expect(screen.getByText("AI")).toBeInTheDocument();

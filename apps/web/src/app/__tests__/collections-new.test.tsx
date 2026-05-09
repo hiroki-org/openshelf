@@ -49,7 +49,9 @@ describe("NewCollectionPage", () => {
     vi.useFakeTimers();
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
       if (url === "/api/users/user-1/collections") {
-        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+        return new Response(JSON.stringify({ collections: [] }), {
+          status: 200,
+        });
       }
 
       if (url === "/api/collections" && init?.method === "POST") {
@@ -88,7 +90,9 @@ describe("NewCollectionPage", () => {
   it("keeps submit disabled while slug check is still idle (debounce not finished)", async () => {
     vi.mocked(apiFetch).mockImplementation(async (url) => {
       if (url === "/api/users/user-1/collections") {
-        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+        return new Response(JSON.stringify({ collections: [] }), {
+          status: 200,
+        });
       }
 
       throw new Error(`Unexpected request: ${String(url)}`);
@@ -103,18 +107,24 @@ describe("NewCollectionPage", () => {
     const submit = screen.getByRole("button", { name: "作成" });
     expect(submit).toBeDisabled();
 
-    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
+    );
     expect(submit).not.toBeDisabled();
   });
 
   it("resets slug availability when switching from user to org ownership", async () => {
     vi.mocked(apiFetch).mockImplementation(async (url) => {
       if (url === "/api/users/user-1/collections") {
-        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+        return new Response(JSON.stringify({ collections: [] }), {
+          status: 200,
+        });
       }
 
       if (url === "/api/orgs/example-org/collections") {
-        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+        return new Response(JSON.stringify({ collections: [] }), {
+          status: 200,
+        });
       }
 
       throw new Error(`Unexpected request: ${String(url)}`);
@@ -127,7 +137,9 @@ describe("NewCollectionPage", () => {
     });
 
     const submit = screen.getByRole("button", { name: "作成" });
-    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
+    );
     expect(submit).not.toBeDisabled();
 
     fireEvent.click(screen.getByLabelText(/^org$/));
@@ -138,14 +150,18 @@ describe("NewCollectionPage", () => {
       target: { value: "example-org" },
     });
 
-    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
+    );
     expect(submit).not.toBeDisabled();
   });
 
   it("requires an org slug for org-owned collections", async () => {
     vi.mocked(apiFetch).mockImplementation(async (url) => {
       if (url === "/api/orgs/example-org/collections") {
-        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+        return new Response(JSON.stringify({ collections: [] }), {
+          status: 200,
+        });
       }
 
       throw new Error(`Unexpected request: ${String(url)}`);
@@ -165,7 +181,57 @@ describe("NewCollectionPage", () => {
       target: { value: "example-org" },
     });
 
-    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
+    );
     expect(submit).not.toBeDisabled();
+  });
+
+  it("redirects guests to home", () => {
+    authState = { user: null, loading: false };
+
+    render(<NewCollectionPage />);
+
+    expect(push).toHaveBeenCalledWith("/");
+  });
+
+  it("marks invalid slug formats and keeps submit disabled", async () => {
+    render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Lab Picks" },
+    });
+    fireEvent.change(screen.getByLabelText("slug"), {
+      target: { value: "bad--slug" },
+    });
+
+    expect(await screen.findByText("※ 3-40文字, 英小文字/数字/ハイフン")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "作成" })).toBeDisabled();
+  });
+
+  it("shows API error when create fails", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url, init) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      if (url === "/api/collections" && init?.method === "POST") {
+        return new Response(JSON.stringify({ error: "already exists" }), {
+          status: 409,
+        });
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Lab Picks" },
+    });
+
+    await waitFor(() => expect(screen.getByText("✓ 使用可能")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+
+    expect(await screen.findByText("already exists")).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
   });
 });

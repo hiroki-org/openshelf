@@ -141,7 +141,9 @@ function setupOrgApiMock(state: OrgState) {
 
     if (url === "/api/orgs/demo-org/members" && method === "POST") {
       const body = JSON.parse(String(init?.body ?? "{}"));
-      const candidate = userSearchResults.find((user) => user.id === body.userId);
+      const candidate = userSearchResults.find(
+        (user) => user.id === body.userId,
+      );
       if (candidate) {
         state.members = [
           ...state.members,
@@ -167,7 +169,9 @@ function setupOrgApiMock(state: OrgState) {
     }
 
     if (url === "/api/orgs/demo-org/members/member-2" && method === "DELETE") {
-      state.members = state.members.filter((member) => member.userId !== "member-2");
+      state.members = state.members.filter(
+        (member) => member.userId !== "member-2",
+      );
       return jsonResponse({ ok: true });
     }
 
@@ -203,7 +207,10 @@ describe("OrgSettingsPage", () => {
       user: { id: "owner-1", name: "owner", displayName: "Owner" },
       loading: false,
     };
-    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal(
+      "confirm",
+      vi.fn(() => true),
+    );
     vi.stubGlobal("alert", vi.fn());
   });
 
@@ -309,7 +316,9 @@ describe("OrgSettingsPage", () => {
       target: { value: "al" },
     });
 
-    const candidateRow = (await screen.findByText("Alice Candidate")).closest("li");
+    const candidateRow = (await screen.findByText("Alice Candidate")).closest(
+      "li",
+    );
     expect(candidateRow).not.toBeNull();
     fireEvent.click(
       within(candidateRow!).getByRole("button", { name: "追加" }),
@@ -347,9 +356,9 @@ describe("OrgSettingsPage", () => {
       target: { value: "tr" },
     });
 
-    const paperCandidateRow = (await screen.findByText("Transformer Tricks")).closest(
-      "li",
-    );
+    const paperCandidateRow = (
+      await screen.findByText("Transformer Tricks")
+    ).closest("li");
     expect(paperCandidateRow).not.toBeNull();
     fireEvent.click(
       within(paperCandidateRow!).getByRole("button", { name: "追加" }),
