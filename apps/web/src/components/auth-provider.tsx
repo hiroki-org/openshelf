@@ -38,12 +38,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUser = useCallback(async () => {
     try {
-      const token = localStorage.getItem("auth_token");
-      if (!token) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
       const res = await apiFetch("/api/auth/me");
       if (res.ok) {
         const data = await res.json();
@@ -75,7 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
-    localStorage.removeItem("auth_token");
+    try {
+      await apiFetch("/api/auth/logout", { method: "POST" });
+    } catch (e) {
+      console.error("Logout failed", e);
+    }
     setUser(null);
   }, []);
 

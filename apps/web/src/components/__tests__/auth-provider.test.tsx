@@ -39,12 +39,10 @@ describe("AuthProvider", () => {
   });
 
   beforeEach(() => {
-    localStorage.clear();
     vi.clearAllMocks();
   });
 
-  it("sets user when token exists and /api/auth/me succeeds", async () => {
-    localStorage.setItem("auth_token", "token-1");
+  it("sets user when /api/auth/me succeeds", async () => {
     vi.mocked(apiFetch).mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -72,21 +70,7 @@ describe("AuthProvider", () => {
     });
   });
 
-  it("keeps user null when token does not exist", async () => {
-    render(
-      <AuthProvider>
-        <Consumer />
-      </AuthProvider>,
-    );
-
-    await waitFor(() => {
-      expect(screen.getByTestId("loading").textContent).toBe("false");
-      expect(screen.getByTestId("user").textContent).toBe("null");
-    });
-  });
-
-  it("logout clears localStorage token and sets user null", async () => {
-    localStorage.setItem("auth_token", "token-1");
+  it("logout calls /api/auth/logout and sets user null", async () => {
     vi.mocked(apiFetch).mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -112,11 +96,17 @@ describe("AuthProvider", () => {
     await waitFor(() => {
       expect(screen.getByTestId("user").textContent).toBe("Alice");
     });
+
+    vi.mocked(apiFetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "logout" }));
 
     await waitFor(() => {
-      expect(localStorage.getItem("auth_token")).toBeNull();
+      expect(apiFetch).toHaveBeenCalledWith("/api/auth/logout", {
+        method: "POST",
+      });
       expect(screen.getByTestId("user").textContent).toBe("null");
     });
   });
@@ -130,7 +120,6 @@ describe("AuthProvider", () => {
   });
 
   it("keeps user null when /api/auth/me responds with non-ok", async () => {
-    localStorage.setItem("auth_token", "token-1");
     vi.mocked(apiFetch).mockResolvedValue(new Response("{}", { status: 401 }));
 
     render(
@@ -146,7 +135,6 @@ describe("AuthProvider", () => {
   });
 
   it("keeps user null when /api/auth/me throws", async () => {
-    localStorage.setItem("auth_token", "token-1");
     vi.mocked(apiFetch).mockRejectedValue(new Error("network error"));
 
     render(
@@ -163,7 +151,9 @@ describe("AuthProvider", () => {
 
   it("login logs an error and does not navigate when NEXT_PUBLIC_API_URL is missing", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_URL", "");
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const originalLocation = window.location;
 
     try {
@@ -191,9 +181,10 @@ describe("AuthProvider", () => {
   });
 
   it("refresh re-fetches user data", async () => {
-    localStorage.setItem("auth_token", "token-1");
     vi.mocked(apiFetch)
-      .mockResolvedValueOnce(new Response(JSON.stringify({ user: null }), { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ user: null }), { status: 401 }),
+      )
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({

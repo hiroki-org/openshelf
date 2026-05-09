@@ -571,7 +571,10 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
 // PATCH /api/orgs/:slug/members/:userId — change role
 orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
   const slug = c.req.param("slug");
-  const targetUserIdResult = normalizeBoundedId(c.req.param("userId"), "userId");
+  const targetUserIdResult = normalizeBoundedId(
+    c.req.param("userId"),
+    "userId",
+  );
   if (targetUserIdResult.error) {
     return c.json({ error: targetUserIdResult.error }, 400);
   }
@@ -649,7 +652,10 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
 // DELETE /api/orgs/:slug/members/:userId — remove member
 orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
   const slug = c.req.param("slug");
-  const targetUserIdResult = normalizeBoundedId(c.req.param("userId"), "userId");
+  const targetUserIdResult = normalizeBoundedId(
+    c.req.param("userId"),
+    "userId",
+  );
   if (targetUserIdResult.error) {
     return c.json({ error: targetUserIdResult.error }, 400);
   }
@@ -1014,9 +1020,7 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
   const existing = await db
     .select()
     .from(paperOrgs)
-    .where(
-      and(eq(paperOrgs.paperId, paperId), eq(paperOrgs.orgId, org.id)),
-    )
+    .where(and(eq(paperOrgs.paperId, paperId), eq(paperOrgs.orgId, org.id)))
     .get();
   if (existing)
     return c.json({ error: "Paper is already associated with this org" }, 409);

@@ -15,25 +15,12 @@ describe("AuthCallback", () => {
 
   beforeEach(() => {
     replace.mockReset();
-    localStorage.clear();
-    window.location.hash = "";
   });
 
-  it("stores the token from the hash fragment", async () => {
-    window.location.hash = "#token=test-token";
-
+  it("redirects to home", async () => {
     render(<AuthCallback />);
 
     expect(screen.getByText("ログイン中...")).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(localStorage.getItem("auth_token")).toBe("test-token");
-      expect(replace).toHaveBeenCalledWith("/");
-    });
-  });
-
-  it("redirects even when no token is present", async () => {
-    render(<AuthCallback />);
 
     await waitFor(() => {
       expect(replace).toHaveBeenCalledWith("/");

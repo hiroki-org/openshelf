@@ -22,7 +22,12 @@ import {
 
 describe("db schema", () => {
   it("exports expected enums", () => {
-    expect(VALID_VENUE_TYPES).toEqual(["conference", "journal", "workshop", "other"]);
+    expect(VALID_VENUE_TYPES).toEqual([
+      "conference",
+      "journal",
+      "workshop",
+      "other",
+    ]);
     expect(VALID_CATEGORIES).toEqual([
       "thesis_bachelor",
       "thesis_master",

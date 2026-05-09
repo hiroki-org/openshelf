@@ -1,24 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { apiFetch, authHeaders } from "../api";
+import { apiFetch } from "../api";
 
 describe("api helpers", () => {
   beforeEach(() => {
-    localStorage.clear();
     vi.restoreAllMocks();
   });
 
-  it("authHeaders returns Authorization header when token exists", () => {
-    localStorage.setItem("auth_token", "abc123");
-
-    expect(authHeaders()).toEqual({ Authorization: "Bearer abc123" });
-  });
-
-  it("authHeaders returns empty object when token does not exist", () => {
-    expect(authHeaders()).toEqual({});
-  });
-
-  it("apiFetch calls API_BASE + path with Authorization header", async () => {
-    localStorage.setItem("auth_token", "token-x");
+  it("apiFetch calls API_BASE + path with credentials include", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValue(new Response(null, { status: 200 }));
@@ -28,8 +16,6 @@ describe("api helpers", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe("/api/auth/me");
-    expect((init?.headers as Record<string, string>).Authorization).toBe(
-      "Bearer token-x",
-    );
+    expect(init?.credentials).toBe("include");
   });
 });
