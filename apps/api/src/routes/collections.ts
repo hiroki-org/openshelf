@@ -257,9 +257,7 @@ collectionsRoute.post("/collections", authMiddleware, async (c) => {
         ? payload.org_slug.trim().toLowerCase()
         : "";
     const inputOwnerId =
-      typeof payload.owner_id === "string"
-        ? payload.owner_id.trim()
-        : "";
+      typeof payload.owner_id === "string" ? payload.owner_id.trim() : "";
 
     let org = null;
     if (inputOrgSlug) {
@@ -384,10 +382,11 @@ collectionsRoute.patch("/collections/:id", authMiddleware, async (c) => {
   }
 
   if (payload.visibility !== undefined) {
-    if (!VALID_VISIBILITY.includes(payload.visibility as any)) {
+    const visibility = parseVisibility(payload.visibility);
+    if (!visibility) {
       return c.json({ error: "Invalid visibility" }, 400);
     }
-    updates.visibility = payload.visibility;
+    updates.visibility = visibility;
   }
 
   if (Object.keys(updates).length === 0) {
@@ -525,7 +524,8 @@ collectionsRoute.post("/collections/:id/papers", authMiddleware, async (c) => {
   const payload = body as AddPaperToCollectionBody;
 
   const paperId = normalizePaperId(payload.paper_id);
-  if (!paperId) return c.json({ error: "paper_id is invalid or too long" }, 400);
+  if (!paperId)
+    return c.json({ error: "paper_id is invalid or too long" }, 400);
 
   const paper = await db
     .select()
