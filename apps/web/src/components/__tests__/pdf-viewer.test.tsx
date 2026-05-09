@@ -297,7 +297,7 @@ describe("PdfViewer", () => {
   it("syncs pinch zoom with zoom controls on touch devices", async () => {
     render(<PdfViewer fileUrl="https://example.com/pinch.pdf" />);
     const surface = screen.getByTestId("pdf-viewer-surface");
-    const zoomSelect = screen.getByLabelText("PDF zoom") as HTMLSelectElement;
+    const zoomSelect = screen.getByLabelText("ズーム倍率") as HTMLSelectElement;
 
     fireEvent.touchStart(surface, {
       touches: [
