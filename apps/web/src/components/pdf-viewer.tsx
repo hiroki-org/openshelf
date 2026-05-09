@@ -428,7 +428,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
         </div>
 
         <div className="flex items-center gap-2">
-<<<<<<< HEAD
           <button
             type="button"
             aria-label="縮小"
@@ -438,17 +437,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             }}
             disabled={zoom <= MIN_ZOOM}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
-=======
-            <button
-              type="button"
-              aria-label="縮小"
-              onClick={() => {
-                const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
-                if (currentIndex > 0) setZoom(ZOOM_PRESETS[currentIndex - 1]);
-              }}
-              disabled={zoom <= MIN_ZOOM}
-              className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
->>>>>>> origin/staging
           >
             -
           </button>
