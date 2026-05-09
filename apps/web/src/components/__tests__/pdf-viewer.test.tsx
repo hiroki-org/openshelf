@@ -292,12 +292,18 @@ describe("PdfViewer", () => {
       );
       expect(renderedPages).toContain(3);
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "前の一致" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 2")).toBeInTheDocument();
+    });
   });
 
   it("syncs pinch zoom with zoom controls on touch devices", async () => {
     render(<PdfViewer fileUrl="https://example.com/pinch.pdf" />);
     const surface = screen.getByTestId("pdf-viewer-surface");
-    const zoomSelect = screen.getByLabelText("ズーム倍率") as HTMLSelectElement;
+    const zoomSelect = screen.getByLabelText("PDF zoom") as HTMLSelectElement;
 
     fireEvent.touchStart(surface, {
       touches: [
@@ -305,18 +311,55 @@ describe("PdfViewer", () => {
         { clientX: 100, clientY: 0 },
       ],
     });
+
+    // Invalid touchMove (not 2 touches)
+    fireEvent.touchMove(surface, { touches: [{ clientX: 0, clientY: 0 }] });
+
+    // Invalid touchMove (distance <= 0)
+    fireEvent.touchMove(surface, {
+      touches: [
+        { clientX: 0, clientY: 0 },
+        { clientX: 0, clientY: 0 },
+      ],
+    });
+
     fireEvent.touchMove(surface, {
       touches: [
         { clientX: 0, clientY: 0 },
         { clientX: 180, clientY: 0 },
       ],
     });
+
+    // Invalid touchEnd (>= 2 touches)
+    fireEvent.touchEnd(surface, {
+      touches: [
+        { clientX: 0, clientY: 0 },
+        { clientX: 180, clientY: 0 },
+      ],
+    });
+
+    fireEvent.touchEnd(surface, { touches: [] });
+
+    // Invalid touchEnd (no pinch state)
     fireEvent.touchEnd(surface, { touches: [] });
 
     expect(zoomSelect.value).toBe("1.75");
 
-    fireEvent.click(screen.getByRole("button", { name: "拡大" }));
+    fireEvent.click(screen.getByRole("button", { name: "ズームイン" }));
     expect(zoomSelect.value).toBe("2");
+
+    fireEvent.click(screen.getByRole("button", { name: "ズームアウト" }));
+    expect(zoomSelect.value).toBe("1.75");
+
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "前へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "連続スクロール" }));
+
+    // Mock requestFullscreen
+    const container = screen.getByTestId("pdf-viewer-surface");
+    container.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    fireEvent.click(screen.getByRole("button", { name: "全画面" }));
+    expect(container.requestFullscreen).toHaveBeenCalled();
   });
 
   it("handles text extraction errors gracefully during search", async () => {

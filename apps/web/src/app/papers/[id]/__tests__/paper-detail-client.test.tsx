@@ -81,16 +81,13 @@ describe("PaperDetailClient", () => {
       },
     });
     vi.spyOn(console, "error").mockImplementation(() => {});
-    const UrlMock = Object.assign(
-      class extends URL {},
-      {
-        createObjectURL: vi.fn(() => {
-          objectUrlCount += 1;
-          return `blob:mock-${objectUrlCount}`;
-        }),
-        revokeObjectURL: vi.fn(),
-      },
-    ) as typeof URL;
+    const UrlMock = Object.assign(class extends URL {}, {
+      createObjectURL: vi.fn(() => {
+        objectUrlCount += 1;
+        return `blob:mock-${objectUrlCount}`;
+      }),
+      revokeObjectURL: vi.fn(),
+    }) as typeof URL;
     vi.stubGlobal("URL", UrlMock);
     vi.stubGlobal("requestIdleCallback", (cb: any) => {
       // Execute synchronously
@@ -145,7 +142,10 @@ describe("PaperDetailClient", () => {
         });
       }
 
-      if (url === "/api/papers/test-id/files/file-image/stream" && method === "GET") {
+      if (
+        url === "/api/papers/test-id/files/file-image/stream" &&
+        method === "GET"
+      ) {
         return blobResponse("image", "image/png");
       }
 
@@ -157,10 +157,7 @@ describe("PaperDetailClient", () => {
     });
 
     const { unmount } = render(
-      <PaperDetailClient
-        paperId="test-id"
-        siteBase="http://localhost"
-      />,
+      <PaperDetailClient paperId="test-id" siteBase="http://localhost" />,
     );
 
     await waitFor(() => {
@@ -208,7 +205,7 @@ describe("PaperDetailClient", () => {
             venueType: "conference",
             year: 2025,
             category: "report",
-            tags: "[\"ai\"]",
+            tags: '["ai"]',
             createdAt: "2026-01-01T00:00:00.000Z",
             updatedAt: "2026-01-02T00:00:00.000Z",
           },
@@ -282,7 +279,10 @@ describe("PaperDetailClient", () => {
         return jsonResponse({ invites });
       }
 
-      if (url === "/api/papers/paper-1/files/file-pdf/preview" && method === "GET") {
+      if (
+        url === "/api/papers/paper-1/files/file-pdf/preview" &&
+        method === "GET"
+      ) {
         return jsonResponse({
           url: "/api/previews/paper.pdf",
           mimeType: "application/pdf",
@@ -294,7 +294,10 @@ describe("PaperDetailClient", () => {
         return blobResponse("preview", "application/pdf");
       }
 
-      if (url === "/api/papers/paper-1/files/file-image/stream" && method === "GET") {
+      if (
+        url === "/api/papers/paper-1/files/file-image/stream" &&
+        method === "GET"
+      ) {
         return blobResponse("image", "image/png");
       }
 
@@ -366,7 +369,9 @@ describe("PaperDetailClient", () => {
       );
     });
 
-    expect(await screen.findByText("👁️ 10 views · 📥 2 downloads")).toBeInTheDocument();
+    expect(
+      await screen.findByText("👁️ 10 views · 📥 2 downloads"),
+    ).toBeInTheDocument();
     expect(await screen.findByTestId("pdf-viewer")).toHaveAttribute(
       "data-url",
       expect.stringMatching(/^blob:mock-/),
@@ -375,10 +380,9 @@ describe("PaperDetailClient", () => {
       "src",
       expect.stringMatching(/^blob:mock-/),
     );
-    expect(screen.getByRole("link", { name: /正式版はこちら/ })).toHaveAttribute(
-      "href",
-      "https://example.com/paper",
-    );
+    expect(
+      screen.getByRole("link", { name: /正式版はこちら/ }),
+    ).toHaveAttribute("href", "https://example.com/paper");
     expect(screen.getByText("Badge")).toBeInTheDocument();
     expect(
       screen.getByAltText("OpenShelf badge preview for Transformer Tricks"),
@@ -389,20 +393,26 @@ describe("PaperDetailClient", () => {
     expect(screen.getByText("Markdown")).toBeInTheDocument();
     expect(screen.getByText("HTML")).toBeInTheDocument();
     expect(screen.getByText("shields.io")).toBeInTheDocument();
-    const statsSection = screen.getByRole("heading", {
-      name: "閲覧統計",
-    }).closest("section");
+    const statsSection = screen
+      .getByRole("heading", {
+        name: "閲覧統計",
+      })
+      .closest("section");
     expect(statsSection).not.toBeNull();
     expect(within(statsSection!).getByText("12")).toBeInTheDocument();
     expect(within(statsSection!).getByText("5")).toBeInTheDocument();
     expect(screen.getByText("3/2")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Description" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Description" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("再現手順")).toBeInTheDocument();
     expect(screen.queryByText("alert('xss')")).not.toBeInTheDocument();
 
     const slideRow = screen.getByText("deck.pptx").closest("li");
     expect(slideRow).not.toBeNull();
-    fireEvent.click(within(slideRow!).getByRole("button", { name: "ダウンロード" }));
+    fireEvent.click(
+      within(slideRow!).getByRole("button", { name: "ダウンロード" }),
+    );
 
     await waitFor(() => {
       expect(URL.createObjectURL).toHaveBeenCalled();
@@ -486,8 +496,12 @@ describe("PaperDetailClient", () => {
     );
 
     await screen.findByRole("heading", { name: "Author Hidden Stats" });
-    expect(await screen.findByText("著者向けの閲覧・ダウンロード数")).toBeInTheDocument();
-    expect(await screen.findByText("👁️ 42 views · 📥 11 downloads")).toBeInTheDocument();
+    expect(
+      await screen.findByText("著者向けの閲覧・ダウンロード数"),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText("👁️ 42 views · 📥 11 downloads"),
+    ).toBeInTheDocument();
   });
 
   it("uses apiFetch for private paper tracking even when sendBeacon exists", async () => {
@@ -547,7 +561,10 @@ describe("PaperDetailClient", () => {
         });
       }
 
-      if (url === "/api/papers/paper-1/files/file-pdf/preview" && method === "GET") {
+      if (
+        url === "/api/papers/paper-1/files/file-pdf/preview" &&
+        method === "GET"
+      ) {
         return jsonResponse({
           url: "/api/previews/restricted.pdf",
           mimeType: "application/pdf",
@@ -651,7 +668,10 @@ describe("PaperDetailClient", () => {
         });
       }
 
-      if (url === "/api/papers/paper-1/files/file-pdf/preview" && method === "GET") {
+      if (
+        url === "/api/papers/paper-1/files/file-pdf/preview" &&
+        method === "GET"
+      ) {
         return new Response("preview failed", { status: 500 });
       }
 
@@ -670,7 +690,9 @@ describe("PaperDetailClient", () => {
     );
 
     await screen.findByRole("heading", { name: "Fallback Preview" });
-    expect(await screen.findByText("プレビューを読み込めません")).toBeInTheDocument();
+    expect(
+      await screen.findByText("プレビューを読み込めません"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Badge")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "ダウンロードする" }));
@@ -683,7 +705,9 @@ describe("PaperDetailClient", () => {
   });
 
   it("maps paper fetch errors to user-facing messages", async () => {
-    vi.mocked(apiFetch).mockResolvedValue(new Response("forbidden", { status: 403 }));
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response("forbidden", { status: 403 }),
+    );
 
     render(
       <PaperDetailClient

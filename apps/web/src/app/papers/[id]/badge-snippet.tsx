@@ -15,9 +15,7 @@ type SnippetItem = {
   value: string;
 };
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ??
-  "http://localhost:8787";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8787";
 
 function escapeHtmlAttribute(value: string): string {
   return value
@@ -41,21 +39,26 @@ function urlEncode(value: string): string {
 function sanitizeUrl(url: string): string {
   try {
     const parsed = new URL(url);
-    return ['http:', 'https:'].includes(parsed.protocol) ? url : '#';
+    return ["http:", "https:"].includes(parsed.protocol) ? url : "#";
   } catch {
-    return url.startsWith('/') ? url : '#';
+    return url.startsWith("/") ? url : "#";
   }
 }
 
 export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
   const { snippets, badgePreviewUrl } = useMemo(() => {
     const normalizedSiteBase =
-      siteBase.trim() || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+      siteBase.trim() ||
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "http://localhost:3000";
     const badgeSvgUrl = toAbsoluteUrl(
       API_BASE,
       `/badge/${urlEncode(paperId)}?style=default&label=OpenShelf`,
     );
-    const paperUrl = toAbsoluteUrl(normalizedSiteBase, `/papers/${urlEncode(paperId)}`);
+    const paperUrl = toAbsoluteUrl(
+      normalizedSiteBase,
+      `/papers/${urlEncode(paperId)}`,
+    );
     const shieldsEndpointUrl = toAbsoluteUrl(
       API_BASE,
       `/badge/api/${urlEncode(paperId)}`,
@@ -102,7 +105,9 @@ export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
 
   return (
     <section className="mb-6 rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-      <h2 className="mb-3 text-sm font-medium text-gray-500 dark:text-gray-300">Badge</h2>
+      <h2 className="mb-3 text-sm font-medium text-gray-500 dark:text-gray-300">
+        Badge
+      </h2>
 
       <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
         <img
@@ -114,7 +119,10 @@ export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
 
       <div className="space-y-3">
         {snippets.map((snippet) => (
-          <div key={snippet.key} className="rounded-md border border-gray-200 dark:border-gray-700">
+          <div
+            key={snippet.key}
+            className="rounded-md border border-gray-200 dark:border-gray-700"
+          >
             <div className="flex items-center justify-between border-b border-gray-200 px-3 py-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-300">
               <span>{snippet.label}</span>
               <button

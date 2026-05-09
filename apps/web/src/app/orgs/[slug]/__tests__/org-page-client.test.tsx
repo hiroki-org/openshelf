@@ -1,8 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OrgPageClient from "../org-page-client";
 import { apiFetch } from "@/lib/api";
@@ -182,7 +178,9 @@ describe("OrgPageClient", () => {
         return new Response(JSON.stringify({ members: [] }), { status: 200 });
       }
       if (url === "/api/orgs/lab/collections") {
-        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+        return new Response(JSON.stringify({ collections: [] }), {
+          status: 200,
+        });
       }
       throw new Error(`Unexpected request: ${String(url)}`);
     });

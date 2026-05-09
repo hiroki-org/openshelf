@@ -63,9 +63,7 @@ describe("UserCollectionPage", () => {
       throw new Error(`Unexpected request: ${String(url)}`);
     });
 
-    render(
-      <UserCollectionPageClient id="user-1" collectionSlug="favorites" />,
-    );
+    render(<UserCollectionPageClient id="user-1" collectionSlug="favorites" />);
 
     await waitFor(() => {
       expect(screen.getByText("Favorites")).toBeInTheDocument();
@@ -80,10 +78,10 @@ describe("UserCollectionPage", () => {
       new Response(JSON.stringify({ collections: [] }), { status: 200 }),
     );
 
-    render(
-      <UserCollectionPageClient id="user-1" collectionSlug="favorites" />,
-    );
+    render(<UserCollectionPageClient id="user-1" collectionSlug="favorites" />);
 
-    expect(await screen.findByText("コレクションが見つかりません")).toBeInTheDocument();
+    expect(
+      await screen.findByText("コレクションが見つかりません"),
+    ).toBeInTheDocument();
   });
 });
