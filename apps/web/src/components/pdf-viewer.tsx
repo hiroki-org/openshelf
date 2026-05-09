@@ -410,7 +410,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             type="button"
             onClick={() => goToPage(activePage - 1)}
             disabled={!canPrev}
-            title={!canPrev ? "最初のページです" : "前のページへ"}
+            title={!canPrev ? "最初のページです" : undefined}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             前へ
@@ -422,7 +422,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             type="button"
             onClick={() => goToPage(activePage + 1)}
             disabled={!canNext}
-            title={!canNext ? "最後のページです" : "次のページへ"}
+            title={!canNext ? "最後のページです" : undefined}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             次へ
@@ -432,13 +432,13 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            aria-label="ズームアウト"
             onClick={() => {
               const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
               if (currentIndex > 0) setZoom(ZOOM_PRESETS[currentIndex - 1]);
             }}
             disabled={zoom <= MIN_ZOOM}
-            aria-label="ズームアウト"
-            title={zoom <= MIN_ZOOM ? "これ以上縮小できません" : "ズームアウト"}
+            title={zoom <= MIN_ZOOM ? "これ以上縮小できません" : undefined}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             -
@@ -459,6 +459,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
           <button
             type="button"
+            aria-label="ズームイン"
             onClick={() => {
               const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
               if (currentIndex < ZOOM_PRESETS.length - 1) {
@@ -466,7 +467,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
               }
             }}
             disabled={zoom >= MAX_ZOOM}
-            aria-label="ズームイン"
             title={zoom >= MAX_ZOOM ? "これ以上拡大できません" : undefined}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
@@ -507,7 +507,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           disabled={searchMatches.length === 0}
           onClick={() => moveMatchCursor(-1)}
           title={
-            searchMatches.length === 0 ? "検索結果がありません" : "前の一致へ"
+            searchMatches.length === 0 ? "検索結果がありません" : undefined
           }
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
@@ -518,7 +518,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           disabled={searchMatches.length === 0}
           onClick={() => moveMatchCursor(1)}
           title={
-            searchMatches.length === 0 ? "検索結果がありません" : "次の一致へ"
+            searchMatches.length === 0 ? "検索結果がありません" : undefined
           }
           className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
         >
