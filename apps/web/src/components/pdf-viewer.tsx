@@ -467,7 +467,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             }}
             disabled={zoom >= MAX_ZOOM}
             aria-label="ズームイン"
-            title={zoom >= MAX_ZOOM ? "これ以上拡大できません" : "ズームイン"}
+            title={zoom >= MAX_ZOOM ? "これ以上拡大できません" : undefined}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
           >
             +
