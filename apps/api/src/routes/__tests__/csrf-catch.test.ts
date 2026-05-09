@@ -15,11 +15,8 @@ describe("CSRF configuration catch blocks", () => {
             const actual = await importOriginal<any>();
             return {
                 ...actual,
-                isAllowedOrigin: (origin: any, frontendOrigin: any, allowedOrigins: any, options: any) => {
-                    if (options && options.allowWildcard === false) {
-                        throw new Error("CSRF mocked error");
-                    }
-                    return actual.isAllowedOrigin(origin, frontendOrigin, allowedOrigins, options);
+                isAllowedOrigin: (_origin: any, _frontendOrigin: any, _allowedOrigins: any, _options: any) => {
+                    throw new Error("CSRF mocked error");
                 }
             };
         });
@@ -48,11 +45,8 @@ describe("CSRF configuration catch blocks", () => {
             const actual = await importOriginal<any>();
             return {
                 ...actual,
-                isAllowedOrigin: (origin: any, frontendOrigin: any, allowedOrigins: any, options: any) => {
-                    if (options && options.allowWildcard === false) {
-                        throw "CSRF mocked string error";
-                    }
-                    return actual.isAllowedOrigin(origin, frontendOrigin, allowedOrigins, options);
+                isAllowedOrigin: (_origin: any, _frontendOrigin: any, _allowedOrigins: any, _options: any) => {
+                    throw "CSRF mocked string error";
                 }
             };
         });
