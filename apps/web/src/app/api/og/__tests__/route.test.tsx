@@ -47,4 +47,19 @@ describe("OG route", () => {
       }),
     );
   });
+
+  it("handles font fetch failure gracefully", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValue(new Error("Network Error"));
+    const { GET } = await import("../route");
+    const response: any = await GET(
+      new Request(
+        "http://localhost/api/og?type=org&title=Research%20Lab&subtitle=Artifacts",
+      ),
+    );
+
+    expect(response.headers.get("Cache-Control")).toBe(
+      "public, max-age=0, s-maxage=86400",
+    );
+    expect(response.init.fonts).toBeUndefined();
+  });
 });
