@@ -33,14 +33,7 @@ function splitEditingState(value: string): {
   return { committed, currentRaw, currentTrimmed: currentRaw.trim() };
 }
 
-export function TagAutocompleteInput({
-  id,
-  value,
-  onChange,
-  placeholder,
-  orgSlug,
-  className,
-}: TagAutocompleteInputProps) {
+function useTagSuggestions(value: string, orgSlug?: string) {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [open, setOpen] = useState(false);
@@ -121,6 +114,37 @@ export function TagAutocompleteInput({
       }
     };
   }, []);
+
+  return {
+    suggestions,
+    highlightedIndex,
+    setHighlightedIndex,
+    open,
+    setOpen,
+    loading,
+    committed,
+    blurTimeoutRef,
+  };
+}
+
+export function TagAutocompleteInput({
+  id,
+  value,
+  onChange,
+  placeholder,
+  orgSlug,
+  className,
+}: TagAutocompleteInputProps) {
+  const {
+    suggestions,
+    highlightedIndex,
+    setHighlightedIndex,
+    open,
+    setOpen,
+    loading,
+    committed,
+    blurTimeoutRef,
+  } = useTagSuggestions(value, orgSlug);
 
   const applySuggestion = (suggestion: string) => {
     const next = [...committed, suggestion].join(", ");
