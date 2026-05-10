@@ -12,3 +12,9 @@
 **Vulnerability:** A wildcard in the `ALLOWED_ORIGINS` configuration allows the CORS and OAuth flow to accept any client-provided origin, leading to a bypass in origin verification and an open redirect where tokens can be stolen.
 **Learning:** Utilities that resolve or validate origins against a configurable list should explicitly reject wildcard patterns in sensitive flows such as OAuth redirects or CORS responses, ensuring wildcards only apply when strictly intended by the configuration.
 **Prevention:** Pass `{ allowWildcard: false }` to the `isAllowedOrigin` helper in all places where sensitive token delivery relies on frontend URLs.
+## 2026-05-10 - Propagate DB Errors Test Fix
+**Learning:** When asserting that generic errors are propagated to top-level error handlers in Hono tests with , simply verify the final response status (e.g. 500) rather than attempting to catch a thrown error since the framework captures and wraps them into a 500 Response.
+**Action:** Changed the test name from '... returns 500 ...' to 'propagates general db insert errors ...' to clarify the intent.
+## 2025-02-14 - Propagate DB Errors Test Fix
+**Learning:** When asserting that generic errors are propagated to top-level error handlers in Hono tests with app.request, simply verify the final response status (e.g. 500) rather than attempting to catch a thrown error since the framework captures and wraps them into a 500 Response.
+**Action:** Changed the test name from "... returns 500 ..." to "propagates general db insert errors ..." to clarify the intent.

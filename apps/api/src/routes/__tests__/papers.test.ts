@@ -2142,7 +2142,7 @@ describe("papers routes", () => {
             expect(data.error).toBe("Invite already sent");
         });
 
-        it("POST /api/papers/:id/invites returns 500 for non-UNIQUE database errors", async () => {
+        it("propagates general db insert errors for POST /api/papers/:id/invites", async () => {
             const token = await createTestJWT({ sub: "user-uploader", githubId: "123", name: "Uploader" });
             setupInviteChecks();
 
@@ -2153,6 +2153,9 @@ describe("papers routes", () => {
             const app = await createTestApp();
             const env = createTestEnv();
             const res = await sendInviteRequest(token, app, env);
+
+            // The default Hono error handler will catch the thrown error and return a 500 status.
+            // We verify we reached that 500 status.
 
             expect(res.status).toBe(500);
         });
