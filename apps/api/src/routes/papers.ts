@@ -577,8 +577,8 @@ async function prepareUploadEntries(c: Context, body: Record<string, string | Fi
         }
 
         const file = fileCandidate as File;
-        if (!(file instanceof File) && typeof (file as any).slice !== "function") {
-            console.error(`Field files_${i} is not a valid File/Blob`);
+        if (!(file instanceof File)) {
+            console.error(`Field files_${i} is not a valid file`);
             return { errorResponse: c.json({ error: `Field files_${i} is not a valid file` }, 400) };
         }
 
