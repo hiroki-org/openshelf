@@ -12,3 +12,7 @@
 **Vulnerability:** A wildcard in the `ALLOWED_ORIGINS` configuration allows the CORS and OAuth flow to accept any client-provided origin, leading to a bypass in origin verification and an open redirect where tokens can be stolen.
 **Learning:** Utilities that resolve or validate origins against a configurable list should explicitly reject wildcard patterns in sensitive flows such as OAuth redirects or CORS responses, ensuring wildcards only apply when strictly intended by the configuration.
 **Prevention:** Pass `{ allowWildcard: false }` to the `isAllowedOrigin` helper in all places where sensitive token delivery relies on frontend URLs.
+## 2026-05-10 - Missing Generic Database Error Test Cases
+**Vulnerability:** Not a direct vulnerability, but a lack of testing for generic unexpected database errors can mask underlying issues or unhandled promise rejections that could leak sensitive stack traces or lead to DoS if they crash the server.
+**Learning:** Hono routes handling Drizzle database operations should have tests that assert that `app.request` returns a 500 when an unhandled generic database error is thrown. The tests should be explicitly named to verify this behavior.
+**Prevention:** Ensure routes that interact with the database have explicit "propagates general db [operation] errors" tests, especially for `POST`, `PATCH`, and `DELETE` endpoints, verifying a clean 500 response without leaking internal errors.

@@ -1989,7 +1989,7 @@ describe("papers routes", () => {
         expect(res.status).toBe(403);
     });
 
-    it("GET /api/papers/:id returns 500 (not 401) on database error during author check", async () => {
+    it("GET /api/papers/:id propagates general db select errors during author check", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         mockDb.select = vi
             .fn()
@@ -2142,7 +2142,7 @@ describe("papers routes", () => {
             expect(data.error).toBe("Invite already sent");
         });
 
-        it("POST /api/papers/:id/invites returns 500 for non-UNIQUE database errors", async () => {
+        it("POST /api/papers/:id/invites propagates general db insert errors", async () => {
             const token = await createTestJWT({ sub: "user-uploader", githubId: "123", name: "Uploader" });
             setupInviteChecks();
 
