@@ -1307,7 +1307,7 @@ describe("orgs routes", () => {
       });
     });
 
-    it("throws generic error during paper association if not UNIQUE constraint", async () => {
+    it("throws generic error during paper association if not UNIQUE constraint and logs error", async () => {
       const token = await createTestJWT({
         sub: "user-1",
         githubId: "123",
