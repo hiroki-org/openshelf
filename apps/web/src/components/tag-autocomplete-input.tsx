@@ -115,15 +115,48 @@ function useTagSuggestions(value: string, orgSlug?: string) {
     };
   }, []);
 
+  const closeDropdown = () => {
+    setOpen(false);
+    setHighlightedIndex(-1);
+  };
+
+  const openDropdown = () => {
+    if (suggestions.length > 0) {
+      setOpen(true);
+    }
+  };
+
+  const scheduleBlurClose = () => {
+    if (blurTimeoutRef.current !== null) {
+      window.clearTimeout(blurTimeoutRef.current);
+    }
+    blurTimeoutRef.current = window.setTimeout(() => {
+      setOpen(false);
+    }, BLUR_DELAY_MS);
+  };
+
+  const moveHighlight = (direction: 1 | -1) => {
+    if (suggestions.length === 0) {
+      return;
+    }
+    setHighlightedIndex((prev) => {
+      if (direction === 1) {
+        return prev < suggestions.length - 1 ? prev + 1 : 0;
+      }
+      return prev > 0 ? prev - 1 : suggestions.length - 1;
+    });
+  };
+
   return {
     suggestions,
     highlightedIndex,
-    setHighlightedIndex,
     open,
-    setOpen,
     loading,
     committed,
-    blurTimeoutRef,
+    closeDropdown,
+    openDropdown,
+    scheduleBlurClose,
+    moveHighlight,
   };
 }
 
@@ -138,19 +171,19 @@ export function TagAutocompleteInput({
   const {
     suggestions,
     highlightedIndex,
-    setHighlightedIndex,
     open,
-    setOpen,
     loading,
     committed,
-    blurTimeoutRef,
+    closeDropdown,
+    openDropdown,
+    scheduleBlurClose,
+    moveHighlight,
   } = useTagSuggestions(value, orgSlug);
 
   const applySuggestion = (suggestion: string) => {
     const next = [...committed, suggestion].join(", ");
     onChange(`${next}, `);
-    setOpen(false);
-    setHighlightedIndex(-1);
+    closeDropdown();
   };
 
   const listId = `${id}-suggestions`;
@@ -166,39 +199,24 @@ export function TagAutocompleteInput({
         type="text"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        onFocus={() => {
-          if (suggestions.length > 0) setOpen(true);
-        }}
-        onBlur={() => {
-          if (blurTimeoutRef.current !== null) {
-            window.clearTimeout(blurTimeoutRef.current);
-          }
-          blurTimeoutRef.current = window.setTimeout(
-            () => setOpen(false),
-            BLUR_DELAY_MS,
-          );
-        }}
+        onFocus={openDropdown}
+        onBlur={scheduleBlurClose}
         onKeyDown={(event) => {
           if (!open || suggestions.length === 0) return;
 
           if (event.key === "ArrowDown") {
             event.preventDefault();
-            setHighlightedIndex((prev) =>
-              prev < suggestions.length - 1 ? prev + 1 : 0,
-            );
+            moveHighlight(1);
             return;
           }
           if (event.key === "ArrowUp") {
             event.preventDefault();
-            setHighlightedIndex((prev) =>
-              prev > 0 ? prev - 1 : suggestions.length - 1,
-            );
+            moveHighlight(-1);
             return;
           }
           if (event.key === "Escape") {
             event.preventDefault();
-            setOpen(false);
-            setHighlightedIndex(-1);
+            closeDropdown();
             return;
           }
           if (
