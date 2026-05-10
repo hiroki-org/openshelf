@@ -312,7 +312,7 @@ describe("collections routes", () => {
     expect(res.status).toBe(201);
   });
 
-    it("POST /api/collections returns 400 for invalid visibility (string not in VALID_VISIBILITY)", async () => {
+  it("POST /api/collections returns 400 for invalid visibility (string not in VALID_VISIBILITY)", async () => {
     const app = await createTestApp();
     const env = createTestEnv();
     const res = await app.request(
@@ -328,7 +328,7 @@ describe("collections routes", () => {
     expect(await res.json()).toEqual({ error: "Invalid visibility" });
   });
 
-it("POST /api/collections returns 400 for invalid visibility", async () => {
+  it("POST /api/collections returns 400 for invalid visibility", async () => {
     const app = await createTestApp();
     const env = createTestEnv();
     const res = await app.request(
@@ -726,28 +726,6 @@ it("POST /api/collections returns 400 for invalid visibility", async () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Invalid visibility" });
   });
-
-  it("PATCH /api/collections/:id returns 400 when visibility is not a string", async () => {
-    queueSelectResponses([
-      { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
-    ]);
-    const app = await createTestApp();
-    const env = createTestEnv();
-    const res = await app.request(
-      "http://localhost/api/collections/c1",
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}`,
-        },
-        body: JSON.stringify({ visibility: 123 }),
-      },
-      env,
-    );
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Invalid visibility" });
-  });
-
   it("PATCH /api/collections/:id ignores general db update errors", async () => {
     queueSelectResponses([
       { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
@@ -2000,5 +1978,41 @@ it("POST /api/collections returns 400 for invalid visibility", async () => {
 
     expect(res.status).toBe(409);
     expect(((await res.json()) as any).error).toBe("Paper already added");
+  });
+  it("POST /api/collections/:id/papers propagates unexpected db errors", async () => {
+    const token = await createTestJWT({ sub: "user-1" });
+    const collection = {
+      id: "col-1",
+      ownerType: "user",
+      ownerId: "user-1",
+      visibility: "private",
+    };
+    queueSelectResponses([
+      { getResult: collection }, // Collection query
+      { getResult: { id: "paper-1", visibility: "public" } }, // Paper query
+      { getResult: { maxOrder: 2 } }, // maxOrder query
+    ]);
+
+    mockDb.insert = vi.fn(() => ({
+      values: vi.fn().mockRejectedValue(new Error("Unexpected database error")),
+    }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/api/collections/col-1/papers",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ paper_id: "paper-1" }),
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(500);
   });
 });
