@@ -645,7 +645,10 @@ async function prepareUploadEntries(
     }
 
     const file = fileCandidate as File;
-    if (!(file instanceof File) && typeof (file as any).slice !== "function") {
+    if (
+      !(file instanceof File) &&
+      typeof (file as unknown as Blob).slice !== "function"
+    ) {
       console.error(`Field files_${i} is not a valid File/Blob`);
       return {
         errorResponse: c.json(
