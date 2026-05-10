@@ -92,6 +92,14 @@ const escapeLikeLiteral = (str: string) => {
 
 const ADMIN_LIKE_ROLES = ["admin", "owner"] as const;
 
+function isMemberRole(role: unknown): role is "admin" | "member" {
+  return (MEMBER_ROLES as readonly unknown[]).includes(role);
+}
+
+function isAdminLikeRole(role: unknown): role is "admin" | "owner" {
+  return (ADMIN_LIKE_ROLES as readonly unknown[]).includes(role);
+}
+
 // ─── Validation helpers ─────────────────────────────────────────
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 
@@ -144,7 +152,7 @@ async function requireOrgAdmin(
   userId: string,
 ) {
   const membership = await getOrgMembership(db, orgId, userId);
-  if (!membership || !ADMIN_LIKE_ROLES.includes(membership.role as any)) {
+  if (!membership || !isAdminLikeRole(membership.role)) {
     return { ok: false as const, error: "Forbidden: admin access required" };
   }
   return { ok: true as const, membership };
@@ -534,10 +542,10 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
   const targetUserId = targetUserIdResult.value as string;
 
   const rawRole = payload.role ?? "member";
-  if (!MEMBER_ROLES.includes(rawRole as any)) {
+  if (!isMemberRole(rawRole)) {
     return c.json({ error: "role must be 'admin' or 'member'" }, 400);
   }
-  const role = rawRole as "admin" | "member";
+  const role = rawRole;
 
   // Check user exists
   const targetUser = await db
@@ -571,7 +579,10 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
 // PATCH /api/orgs/:slug/members/:userId — change role
 orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
   const slug = c.req.param("slug");
-  const targetUserIdResult = normalizeBoundedId(c.req.param("userId"), "userId");
+  const targetUserIdResult = normalizeBoundedId(
+    c.req.param("userId"),
+    "userId",
+  );
   if (targetUserIdResult.error) {
     return c.json({ error: targetUserIdResult.error }, 400);
   }
@@ -609,16 +620,13 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
   }
 
   const rawRole = payload.role;
-  if (!MEMBER_ROLES.includes(rawRole as any)) {
+  if (!isMemberRole(rawRole)) {
     return c.json({ error: "role must be 'admin' or 'member'" }, 400);
   }
-  const newRole = rawRole as "admin" | "member";
+  const newRole = rawRole;
 
   // Prevent demoting the last admin purely via atomic update check
-  if (
-    newRole === "member" &&
-    ADMIN_LIKE_ROLES.includes(membership.role as any)
-  ) {
+  if (newRole === "member" && isAdminLikeRole(membership.role)) {
     const result = await db
       .update(orgMembers)
       .set({ role: newRole })
@@ -649,7 +657,10 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
 // DELETE /api/orgs/:slug/members/:userId — remove member
 orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
   const slug = c.req.param("slug");
-  const targetUserIdResult = normalizeBoundedId(c.req.param("userId"), "userId");
+  const targetUserIdResult = normalizeBoundedId(
+    c.req.param("userId"),
+    "userId",
+  );
   if (targetUserIdResult.error) {
     return c.json({ error: targetUserIdResult.error }, 400);
   }
@@ -672,7 +683,7 @@ orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
   }
 
   // Prevent removing the last admin purely via atomic delete check
-  if (ADMIN_LIKE_ROLES.includes(membership.role as any)) {
+  if (isAdminLikeRole(membership.role)) {
     const result = await db
       .delete(orgMembers)
       .where(
@@ -1014,9 +1025,7 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
   const existing = await db
     .select()
     .from(paperOrgs)
-    .where(
-      and(eq(paperOrgs.paperId, paperId), eq(paperOrgs.orgId, org.id)),
-    )
+    .where(and(eq(paperOrgs.paperId, paperId), eq(paperOrgs.orgId, org.id)))
     .get();
   if (existing)
     return c.json({ error: "Paper is already associated with this org" }, 409);
