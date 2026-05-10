@@ -144,7 +144,7 @@ async function requireOrgAdmin(
   userId: string,
 ) {
   const membership = await getOrgMembership(db, orgId, userId);
-  if (!membership || !ADMIN_LIKE_ROLES.includes(membership.role as any)) {
+  if (!membership || !(ADMIN_LIKE_ROLES as readonly string[]).includes(membership.role)) {
     return { ok: false as const, error: "Forbidden: admin access required" };
   }
   return { ok: true as const, membership };
@@ -534,7 +534,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
   const targetUserId = targetUserIdResult.value as string;
 
   const rawRole = payload.role ?? "member";
-  if (!MEMBER_ROLES.includes(rawRole as any)) {
+  if (!(MEMBER_ROLES as readonly unknown[]).includes(rawRole)) {
     return c.json({ error: "role must be 'admin' or 'member'" }, 400);
   }
   const role = rawRole as "admin" | "member";
@@ -609,7 +609,7 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
   }
 
   const rawRole = payload.role;
-  if (!MEMBER_ROLES.includes(rawRole as any)) {
+  if (!(MEMBER_ROLES as readonly unknown[]).includes(rawRole)) {
     return c.json({ error: "role must be 'admin' or 'member'" }, 400);
   }
   const newRole = rawRole as "admin" | "member";
@@ -617,7 +617,7 @@ orgsRoute.patch("/:slug/members/:userId", authMiddleware, async (c) => {
   // Prevent demoting the last admin purely via atomic update check
   if (
     newRole === "member" &&
-    ADMIN_LIKE_ROLES.includes(membership.role as any)
+    (ADMIN_LIKE_ROLES as readonly string[]).includes(membership.role)
   ) {
     const result = await db
       .update(orgMembers)
@@ -672,7 +672,7 @@ orgsRoute.delete("/:slug/members/:userId", authMiddleware, async (c) => {
   }
 
   // Prevent removing the last admin purely via atomic delete check
-  if (ADMIN_LIKE_ROLES.includes(membership.role as any)) {
+  if ((ADMIN_LIKE_ROLES as readonly string[]).includes(membership.role)) {
     const result = await db
       .delete(orgMembers)
       .where(
