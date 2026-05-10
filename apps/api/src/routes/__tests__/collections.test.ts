@@ -919,7 +919,7 @@ describe("collections routes", () => {
         expect(await res.json()).toEqual({ error: "Paper not found" });
     });
 
-    it("POST /api/collections/:id/papers ignores general db insert errors", async () => {
+    it("POST /api/collections/:id/papers propagates general db insert errors", async () => {
         queueSelectResponses([
             { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
             { getResult: { id: "p1" } },
