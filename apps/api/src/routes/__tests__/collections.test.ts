@@ -312,6 +312,22 @@ describe("collections routes", () => {
     expect(res.status).toBe(201);
   });
 
+  it("POST /api/collections returns 400 for invalid visibility (string not in VALID_VISIBILITY)", async () => {
+    const app = await createTestApp();
+    const env = createTestEnv();
+    const res = await app.request(
+      "http://localhost/api/collections",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}` },
+        body: JSON.stringify({ name: "C1", slug: "col-1", owner_type: "user", visibility: "invalid_string" }),
+      },
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Invalid visibility" });
+  });
+
   it("POST /api/collections returns 400 for invalid visibility", async () => {
     const app = await createTestApp();
     const env = createTestEnv();
@@ -690,6 +706,26 @@ describe("collections routes", () => {
     expect(await res.json()).toEqual({ error: "Invalid visibility" });
   });
 
+  it("PATCH /api/collections/:id returns 400 when visibility is an invalid string", async () => {
+    queueSelectResponses([
+      { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
+    ]);
+    const app = await createTestApp();
+    const env = createTestEnv();
+    const res = await app.request(
+      "http://localhost/api/collections/c1",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}`,
+        },
+        body: JSON.stringify({ visibility: "invalid_string_vis" }),
+      },
+      env,
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "Invalid visibility" });
+  });
   it("PATCH /api/collections/:id ignores general db update errors", async () => {
     queueSelectResponses([
       { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
@@ -1943,7 +1979,6 @@ describe("collections routes", () => {
     expect(res.status).toBe(409);
     expect(((await res.json()) as any).error).toBe("Paper already added");
   });
-
   it("POST /api/collections/:id/papers propagates unexpected db errors", async () => {
     const token = await createTestJWT({ sub: "user-1" });
     const collection = {
