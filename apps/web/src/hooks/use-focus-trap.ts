@@ -1,5 +1,8 @@
 import { useEffect, type RefObject } from "react";
 
+const FOCUSABLE_SELECTOR =
+  'button:not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([tabindex="-1"]), textarea:not([tabindex="-1"]), select:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
+
 type UseFocusTrapProps = {
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -18,11 +21,9 @@ export function useFocusTrap({
   useEffect(() => {
     if (!open) return;
 
-    const focusableSelector =
-      'button:not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([tabindex="-1"]), textarea:not([tabindex="-1"]), select:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
     const getFocusableElements = () =>
       Array.from(
-        dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ??
+        dialogRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR) ??
           [],
       ).filter(
         (element) =>
@@ -43,6 +44,8 @@ export function useFocusTrap({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
         setOpen(false);
         triggerRef.current?.focus();
         return;
