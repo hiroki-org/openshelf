@@ -289,7 +289,7 @@ export default function NewCollectionPage() {
           >
             description
           </label>
-          <div className="relative">
+          <div>
             <textarea
               id="description"
               value={description}
@@ -297,13 +297,19 @@ export default function NewCollectionPage() {
               rows={3}
               maxLength={500}
               aria-describedby="description-count"
-              className="w-full rounded-md border border-gray-300 px-3 py-2 pb-7 text-sm dark:border-gray-700 dark:bg-gray-900"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             />
             <div
               id="description-count"
-              className="absolute bottom-2 right-3 text-xs text-gray-500 pointer-events-none dark:text-gray-400"
+              className={`mt-1 text-right text-xs ${
+                [...description].length >= 500
+                  ? "text-red-500 dark:text-red-400"
+                  : [...description].length >= 450
+                    ? "text-yellow-500 dark:text-yellow-400"
+                    : "text-gray-500 dark:text-gray-400"
+              }`}
             >
-              {description.length} / 500
+              {[...description].length} / 500
             </div>
           </div>
         </div>
