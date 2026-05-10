@@ -3,7 +3,8 @@
 import { toast } from "@/components/toast";
 import { apiFetch } from "@/lib/api";
 import { safePath } from "@/lib/sanitization";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useClickOutside } from "@/hooks/use-click-outside";
 
 type CitationFormat = "bibtex" | "biblatex" | "apa" | "ieee" | "mla" | "plain";
 
@@ -27,33 +28,7 @@ export function CiteButton({ paperId }: CiteButtonProps) {
   );
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (
-        target instanceof Node &&
-        containerRef.current &&
-        !containerRef.current.contains(target)
-      ) {
-        setOpen(false);
-      }
-    };
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [open]);
+  useClickOutside(containerRef, () => setOpen(false), open);
 
   const handleCopy = async (format: CitationFormat) => {
     setLoadingFormat(format);

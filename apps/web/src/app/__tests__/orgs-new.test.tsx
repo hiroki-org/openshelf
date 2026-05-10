@@ -115,7 +115,9 @@ describe("NewOrgPage", () => {
         return new Response("{}", { status: 404 });
       }
       if (url === "/api/orgs" && init?.method === "POST") {
-        return new Response(JSON.stringify({ error: "slug taken" }), { status: 409 });
+        return new Response(JSON.stringify({ error: "slug taken" }), {
+          status: 409,
+        });
       }
       throw new Error(`Unexpected request: ${String(url)}`);
     });

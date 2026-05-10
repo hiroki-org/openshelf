@@ -2,6 +2,7 @@
 
 import { toast } from "@/components/toast";
 import { useEffect, useRef, useState } from "react";
+import { useClickOutside } from "@/hooks/use-click-outside";
 
 type FeedButtonProps = {
   url: string;
@@ -18,6 +19,15 @@ export function FeedButton({
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  useClickOutside(
+    containerRef,
+    () => {
+      setOpen(false);
+      triggerRef.current?.focus();
+    },
+    open,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -36,14 +46,6 @@ export function FeedButton({
 
     const firstFocusable = getFocusableElements()[0];
     (firstFocusable ?? dialogRef.current)?.focus();
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (target instanceof Node && !containerRef.current?.contains(target)) {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -81,11 +83,9 @@ export function FeedButton({
       }
     };
 
-    document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
 
     return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
