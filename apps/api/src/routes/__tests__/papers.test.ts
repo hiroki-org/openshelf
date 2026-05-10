@@ -713,7 +713,7 @@ describe("papers routes", () => {
     bucketDeleteSpy.mockRestore();
   });
 
-  it("handles R2 deletion chunking failures properly with onChunkError callback during rollback", async () => {
+  it("handles R2 deletion batch error via onChunkError callback during rollback", async () => {
     const token = await createTestJWT({
       sub: "user-1",
       githubId: "123",
@@ -739,9 +739,7 @@ describe("papers routes", () => {
       insertCallCount++;
       if (insertCallCount === 1) {
         return {
-          values: vi.fn().mockReturnValue({
-            returning: vi.fn().mockResolvedValue([{ id: "paper-1" }]),
-          }),
+          values: vi.fn().mockResolvedValue(undefined),
         };
       }
       return {
@@ -781,13 +779,11 @@ describe("papers routes", () => {
 
       expect(res.status).toBe(500);
 
-      // Wait for async promises to settle
-      await vi.waitFor(() => {
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          "Cleanup error (non-fatal, rollback continues):",
-          expect.any(String),
-        );
-      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Cleanup error (non-fatal, rollback continues):",
+        "R2 batch error",
+      );
+      expect(mockDb.delete).toHaveBeenCalledTimes(1);
     } finally {
       consoleErrorSpy.mockRestore();
     }
