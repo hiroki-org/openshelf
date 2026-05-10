@@ -13,6 +13,33 @@ vi.mock("drizzle-orm/d1", () => ({
 }));
 
 describe("papers routes", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.resetModules();
+    mockDb = {
+      run: vi.fn(async () => undefined),
+      prepare: vi.fn(() => ({
+        bind: vi.fn(() => ({
+          run: vi.fn(async () => ({ meta: { changes: 1 } })),
+        })),
+      })),
+      select: vi.fn(() => makeQuery()),
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          onConflictDoUpdate: vi.fn(async () => undefined),
+          onConflictDoNothing: vi.fn(async () => undefined),
+        })),
+      })),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
+      })),
+      delete: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
+      batch: vi.fn(async (queries) =>
+        Promise.all(queries.map((q: any) => (q.all ? q.all() : q))),
+      ),
+    };
+  });
+
   it("hits the token cache on subsequent calls and removes expired ones", async () => {
     const app = await createTestApp();
     const { createTestJWT } = await import("../../test/helpers");
@@ -572,33 +599,6 @@ describe("papers routes", () => {
     );
   });
 
-  beforeEach(() => {
-    vi.restoreAllMocks();
-    vi.resetModules();
-    mockDb = {
-      run: vi.fn(async () => undefined),
-      prepare: vi.fn(() => ({
-        bind: vi.fn(() => ({
-          run: vi.fn(async () => ({ meta: { changes: 1 } })),
-        })),
-      })),
-      select: vi.fn(() => makeQuery()),
-      insert: vi.fn(() => ({
-        values: vi.fn(() => ({
-          onConflictDoUpdate: vi.fn(async () => undefined),
-          onConflictDoNothing: vi.fn(async () => undefined),
-        })),
-      })),
-      update: vi.fn(() => ({
-        set: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
-      })),
-      delete: vi.fn(() => ({ where: vi.fn(async () => undefined) })),
-      batch: vi.fn(async (queries) =>
-        Promise.all(queries.map((q: any) => (q.all ? q.all() : q))),
-      ),
-    };
-  });
-
   it("POST /api/papers uploads multipart and creates paper", async () => {
     const token = await createTestJWT({
       sub: "user-1",
@@ -707,8 +707,10 @@ describe("papers routes", () => {
     );
 
     // db.delete should be called for papers
-    expect(mockDb.delete).toHaveBeenCalledTimes(1);
+    const { papers } = await import("../../db/schema");
+    expect(mockDb.delete).toHaveBeenCalledWith(papers);
     expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
+    expect(mockDeleteWhere).toHaveBeenCalledWith(expect.anything());
     consoleErrorSpy.mockRestore();
     bucketDeleteSpy.mockRestore();
   });
@@ -3315,9 +3317,7 @@ describe("Error handling and untested branches", () => {
       env as any,
     );
     expect(res.status).toBe(500); // Throws an error up instead of being captured transparently
-    await vi.waitFor(() => {
-      expect(fakeBucket.delete).toHaveBeenCalled();
-    });
+    expect(fakeBucket.delete).toHaveBeenCalled();
   });
 
   it("GET /api/papers/:id/stats handles invalid date ranges and 0 defaults", async () => {

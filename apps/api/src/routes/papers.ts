@@ -576,12 +576,11 @@ async function prepareUploadEntries(c: Context, body: Record<string, string | Fi
             return { errorResponse: c.json({ error: `Field files_${i} is not a valid file` }, 400) };
         }
 
-        if (!(fileCandidate instanceof File) && (typeof (fileCandidate as unknown as File).slice !== "function" || typeof (fileCandidate as unknown as File).name !== "string")) {
-            console.error(`Field files_${i} is not a valid File/Blob`);
+        const file = fileCandidate as File;
+        if (!(file instanceof File)) {
+            console.error(`Field files_${i} is not a valid file`);
             return { errorResponse: c.json({ error: `Field files_${i} is not a valid file` }, 400) };
         }
-
-        const file = fileCandidate as File;
 
         if (file.size > MAX_FILE_SIZE)
             return { errorResponse: c.json(
