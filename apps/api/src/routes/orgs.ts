@@ -96,7 +96,9 @@ function isMemberRole(role: unknown): role is (typeof MEMBER_ROLES)[number] {
   return (MEMBER_ROLES as readonly unknown[]).includes(role);
 }
 
-function isAdminLikeRole(role: unknown): role is (typeof ADMIN_LIKE_ROLES)[number] {
+function isAdminLikeRole(
+  role: unknown,
+): role is (typeof ADMIN_LIKE_ROLES)[number] {
   return (ADMIN_LIKE_ROLES as readonly unknown[]).includes(role);
 }
 

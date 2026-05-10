@@ -91,12 +91,12 @@ app.use("/api/*", async (c, next) => {
     const isAllowedOriginValue = isAllowedOrigin(
       requestOrigin,
       frontendOrigin,
-      allowedOrigins
+      allowedOrigins,
     );
     const isAllowedReferer = isAllowedOrigin(
       refererOrigin,
       frontendOrigin,
-      allowedOrigins
+      allowedOrigins,
     );
 
     if (isAllowedOriginValue || isAllowedReferer) return await next();

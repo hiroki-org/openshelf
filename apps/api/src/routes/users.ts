@@ -106,7 +106,7 @@ function escapeLikeLiteral(str: string): string {
   return str.replace(/[\\%_]/g, "\\$&");
 }
 
-// GET /api/users/search?q=xxx — search users for coauthor invite
+// GET /api/users/search?q={query} — search users for coauthor invite
 usersRoute.get("/search", authMiddleware, async (c) => {
   const q = c.req.query("q");
   if (!q || q.length < 2) return c.json({ users: [] });
@@ -136,7 +136,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
       and(
         or(
           sql`${users.name} LIKE ${searchPattern} ESCAPE '\\' COLLATE NOCASE`,
-          sql`${users.githubId} LIKE ${searchPattern} ESCAPE '\\' COLLATE NOCASE`
+          sql`${users.githubId} LIKE ${searchPattern} ESCAPE '\\' COLLATE NOCASE`,
         ),
         ne(users.id, currentUserId),
       ),
