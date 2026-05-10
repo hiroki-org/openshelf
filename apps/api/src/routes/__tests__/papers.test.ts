@@ -2142,7 +2142,7 @@ describe("papers routes", () => {
             expect(data.error).toBe("Invite already sent");
         });
 
-        it("POST /api/papers/:id/invites returns 500 for non-UNIQUE database errors", async () => {
+        it("propagates general db insert errors", async () => {
             const token = await createTestJWT({ sub: "user-uploader", githubId: "123", name: "Uploader" });
             setupInviteChecks();
 
