@@ -141,4 +141,30 @@ describe("NewOrgPage", () => {
     expect(await screen.findByText("slug taken")).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();
   });
+
+  it("handles form submission validation errors", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/orgs/research-lab") {
+        return new Response("{}", { status: 404 });
+      }
+      throw new Error(`Unexpected URL: ${String(url)}`);
+    });
+
+    render(<NewOrgPage />);
+
+    const submit = screen.getByRole("button", { name: "作成" });
+    submit.removeAttribute('disabled');
+
+    // simulate form submission to trigger validation
+    fireEvent.submit(submit.closest('form')!);
+
+    await Promise.resolve();
+    expect(await screen.findByText("組織名は必須です")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/組織名/i), { target: { value: "x" } });
+    fireEvent.change(screen.getByLabelText(/スラッグ/i), { target: { value: "x" } });
+
+    fireEvent.submit(submit.closest('form')!);
+    expect(await screen.findByText("スラッグは3文字以上必要です")).toBeInTheDocument();
+  });
 });
