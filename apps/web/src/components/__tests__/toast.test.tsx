@@ -39,7 +39,7 @@ describe("toast", () => {
     const toastWrapper = container.firstChild;
 
     expect(toastWrapper).toHaveAttribute("aria-live", "polite");
-    expect(toastWrapper).not.toHaveAttribute("role", "status");
+    expect(toastWrapper).toHaveAttribute("role", "status");
     expect(toastWrapper).not.toHaveAttribute("aria-atomic");
   });
 
