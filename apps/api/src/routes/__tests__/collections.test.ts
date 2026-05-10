@@ -55,7 +55,7 @@ describe("collections routes", () => {
     expect(res.status).toBe(401);
   });
 
-  it("POST /api/collections ignores general db insert errors", async () => {
+  it("POST /api/collections returns 500 on unexpected db error", async () => {
     const err = new Error("General insert error");
     mockDb.insert = vi.fn().mockReturnValue({
       values: vi.fn().mockRejectedValue(err),
@@ -96,27 +96,6 @@ describe("collections routes", () => {
     );
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: "slug already in use" });
-  });
-
-  it("POST /api/collections returns 500 on unexpected db error", async () => {
-    const err = new Error("Some unexpected DB error");
-    mockDb.insert = vi.fn().mockReturnValue({
-      values: vi.fn().mockRejectedValue(err),
-    });
-    const app = await createTestApp();
-    const env = createTestEnv();
-    const res = await app.request(
-      "http://localhost/api/collections",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}`,
-        },
-        body: JSON.stringify({ name: "C1", slug: "col-1", owner_type: "user" }),
-      },
-      env,
-    );
-    expect(res.status).toBe(500);
   });
 
   it("GET /api/collections/:id ignores invalid authorization headers", async () => {
