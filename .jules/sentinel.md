@@ -12,3 +12,7 @@
 **Vulnerability:** A wildcard in the `ALLOWED_ORIGINS` configuration allows the CORS and OAuth flow to accept any client-provided origin, leading to a bypass in origin verification and an open redirect where tokens can be stolen.
 **Learning:** Utilities that resolve or validate origins against a configurable list should explicitly reject wildcard patterns in sensitive flows such as OAuth redirects or CORS responses, ensuring wildcards only apply when strictly intended by the configuration.
 **Prevention:** Pass `{ allowWildcard: false }` to the `isAllowedOrigin` helper in all places where sensitive token delivery relies on frontend URLs.
+## 2025-02-14 - Fix Unhandled Rejection Log Pollution in Vitest
+**Vulnerability:** N/A (Test/CI Stability Issue)
+**Learning:** When asserting a 500 Response in Hono using `app.request()` where an unexpected error is thrown (like a Drizzle DB error), Hono's default error handler logs the `Error` via `console.error` before returning the 500 status. This causes log pollution (`stderr`) in Vitest.
+**Prevention:** Always wrap `app.request()` blocks that deliberately trigger unhandled route errors (like 'propagates general db [operation] errors' tests) with `const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {})` and ensure the spy is restored in a `try...finally` block.
