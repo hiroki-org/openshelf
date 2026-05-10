@@ -319,8 +319,15 @@ describe("collections routes", () => {
       "http://localhost/api/collections",
       {
         method: "POST",
-        headers: { Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}` },
-        body: JSON.stringify({ name: "C1", slug: "col-1", owner_type: "user", visibility: "invalid_string" }),
+        headers: {
+          Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}`,
+        },
+        body: JSON.stringify({
+          name: "C1",
+          slug: "col-1",
+          owner_type: "user",
+          visibility: "invalid_string",
+        }),
       },
       env,
     );
@@ -1418,15 +1425,11 @@ describe("collections routes", () => {
       { allResult: [{ paperId: "p1" }, { paperId: "p2" }] },
     ]);
     mockDb.batch = vi.fn().mockResolvedValue([]);
-    mockDb.update = vi
-      .fn()
-      .mockImplementation(() => ({
-        set: vi
-          .fn()
-          .mockImplementation(() => ({
-            where: vi.fn().mockImplementation(() => "UPDATE_STATEMENT"),
-          })),
-      }));
+    mockDb.update = vi.fn().mockImplementation(() => ({
+      set: vi.fn().mockImplementation(() => ({
+        where: vi.fn().mockImplementation(() => "UPDATE_STATEMENT"),
+      })),
+    }));
     const app = await createTestApp();
     const env = createTestEnv();
     const res = await app.request(
