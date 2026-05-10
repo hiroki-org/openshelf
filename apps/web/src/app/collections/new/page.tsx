@@ -249,20 +249,21 @@ export default function NewCollectionPage() {
 
         <div>
           <label htmlFor="name" className="block text-sm font-medium mb-1">
-            name
+            name <span className="text-red-500">*</span>
           </label>
           <input
             id="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={100}
+            required
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
         </div>
 
         <div>
           <label htmlFor="slug" className="block text-sm font-medium mb-1">
-            slug
+            slug <span className="text-red-500">*</span>
           </label>
           <input
             id="slug"
@@ -272,6 +273,7 @@ export default function NewCollectionPage() {
               setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
             }}
             maxLength={40}
+            required
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
           <p className="text-xs mt-1 text-gray-500">
@@ -334,7 +336,14 @@ export default function NewCollectionPage() {
           }
           className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
         >
-          {submitting ? "作成中..." : "作成"}
+          {submitting ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              作成中...
+            </span>
+          ) : (
+            "作成"
+          )}
         </button>
       </form>
     </div>

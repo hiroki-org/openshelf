@@ -66,11 +66,11 @@ describe("NewCollectionPage", () => {
 
     render(<NewCollectionPage />);
 
-    fireEvent.change(screen.getByLabelText("name"), {
+    fireEvent.change(screen.getByLabelText("name *"), {
       target: { value: "Lab Picks" },
     });
 
-    expect(screen.getByLabelText("slug")).toHaveValue("lab-picks");
+    expect(screen.getByLabelText("slug *")).toHaveValue("lab-picks");
 
     await act(async () => {
       vi.advanceTimersByTime(400);
@@ -100,7 +100,7 @@ describe("NewCollectionPage", () => {
 
     render(<NewCollectionPage />);
 
-    fireEvent.change(screen.getByLabelText("name"), {
+    fireEvent.change(screen.getByLabelText("name *"), {
       target: { value: "Lab Picks" },
     });
 
@@ -132,7 +132,7 @@ describe("NewCollectionPage", () => {
 
     render(<NewCollectionPage />);
 
-    fireEvent.change(screen.getByLabelText("name"), {
+    fireEvent.change(screen.getByLabelText("name *"), {
       target: { value: "Lab Picks" },
     });
 
@@ -170,7 +170,7 @@ describe("NewCollectionPage", () => {
     render(<NewCollectionPage />);
 
     fireEvent.click(screen.getByLabelText(/^org$/));
-    fireEvent.change(screen.getByLabelText("name"), {
+    fireEvent.change(screen.getByLabelText("name *"), {
       target: { value: "Lab Picks" },
     });
 
@@ -198,10 +198,10 @@ describe("NewCollectionPage", () => {
   it("marks invalid slug formats and keeps submit disabled", async () => {
     render(<NewCollectionPage />);
 
-    fireEvent.change(screen.getByLabelText("name"), {
+    fireEvent.change(screen.getByLabelText("name *"), {
       target: { value: "Lab Picks" },
     });
-    fireEvent.change(screen.getByLabelText("slug"), {
+    fireEvent.change(screen.getByLabelText("slug *"), {
       target: { value: "bad--slug" },
     });
 
@@ -228,7 +228,7 @@ describe("NewCollectionPage", () => {
 
     render(<NewCollectionPage />);
 
-    fireEvent.change(screen.getByLabelText("name"), {
+    fireEvent.change(screen.getByLabelText("name *"), {
       target: { value: "Lab Picks" },
     });
 
