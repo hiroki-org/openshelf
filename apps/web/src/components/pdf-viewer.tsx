@@ -395,7 +395,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       if (!debouncedSearchQuery) return textItem.str;
 
       const escapedQuery = debouncedSearchQuery.replace(
-        /[.*+?^\$\{\}()|[\]\\]/g,
+        /[.*+?^${}()|[\]\\]/g,
         "\\  const renderPage = (targetPage: number) => (",
       );
       const parts = textItem.str.split(new RegExp(`(${escapedQuery})`, "gi"));
