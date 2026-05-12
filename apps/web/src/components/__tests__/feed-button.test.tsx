@@ -135,4 +135,24 @@ describe("FeedButton", () => {
       );
     });
   });
+
+  it("shows an error when clipboard write fails", async () => {
+    vi.stubGlobal("navigator", {
+      clipboard: {
+        writeText: vi.fn(async () => {
+          throw new Error("denied");
+        }),
+      },
+    });
+
+    render(<FeedButton url="https://api.example/feed.xml" />);
+    fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
+    fireEvent.click(screen.getByRole("button", { name: "コピー" }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        "クリップボードへのコピーに失敗しました",
+      );
+    });
+  });
 });

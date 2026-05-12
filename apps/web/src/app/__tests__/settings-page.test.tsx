@@ -84,4 +84,29 @@ describe("SettingsPage", () => {
 
     expect(await screen.findByText("Plain text error")).toBeInTheDocument();
   });
+
+  it("shows JSON error responses", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: "Validation failed" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByText("Validation failed")).toBeInTheDocument();
+  });
+
+  it("shows network error message when request throws", async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new Error("network down"));
+
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(
+      await screen.findByText("ネットワークエラーが発生しました"),
+    ).toBeInTheDocument();
+  });
 });

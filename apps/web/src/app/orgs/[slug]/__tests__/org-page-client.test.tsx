@@ -200,4 +200,84 @@ describe("OrgPageClient", () => {
 
     expect(await screen.findByText("組織が見つかりません")).toBeInTheDocument();
   });
+
+  it("supports pagination controls and clearing filters", async () => {
+    params = new URLSearchParams("venue=ASE&category=report&page=2");
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/orgs/lab") {
+        return new Response(
+          JSON.stringify({
+            org: {
+              id: "org-1",
+              slug: "lab",
+              name: "Research Lab",
+              description: null,
+              createdAt: "2026-01-01T00:00:00Z",
+            },
+            memberCount: 1,
+            paperCount: 3,
+          }),
+          { status: 200 },
+        );
+      }
+      if (
+        url === "/api/orgs/lab/papers?paginate=1&autoYear=1&venue=ASE&category=report&page=2"
+      ) {
+        return new Response(
+          JSON.stringify({
+            papers: [
+              {
+                id: "paper-2",
+                title: "Paper Two",
+                abstract: null,
+                visibility: "public",
+                venue: "ASE",
+                venueType: "conference",
+                year: 2025,
+                category: "report",
+                tags: null,
+                createdAt: "2026-01-01T00:00:00Z",
+              },
+            ],
+            total: 3,
+            page: 2,
+            pageSize: 1,
+            totalPages: 3,
+            appliedFilters: { year: null, venue: "ASE", category: "report" },
+            filterOptions: {
+              years: [],
+              venues: [{ value: "ASE", count: 3 }],
+              categories: [{ value: "report", count: 3 }],
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (url === "/api/orgs/lab/members") {
+        return new Response(JSON.stringify({ members: [] }), { status: 200 });
+      }
+      if (url === "/api/orgs/lab/collections") {
+        return new Response(JSON.stringify({ collections: [] }), {
+          status: 200,
+        });
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<OrgPageClient slug="lab" />);
+    expect(await screen.findByText("Paper Two")).toBeInTheDocument();
+    expect(screen.getByText("2 / 3")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+    expect(replaceMock).toHaveBeenCalledWith(
+      expect.stringContaining("/orgs/lab?"),
+    );
+    expect(replaceMock).toHaveBeenCalledWith(expect.stringContaining("page=3"));
+
+    fireEvent.click(screen.getByRole("button", { name: "前へ" }));
+    expect(replaceMock).toHaveBeenCalledWith(expect.stringContaining("page=1"));
+
+    fireEvent.click(screen.getAllByRole("button", { name: "フィルタをクリア" })[0]);
+    expect(replaceMock).toHaveBeenCalledWith("/orgs/lab");
+  });
 });

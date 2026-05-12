@@ -100,6 +100,27 @@ describe("PaperEditPage", () => {
     fireEvent.change(screen.getByLabelText(/Description/i), {
       target: { value: "## Updated description" },
     });
+    fireEvent.change(screen.getByLabelText(/発表年/i), {
+      target: { value: "2026" },
+    });
+    fireEvent.change(screen.getByLabelText(/発表場所/i), {
+      target: { value: "Updated Conference" },
+    });
+    fireEvent.change(screen.getByLabelText(/発表種別/i), {
+      target: { value: "journal" },
+    });
+    fireEvent.change(screen.getByLabelText(/^言語$/i), {
+      target: { value: "en" },
+    });
+    fireEvent.change(screen.getByLabelText(/DOI/i), {
+      target: { value: "10.1000/xyz123" },
+    });
+    fireEvent.change(screen.getByLabelText(/外部リンク/i), {
+      target: { value: "https://example.com/paper" },
+    });
+    fireEvent.change(screen.getByLabelText(/カテゴリ/i), {
+      target: { value: "presentation" },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "保存する" }));
 
@@ -113,6 +134,26 @@ describe("PaperEditPage", () => {
       "/api/papers/paper-1/description",
       expect.objectContaining({ method: "PUT" }),
     );
+    const patchCall = vi
+      .mocked(apiFetch)
+      .mock.calls.find(
+        ([url, init]) => url === "/api/papers/paper-1" && init?.method === "PATCH",
+      );
+    const patchBody = JSON.parse((patchCall?.[1]?.body as string) ?? "{}");
+    expect(patchBody).toMatchObject({
+      title: "Updated title",
+      abstract: "Updated abstract",
+      visibility: "private",
+      showViewCount: true,
+      language: "en",
+      externalUrl: "https://example.com/paper",
+      doi: "10.1000/xyz123",
+      venue: "Updated Conference",
+      venueType: "journal",
+      year: 2026,
+      category: "presentation",
+      tags: ["AI", "LLM"],
+    });
 
     expect(push).toHaveBeenCalledWith("/papers/paper-1");
     expect(refresh).toHaveBeenCalledTimes(1);
