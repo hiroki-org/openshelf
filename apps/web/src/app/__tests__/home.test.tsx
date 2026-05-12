@@ -49,6 +49,14 @@ describe("Home page", () => {
         name: /すべての研究データを一箇所に。/,
       }),
     ).toBeInTheDocument();
+
+    // Add additional assertions to increase coverage on page.tsx guest view
+    expect(screen.getByText(/Research output hosting/)).toBeInTheDocument();
+    expect(screen.getByText(/OpenShelf は、論文・スライド・補足資料などをまとめて管理し/)).toBeInTheDocument();
+    expect(screen.getByText(/1\. 成果物をまとめる/)).toBeInTheDocument();
+    expect(screen.getByText(/2\. 公開範囲を選ぶ/)).toBeInTheDocument();
+    expect(screen.getByText(/3\. 永続URLで共有/)).toBeInTheDocument();
+
     expect(login).toHaveBeenCalledTimes(1);
   });
 
