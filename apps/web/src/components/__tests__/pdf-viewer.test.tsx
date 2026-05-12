@@ -187,7 +187,11 @@ describe("PdfViewer", () => {
       target: { value: "search" },
     });
 
-    // We also need to wait for react state update cycle (debounce is 350ms)
+    // Use fake timers for deterministic execution
+    vi.useFakeTimers();
+    vi.advanceTimersByTime(350);
+    vi.useRealTimers();
+
     await waitFor(
       () => {
         const pagePropsCalls = mockPage.mock.calls.map(
@@ -198,7 +202,7 @@ describe("PdfViewer", () => {
           throw new Error("No customTextRenderer yet");
 
         const rendered = lastPageProps.customTextRenderer({
-          str: "test search",
+          str: "test search string with regex characters .*+?",
           itemIndex: 0,
         });
         if (!rendered.includes("<mark>"))

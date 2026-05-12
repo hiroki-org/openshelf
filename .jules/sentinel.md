@@ -20,3 +20,7 @@
 **Issue:** Added unused css classes to elements not using Tailwind.
 **Learning:** React PDF relies on explicit styles and classes instead of built in styled components for certain elements.
 **Prevention:** Ensured the right style is applied instead of relying on default standard elements.
+## 2026-05-12 - [Unescaped RegExp in Search]
+**Issue:** `new RegExp` directly constructed from unescaped user string search query can cause syntax errors when special characters exist.
+**Learning:** `new RegExp(query)` can crash if `query` is `.` or `*` or `+`.
+**Prevention:** Use an escape string function like `query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")` before using inside `RegExp`.
