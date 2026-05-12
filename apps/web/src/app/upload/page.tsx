@@ -39,9 +39,6 @@ type FileEntry = {
   fileType: (typeof VALID_FILE_TYPES)[number];
 };
 
-const MAX_TITLE_LENGTH = 300;
-const MAX_ABSTRACT_LENGTH = 5000;
-
 export default function UploadPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -191,7 +188,7 @@ export default function UploadPage() {
           <input
             id="paper-title"
             type="text"
-            maxLength={MAX_TITLE_LENGTH}
+            maxLength={300}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             aria-describedby="title-counter"
@@ -200,9 +197,9 @@ export default function UploadPage() {
           />
           <div
             id="title-counter"
-            className={`mt-1 flex justify-end text-xs ${title.length >= MAX_TITLE_LENGTH ? "text-red-500 dark:text-red-400" : title.length >= MAX_TITLE_LENGTH * 0.9 ? "text-yellow-600 dark:text-yellow-400" : "text-gray-500 dark:text-gray-400"}`}
+            className="mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400"
           >
-            {title.length}/{MAX_TITLE_LENGTH}
+            {title.length}/300
           </div>
         </div>
 
@@ -218,15 +215,15 @@ export default function UploadPage() {
             value={abstract}
             onChange={(e) => setAbstract(e.target.value)}
             rows={4}
-            maxLength={MAX_ABSTRACT_LENGTH}
+            maxLength={5000}
             aria-describedby="abstract-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
           <div
             id="abstract-counter"
-            className={`mt-1 flex justify-end text-xs ${abstract.length >= MAX_ABSTRACT_LENGTH ? "text-red-500 dark:text-red-400" : abstract.length >= MAX_ABSTRACT_LENGTH * 0.9 ? "text-yellow-600 dark:text-yellow-400" : "text-gray-500 dark:text-gray-400"}`}
+            className="mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400"
           >
-            {abstract.length}/{MAX_ABSTRACT_LENGTH}
+            {abstract.length}/5000
           </div>
         </div>
 

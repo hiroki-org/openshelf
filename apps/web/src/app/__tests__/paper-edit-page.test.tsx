@@ -84,6 +84,15 @@ describe("PaperEditPage", () => {
     fireEvent.change(screen.getByLabelText(/タイトル/i), {
       target: { value: "Updated title" },
     });
+
+    expect(screen.getByText(`${"Updated title".length}/300`)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/概要/i), {
+      target: { value: "Updated abstract" },
+    });
+
+    expect(screen.getByText(`${"Updated abstract".length}/5000`)).toBeInTheDocument();
+
     fireEvent.click(screen.getByLabelText(/公開ページに閲覧数を表示する/i));
     fireEvent.change(screen.getByLabelText(/タグ/i), {
       target: { value: "AI, LLM" },

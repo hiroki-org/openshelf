@@ -81,9 +81,12 @@ describe("UploadPage", () => {
     fireEvent.change(screen.getByLabelText(/タイトル/i), {
       target: { value: "  My paper  " },
     });
+    expect(screen.getByText(`${"  My paper  ".length}/300`)).toBeInTheDocument();
+
     fireEvent.change(screen.getByLabelText(/概要/i), {
       target: { value: "Abstract" },
     });
+    expect(screen.getByText(`${"Abstract".length}/5000`)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText(/発表年/i), {
       target: { value: "2025" },
     });
