@@ -182,13 +182,14 @@ describe("PdfViewer", () => {
       );
     });
 
+    // Use fake timers for deterministic execution BEFORE triggering the change
+    vi.useFakeTimers();
+
     // Enter search text
     fireEvent.change(screen.getByRole("searchbox", { name: "PDF内検索" }), {
       target: { value: "search" },
     });
 
-    // Use fake timers for deterministic execution
-    vi.useFakeTimers();
     vi.advanceTimersByTime(350);
     vi.useRealTimers();
 
