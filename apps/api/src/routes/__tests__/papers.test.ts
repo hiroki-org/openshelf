@@ -3211,7 +3211,45 @@ describe("papers routes", () => {
       expect(data.error).toBe("Invite already sent");
     });
 
-    it("POST /api/papers/:id/invites returns 500 for non-UNIQUE database errors", async () => {
+    it("POST /api/papers/:id/invites handles non-Error rejections", async () => {
+      const token = await createTestJWT({
+        sub: "user-uploader",
+        githubId: "123",
+        name: "Uploader",
+      });
+      setupInviteChecks();
+
+      mockDb.insert = vi.fn().mockReturnValue({
+        values: vi.fn().mockRejectedValue("Some string error"),
+      });
+
+      const app = await createTestApp();
+      const env = createTestEnv();
+      const res = await sendInviteRequest(token, app, env);
+
+      expect(res.status).toBe(500);
+    });
+
+    it("POST /api/papers/:id/invites handles non-string non-Error rejections", async () => {
+      const token = await createTestJWT({
+        sub: "user-uploader",
+        githubId: "123",
+        name: "Uploader",
+      });
+      setupInviteChecks();
+
+      mockDb.insert = vi.fn().mockReturnValue({
+        values: vi.fn().mockRejectedValue({ error: "some object" }),
+      });
+
+      const app = await createTestApp();
+      const env = createTestEnv();
+      const res = await sendInviteRequest(token, app, env);
+
+      expect(res.status).toBe(500);
+    });
+
+    it("POST /api/papers/:id/invites propagates general db insert errors", async () => {
       const token = await createTestJWT({
         sub: "user-uploader",
         githubId: "123",
@@ -3229,6 +3267,7 @@ describe("papers routes", () => {
 
       expect(res.status).toBe(500);
     });
+
   });
 });
 
