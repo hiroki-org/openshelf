@@ -206,4 +206,25 @@ describe("CORS configuration", () => {
 
         expect(res.headers.get("access-control-allow-origin")).toBeNull();
     });
+
+    it("blocks wildcards in ALLOWED_ORIGINS when allowWildcard is false", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv({
+            DB: { prepare: vi.fn(() => ({ run: vi.fn(), bind: vi.fn(() => ({ run: vi.fn(), first: vi.fn(() => null) })) })) },
+            FRONTEND_URL: "https://frontend.example.com",
+            ALLOWED_ORIGINS: "https://*.evil.com"
+        });
+
+        const res = await app.request(
+            "http://localhost/api/auth/github",
+            {
+                headers: {
+                    Origin: "https://attack.evil.com"
+                }
+            },
+            env as any
+        );
+
+        expect(res.headers.get("access-control-allow-origin")).toBeNull();
+    });
 });
