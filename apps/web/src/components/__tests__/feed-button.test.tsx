@@ -135,4 +135,68 @@ describe("FeedButton", () => {
       );
     });
   });
+
+  it("shows an error when clipboard write fails", async () => {
+    vi.stubGlobal("navigator", {
+      clipboard: {
+        writeText: vi.fn(async () => {
+          throw new Error("denied");
+        }),
+      },
+    });
+
+    render(<FeedButton url="https://api.example/feed.xml" />);
+    fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
+    fireEvent.click(screen.getByRole("button", { name: "コピー" }));
+
+    await waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        "クリップボードへのコピーに失敗しました",
+      );
+    });
+  });
+
+  it("supports custom label and class name", () => {
+    render(
+      <FeedButton
+        url="https://api.example/feed.xml"
+        label="Custom feed"
+        className="my-feed-button"
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Custom feed" });
+    expect(trigger).toHaveClass("my-feed-button");
+  });
+
+  it("toggles the dialog closed when trigger is clicked twice", async () => {
+    render(<FeedButton url="https://api.example/feed.xml" />);
+
+    const trigger = screen.getByRole("button", { name: "📡 Feed" });
+    fireEvent.click(trigger);
+    expect(screen.getByRole("dialog", { name: "フィード URL" })).toBeInTheDocument();
+
+    fireEvent.click(trigger);
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "フィード URL" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("updates aria-expanded based on popover state", () => {
+    render(<FeedButton url="https://api.example/feed.xml" />);
+
+    const trigger = screen.getByRole("button", { name: "📡 Feed" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("renders the default trigger style class", () => {
+    render(<FeedButton url="https://api.example/feed.xml" />);
+    expect(screen.getByRole("button", { name: "📡 Feed" })).toHaveClass(
+      "rounded-md",
+    );
+  });
 });
