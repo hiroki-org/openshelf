@@ -225,7 +225,7 @@ describe("PaperEditPage", () => {
     render(<PaperEditPage />);
 
     expect(
-      await screen.findByText("論文の取得に失敗しました"),
+      await screen.findByText("成果物の取得に失敗しました"),
     ).toBeInTheDocument();
   });
 

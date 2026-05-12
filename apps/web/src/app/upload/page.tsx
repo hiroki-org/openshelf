@@ -156,7 +156,7 @@ export default function UploadPage() {
               Upload
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 dark:text-gray-50">
-              論文アップロード
+              成果物アップロード
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
               タイトルや公開範囲、関連ファイルをまとめて登録します。必要な情報から順に入力できるよう、
@@ -470,7 +470,7 @@ export default function UploadPage() {
                 アップロード中...
               </span>
             ) : (
-              "論文をアップロードする"
+              "成果物をアップロードする"
             )}
           </button>
         </div>

@@ -100,7 +100,7 @@ export default function PaperEditPage() {
             router.replace("/");
             return;
           }
-          throw new Error("論文の取得に失敗しました");
+          throw new Error("成果物の取得に失敗しました");
         }
 
         const data = (await res.json()) as PaperEditResponse;
@@ -273,7 +273,7 @@ export default function PaperEditPage() {
             onChange={(e) => setTitle(e.target.value)}
             aria-describedby="title-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
-            placeholder="論文のタイトル"
+            placeholder="成果物のタイトル"
           />
           <div
             id="title-counter"

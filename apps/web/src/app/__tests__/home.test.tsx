@@ -46,7 +46,7 @@ describe("Home page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /研究成果物を保存し、共有する。/,
+        name: /すべての研究データを一箇所に。/,
       }),
     ).toBeInTheDocument();
     expect(login).toHaveBeenCalledTimes(1);
@@ -65,7 +65,7 @@ describe("Home page", () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText("まだ論文がありません")).toBeInTheDocument();
+      expect(screen.getByText("まだ成果物がありません")).toBeInTheDocument();
     });
 
     expect(screen.getAllByText("0")).toHaveLength(3);

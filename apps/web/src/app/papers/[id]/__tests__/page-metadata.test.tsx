@@ -45,7 +45,7 @@ describe("papers/[id]/page metadata", () => {
     const view = await PaperPage({ params: { id: "../bad" } });
     render(view);
 
-    expect(metadata.title).toBe("論文詳細 | OpenShelf");
+    expect(metadata.title).toBe("成果物詳細 | OpenShelf");
     expect(screen.getByText("無効な識別子です")).toBeInTheDocument();
   });
 });

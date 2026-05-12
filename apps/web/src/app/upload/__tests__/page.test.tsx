@@ -60,7 +60,7 @@ describe("UploadPage", () => {
       target: { value: "My paper" },
     });
     fireEvent.click(
-      screen.getByRole("button", { name: "論文をアップロードする" }),
+      screen.getByRole("button", { name: "成果物をアップロードする" }),
     );
 
     expect(
@@ -109,7 +109,7 @@ describe("UploadPage", () => {
     });
 
     fireEvent.click(
-      screen.getByRole("button", { name: "論文をアップロードする" }),
+      screen.getByRole("button", { name: "成果物をアップロードする" }),
     );
 
     await waitFor(() => {

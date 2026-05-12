@@ -351,8 +351,8 @@ describe("OrgSettingsPage", () => {
       expect(screen.queryByText("Bob")).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "論文" }));
-    fireEvent.change(screen.getByLabelText("論文検索"), {
+    fireEvent.click(screen.getByRole("button", { name: "成果物" }));
+    fireEvent.change(screen.getByLabelText("成果物検索"), {
       target: { value: "tr" },
     });
 

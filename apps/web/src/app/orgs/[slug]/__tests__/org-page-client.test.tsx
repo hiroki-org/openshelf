@@ -349,7 +349,7 @@ describe("OrgPageClient", () => {
     expect(await screen.findByText("Research Lab")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "⚙ 設定" })).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "+ 論文を追加" }),
+      screen.queryByRole("link", { name: "+ 成果物を追加" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "+ 新規作成" }),
@@ -388,7 +388,7 @@ describe("OrgPageClient", () => {
 
     render(<OrgPageClient slug="lab" />);
     expect(await screen.findByText("Research Lab")).toBeInTheDocument();
-    expect(await screen.findByText("まだ論文がありません")).toBeInTheDocument();
+    expect(await screen.findByText("まだ成果物がありません")).toBeInTheDocument();
   });
 
   it("applies explicit all-year filter when selecting empty year option", async () => {
@@ -541,6 +541,6 @@ describe("OrgPageClient", () => {
 
     render(<OrgPageClient slug="lab" />);
     expect(await screen.findByText("Research Lab")).toBeInTheDocument();
-    expect(await screen.findByText("まだ論文がありません")).toBeInTheDocument();
+    expect(await screen.findByText("まだ成果物がありません")).toBeInTheDocument();
   });
 });

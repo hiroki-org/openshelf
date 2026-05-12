@@ -76,10 +76,10 @@ export default function Home() {
               <span className="flex h-2 w-2 rounded-full bg-blue-500 mr-2"></span>
               Research output hosting
             </div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-gray-950 dark:text-gray-50 sm:text-6xl">
-              研究成果物を保存し、
+            <h1 className="text-4xl font-extrabold tracking-tight text-gray-950 dark:text-gray-50 sm:text-5xl text-balance">
+              すべての研究データを一箇所に。
               <br className="hidden sm:block" />
-              共有する。
+              共有も管理も、これまで以上に簡単に。
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-gray-600 dark:text-gray-400">
               OpenShelf は、論文・スライド・補足資料などをまとめて管理し、
@@ -173,7 +173,7 @@ export default function Home() {
               ダッシュボード
             </p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-950 dark:text-gray-50">
-              マイ論文
+              マイライブラリ
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
               アップロード済みの研究成果物を一覧で確認できます。タイトル、公開範囲、
@@ -225,7 +225,7 @@ export default function Home() {
         <section className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center dark:border-gray-700 dark:bg-gray-900/60">
           <div className="mx-auto max-w-md">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-              まだ論文がありません
+              まだ成果物がありません
             </h2>
             <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">
               最初の成果物を追加すると、この画面から一覧で確認できるようになります。

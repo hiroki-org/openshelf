@@ -717,7 +717,7 @@ describe("PaperDetailClient", () => {
     );
 
     expect(
-      await screen.findByText("この論文を閲覧する権限がありません"),
+      await screen.findByText("この成果物を閲覧する権限がありません"),
     ).toBeInTheDocument();
   });
 });
