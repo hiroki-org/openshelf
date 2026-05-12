@@ -16,3 +16,7 @@
 **Issue:** String exceptions were not handled, causing the app to return an Internal Server Error.
 **Learning:** `e instanceof Error` correctly identifies built-in errors, but doesn't handle `throw "error"`. It caused Hono to not correctly propagate a 500 status.
 **Prevention:** Handled by validating `e instanceof Error ? e.message : typeof e === 'string' ? e : "";` and throwing an error properly at the end `throw e instanceof Error ? e : new Error(String(e));`.
+## 2026-05-12 - [Unused CSS Classes]
+**Issue:** Added unused css classes to elements not using Tailwind.
+**Learning:** React PDF relies on explicit styles and classes instead of built in styled components for certain elements.
+**Prevention:** Ensured the right style is applied instead of relying on default standard elements.

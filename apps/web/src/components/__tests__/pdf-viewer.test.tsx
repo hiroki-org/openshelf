@@ -32,6 +32,7 @@ type MockPageProps = {
   width?: number;
   renderTextLayer?: boolean;
   renderAnnotationLayer?: boolean;
+  customTextRenderer?: (textItem: { str: string; itemIndex: number }) => string;
 };
 
 type MockObserverEntry = {
@@ -168,6 +169,44 @@ describe("PdfViewer", () => {
       writable: true,
       value: vi.fn(),
     });
+  });
+
+  it("highlights search text using customTextRenderer", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
+
+    // Mock document load
+    const [documentProps] = mockDocument.mock.calls[0] as [MockDocumentProps];
+    await act(async () => {
+      documentProps.onLoadSuccess?.(
+        createMockPdfDocument(["test search string"]),
+      );
+    });
+
+    // Enter search text
+    fireEvent.change(screen.getByRole("searchbox", { name: "PDF内検索" }), {
+      target: { value: "search" },
+    });
+
+    // We also need to wait for react state update cycle (debounce is 350ms)
+    await waitFor(
+      () => {
+        const pagePropsCalls = mockPage.mock.calls.map(
+          (c) => c[0] as MockPageProps,
+        );
+        const lastPageProps = pagePropsCalls[pagePropsCalls.length - 1];
+        if (!lastPageProps?.customTextRenderer)
+          throw new Error("No customTextRenderer yet");
+
+        const rendered = lastPageProps.customTextRenderer({
+          str: "test search",
+          itemIndex: 0,
+        });
+        if (!rendered.includes("<mark>"))
+          throw new Error("Not updated with query yet");
+        expect(rendered).toContain("<mark>search</mark>");
+      },
+      { timeout: 1000 },
+    );
   });
 
   it("passes multilingual font options and text layer flags to react-pdf", () => {

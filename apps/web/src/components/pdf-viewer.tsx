@@ -390,12 +390,32 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     setIsPinching(false);
   }, []);
 
+  const textRenderer = useCallback(
+    (textItem: { str: string; itemIndex: number }) => {
+      if (!debouncedSearchQuery) return textItem.str;
+
+      const parts = textItem.str.split(
+        new RegExp(`(${debouncedSearchQuery})`, "gi"),
+      );
+
+      return parts
+        .map((part) =>
+          part.toLowerCase() === debouncedSearchQuery.toLowerCase()
+            ? `<mark>${part}</mark>`
+            : part,
+        )
+        .join("");
+    },
+    [debouncedSearchQuery],
+  );
+
   const renderPage = (targetPage: number) => (
     <Page
       pageNumber={targetPage}
       width={pageWidth}
       renderTextLayer
       renderAnnotationLayer
+      customTextRenderer={textRenderer}
     />
   );
 
