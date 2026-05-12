@@ -130,4 +130,20 @@ describe("Home page", () => {
     expect(paperLinks[1]).toHaveTextContent("Older paper");
     expect(screen.getAllByText("公開")).toHaveLength(1);
   });
+
+  it("handles apiFetch error gracefully", async () => {
+    authState = {
+      user: { id: "user-1", name: "Alice" },
+      loading: false,
+      login,
+    };
+    vi.mocked(apiFetch).mockRejectedValue(new Error("Network error"));
+
+    render(<Home />);
+
+    await waitFor(() => {
+      expect(screen.getByText("まだ成果物がありません")).toBeInTheDocument();
+    });
+  });
+
 });
