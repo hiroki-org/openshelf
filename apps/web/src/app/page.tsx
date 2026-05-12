@@ -76,10 +76,10 @@ export default function Home() {
               <span className="flex h-2 w-2 rounded-full bg-blue-500 mr-2"></span>
               Research output hosting
             </div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-gray-950 dark:text-gray-50 sm:text-5xl text-balance">
-              すべての研究データを一箇所に。
+            <h1 className="text-4xl font-extrabold tracking-tight text-gray-950 dark:text-gray-50 sm:text-6xl text-balance">
+              研究データを一箇所に
               <br className="hidden sm:block" />
-              共有も管理も、これまで以上に簡単に。
+              共有も管理もスマートに
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-8 text-gray-600 dark:text-gray-400">
               OpenShelf は、論文・スライド・補足資料などをまとめて管理し、

@@ -46,7 +46,7 @@ describe("Home page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /すべての研究データを一箇所に。/,
+        name: /研究データを一箇所に/,
       }),
     ).toBeInTheDocument();
 
