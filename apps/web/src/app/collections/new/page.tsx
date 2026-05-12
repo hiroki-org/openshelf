@@ -249,7 +249,10 @@ export default function NewCollectionPage() {
 
         <div>
           <label htmlFor="name" className="block text-sm font-medium mb-1">
-            name<span className="text-red-500" aria-hidden="true"> *</span>
+            name{" "}
+            <span aria-hidden="true" className="text-red-500">
+              *
+            </span>
           </label>
           <input
             id="name"
@@ -263,7 +266,10 @@ export default function NewCollectionPage() {
 
         <div>
           <label htmlFor="slug" className="block text-sm font-medium mb-1">
-            slug <span className="text-red-500">*</span>
+            slug{" "}
+            <span aria-hidden="true" className="text-red-500">
+              *
+            </span>
           </label>
           <input
             id="slug"
@@ -338,7 +344,7 @@ export default function NewCollectionPage() {
         >
           {submitting ? (
             <span className="flex items-center justify-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
               作成中...
             </span>
           ) : (
