@@ -3268,7 +3268,6 @@ describe("papers routes", () => {
       expect(res.status).toBe(500);
     });
 
-
   });
 });
 
