@@ -268,11 +268,19 @@ export default function PaperEditPage() {
             id="title"
             type="text"
             required
+            maxLength={300}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            aria-describedby="title-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
             placeholder="論文のタイトル"
           />
+          <div
+            id="title-counter"
+            className="mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400"
+          >
+            {title.length}/300
+          </div>
         </div>
 
         <fieldset>
@@ -343,9 +351,17 @@ export default function PaperEditPage() {
             value={abstract}
             onChange={(e) => setAbstract(e.target.value)}
             rows={4}
+            maxLength={5000}
+            aria-describedby="abstract-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
             placeholder="アブストラクト..."
           />
+          <div
+            id="abstract-counter"
+            className="mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400"
+          >
+            {abstract.length}/5000
+          </div>
         </div>
 
         <div>

@@ -163,7 +163,9 @@ describe("AuthProvider", () => {
 
   it("login logs an error and does not navigate when NEXT_PUBLIC_API_URL is missing", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_URL", "");
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const originalLocation = window.location;
 
     try {
@@ -193,7 +195,9 @@ describe("AuthProvider", () => {
   it("refresh re-fetches user data", async () => {
     localStorage.setItem("auth_token", "token-1");
     vi.mocked(apiFetch)
-      .mockResolvedValueOnce(new Response(JSON.stringify({ user: null }), { status: 401 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ user: null }), { status: 401 }),
+      )
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({

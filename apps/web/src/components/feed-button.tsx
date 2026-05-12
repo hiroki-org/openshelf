@@ -1,7 +1,8 @@
 "use client";
 
 import { toast } from "@/components/toast";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import { useFocusTrap } from "@/hooks/use-focus-trap";
 
 type FeedButtonProps = {
   url: string;
@@ -19,76 +20,13 @@ export function FeedButton({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const focusableSelector =
-      'button:not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([tabindex="-1"]), textarea:not([tabindex="-1"]), select:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
-    const getFocusableElements = () =>
-      Array.from(
-        dialogRef.current?.querySelectorAll<HTMLElement>(focusableSelector) ??
-          [],
-      ).filter(
-        (element) =>
-          !element.hasAttribute("disabled") &&
-          element.getAttribute("aria-hidden") !== "true",
-      );
-
-    const firstFocusable = getFocusableElements()[0];
-    (firstFocusable ?? dialogRef.current)?.focus();
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target;
-      if (target instanceof Node && !containerRef.current?.contains(target)) {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setOpen(false);
-        triggerRef.current?.focus();
-        return;
-      }
-
-      if (event.key !== "Tab") {
-        return;
-      }
-
-      const focusable = getFocusableElements();
-      if (focusable.length === 0) {
-        event.preventDefault();
-        dialogRef.current?.focus();
-        return;
-      }
-
-      const first = focusable[0]!;
-      const last = focusable[focusable.length - 1]!;
-
-      const activeElement = document.activeElement;
-      if (event.shiftKey) {
-        if (activeElement === first || activeElement === dialogRef.current) {
-          event.preventDefault();
-          last.focus();
-        }
-        return;
-      }
-
-      if (activeElement === last || activeElement === dialogRef.current) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+  useFocusTrap({
+    open,
+    setOpen,
+    containerRef,
+    triggerRef,
+    dialogRef,
+  });
 
   const handleCopy = async () => {
     if (!navigator.clipboard?.writeText) {

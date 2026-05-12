@@ -1246,10 +1246,10 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
             ...touchUpdatedAt(),
         });
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "";
+        const msg = e instanceof Error ? e.message : typeof e === 'string' ? e : "";
         if (msg.includes("UNIQUE"))
             return c.json({ error: "Invite already sent" }, 409);
-        throw e;
+        throw e instanceof Error ? e : new Error(String(e));
     }
 
     return c.json({ ok: true }, 201);
