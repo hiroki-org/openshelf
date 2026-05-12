@@ -20,7 +20,7 @@ export default defineConfig({
                 "**/coverage/**",
                 "apps/e2e/**",
                 "**/*.bench.ts",
-                "src/**/bench-utils.ts"
+                "**/bench-utils.ts"
             ],
         }
     }
