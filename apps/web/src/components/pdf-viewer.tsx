@@ -395,16 +395,25 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       if (!debouncedSearchQuery) return textItem.str;
 
       const escapedQuery = debouncedSearchQuery.replace(
-        /[.*+?^${}()|[\]\\]/g,
+        /[.*+?^\$\{\}()|[\]\\]/g,
         "\\  const renderPage = (targetPage: number) => (",
       );
       const parts = textItem.str.split(new RegExp(`(${escapedQuery})`, "gi"));
 
+      const escapeHtml = (unsafe: string) => {
+        return unsafe
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      };
+
       return parts
         .map((part) =>
           part.toLowerCase() === debouncedSearchQuery.toLowerCase()
-            ? `<mark>${part}</mark>`
-            : part,
+            ? `<mark>${escapeHtml(part)}</mark>`
+            : escapeHtml(part),
         )
         .join("");
     },
