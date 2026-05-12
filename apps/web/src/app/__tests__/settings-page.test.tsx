@@ -109,4 +109,88 @@ describe("SettingsPage", () => {
       await screen.findByText("ネットワークエラーが発生しました"),
     ).toBeInTheDocument();
   });
+
+  it("redirects to home when user is not authenticated", async () => {
+    authState = { user: null, loading: false, refresh };
+
+    render(<SettingsPage />);
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/");
+    });
+  });
+
+  it("sends null display name when the input is blank", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response("{}", { status: 200 }));
+
+    render(<SettingsPage />);
+
+    fireEvent.change(screen.getByLabelText("表示名"), {
+      target: { value: "   " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(apiFetch).toHaveBeenCalledWith(
+        "/api/users/me",
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ displayName: null }),
+        }),
+      );
+    });
+  });
+
+  it("shows fallback error for JSON responses without an error message", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ detail: "missing" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByText("エラーが発生しました")).toBeInTheDocument();
+  });
+
+  it("shows fallback error when JSON parsing fails", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response("not-json", {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByText("エラーが発生しました")).toBeInTheDocument();
+  });
+
+  it("renders null while auth is loading", () => {
+    authState = { user: null, loading: true, refresh };
+
+    const { container } = render(<SettingsPage />);
+    expect(container).toBeEmptyDOMElement();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("shows github username in preview when display name is blank", () => {
+    render(<SettingsPage />);
+
+    fireEvent.change(screen.getByLabelText("表示名"), { target: { value: "   " } });
+
+    expect(screen.getByText("alice")).toBeInTheDocument();
+  });
+
+  it("keeps fallback message for empty non-JSON error body", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response("", { status: 400 }));
+
+    render(<SettingsPage />);
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByText("エラーが発生しました")).toBeInTheDocument();
+  });
 });
