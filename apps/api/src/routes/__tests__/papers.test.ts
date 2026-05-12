@@ -3183,8 +3183,8 @@ describe("papers routes", () => {
       expect(data.error).toBe("Invite already sent");
     });
 
-    it("POST /api/papers/:id/invites returns 500 for unexpected db errors", async () => {
-      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    it("propagates general db insert errors", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
       try {
         const token = await createTestJWT({
           sub: "user-uploader",
@@ -3203,7 +3203,7 @@ describe("papers routes", () => {
 
         expect(res.status).toBe(500);
       } finally {
-        consoleSpy.mockRestore();
+        vi.mocked(console.error).mockRestore();
       }
     });
   });
