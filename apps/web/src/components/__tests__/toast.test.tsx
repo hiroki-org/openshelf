@@ -38,9 +38,9 @@ describe("toast", () => {
     const { container } = render(<ToastContainer />);
     const toastWrapper = container.firstChild;
 
-    expect(toastWrapper).toHaveAttribute("aria-live", "polite");
+    expect(toastWrapper).not.toHaveAttribute("aria-live");
     expect(toastWrapper).toHaveAttribute("role", "status");
-    expect(toastWrapper).not.toHaveAttribute("aria-atomic");
+    expect(toastWrapper).toHaveAttribute("aria-atomic", "false");
   });
 
   it("removes listener on unmount", () => {
