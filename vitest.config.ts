@@ -19,6 +19,8 @@ export default defineConfig({
                 "apps/api/src/types.ts",
                 "**/coverage/**",
                 "apps/e2e/**",
+                "**/*.bench.ts",
+                "src/**/bench-utils.ts"
             ],
         }
     }
