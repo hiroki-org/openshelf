@@ -44,17 +44,28 @@ export function isAllowedOrigin(
 ): boolean {
     if (!origin) return false;
     if (frontendOrigin && origin === frontendOrigin) return true;
-    const normalizedFrontendOrigin = frontendOrigin ? normalizeOrigin(frontendOrigin) : null;
-    if (normalizedFrontendOrigin && origin === normalizedFrontendOrigin) return true;
 
     const allowWildcard = options.allowWildcard ?? true;
 
-    return allowedOrigins.some((allowedOrigin) => {
-        if (allowedOrigin.includes("*")) {
-            return allowWildcard && matchesOriginPattern(origin, allowedOrigin);
-        }
+    // Direct string comparison first (performance)
+    if (allowedOrigins.includes(origin)) return true;
 
-        if (origin === allowedOrigin) return true;
+    // Wildcard matching before URL parsing
+    if (allowWildcard) {
+        const hasWildcardMatch = allowedOrigins.some(
+            (allowedOrigin) =>
+                allowedOrigin.includes("*") && matchesOriginPattern(origin, allowedOrigin)
+        );
+        if (hasWildcardMatch) return true;
+    }
+
+    // Expensive URL normalization fallback
+    const normalizedFrontendOrigin = frontendOrigin ? normalizeOrigin(frontendOrigin) : null;
+    if (normalizedFrontendOrigin && origin === normalizedFrontendOrigin) return true;
+
+    return allowedOrigins.some((allowedOrigin) => {
+        if (allowedOrigin.includes("*")) return false; // Already handled
+        if (origin === allowedOrigin) return true; // Already handled
         const normalizedAllowedOrigin = normalizeOrigin(allowedOrigin);
         return normalizedAllowedOrigin ? origin === normalizedAllowedOrigin : false;
     });
