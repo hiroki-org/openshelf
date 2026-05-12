@@ -534,7 +534,14 @@ export default function PaperEditPage() {
             disabled={submitting}
             className="rounded-md bg-blue-600 px-6 py-2 text-white hover:bg-blue-500 disabled:opacity-50 transition-colors font-medium"
           >
-            {submitting ? "保存中..." : "保存する"}
+            {submitting ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                保存中...
+              </span>
+            ) : (
+              "保存する"
+            )}
           </button>
         </div>
       </form>
