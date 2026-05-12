@@ -43,7 +43,11 @@ export function isAllowedOrigin(
     options: { allowWildcard?: boolean } = {},
 ): boolean {
     if (!origin) return false;
+
+    // Direct string comparison before URL parsing for better performance and security
     if (frontendOrigin && origin === frontendOrigin) return true;
+    if (allowedOrigins.includes(origin)) return true;
+
     const normalizedFrontendOrigin = frontendOrigin ? normalizeOrigin(frontendOrigin) : null;
     if (normalizedFrontendOrigin && origin === normalizedFrontendOrigin) return true;
 
@@ -54,7 +58,6 @@ export function isAllowedOrigin(
             return allowWildcard && matchesOriginPattern(origin, allowedOrigin);
         }
 
-        if (origin === allowedOrigin) return true;
         const normalizedAllowedOrigin = normalizeOrigin(allowedOrigin);
         return normalizedAllowedOrigin ? origin === normalizedAllowedOrigin : false;
     });

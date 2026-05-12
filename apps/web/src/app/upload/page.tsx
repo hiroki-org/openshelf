@@ -191,9 +191,16 @@ export default function UploadPage() {
             maxLength={300}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            aria-describedby="title-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             required
           />
+          <div
+            id="title-counter"
+            className="mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400"
+          >
+            {title.length}/300
+          </div>
         </div>
 
         <div>
@@ -208,8 +215,16 @@ export default function UploadPage() {
             value={abstract}
             onChange={(e) => setAbstract(e.target.value)}
             rows={4}
+            maxLength={5000}
+            aria-describedby="abstract-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
+          <div
+            id="abstract-counter"
+            className="mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400"
+          >
+            {abstract.length}/5000
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
