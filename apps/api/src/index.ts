@@ -42,7 +42,11 @@ app.use(
         const requestOrigin = normalizeOrigin(origin ?? undefined);
         const frontendOrigin = normalizeOrigin(c.env.FRONTEND_URL);
 
-        if (isAllowedOrigin(requestOrigin, frontendOrigin, allowedOrigins)) {
+        if (
+          isAllowedOrigin(requestOrigin, frontendOrigin, allowedOrigins, {
+            allowWildcard: false,
+          })
+        ) {
           return origin;
         }
       } catch (err) {
@@ -91,12 +95,14 @@ app.use("/api/*", async (c, next) => {
     const isAllowedOriginValue = isAllowedOrigin(
       requestOrigin,
       frontendOrigin,
-      allowedOrigins
+      allowedOrigins,
+      { allowWildcard: false },
     );
     const isAllowedReferer = isAllowedOrigin(
       refererOrigin,
       frontendOrigin,
-      allowedOrigins
+      allowedOrigins,
+      { allowWildcard: false },
     );
 
     if (isAllowedOriginValue || isAllowedReferer) return await next();
