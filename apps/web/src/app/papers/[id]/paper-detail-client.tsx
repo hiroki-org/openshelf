@@ -874,6 +874,7 @@ export default function PaperDetailClient({
                 type="button"
                 onClick={() => handleDownload(f)}
                 className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white hover:bg-blue-500 transition-colors"
+                aria-label={`${f.filename} をダウンロード`}
               >
                 ダウンロード
               </button>
@@ -968,6 +969,7 @@ export default function PaperDetailClient({
                     onClick={() => handleInvite(u.id)}
                     disabled={inviting}
                     className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
+                    aria-label={`${u.displayName ?? u.name} を招待`}
                   >
                     招待
                   </button>

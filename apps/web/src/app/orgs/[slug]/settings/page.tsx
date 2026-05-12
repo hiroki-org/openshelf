@@ -619,6 +619,7 @@ export default function OrgSettingsPage() {
                       type="button"
                       onClick={() => handleRemoveMember(m.userId)}
                       className="text-red-500 hover:text-red-700 text-xs"
+                      aria-label={`${m.displayName ?? m.name} を削除`}
                     >
                       削除
                     </button>
@@ -657,6 +658,7 @@ export default function OrgSettingsPage() {
                       onClick={() => handleAddPaper(p.id)}
                       disabled={addingPaper}
                       className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50 shrink-0"
+                      aria-label={`${p.title} を追加`}
                     >
                       追加
                     </button>
@@ -682,6 +684,7 @@ export default function OrgSettingsPage() {
                     type="button"
                     onClick={() => handleRemovePaper(p.id)}
                     className="text-red-500 hover:text-red-700 text-xs shrink-0 ml-2"
+                    aria-label={`${p.title} を解除`}
                   >
                     解除
                   </button>
