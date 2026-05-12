@@ -1246,7 +1246,7 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
             ...touchUpdatedAt(),
         });
     } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : typeof e === 'string' ? e : "";
+        const msg = e instanceof Error ? e.name + ": " + e.message : typeof e === 'string' ? e : "";
         if (msg.includes("UNIQUE"))
             return c.json({ error: "Invite already sent" }, 409);
         throw e instanceof Error ? e : new Error(String(e));
