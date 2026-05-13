@@ -12,6 +12,7 @@ import { escapeLikeLiteral } from "../utils/sql";
 const tagsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 const TAG_SUGGEST_MIN_QUERY_LENGTH = 2;
+const TAG_SUGGEST_MAX_QUERY_LENGTH = 100;
 const TAG_SUGGEST_LIMIT = 20;
 
 const SAFE_TAG_ARRAY_SQL = `
@@ -29,6 +30,10 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
     const userId = c.get("user").sub;
     const query = (c.req.query("q") ?? "").trim();
     const orgSlug = (c.req.query("orgSlug") ?? "").trim().toLowerCase();
+
+    if (query.length > TAG_SUGGEST_MAX_QUERY_LENGTH) {
+        return c.json({ error: "Query too long" }, 400);
+    }
     const normalizedQuery = escapeLikeLiteral(query.toLowerCase());
 
     if (query.length < TAG_SUGGEST_MIN_QUERY_LENGTH) {
