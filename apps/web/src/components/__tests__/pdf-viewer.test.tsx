@@ -32,6 +32,7 @@ type MockPageProps = {
   width?: number;
   renderTextLayer?: boolean;
   renderAnnotationLayer?: boolean;
+  customTextRenderer?: (textItem: { str: string }) => string;
 };
 
 type MockObserverEntry = {
@@ -469,32 +470,63 @@ describe("PdfViewer", () => {
       consoleSpy.mockRestore();
     }
   });
-});
+  it("highlights search text using customTextRenderer", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
 
-it("highlights search text using customTextRenderer", async () => {
-  render(
-    <PdfViewer fileUrl="https://example.com/search.pdf" />,
-  );
+    await waitFor(() => {
+      expect(screen.getByText("1 / -")).toBeInTheDocument();
+    });
 
-  // Wait for initial load
-  await waitFor(() => {
-    expect(screen.getByText("1 / -")).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("searchbox", { name: "PDF内検索" }), {
+      target: { value: "test" },
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    const [pageProps] = mockPage.mock.calls[mockPage.mock.calls.length - 1] as [
+      MockPageProps,
+    ];
+    expect(pageProps.customTextRenderer).toBeTypeOf("function");
+    expect(pageProps.customTextRenderer?.({ str: "test value" })).toContain(
+      "<mark",
+    );
   });
 
-  // Type a search query
-  fireEvent.change(screen.getByRole("searchbox", { name: "PDF内検索" }), {
-    target: { value: "test" },
+  it("escapes HTML in customTextRenderer output before highlighting", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / -")).toBeInTheDocument();
+    });
+
+    const [initialPageProps] = mockPage.mock.calls[
+      mockPage.mock.calls.length - 1
+    ] as [MockPageProps];
+    expect(
+      initialPageProps.customTextRenderer?.({
+        str: '<img src=x onerror=alert("xss")>',
+      }),
+    ).toBe("&lt;img src=x onerror=alert(&quot;xss&quot;)&gt;");
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "PDF内検索" }), {
+      target: { value: "alert" },
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    const [searchPageProps] = mockPage.mock.calls[mockPage.mock.calls.length - 1] as [
+      MockPageProps,
+    ];
+    expect(
+      searchPageProps.customTextRenderer?.({
+        str: '<img src=x onerror=alert("xss")>',
+      }),
+    ).toContain(
+      "<mark class=\"bg-yellow-300 text-black dark:bg-yellow-600/60 dark:text-white rounded-sm\">alert</mark>",
+    );
   });
-
-  // Check if the customTextRenderer is passing the debounced query by seeing if we can trigger its behavior
-  // Since we're mocking react-pdf Page, we can't fully test the actual text substitution without a complex mock,
-  // but we can ensure the props to Page update.
-
-  // Just simple wait for debounce to happen
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-  });
-
-  // At this point customTextRenderer would be passed to Page.
-  // We already assert the component doesn't crash on this.
 });
