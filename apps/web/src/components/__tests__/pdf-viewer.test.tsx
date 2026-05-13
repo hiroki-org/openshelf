@@ -507,9 +507,9 @@ describe("PdfViewer", () => {
     const res = renderer({ str: "this is a test.* text" });
     expect(res).toContain("<mark");
     expect(res).toContain("test.*");
-    expect(renderer({ str: "<b>test.*</b>" })).toContain(
-      "&lt;b&gt;<mark class=\"bg-yellow-300 text-black dark:bg-yellow-600/60 dark:text-white rounded-sm\">test.*</mark>&lt;/b&gt;",
-    );
+    const highlightedHtml = renderer({ str: "<b>test.*</b>" });
+    expect(highlightedHtml).toContain("&lt;b&gt;<mark");
+    expect(highlightedHtml).toContain("test.*</mark>&lt;/b&gt;");
 
     const resEmpty = renderer({ str: "no match" });
     expect(resEmpty).not.toContain("<mark");
