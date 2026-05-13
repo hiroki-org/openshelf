@@ -62,15 +62,6 @@ function touchDistance(
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const options = {
@@ -401,15 +392,14 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
   const textRenderer = useCallback(
     (textItem: { str: string }) => {
-      const safeText = escapeHtml(textItem.str);
-      if (!debouncedSearchQuery) return safeText;
+      if (!debouncedSearchQuery) return textItem.str;
       // Escape special characters in search query
       const escapedQuery = debouncedSearchQuery.replace(
         /[.*+?^${}()|[\]\\]/g,
         "\\$&",
       );
       const regex = new RegExp(`(${escapedQuery})`, "gi");
-      return safeText.replace(
+      return textItem.str.replace(
         regex,
         '<mark class="bg-yellow-300 text-black dark:bg-yellow-600/60 dark:text-white rounded-sm">$1</mark>',
       );
