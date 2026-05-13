@@ -729,10 +729,8 @@ describe("PaperDetailClient", () => {
 
     render(
       <PaperDetailClient
-        id="private-paper-id"
-        initialData={null}
-        isAuthenticated={true}
-        userId="user-1"
+        paperId="private-paper-id"
+        siteBase="http://localhost:3000"
       />,
     );
 
@@ -746,10 +744,8 @@ describe("PaperDetailClient", () => {
 
     render(
       <PaperDetailClient
-        id="broken-paper-id"
-        initialData={null}
-        isAuthenticated={true}
-        userId="user-1"
+        paperId="broken-paper-id"
+        siteBase="http://localhost:3000"
       />,
     );
 
