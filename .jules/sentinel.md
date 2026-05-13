@@ -20,7 +20,7 @@
 **Vulnerability:** Drizzle ORM's `like` helper and raw `LIKE` queries were scattered across multiple files with inconsistent or duplicated escaping logic for wildcards (`%` and `_`).
 **Learning:** Inconsistent escaping of user input in SQL `LIKE` clauses can lead to algorithmic complexity DoS attacks via wildcard injection. Centralizing the escaping logic ensures consistent application across all route files and prevents future regressions.
 **Prevention:** Create a shared utility function (`escapeLikeLiteral`) for escaping literal wildcard characters and use it consistently for all `LIKE` queries involving user input.
-## $(date +%Y-%m-%d) - [DoS via Overly Long Search Queries]
+## 2026-05-12 - [DoS via Overly Long Search Queries]
 **Vulnerability:** Autocomplete/search endpoints (like `/api/tags/suggest`) accepted arbitrarily long query strings, potentially causing excessive DB load or regex evaluation delays.
 **Learning:** Endpoints that perform text processing, regex replacements, or SQL `LIKE` queries should restrict the length of user inputs to mitigate Denial of Service (DoS) risks, instead of implicitly trusting the frontend input limits.
 **Prevention:** Implement server-side length validation using named constants (e.g., `TAG_SUGGEST_MAX_QUERY_LENGTH = 100`) and return a `400 Bad Request` early in the flow if the query exceeds safe bounds.
