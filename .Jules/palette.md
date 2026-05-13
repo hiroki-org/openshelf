@@ -15,6 +15,3 @@
 ## 2026-05-12 - Toast Notification Accessibility & Visual Polish
 **Learning:** For UI accessibility with dynamically rendered content like toast notifications, applying `role="status"` along with `aria-live="polite"` on the static wrapper container (instead of the dynamically added children) prevents screen readers from erroneously announcing messages twice or missing them. Additionally, pairing text with status-specific icons (success/error/info) significantly improves the visual polish and cognitive accessibility of these notifications.
 **Action:** Added `role="status"` to the ToastContainer's wrapper div and implemented a `ToastIcon` component to inject relevant SVG icons based on the toast type.
-## 2025-05-18 - Async Button Loading States
-**Learning:** フォーム送信などの非同期処理を実行するボタンでは、単にテキストを「保存中...」などに変更するだけではなく、視覚的なローディングスピナー（例：`animate-spin`を用いた要素）を併用することで、処理が進行中であることを直感的に伝えることができます。
-**Action:** 今後、非同期処理を伴うボタンを実装・改善する際は、必ずローディングスピナーなどの視覚的フィードバックを含めるようにします。
