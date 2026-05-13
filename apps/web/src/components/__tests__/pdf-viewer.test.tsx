@@ -32,6 +32,7 @@ type MockPageProps = {
   width?: number;
   renderTextLayer?: boolean;
   renderAnnotationLayer?: boolean;
+  customTextRenderer?: (textItem: { str: string }) => string;
 };
 
 type MockObserverEntry = {
