@@ -390,12 +390,30 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     setIsPinching(false);
   }, []);
 
+  const textRenderer = useCallback(
+    (textItem: { str: string }) => {
+      if (!debouncedSearchQuery) return textItem.str;
+      // Escape special characters in search query
+      const escapedQuery = debouncedSearchQuery.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&",
+      );
+      const regex = new RegExp(`(${escapedQuery})`, "gi");
+      return textItem.str.replace(
+        regex,
+        '<mark class="bg-yellow-300 text-black dark:bg-yellow-600/60 dark:text-white rounded-sm">$1</mark>',
+      );
+    },
+    [debouncedSearchQuery],
+  );
+
   const renderPage = (targetPage: number) => (
     <Page
       pageNumber={targetPage}
       width={pageWidth}
       renderTextLayer
       renderAnnotationLayer
+      customTextRenderer={textRenderer}
     />
   );
 
