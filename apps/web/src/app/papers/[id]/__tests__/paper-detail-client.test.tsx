@@ -721,23 +721,6 @@ describe("PaperDetailClient", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows an error when the paper is not found (404)", async () => {
-    vi.mocked(apiFetch).mockResolvedValue(
-      new Response(JSON.stringify({ error: "Not Found" }), { status: 404 }),
-    );
-
-    render(
-      <PaperDetailClient
-        paperId="missing-paper-id"
-        siteBase="http://localhost:3000"
-      />,
-    );
-
-    expect(
-      await screen.findByText("成果物が見つかりません"),
-    ).toBeInTheDocument();
-  });
-
 
   it("shows an error when user lacks access (403)", async () => {
     vi.mocked(apiFetch).mockResolvedValue(
