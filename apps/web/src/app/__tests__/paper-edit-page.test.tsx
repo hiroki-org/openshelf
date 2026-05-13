@@ -138,6 +138,13 @@ describe("PaperEditPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "保存する" }));
 
+    expect(screen.getByRole("button", { name: /保存中/ })).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("button", { name: /保存中/ })
+        .querySelector(".animate-spin"),
+    ).toBeInTheDocument();
+
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
         "/api/papers/paper-1",
