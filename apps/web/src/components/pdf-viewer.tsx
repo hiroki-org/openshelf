@@ -62,18 +62,6 @@ function touchDistance(
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-const HTML_ESCAPE_TABLE: Record<string, string> = {
-  "&": "&amp;",
-  "<": "&lt;",
-  ">": "&gt;",
-  '"': "&quot;",
-  "'": "&#39;",
-};
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => HTML_ESCAPE_TABLE[character]);
-}
-
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const options = {
@@ -402,31 +390,21 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     setIsPinching(false);
   }, []);
 
-  const searchRegex = useMemo(() => {
-    if (!debouncedSearchQuery) return null;
-    const escapedQuery = debouncedSearchQuery.replace(
-      /[.*+?^${}()|[\]\\]/g,
-      "\\$&",
-    );
-    return new RegExp(`(${escapedQuery})`, "gi");
-  }, [debouncedSearchQuery]);
-
   const textRenderer = useCallback(
     (textItem: { str: string }) => {
-      if (!searchRegex) return escapeHtml(textItem.str);
-      const parts = textItem.str.split(searchRegex);
-      if (parts.length <= 1) return escapeHtml(textItem.str);
-      return parts
-        .map((part, index) => {
-          const safePart = escapeHtml(part);
-          if (index % 2 === 1) {
-            return `<mark class="bg-yellow-300 text-black dark:bg-yellow-600/60 dark:text-white rounded-sm">${safePart}</mark>`;
-          }
-          return safePart;
-        })
-        .join("");
+      if (!debouncedSearchQuery) return textItem.str;
+      // Escape special characters in search query
+      const escapedQuery = debouncedSearchQuery.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        "\\$&",
+      );
+      const regex = new RegExp(`(${escapedQuery})`, "gi");
+      return textItem.str.replace(
+        regex,
+        '<mark class="bg-yellow-300 text-black dark:bg-yellow-600/60 dark:text-white rounded-sm">$1</mark>',
+      );
     },
-    [searchRegex],
+    [debouncedSearchQuery],
   );
 
   const renderPage = (targetPage: number) => (
