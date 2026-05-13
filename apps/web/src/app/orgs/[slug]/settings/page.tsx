@@ -410,7 +410,9 @@ export default function OrgSettingsPage() {
           type="button"
           className={tabClass("papers")}
           onClick={() => setTab("papers")}
-        >成果物</button>
+        >
+          成果物
+        </button>
       </div>
 
       {/* ── General Tab ── */}

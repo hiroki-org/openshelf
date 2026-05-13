@@ -76,7 +76,7 @@ async function expectPdfPreviewRendered(page: Page, expectedTexts: string[]): Pr
 }
 
 test.describe('論文アップロード', () => {
-    test('認証済みユーザーが /upload ページからPDFをアップロードできること、アップロード後、トップページ（マイライブラリ一覧）に論文タイトルが表示されること', async ({ page }) => {
+    test('認証済みユーザーが /upload ページからPDFをアップロードできること、アップロード後、トップページ（マイライブラリ一覧）に成果物タイトルが表示されること', async ({ page }) => {
         const uniqueTitle = `テスト論文 - ${randomUUID()}`;
         await loginAsTestUser(page);
 

@@ -105,4 +105,38 @@ describe("OrgCollectionPageClient", () => {
       expect(links[1]).toHaveTextContent("First paper");
     });
   });
+
+  it("shows empty state when collection has no papers", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/orgs/lab/collections") {
+        return new Response(
+          JSON.stringify({
+            collections: [
+              {
+                id: "col-1",
+                slug: "empty",
+                name: "Empty Collection",
+                description: null,
+                visibility: "public",
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      if (url === "/api/collections/col-1/papers") {
+        return new Response(JSON.stringify({ papers: [] }), { status: 200 });
+      }
+      if (url === "/api/orgs/lab/members") {
+        return new Response(JSON.stringify({ members: [] }), { status: 200 });
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<OrgCollectionPageClient slug="lab" collectionSlug="empty" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("成果物がありません")).toBeInTheDocument();
+    });
+  });
 });
