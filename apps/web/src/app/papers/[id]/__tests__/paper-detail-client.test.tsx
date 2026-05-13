@@ -720,4 +720,42 @@ describe("PaperDetailClient", () => {
       await screen.findByText("この成果物を閲覧する権限がありません"),
     ).toBeInTheDocument();
   });
+
+
+  it("shows an error when user lacks access (403)", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 }),
+    );
+
+    render(
+      <PaperDetailClient
+        id="private-paper-id"
+        initialData={null}
+        isAuthenticated={true}
+        userId="user-1"
+      />,
+    );
+
+    expect(
+      await screen.findByText("この成果物を閲覧する権限がありません"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows an error when API request fails entirely", async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new Error("Network Error"));
+
+    render(
+      <PaperDetailClient
+        id="broken-paper-id"
+        initialData={null}
+        isAuthenticated={true}
+        userId="user-1"
+      />,
+    );
+
+    expect(
+      await screen.findByText("成果物の取得に失敗しました"),
+    ).toBeInTheDocument();
+  });
+
 });

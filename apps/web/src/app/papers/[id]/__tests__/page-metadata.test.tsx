@@ -48,4 +48,12 @@ describe("papers/[id]/page metadata", () => {
     expect(metadata.title).toBe("成果物詳細 | OpenShelf");
     expect(screen.getByText("無効な識別子です")).toBeInTheDocument();
   });
+
+
+  it("generates generic metadata when id is invalid", async () => {
+    // Generate metadata without await as the component is sync for generating metadata via props
+    const metadata = await generateMetadata({ params: { id: "../bad" } });
+    expect(metadata.title).toBe("成果物詳細 | OpenShelf");
+  });
+
 });
