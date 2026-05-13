@@ -490,7 +490,7 @@ describe("PdfViewer", () => {
     ];
     expect(pageProps.customTextRenderer).toBeTypeOf("function");
     expect(pageProps.customTextRenderer?.({ str: "test value" })).toContain(
-      "<mark",
+      '<mark class="bg-yellow-300 text-black dark:bg-yellow-600/60 dark:text-white rounded-sm">test</mark> value',
     );
   });
 
