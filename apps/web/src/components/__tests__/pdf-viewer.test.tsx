@@ -276,9 +276,12 @@ describe("PdfViewer", () => {
       );
     });
 
-    fireEvent.change(screen.getAllByRole("searchbox", { name: "PDF内検索" })[0], {
-      target: { value: "target" },
-    });
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      {
+        target: { value: "target" },
+      },
+    );
 
     await waitFor(() => {
       expect(screen.getByText("1 / 2")).toBeInTheDocument();
@@ -401,9 +404,12 @@ describe("PdfViewer", () => {
         documentProps.onLoadSuccess?.(mockDoc);
       });
 
-      fireEvent.change(screen.getAllByRole("searchbox", { name: "PDF内検索" })[0], {
-        target: { value: "target" },
-      });
+      fireEvent.change(
+        screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+        {
+          target: { value: "target" },
+        },
+      );
 
       await waitFor(() => {
         // Should still find the match on page 3 despite page 2 failing
@@ -455,9 +461,12 @@ describe("PdfViewer", () => {
         documentProps.onLoadSuccess?.(mockDoc);
       });
 
-      fireEvent.change(screen.getAllByRole("searchbox", { name: "PDF内検索" })[0], {
-        target: { value: "target" },
-      });
+      fireEvent.change(
+        screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+        {
+          target: { value: "target" },
+        },
+      );
 
       await waitFor(() => {
         expect(screen.getByText("1 / 1")).toBeInTheDocument();
@@ -470,58 +479,66 @@ describe("PdfViewer", () => {
       consoleSpy.mockRestore();
     }
   });
-});
 
-it("highlights search text using customTextRenderer", async () => {
-  render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
+  it("highlights search text using customTextRenderer", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
 
-  const searchBox = screen.getAllByRole("searchbox", { name: "PDF内検索" })[0];
+    const searchBox = screen.getAllByRole("searchbox", {
+      name: "PDF内検索",
+    })[0];
 
-  fireEvent.change(searchBox, {
-    target: { value: "test.*" },
-  });
+    fireEvent.change(searchBox, {
+      target: { value: "test.*" },
+    });
 
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-  });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
 
-  const pageCalls = mockPage.mock.calls;
-  const lastCallProps = pageCalls[pageCalls.length - 1]?.[0];
-  if (lastCallProps?.customTextRenderer) {
-    const textItem = { str: "this is a test.* text" };
-    const res = lastCallProps.customTextRenderer(textItem);
+    const pageCalls = mockPage.mock.calls;
+    const lastCallProps = pageCalls[pageCalls.length - 1]?.[0];
+
+    expect(lastCallProps).toBeDefined();
+    expect(lastCallProps.customTextRenderer).toBeDefined();
+
+    const renderer = lastCallProps.customTextRenderer!;
+    const res = renderer({ str: "this is a test.* text" });
     expect(res).toContain("<mark");
     expect(res).toContain("test.*");
 
-    const resEmpty = lastCallProps.customTextRenderer({ str: "no match" });
+    const resEmpty = renderer({ str: "no match" });
     expect(resEmpty).not.toContain("<mark");
-  }
-});
-
-it("does not highlight search text when query is empty", async () => {
-  render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
-
-  const searchBox = screen.getAllByRole("searchbox", { name: "PDF内検索" })[0];
-
-  fireEvent.change(searchBox, {
-    target: { value: "test" },
-  });
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 400));
   });
 
-  fireEvent.change(searchBox, {
-    target: { value: "" },
-  });
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-  });
+  it("does not highlight search text when query is empty", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
 
-  const pageCalls = mockPage.mock.calls;
-  const lastCallProps = pageCalls[pageCalls.length - 1]?.[0];
-  if (lastCallProps?.customTextRenderer) {
-    const textItem = { str: "this is a text" };
-    const res = lastCallProps.customTextRenderer(textItem);
+    const searchBox = screen.getAllByRole("searchbox", {
+      name: "PDF内検索",
+    })[0];
+
+    fireEvent.change(searchBox, {
+      target: { value: "test" },
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    fireEvent.change(searchBox, {
+      target: { value: "" },
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    const pageCalls = mockPage.mock.calls;
+    const lastCallProps = pageCalls[pageCalls.length - 1]?.[0];
+
+    expect(lastCallProps).toBeDefined();
+    expect(lastCallProps.customTextRenderer).toBeDefined();
+
+    const renderer = lastCallProps.customTextRenderer!;
+    const res = renderer({ str: "this is a text" });
     expect(res).toBe("this is a text");
-  }
+  });
 });
