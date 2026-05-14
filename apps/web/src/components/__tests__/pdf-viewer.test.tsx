@@ -503,11 +503,13 @@ describe("PdfViewer", () => {
 
     const renderer = lastCallProps.customTextRenderer!;
     const res = renderer({ str: "this is a test.* text" });
-    expect(res).toContain("<mark");
-    expect(res).toContain("test.*");
+    const { container } = render(<>{res}</>);
+    expect(container.querySelector("mark")).toBeInTheDocument();
+    expect(container.textContent).toContain("test.*");
 
     const resEmpty = renderer({ str: "no match" });
-    expect(resEmpty).not.toContain("<mark");
+    const { container: containerEmpty } = render(<>{resEmpty}</>);
+    expect(containerEmpty.querySelector("mark")).toBeNull();
   });
 
   it("does not highlight search text when query is empty", async () => {
