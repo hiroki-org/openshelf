@@ -59,6 +59,13 @@ describe("SettingsPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
+    expect(screen.getByRole("button", { name: /保存中/ })).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("button", { name: /保存中/ })
+        .querySelector(".animate-spin"),
+    ).toBeInTheDocument();
+
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
         "/api/users/me",

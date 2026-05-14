@@ -82,6 +82,13 @@ describe("NewCollectionPage", () => {
     vi.useRealTimers();
     fireEvent.click(screen.getByRole("button", { name: "作成" }));
 
+    expect(screen.getByRole("button", { name: /作成中/ })).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("button", { name: /作成中/ })
+        .querySelector(".animate-spin"),
+    ).toBeInTheDocument();
+
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith("/users/user-1/c/lab-picks");
     });
