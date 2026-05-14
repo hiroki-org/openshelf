@@ -1,7 +1,9 @@
-export function Spinner({ className = "h-4 w-4" }: { className?: string }) {
+import React from "react";
+
+export function Spinner({ className = "" }: { className?: string }) {
   return (
     <span
-      className={`${className} motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent`}
+      className={`h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent ${className}`}
       aria-hidden="true"
     />
   );

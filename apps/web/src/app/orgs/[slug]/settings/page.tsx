@@ -1,7 +1,6 @@
 "use client";
 
 import { useAuth } from "@/components/auth-provider";
-import { Spinner } from "@/components/spinner";
 import { apiFetch } from "@/lib/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -482,7 +481,10 @@ export default function OrgSettingsPage() {
           >
             {saving ? (
               <span className="flex items-center gap-2">
-                <Spinner />
+                <span
+                  className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
+                  aria-hidden="true"
+                />
                 保存中...
               </span>
             ) : (
@@ -527,7 +529,10 @@ export default function OrgSettingsPage() {
                   >
                     {deleting ? (
                       <span className="flex items-center gap-2">
-                        <Spinner />
+                        <span
+                          className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
+                          aria-hidden="true"
+                        />
                         削除中...
                       </span>
                     ) : (
