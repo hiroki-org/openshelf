@@ -390,12 +390,50 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     setIsPinching(false);
   }, []);
 
+  const searchRegex = useMemo(() => {
+    if (!debouncedSearchQuery) return null;
+    const escapedQuery = debouncedSearchQuery.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&",
+    );
+    return new RegExp("(" + escapedQuery + ")", "gi");
+  }, [debouncedSearchQuery]);
+
+  const textRenderer = useCallback(
+    (textItem: { str: string }) => {
+      if (!searchRegex) return textItem.str;
+
+      const parts = textItem.str.split(searchRegex);
+      if (parts.length <= 1) return textItem.str;
+
+      return (
+        <>
+          {parts.map((part, i) =>
+            i % 2 === 1 ? (
+              <mark
+                key={i}
+                className="rounded-sm bg-yellow-300 text-black dark:bg-yellow-600/60 dark:text-white"
+              >
+                {part}
+              </mark>
+            ) : (
+              part
+            ),
+          )}
+        </>
+      );
+    },
+    [searchRegex],
+  );
+
   const renderPage = (targetPage: number) => (
     <Page
       pageNumber={targetPage}
       width={pageWidth}
       renderTextLayer
       renderAnnotationLayer
+      // @ts-expect-error react-pdf's types say string but it accepts JSX
+      customTextRenderer={textRenderer}
     />
   );
 
