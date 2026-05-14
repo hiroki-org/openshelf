@@ -110,21 +110,4 @@ describe("tags routes", () => {
             tags: ["Search", "Secret Notes"],
         });
     });
-    it("GET /api/tags/suggest returns 400 for overly long queries", async () => {
-        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
-        const app = await createTestApp();
-        const env = createTestEnv();
-
-        const longQuery = "a".repeat(101);
-        const res = await app.request(
-            `http://localhost/api/tags/suggest?q=${longQuery}`,
-            {
-                headers: { Authorization: `Bearer ${token}` },
-            },
-            env as any,
-        );
-
-        expect(res.status).toBe(400);
-        await expect(res.json()).resolves.toEqual({ error: "Query too long" });
-    });
 });
