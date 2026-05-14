@@ -150,4 +150,49 @@ describe("UploadPage", () => {
       expect(push).toHaveBeenCalledWith("/papers/paper-1");
     });
   });
+
+  it("handles drag and drop events for file upload", async () => {
+    render(<UploadPage />);
+
+    // initially normal text
+    expect(
+      screen.getByText("ファイルを複数選択（またはドラッグ＆ドロップ）"),
+    ).toBeInTheDocument();
+
+    const dropzone = screen.getByRole("button", {
+      description: /添付ファイル/i,
+    });
+
+    // simulate drag over
+    fireEvent.dragOver(dropzone);
+    expect(screen.getByText("ドロップして追加")).toBeInTheDocument();
+
+    // simulate drag leave
+    fireEvent.dragLeave(dropzone);
+    expect(
+      screen.getByText("ファイルを複数選択（またはドラッグ＆ドロップ）"),
+    ).toBeInTheDocument();
+
+    // simulate drag over again
+    fireEvent.dragOver(dropzone);
+    expect(screen.getByText("ドロップして追加")).toBeInTheDocument();
+
+    // simulate drop
+    const file = new File(["dummy content"], "test.pdf", {
+      type: "application/pdf",
+    });
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [file],
+      },
+    });
+
+    // text should reset to normal
+    expect(
+      screen.getByText("ファイルを複数選択（またはドラッグ＆ドロップ）"),
+    ).toBeInTheDocument();
+
+    // file should be added
+    expect(await screen.findByText("test.pdf")).toBeInTheDocument();
+  });
 });

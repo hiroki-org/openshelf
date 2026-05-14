@@ -93,20 +93,12 @@ export default function UploadPage() {
     setIsDragging(false);
   };
 
-  const ACCEPTED_EXTENSIONS = [".pdf", ".ppt", ".pptx", ".png", ".jpg", ".jpeg"];
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const filtered = Array.from(e.dataTransfer.files).filter((f) =>
-        ACCEPTED_EXTENSIONS.some((ext) => f.name.toLowerCase().endsWith(ext)),
-      );
-      if (filtered.length === 0) return;
-      const dt = new DataTransfer();
-      filtered.forEach((f) => dt.items.add(f));
-      addFiles(dt.files);
+      addFiles(e.dataTransfer.files);
     }
   };
 
