@@ -235,6 +235,39 @@ test.describe('PDFプレビュー', () => {
             await unauthContext.close();
         }
     });
+
+    test('PDF内検索で一致箇所がハイライトされ、現在一致ページに枠線が表示されること', async ({ page }) => {
+        const publicTitle = `Search Highlight - ${randomUUID()}`;
+        await loginAsTestUser(page);
+
+        const publicPaperId = await uploadPaper(page, {
+            title: publicTitle,
+            visibility: 'public',
+            filePath: path.resolve(__dirname, '../fixtures/test-paper-en.pdf')
+        });
+
+        await page.goto(`/papers/${publicPaperId}`);
+        await expect(page.getByRole('heading', { name: publicTitle })).toBeVisible();
+        await expectPdfPreviewRendered(page, [
+            'OpenShelfEnglishrenderingcheck',
+            'EnglishtextforPDFpreviewtest.'
+        ]);
+
+        await page.getByRole('searchbox', { name: 'PDF内検索' }).fill('OpenShelf');
+        await expect(page.getByText('1 / 1')).toBeVisible({ timeout: 20000 });
+
+        const textLayer = page.locator('.react-pdf__Page__textContent').first();
+        const highlighted = textLayer.locator('mark.highlight').first();
+        await expect(highlighted).toBeVisible();
+        const highlightBackground = await highlighted.evaluate((node) =>
+            window.getComputedStyle(node).backgroundColor,
+        );
+        expect(highlightBackground).not.toBe('rgba(0, 0, 0, 0)');
+        expect(highlightBackground).not.toBe('transparent');
+
+        const activePageWrapper = page.locator('[data-page-number="1"]').first();
+        await expect(activePageWrapper).toHaveClass(/ring-2 ring-blue-500/);
+    });
 });
 
 test.describe('論文ダウンロード', () => {

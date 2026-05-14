@@ -62,6 +62,15 @@ function touchDistance(
   return Math.sqrt(dx * dx + dy * dy);
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const options = {
@@ -335,12 +344,13 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
         return;
       }
       setActiveMatchIndex(0);
+      goToPage(matches[0]);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [debouncedSearchQuery, numPages]);
+  }, [debouncedSearchQuery, goToPage, numPages]);
 
   const activeMatchPage =
     activeMatchIndex >= 0 ? searchMatches[activeMatchIndex] : undefined;
@@ -401,27 +411,18 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
   const textRenderer = useCallback(
     (textItem: { str: string }) => {
-      if (!searchRegex) return textItem.str;
+      if (!searchRegex) return escapeHtml(textItem.str);
 
       const parts = textItem.str.split(searchRegex);
-      if (parts.length <= 1) return textItem.str;
+      if (parts.length <= 1) return escapeHtml(textItem.str);
 
-      return (
-        <>
-          {parts.map((part, i) =>
-            i % 2 === 1 ? (
-              <mark
-                key={i}
-                className="rounded-sm bg-yellow-300 text-black dark:bg-yellow-600/60 dark:text-white"
-              >
-                {part}
-              </mark>
-            ) : (
-              part
-            ),
-          )}
-        </>
-      );
+      return parts
+        .map((part, i) =>
+          i % 2 === 1
+            ? `<mark class="highlight">${escapeHtml(part)}</mark>`
+            : escapeHtml(part),
+        )
+        .join("");
     },
     [searchRegex],
   );
@@ -432,7 +433,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       width={pageWidth}
       renderTextLayer
       renderAnnotationLayer
-      // @ts-expect-error react-pdf's types say string but it accepts JSX
       customTextRenderer={textRenderer}
     />
   );
@@ -659,7 +659,18 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
               </div>
             ) : (
               <div className="flex items-center justify-center">
-                {renderPage(pageNumber)}
+                <div
+                  data-page-number={pageNumber}
+                  className={`w-full rounded ${
+                    activeMatchPage === pageNumber
+                      ? "ring-2 ring-blue-500"
+                      : searchMatchSet.has(pageNumber)
+                        ? "ring-1 ring-blue-300"
+                        : ""
+                  }`}
+                >
+                  {renderPage(pageNumber)}
+                </div>
               </div>
             ))}
         </Document>
