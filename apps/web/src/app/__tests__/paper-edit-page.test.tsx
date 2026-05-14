@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PaperEditPage from "../papers/[id]/edit/page";
 import { apiFetch } from "@/lib/api";
@@ -89,13 +95,17 @@ describe("PaperEditPage", () => {
       target: { value: "Updated title" },
     });
 
-    expect(screen.getByText(`${"Updated title".length}/300`)).toBeInTheDocument();
+    expect(
+      screen.getByText(`${"Updated title".length}/300`),
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/概要/i), {
       target: { value: "Updated abstract" },
     });
 
-    expect(screen.getByText(`${"Updated abstract".length}/5000`)).toBeInTheDocument();
+    expect(
+      screen.getByText(`${"Updated abstract".length}/5000`),
+    ).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText(/公開ページに閲覧数を表示する/i));
     fireEvent.change(screen.getByLabelText(/タグ/i), {
@@ -141,7 +151,8 @@ describe("PaperEditPage", () => {
     const patchCall = vi
       .mocked(apiFetch)
       .mock.calls.find(
-        ([url, init]) => url === "/api/papers/paper-1" && init?.method === "PATCH",
+        ([url, init]) =>
+          url === "/api/papers/paper-1" && init?.method === "PATCH",
       );
     const patchBody = JSON.parse((patchCall?.[1]?.body as string) ?? "{}");
     expect(patchBody).toMatchObject({
@@ -259,14 +270,19 @@ describe("PaperEditPage", () => {
 
     render(<PaperEditPage />);
     expect(await screen.findByDisplayValue("Initial")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/タイトル/i), { target: { value: " " } });
+    fireEvent.change(screen.getByLabelText(/タイトル/i), {
+      target: { value: " " },
+    });
     fireEvent.click(screen.getByRole("button", { name: "保存する" }));
 
-    expect(await screen.findByText("タイトルを入力してください。")).toBeInTheDocument();
+    expect(
+      await screen.findByText("タイトルを入力してください。"),
+    ).toBeInTheDocument();
     const patchCalls = vi
       .mocked(apiFetch)
       .mock.calls.filter(
-        ([url, req]) => url === "/api/papers/paper-1" && req?.method === "PATCH",
+        ([url, req]) =>
+          url === "/api/papers/paper-1" && req?.method === "PATCH",
       );
     expect(patchCalls).toHaveLength(0);
   });
@@ -301,14 +317,17 @@ describe("PaperEditPage", () => {
 
     render(<PaperEditPage />);
     expect(await screen.findByDisplayValue("Initial")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/発表年/i), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText(/発表年/i), {
+      target: { value: "" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "保存する" }));
 
     const patchCall = await waitFor(() =>
       vi
         .mocked(apiFetch)
         .mock.calls.find(
-          ([url, req]) => url === "/api/papers/paper-1" && req?.method === "PATCH",
+          ([url, req]) =>
+            url === "/api/papers/paper-1" && req?.method === "PATCH",
         ),
     );
     const patchBody = JSON.parse((patchCall?.[1]?.body as string) ?? "{}");
@@ -448,7 +467,8 @@ describe("PaperEditPage", () => {
       vi
         .mocked(apiFetch)
         .mock.calls.find(
-          ([url, req]) => url === "/api/papers/paper-1" && req?.method === "PATCH",
+          ([url, req]) =>
+            url === "/api/papers/paper-1" && req?.method === "PATCH",
         ),
     );
     const patchBody = JSON.parse((patchCall?.[1]?.body as string) ?? "{}");
