@@ -266,7 +266,10 @@ test.describe('PDFプレビュー', () => {
         expect(highlightBackground).not.toBe('transparent');
 
         const activePageWrapper = page.locator('[data-page-number="1"]').first();
-        await expect(activePageWrapper).toHaveClass(/ring-2 ring-blue-500/);
+        const hasActiveRing = await activePageWrapper.evaluate((node) =>
+            node.classList.contains('ring-2') && node.classList.contains('ring-blue-500'),
+        );
+        expect(hasActiveRing).toBeTruthy();
     });
 });
 

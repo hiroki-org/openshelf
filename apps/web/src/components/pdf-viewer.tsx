@@ -38,6 +38,7 @@ const MAX_ZOOM = ZOOM_PRESETS[ZOOM_PRESETS.length - 1];
 const CONTINUOUS_BUFFER = 2;
 const PAGE_ASPECT_RATIO = 1.414;
 const SEARCH_DEBOUNCE_MS = 350;
+const TEXT_HIGHLIGHT_CLASS = "highlight";
 
 function clampZoom(value: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
@@ -419,7 +420,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       return parts
         .map((part, i) =>
           i % 2 === 1
-            ? `<mark class="highlight">${escapeHtml(part)}</mark>`
+            ? `<mark class="${TEXT_HIGHLIGHT_CLASS}">${escapeHtml(part)}</mark>`
             : escapeHtml(part),
         )
         .join("");
