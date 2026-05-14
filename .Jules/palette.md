@@ -12,6 +12,3 @@
 ## 2025-05-11 - Character Counter Accessibility
 **Learning:** 文字数カウンターを実装する際、カウンター要素に `aria-live="polite"` を設定すると、スクリーンリーダーがユーザーのキーストロークごとに毎回文字数を読み上げてしまい、非常に煩わしい体験になります。
 **Action:** 今後、入力フィールドに対する文字数カウンターなど、付加的な動的情報を提供する際は `aria-live` は使用せず、入力フィールドに `aria-describedby` 属性を付与してカウンター要素を紐付けるアプローチを採用します。
-## 2026-05-12 - Toast Notification Accessibility & Visual Polish
-**Learning:** For UI accessibility with dynamically rendered content like toast notifications, applying `role="status"` along with `aria-live="polite"` on the static wrapper container (instead of the dynamically added children) prevents screen readers from erroneously announcing messages twice or missing them. Additionally, pairing text with status-specific icons (success/error/info) significantly improves the visual polish and cognitive accessibility of these notifications.
-**Action:** Added `role="status"` to the ToastContainer's wrapper div and implemented a `ToastIcon` component to inject relevant SVG icons based on the toast type.

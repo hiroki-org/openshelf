@@ -77,7 +77,7 @@ describe("UserPage", () => {
     });
 
     expect(screen.getByText("@alice")).toBeInTheDocument();
-    expect(await screen.findByText("Favorites")).toBeInTheDocument();
+    expect(screen.getByText("Favorites")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "+ 新規作成" })).toHaveAttribute(
       "href",
       "/collections/new",

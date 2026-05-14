@@ -396,14 +396,14 @@ export default function OrgSettingsPage() {
           { id: "general", label: "一般" },
           { id: "members", label: "メンバー" },
           { id: "papers", label: "成果物" },
-        ].map(({ id, label }) => (
+        ].map((t) => (
           <button
-            key={id}
+            key={t.id}
             type="button"
-            className={tabClass(id)}
-            onClick={() => setTab(id as typeof tab)}
+            className={tabClass(t.id)}
+            onClick={() => setTab(t.id as typeof tab)}
           >
-            {label}
+            {t.label}
           </button>
         ))}
       </div>
