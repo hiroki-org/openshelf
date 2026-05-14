@@ -266,10 +266,8 @@ test.describe('PDFプレビュー', () => {
         expect(highlightBackground).not.toBe('transparent');
 
         const activePageWrapper = page.locator('[data-page-number="1"]').first();
-        const hasActiveRing = await activePageWrapper.evaluate((node) =>
-            node.classList.contains('ring-2') && node.classList.contains('ring-blue-500'),
-        );
-        expect(hasActiveRing).toBeTruthy();
+        await expect(activePageWrapper).toHaveClass(/(^|\s)ring-2(\s|$)/);
+        await expect(activePageWrapper).toHaveClass(/(^|\s)ring-blue-500(\s|$)/);
     });
 });
 

@@ -510,7 +510,7 @@ describe("PdfViewer", () => {
     expect(resEmpty).toBe("no match");
   });
 
-  it("escapes html when rendering highlighted search text", async () => {
+  it("escapes HTML when rendering highlighted search text", async () => {
     render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
 
     const searchBox = screen.getAllByRole("searchbox", {
