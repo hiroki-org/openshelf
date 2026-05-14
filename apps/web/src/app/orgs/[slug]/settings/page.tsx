@@ -392,27 +392,20 @@ export default function OrgSettingsPage() {
 
       {/* Tabs */}
       <div className="flex border-b dark:border-gray-700 mb-6">
-        <button
-          type="button"
-          className={tabClass("general")}
-          onClick={() => setTab("general")}
-        >
-          一般
-        </button>
-        <button
-          type="button"
-          className={tabClass("members")}
-          onClick={() => setTab("members")}
-        >
-          メンバー
-        </button>
-        <button
-          type="button"
-          className={tabClass("papers")}
-          onClick={() => setTab("papers")}
-        >
-          成果物
-        </button>
+        {[
+          { id: "general", label: "一般" },
+          { id: "members", label: "メンバー" },
+          { id: "papers", label: "成果物" },
+        ].map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            className={tabClass(id)}
+            onClick={() => setTab(id as typeof tab)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
       {/* ── General Tab ── */}
