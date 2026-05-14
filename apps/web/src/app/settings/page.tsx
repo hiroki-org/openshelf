@@ -161,17 +161,7 @@ export default function SettingsPage() {
             disabled={saving}
             className="inline-flex min-w-32 items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
           >
-            {saving ? (
-              <span className="flex items-center gap-2">
-                <span
-                  className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                  aria-hidden="true"
-                />
-                保存中...
-              </span>
-            ) : (
-              "保存"
-            )}
+            {saving ? "保存中..." : "保存"}
           </button>
 
           {message && (

@@ -36,6 +36,57 @@ function notify() {
   toastListeners.forEach((listener) => listener(toasts));
 }
 
+const ToastIcon = ({ type }: { type: ToastType }) => {
+  if (type === "success") {
+    return (
+      <svg
+        className="h-5 w-5 mr-2 flex-shrink-0"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+        aria-hidden="true"
+      >
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    );
+  }
+  if (type === "error") {
+    return (
+      <svg
+        className="h-5 w-5 mr-2 flex-shrink-0"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M6 18L18 6M6 6l12 12"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      className="h-5 w-5 mr-2 flex-shrink-0"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+};
+
 export function ToastContainer() {
   const [currentToasts, setCurrentToasts] = useState<Toast[]>([]);
 
@@ -50,12 +101,13 @@ export function ToastContainer() {
   return (
     <div
       aria-live="polite"
+      role="status"
       className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"
     >
       {currentToasts.map((t) => (
         <div
           key={t.id}
-          className={`px-4 py-2 rounded-md shadow-lg text-white text-sm transition-all animate-in fade-in slide-in-from-right-4 pointer-events-auto ${
+          className={`px-4 py-3 rounded-md shadow-lg text-white text-sm flex items-center transition-all animate-in fade-in slide-in-from-right-4 pointer-events-auto ${
             t.type === "success"
               ? "bg-green-600"
               : t.type === "error"
@@ -63,7 +115,8 @@ export function ToastContainer() {
                 : "bg-blue-600"
           }`}
         >
-          {t.message}
+          <ToastIcon type={t.type} />
+          <span>{t.message}</span>
         </div>
       ))}
     </div>
