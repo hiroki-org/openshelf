@@ -528,11 +528,14 @@ describe("PdfViewer", () => {
     const pageCalls = mockPage.mock.calls;
     const lastCallProps = pageCalls[pageCalls.length - 1]?.[0];
     const renderer = lastCallProps.customTextRenderer!;
-    const res = renderer({ str: "<b>test</b>" });
+    const res = renderer({ str: `<b>test</b> & "test" 'test'` });
 
     expect(res).toContain("&lt;b&gt;");
     expect(res).toContain('<mark class="highlight">test</mark>');
     expect(res).toContain("&lt;/b&gt;");
+    expect(res).toContain("&amp;");
+    expect(res).toContain("&quot;");
+    expect(res).toContain("&#39;");
   });
 
   it("does not highlight search text when query is empty", async () => {

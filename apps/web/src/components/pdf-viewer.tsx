@@ -442,6 +442,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       width={pageWidth}
       renderTextLayer
       renderAnnotationLayer
+      // react-pdf の TextLayer ハイライトは HTML 文字列を返す customTextRenderer が前提
       customTextRenderer={textRenderer}
     />
   );
