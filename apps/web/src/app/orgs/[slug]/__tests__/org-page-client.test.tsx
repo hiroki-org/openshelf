@@ -225,8 +225,7 @@ describe("OrgPageClient", () => {
         );
       }
       if (
-        url ===
-        "/api/orgs/lab/papers?paginate=1&autoYear=1&venue=ASE&category=report&page=2"
+        url === "/api/orgs/lab/papers?paginate=1&autoYear=1&venue=ASE&category=report&page=2"
       ) {
         return new Response(
           JSON.stringify({
@@ -274,16 +273,14 @@ describe("OrgPageClient", () => {
     expect(screen.getByText("2 / 3")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "次へ" }));
-    const nextCall =
-      replaceMock.mock.calls[replaceMock.mock.calls.length - 1][0];
+    const nextCall = replaceMock.mock.calls[replaceMock.mock.calls.length - 1][0];
     expect(nextCall).toContain("/orgs/lab?");
     expect(nextCall).toContain("page=3");
     expect(nextCall).toContain("venue=ASE");
     expect(nextCall).toContain("category=report");
 
     fireEvent.click(screen.getByRole("button", { name: "前へ" }));
-    const prevCall =
-      replaceMock.mock.calls[replaceMock.mock.calls.length - 1][0];
+    const prevCall = replaceMock.mock.calls[replaceMock.mock.calls.length - 1][0];
     expect(prevCall).toContain("/orgs/lab?");
     expect(prevCall).toContain("page=1");
     expect(prevCall).toContain("venue=ASE");
@@ -343,18 +340,14 @@ describe("OrgPageClient", () => {
         );
       }
       if (url === "/api/orgs/lab/collections") {
-        return new Response(JSON.stringify({ collections: [] }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
       }
       throw new Error(`Unexpected request: ${String(url)}`);
     });
 
     render(<OrgPageClient slug="lab" />);
     expect(await screen.findByText("Research Lab")).toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: "⚙ 設定" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "⚙ 設定" })).not.toBeInTheDocument();
     expect(
       screen.queryByRole("link", { name: "+ 成果物を追加" }),
     ).not.toBeInTheDocument();
@@ -388,9 +381,7 @@ describe("OrgPageClient", () => {
         return new Response(JSON.stringify({ members: [] }), { status: 200 });
       }
       if (url === "/api/orgs/lab/collections") {
-        return new Response(JSON.stringify({ collections: [] }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
       }
       throw new Error(`Unexpected request: ${String(url)}`);
     });
@@ -440,9 +431,7 @@ describe("OrgPageClient", () => {
         return new Response(JSON.stringify({ members: [] }), { status: 200 });
       }
       if (url === "/api/orgs/lab/collections") {
-        return new Response(JSON.stringify({ collections: [] }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
       }
       throw new Error(`Unexpected request: ${String(url)}`);
     });
@@ -495,9 +484,7 @@ describe("OrgPageClient", () => {
         return new Response(JSON.stringify({ members: [] }), { status: 200 });
       }
       if (url === "/api/orgs/lab/collections") {
-        return new Response(JSON.stringify({ collections: [] }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
       }
       throw new Error(`Unexpected request: ${String(url)}`);
     });
@@ -547,9 +534,7 @@ describe("OrgPageClient", () => {
         return new Response(JSON.stringify({ members: [] }), { status: 200 });
       }
       if (url === "/api/orgs/lab/collections") {
-        return new Response(JSON.stringify({ collections: [] }), {
-          status: 200,
-        });
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
       }
       throw new Error(`Unexpected request: ${String(url)}`);
     });
