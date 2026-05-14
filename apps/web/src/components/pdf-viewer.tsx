@@ -99,6 +99,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const searchTextCacheRef = useRef<Map<number, string>>(new Map());
   const isProgrammaticNavRef = useRef(false);
   const prevViewModeRef = useRef<ViewMode>("paged");
+  const goToPageRef = useRef<(targetPage: number) => void>(() => {});
 
   const [containerWidth, setContainerWidth] = useState(0);
   const [numPages, setNumPages] = useState(0);
@@ -216,6 +217,10 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     },
     [numPages, viewMode],
   );
+
+  useEffect(() => {
+    goToPageRef.current = goToPage;
+  }, [goToPage]);
 
   const onDocumentLoadSuccess = useCallback((info: unknown) => {
     const pdfDocument = info as PdfDocumentProxy;
@@ -353,13 +358,13 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
         return;
       }
       setActiveMatchIndex(0);
-      goToPage(matches[0]);
+      goToPageRef.current(matches[0]);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [debouncedSearchQuery, goToPage, numPages]);
+  }, [debouncedSearchQuery, numPages]);
 
   const activeMatchPage =
     activeMatchIndex >= 0 ? searchMatches[activeMatchIndex] : undefined;

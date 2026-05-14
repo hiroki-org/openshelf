@@ -302,6 +302,16 @@ describe("PdfViewer", () => {
     await waitFor(() => {
       expect(screen.getByText("1 / 2")).toBeInTheDocument();
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "次の一致" }));
+    await waitFor(() => {
+      expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "連続スクロール" }));
+    await waitFor(() => {
+      expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    });
   });
 
   it("syncs pinch zoom with zoom controls on touch devices", async () => {
