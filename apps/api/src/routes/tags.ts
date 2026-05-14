@@ -7,6 +7,7 @@ import {
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { escapeLikeLiteral } from "../utils/sql";
 
 const tagsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -28,7 +29,7 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
     const userId = c.get("user").sub;
     const query = (c.req.query("q") ?? "").trim();
     const orgSlug = (c.req.query("orgSlug") ?? "").trim().toLowerCase();
-    const normalizedQuery = query.toLowerCase().replace(/([%_\\])/g, '\\$1');
+    const normalizedQuery = escapeLikeLiteral(query.toLowerCase());
 
     if (query.length < TAG_SUGGEST_MIN_QUERY_LENGTH) {
         return c.json({ tags: [] });
