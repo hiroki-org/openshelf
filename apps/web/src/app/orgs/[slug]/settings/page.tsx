@@ -477,9 +477,19 @@ export default function OrgSettingsPage() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+            className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200 inline-flex items-center justify-center min-w-20"
           >
-            {saving ? "保存中..." : "保存"}
+            {saving ? (
+              <span className="flex items-center justify-center gap-2">
+                <span
+                  className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                  aria-hidden="true"
+                />
+                保存中...
+              </span>
+            ) : (
+              "保存"
+            )}
           </button>
 
           {/* Danger zone */}
@@ -515,9 +525,19 @@ export default function OrgSettingsPage() {
                     type="button"
                     onClick={handleDelete}
                     disabled={deleting || deleteConfirm !== org.slug}
-                    className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:opacity-50"
+                    className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:opacity-50 inline-flex items-center justify-center min-w-32"
                   >
-                    {deleting ? "削除中..." : "完全に削除する"}
+                    {deleting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <span
+                          className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                          aria-hidden="true"
+                        />
+                        削除中...
+                      </span>
+                    ) : (
+                      "完全に削除する"
+                    )}
                   </button>
                   <button
                     type="button"
@@ -573,9 +593,16 @@ export default function OrgSettingsPage() {
                       type="button"
                       onClick={() => handleAddMember(u.id)}
                       disabled={inviting}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
+                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50 inline-flex items-center justify-center min-w-[50px]"
                     >
-                      追加
+                      {inviting ? (
+                        <span
+                          className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        "追加"
+                      )}
                     </button>
                   </li>
                 ))}
@@ -656,9 +683,16 @@ export default function OrgSettingsPage() {
                       type="button"
                       onClick={() => handleAddPaper(p.id)}
                       disabled={addingPaper}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50 shrink-0"
+                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50 shrink-0 inline-flex items-center justify-center min-w-[50px]"
                     >
-                      追加
+                      {addingPaper ? (
+                        <span
+                          className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        "追加"
+                      )}
                     </button>
                   </li>
                 ))}

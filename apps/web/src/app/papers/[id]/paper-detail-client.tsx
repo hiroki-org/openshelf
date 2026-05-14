@@ -967,9 +967,16 @@ export default function PaperDetailClient({
                     type="button"
                     onClick={() => handleInvite(u.id)}
                     disabled={inviting}
-                    className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
+                    className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50 inline-flex items-center justify-center min-w-[50px]"
                   >
-                    招待
+                    {inviting ? (
+                      <span
+                        className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      "招待"
+                    )}
                   </button>
                 </li>
               ))}
