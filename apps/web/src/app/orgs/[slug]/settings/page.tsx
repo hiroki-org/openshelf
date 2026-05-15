@@ -67,14 +67,14 @@ export default function OrgSettingsPage() {
   // Members tab
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
-  const [inviting, setInviting] = useState(false);
+  const [inviting, setInviting] = useState<string | null>(null);
 
   // Papers tab
   const [paperSearch, setPaperSearch] = useState("");
   const [paperSearchResults, setPaperSearchResults] = useState<
     { id: string; title: string }[]
   >([]);
-  const [addingPaper, setAddingPaper] = useState(false);
+  const [addingPaper, setAddingPaper] = useState<string | null>(null);
 
   // Delete dialog
   const [showDelete, setShowDelete] = useState(false);
@@ -228,7 +228,7 @@ export default function OrgSettingsPage() {
   };
 
   const handleAddMember = async (userId: string, role: string = "member") => {
-    setInviting(true);
+    setInviting(userId);
     try {
       const res = await apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/members`,
@@ -249,7 +249,7 @@ export default function OrgSettingsPage() {
     } catch {
       alert("ネットワークエラー");
     } finally {
-      setInviting(false);
+      setInviting(null);
     }
   };
 
@@ -324,7 +324,7 @@ export default function OrgSettingsPage() {
   };
 
   const handleAddPaper = async (paperId: string) => {
-    setAddingPaper(true);
+    setAddingPaper(paperId);
     try {
       const res = await apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/papers`,
@@ -345,7 +345,7 @@ export default function OrgSettingsPage() {
     } catch {
       alert("ネットワークエラー");
     } finally {
-      setAddingPaper(false);
+      setAddingPaper(null);
     }
   };
 
@@ -477,10 +477,10 @@ export default function OrgSettingsPage() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+            className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200 inline-flex items-center justify-center min-w-20"
           >
             {saving ? (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center justify-center gap-2">
                 <span
                   className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
                   aria-hidden="true"
@@ -525,10 +525,10 @@ export default function OrgSettingsPage() {
                     type="button"
                     onClick={handleDelete}
                     disabled={deleting || deleteConfirm !== org.slug}
-                    className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:opacity-50"
+                    className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:opacity-50 inline-flex items-center justify-center min-w-32"
                   >
                     {deleting ? (
-                      <span className="flex items-center gap-2">
+                      <span className="flex items-center justify-center gap-2">
                         <span
                           className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
                           aria-hidden="true"
@@ -592,10 +592,21 @@ export default function OrgSettingsPage() {
                     <button
                       type="button"
                       onClick={() => handleAddMember(u.id)}
-                      disabled={inviting}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
+                      disabled={inviting !== null}
+                      aria-busy={inviting === u.id}
+                      className="inline-flex min-w-[72px] items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                     >
-                      追加
+                      {inviting === u.id ? (
+                        <span className="flex items-center justify-center gap-1">
+                          <span
+                            className="h-3 w-3 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
+                            aria-hidden="true"
+                          />
+                          追加中...
+                        </span>
+                      ) : (
+                        "追加"
+                      )}
                     </button>
                   </li>
                 ))}
@@ -675,10 +686,21 @@ export default function OrgSettingsPage() {
                     <button
                       type="button"
                       onClick={() => handleAddPaper(p.id)}
-                      disabled={addingPaper}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50 shrink-0"
+                      disabled={addingPaper !== null}
+                      aria-busy={addingPaper === p.id}
+                      className="inline-flex min-w-[72px] shrink-0 items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                     >
-                      追加
+                      {addingPaper === p.id ? (
+                        <span className="flex items-center justify-center gap-1">
+                          <span
+                            className="h-3 w-3 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
+                            aria-hidden="true"
+                          />
+                          追加中...
+                        </span>
+                      ) : (
+                        "追加"
+                      )}
                     </button>
                   </li>
                 ))}
