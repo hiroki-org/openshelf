@@ -1,12 +1,12 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
-import { TAG_DELIMITER_PATTERN, splitTagInput } from "@/lib/tags";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
 const BLUR_DELAY_MS = 120;
+const TAG_DELIMITER = ",";
 
 type TagAutocompleteInputProps = {
   id: string;
@@ -22,7 +22,7 @@ function splitEditingState(value: string): {
   currentRaw: string;
   currentTrimmed: string;
 } {
-  const parts = value.split(TAG_DELIMITER_PATTERN);
+  const parts = value.split(TAG_DELIMITER);
   if (parts.length === 0) {
     return { committed: [], currentRaw: "", currentTrimmed: "" };
   }
@@ -55,7 +55,14 @@ export function TagAutocompleteInput({
     [value],
   );
 
-  const displayChips = useMemo(() => splitTagInput(value), [value]);
+  const displayChips = useMemo(
+    () =>
+      value
+        .split(TAG_DELIMITER)
+        .map((t) => t.trim())
+        .filter(Boolean),
+    [value],
+  );
 
   useEffect(() => {
     const requestId = ++requestIdRef.current;

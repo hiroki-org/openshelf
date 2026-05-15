@@ -3,7 +3,6 @@
 import { useAuth } from "@/components/auth-provider";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { apiFetch } from "@/lib/api";
-import { splitTagInput } from "@/lib/tags";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -107,7 +106,10 @@ export default function UploadPage() {
           venueType: venueType || null,
           year: year ? Number(year) : null,
           category: category || null,
-          tags: splitTagInput(tags),
+          tags: tags
+            .split(",")
+            .map((t) => t.trim())
+            .filter(Boolean),
         }),
       );
 

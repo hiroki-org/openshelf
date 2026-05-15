@@ -1,0 +1,5 @@
+It seems there are no new reviews after I submitted my fix for the constant extraction.
+The last review was my own comment: "レビュー対応しました。DRY原則に従って定数抽出を行っています。"
+And the AI bots reviews were from before my last commit.
+I've already handled the feedback (extracting `TAG_DELIMITER`) and pushed the fix.
+Wait, let me double check the PR comments again to ensure no new feedback.
