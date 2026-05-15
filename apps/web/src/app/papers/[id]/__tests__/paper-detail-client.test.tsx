@@ -721,6 +721,23 @@ describe("PaperDetailClient", () => {
     ).toBeInTheDocument();
   });
 
+  it.each([
+    [401, "ログインが必要です"],
+    [404, "成果物が見つかりません"],
+    [500, "成果物の取得に失敗しました"],
+  ])("maps paper fetch status %s to its error message", async (status, message) => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response("error", { status }));
+
+    render(
+      <PaperDetailClient
+        paperId="paper-1"
+        siteBase="https://openshelf.example"
+      />,
+    );
+
+    expect(await screen.findByText(message)).toBeInTheDocument();
+  });
+
 
   it("shows an error when user lacks access (403)", async () => {
     vi.mocked(apiFetch).mockResolvedValue(

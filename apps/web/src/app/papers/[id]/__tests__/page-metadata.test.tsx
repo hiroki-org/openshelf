@@ -49,6 +49,48 @@ describe("papers/[id]/page metadata", () => {
     expect(screen.getByText("無効な識別子です")).toBeInTheDocument();
   });
 
+  it("returns generic metadata when the API cannot load a paper", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response("not found", { status: 404 }) as any,
+    );
+
+    const metadata = await generateMetadata({ params: { id: "missing" } });
+
+    expect(metadata.title).toBe("成果物詳細 | OpenShelf");
+    expect(metadata.openGraph?.title).toBe("成果物詳細 | OpenShelf");
+    expect(metadata.twitter?.title).toBe("成果物詳細 | OpenShelf");
+  });
+
+  it("returns generic metadata when the API request throws", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValueOnce(new Error("network"));
+
+    const metadata = await generateMetadata({ params: { id: "offline" } });
+
+    expect(metadata.title).toBe("成果物詳細 | OpenShelf");
+  });
+
+  it("returns generic metadata for non-public papers", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          paper: {
+            id: "paper-1",
+            title: "Private Paper",
+            abstract: "Private abstract",
+            visibility: "private",
+          },
+          authors: [{ name: "Alice", displayName: null }],
+        }),
+        { status: 200 },
+      ) as any,
+    );
+
+    const metadata = await generateMetadata({ params: { id: "paper-1" } });
+
+    expect(metadata.title).toBe("成果物詳細 | OpenShelf");
+    expect(metadata.openGraph?.title).toBe("成果物詳細 | OpenShelf");
+  });
+
 
   it("generates generic metadata when id is invalid", async () => {
     // Generate metadata without await as the component is sync for generating metadata via props
