@@ -99,7 +99,7 @@ describe("UploadPage", () => {
       }),
     );
     fireEvent.change(screen.getByLabelText(/タグ（カンマ区切り）/i), {
-      target: { value: "AI, LLM" },
+      target: { value: "AI，LLM、CV" },
     });
 
     const input = screen.getByLabelText("アップロードファイル");
@@ -143,7 +143,7 @@ describe("UploadPage", () => {
       venueType: null,
       year: 2025,
       category: null,
-      tags: ["AI", "LLM"],
+      tags: ["AI", "LLM", "CV"],
     });
     expect(formData.get("file_types_0")).toBe("paper");
     expect(formData.get("files_0")).toBeInstanceOf(File);
