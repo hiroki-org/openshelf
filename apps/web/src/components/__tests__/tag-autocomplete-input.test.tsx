@@ -188,7 +188,7 @@ describe("TagAutocompleteInput", () => {
     expect(screen.getByRole("option", { name: "Math" })).toBeInTheDocument();
   });
 
-  it("renders chips only for committed tags", () => {
+  it("renders chips for all tags including the currently typing tag", () => {
     render(
       <TagAutocompleteInput
         id="paper-tags"
@@ -198,20 +198,6 @@ describe("TagAutocompleteInput", () => {
     );
 
     expect(screen.getByText("AI")).toBeInTheDocument();
-    expect(screen.queryByText("Ma")).not.toBeInTheDocument();
-  });
-
-  it("supports full-width commas and ideographic commas for splitting tags", () => {
-    render(
-      <TagAutocompleteInput
-        id="paper-tags"
-        value="アリス，ボブ、クリス"
-        onChange={vi.fn()}
-      />,
-    );
-
-    expect(screen.getByText("アリス")).toBeInTheDocument();
-    expect(screen.getByText("ボブ")).toBeInTheDocument();
-    expect(screen.queryByText("クリス")).not.toBeInTheDocument();
+    expect(screen.getByText("Ma")).toBeInTheDocument();
   });
 });

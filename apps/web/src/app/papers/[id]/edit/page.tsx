@@ -171,7 +171,7 @@ export default function PaperEditPage() {
       }
 
       const tagsArray = tagsStr
-        .split(/[,，、]/)
+        .split(",")
         .map((t) => t.trim())
         .filter(Boolean);
 
