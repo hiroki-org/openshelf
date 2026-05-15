@@ -1,12 +1,10 @@
 import { Hono } from "hono";
 import { drizzle } from "drizzle-orm/d1";
 import { and, eq } from "drizzle-orm";
-import {
-    orgMembers,
-    orgs,
-} from "../db/schema";
+import { orgMembers, orgs } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
+import { escapeLikeLiteral } from "../utils/sql";
 
 const tagsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -21,37 +19,37 @@ const SAFE_TAG_ARRAY_SQL = `
 `;
 const TRIMMED_TAG_SQL = "TRIM(json_each.value)";
 
-
 // GET /api/tags/suggest?q=...&orgSlug=...
 tagsRoute.get("/suggest", authMiddleware, async (c) => {
-    const db = drizzle(c.env.DB);
-    const userId = c.get("user").sub;
-    const query = (c.req.query("q") ?? "").trim();
-    const orgSlug = (c.req.query("orgSlug") ?? "").trim().toLowerCase();
-    const normalizedQuery = query.toLowerCase().replace(/([%_\\])/g, '\\$1');
+  const db = drizzle(c.env.DB);
+  const userId = c.get("user").sub;
+  const query = (c.req.query("q") ?? "").trim();
+  const orgSlug = (c.req.query("orgSlug") ?? "").trim().toLowerCase();
+  const normalizedQuery = escapeLikeLiteral(query.toLowerCase());
 
-    if (query.length < TAG_SUGGEST_MIN_QUERY_LENGTH) {
-        return c.json({ tags: [] });
-    }
+  if (query.length < TAG_SUGGEST_MIN_QUERY_LENGTH) {
+    return c.json({ tags: [] });
+  }
 
-    let tags: string[] = [];
+  let tags: string[] = [];
 
-    if (orgSlug) {
-        const org = await db
-            .select({ id: orgs.id })
-            .from(orgs)
-            .where(eq(orgs.slug, orgSlug))
-            .get();
-        if (!org) return c.json({ error: "Org not found" }, 404);
+  if (orgSlug) {
+    const org = await db
+      .select({ id: orgs.id })
+      .from(orgs)
+      .where(eq(orgs.slug, orgSlug))
+      .get();
+    if (!org) return c.json({ error: "Org not found" }, 404);
 
-        const membership = await db
-            .select({ userId: orgMembers.userId })
-            .from(orgMembers)
-            .where(and(eq(orgMembers.orgId, org.id), eq(orgMembers.userId, userId)))
-            .get();
-        if (!membership) return c.json({ error: "Forbidden" }, 403);
+    const membership = await db
+      .select({ userId: orgMembers.userId })
+      .from(orgMembers)
+      .where(and(eq(orgMembers.orgId, org.id), eq(orgMembers.userId, userId)))
+      .get();
+    if (!membership) return c.json({ error: "Forbidden" }, 403);
 
-        const result = await c.env.DB.prepare(`
+    const result = await c.env.DB.prepare(
+      `
             SELECT
                 ${TRIMMED_TAG_SQL} as tag,
                 COUNT(*) as count
@@ -71,10 +69,14 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
             GROUP BY ${TRIMMED_TAG_SQL}
             ORDER BY count DESC, tag ASC
             LIMIT ?4
-        `).bind(userId, org.id, normalizedQuery || "", TAG_SUGGEST_LIMIT).all();
-        tags = (result.results || []).map((r: any) => r.tag);
-    } else {
-        const result = await c.env.DB.prepare(`
+        `,
+    )
+      .bind(userId, org.id, normalizedQuery || "", TAG_SUGGEST_LIMIT)
+      .all();
+    tags = (result.results || []).map((r: any) => r.tag);
+  } else {
+    const result = await c.env.DB.prepare(
+      `
             SELECT
                 ${TRIMMED_TAG_SQL} as tag,
                 COUNT(*) as count
@@ -88,11 +90,14 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
             GROUP BY ${TRIMMED_TAG_SQL}
             ORDER BY count DESC, tag ASC
             LIMIT ?3
-        `).bind(userId, normalizedQuery || "", TAG_SUGGEST_LIMIT).all();
-        tags = (result.results || []).map((r: any) => r.tag);
-    }
+        `,
+    )
+      .bind(userId, normalizedQuery || "", TAG_SUGGEST_LIMIT)
+      .all();
+    tags = (result.results || []).map((r: any) => r.tag);
+  }
 
-    return c.json({ tags });
+  return c.json({ tags });
 });
 
 export default tagsRoute;
