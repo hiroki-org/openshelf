@@ -188,7 +188,7 @@ describe("TagAutocompleteInput", () => {
     expect(screen.getByRole("option", { name: "Math" })).toBeInTheDocument();
   });
 
-  it("renders chips only for committed tags", () => {
+  it("renders chips for all tags including the currently typing tag", () => {
     render(
       <TagAutocompleteInput
         id="paper-tags"
@@ -198,6 +198,64 @@ describe("TagAutocompleteInput", () => {
     );
 
     expect(screen.getByText("AI")).toBeInTheDocument();
-    expect(screen.queryByText("Ma")).not.toBeInTheDocument();
+    expect(screen.getByText("Ma")).toBeInTheDocument();
+  });
+
+  it("supports mouse click and ArrowDown/ArrowUp navigation", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ tags: ["Machine Learning", "Math"] }), {
+        status: 200,
+      }),
+    );
+
+    const onChange = vi.fn();
+    render(
+      <TagAutocompleteInput id="paper-tags" value="Ma" onChange={onChange} />,
+    );
+
+    const input = screen.getByRole("textbox");
+    fireEvent.focus(input);
+
+    await screen.findByRole("option", { name: "Machine Learning" });
+    // unused option declarations removed
+
+    // Assuming initially highlighted index is 0
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(input).toHaveAttribute("aria-activedescendant", "paper-tags-suggestions-option-1");
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(input).toHaveAttribute("aria-activedescendant", "paper-tags-suggestions-option-0"); // wraps around
+
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(input).toHaveAttribute("aria-activedescendant", "paper-tags-suggestions-option-1"); // wraps around
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(input).toHaveAttribute("aria-activedescendant", "paper-tags-suggestions-option-0");
+
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onChange).toHaveBeenCalledWith("Machine Learning, ");
+
+    fireEvent.focus(input);
+    const option2New = await screen.findByRole("option", { name: "Math" });
+    fireEvent.mouseDown(option2New);
+    fireEvent.click(option2New);
+    expect(onChange).toHaveBeenCalledWith("Math, ");
+
+    fireEvent.keyDown(input, { key: "Enter" }); // no suggestion
+  });
+
+  it("handles fetch errors and unmounting", async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiFetch).mockRejectedValue(new Error("Network Error"));
+
+    const { unmount } = render(
+      <TagAutocompleteInput id="paper-tags" value="Ma" onChange={vi.fn()} />,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(350);
+    });
+
+    const input = screen.getByRole("textbox");
+    fireEvent.blur(input);
+    unmount();
   });
 });

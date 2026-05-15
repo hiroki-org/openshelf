@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
 const BLUR_DELAY_MS = 120;
+const TAG_DELIMITER = ",";
 
 type TagAutocompleteInputProps = {
   id: string;
@@ -21,7 +22,7 @@ function splitEditingState(value: string): {
   currentRaw: string;
   currentTrimmed: string;
 } {
-  const parts = value.split(",");
+  const parts = value.split(TAG_DELIMITER);
   if (parts.length === 0) {
     return { committed: [], currentRaw: "", currentTrimmed: "" };
   }
@@ -51,6 +52,15 @@ export function TagAutocompleteInput({
 
   const { committed, currentTrimmed } = useMemo(
     () => splitEditingState(value),
+    [value],
+  );
+
+  const displayChips = useMemo(
+    () =>
+      value
+        .split(TAG_DELIMITER)
+        .map((t) => t.trim())
+        .filter(Boolean),
     [value],
   );
 
@@ -222,11 +232,11 @@ export function TagAutocompleteInput({
         </ul>
       )}
 
-      {committed.length > 0 && (
+      {displayChips.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
-          {committed.map((tag) => (
+          {displayChips.map((tag, index) => (
             <span
-              key={tag}
+              key={`${tag}-${index}`}
               className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200"
             >
               {tag}
