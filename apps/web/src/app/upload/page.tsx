@@ -3,6 +3,7 @@
 import { useAuth } from "@/components/auth-provider";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { apiFetch } from "@/lib/api";
+import { splitTagInput } from "@/lib/tags";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -33,6 +34,31 @@ const VENUE_TYPE_OPTIONS = [
   { value: "workshop", label: "ワークショップ" },
   { value: "other", label: "その他" },
 ] as const;
+const ACCEPTED_UPLOAD_EXTENSIONS = [
+  ".pdf",
+  ".ppt",
+  ".pptx",
+  ".png",
+  ".jpg",
+  ".jpeg",
+];
+const ACCEPTED_UPLOAD_MIME_TYPES = [
+  "application/pdf",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "image/png",
+  "image/jpeg",
+];
+
+function isAcceptedUploadFile(file: File) {
+  const lowerName = file.name.toLowerCase();
+  const extensionOk = ACCEPTED_UPLOAD_EXTENSIONS.some((ext) =>
+    lowerName.endsWith(ext),
+  );
+  const mimeOk =
+    file.type === "" || ACCEPTED_UPLOAD_MIME_TYPES.includes(file.type);
+  return extensionOk && mimeOk;
+}
 
 type FileEntry = {
   file: File;
@@ -57,6 +83,7 @@ export default function UploadPage() {
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -64,9 +91,23 @@ export default function UploadPage() {
 
   if (loading || !user) return null;
 
-  const addFiles = (selected: FileList | null) => {
+  const addFiles = (selected: FileList | File[] | null) => {
     if (!selected) return;
-    const newEntries: FileEntry[] = Array.from(selected).map((f) => ({
+    const selectedFiles = Array.from(selected);
+    const acceptedFiles = selectedFiles.filter(isAcceptedUploadFile);
+    if (acceptedFiles.length === 0) {
+      setError("対応していないファイル形式です");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+    setError(
+      acceptedFiles.length < selectedFiles.length
+        ? "対応していないファイル形式は除外しました"
+        : "",
+    );
+    const newEntries: FileEntry[] = acceptedFiles.map((f) => ({
       file: f,
       fileType: "paper",
     }));
@@ -78,6 +119,41 @@ export default function UploadPage() {
 
   const removeFile = (idx: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (Array.from(e.dataTransfer.types).includes("Files")) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const relatedTarget = e.relatedTarget;
+    if (
+      relatedTarget instanceof Node &&
+      e.currentTarget.contains(relatedTarget)
+    ) {
+      return;
+    }
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      addFiles(Array.from(e.dataTransfer.files));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -106,10 +182,7 @@ export default function UploadPage() {
           venueType: venueType || null,
           year: year ? Number(year) : null,
           category: category || null,
-          tags: tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
+          tags: splitTagInput(tags),
         }),
       );
 
@@ -381,21 +454,43 @@ export default function UploadPage() {
             aria-label="アップロードファイル"
             type="file"
             multiple
-            accept=".pdf,.ppt,.pptx,.png,.jpg,.jpeg"
+            accept={ACCEPTED_UPLOAD_EXTENSIONS.join(",")}
             onChange={(e) => addFiles(e.target.files)}
             className="hidden"
           />
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
             aria-describedby="upload-files-label"
-            className="group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-300 bg-white px-5 py-10 transition-all hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
+            className={`group flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed px-5 py-10 transition-all ${
+              isDragging
+                ? "border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/30"
+                : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-950 dark:hover:border-gray-600 dark:hover:bg-gray-900"
+            }`}
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-colors group-hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:group-hover:bg-gray-700">
+            <div
+              className={`flex h-12 w-12 items-center justify-center rounded-full transition-colors ${
+                isDragging
+                  ? "bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300"
+                  : "bg-gray-100 text-gray-600 group-hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:group-hover:bg-gray-700"
+              }`}
+            >
               <span className="text-2xl">+</span>
             </div>
-            <span className="mt-4 block text-sm font-medium text-gray-900 dark:text-gray-100">
-              ファイルを複数選択
+            <span
+              className={`mt-4 block text-sm font-medium ${
+                isDragging
+                  ? "text-blue-600 dark:text-blue-300"
+                  : "text-gray-900 dark:text-gray-100"
+              }`}
+            >
+              {isDragging
+                ? "ドロップして追加"
+                : "ファイルを複数選択（またはドラッグ＆ドロップ）"}
             </span>
             <span className="mt-1 block text-xs text-gray-500 dark:text-gray-400">
               PDF, PPT, 画像 / 1ファイル最大50MB
