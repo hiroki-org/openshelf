@@ -1,5 +1,6 @@
 import {
   cleanup,
+  createEvent,
   fireEvent,
   render,
   screen,
@@ -163,18 +164,27 @@ describe("UploadPage", () => {
       description: /添付ファイル/i,
     });
 
-    // simulate drag over
-    fireEvent.dragOver(dropzone);
+    // simulate drag enter
+    fireEvent.dragEnter(dropzone);
     expect(screen.getByText("ドロップして追加")).toBeInTheDocument();
 
-    // simulate drag leave
+    // moving across children should not clear the active drag state
+    const child = dropzone.querySelector("span");
+    const internalDragLeave = createEvent.dragLeave(dropzone);
+    Object.defineProperty(internalDragLeave, "relatedTarget", {
+      value: child,
+    });
+    fireEvent(dropzone, internalDragLeave);
+    expect(screen.getByText("ドロップして追加")).toBeInTheDocument();
+
+    // simulate drag leave outside
     fireEvent.dragLeave(dropzone);
     expect(
       screen.getByText("ファイルを複数選択（またはドラッグ＆ドロップ）"),
     ).toBeInTheDocument();
 
-    // simulate drag over again
-    fireEvent.dragOver(dropzone);
+    // simulate drag enter again
+    fireEvent.dragEnter(dropzone);
     expect(screen.getByText("ドロップして追加")).toBeInTheDocument();
 
     // simulate drop
@@ -194,5 +204,32 @@ describe("UploadPage", () => {
 
     // file should be added
     expect(await screen.findByText("test.pdf")).toBeInTheDocument();
+  });
+
+  it("filters unsupported files dropped into the upload area", async () => {
+    render(<UploadPage />);
+
+    const dropzone = screen.getByRole("button", {
+      description: /添付ファイル/i,
+    });
+
+    const validFile = new File(["%PDF-1.7"], "paper.pdf", {
+      type: "application/pdf",
+    });
+    const invalidFile = new File(["doc"], "notes.docx", {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [validFile, invalidFile],
+      },
+    });
+
+    expect(
+      await screen.findByText("対応していないファイル形式は除外しました"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("paper.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("notes.docx")).not.toBeInTheDocument();
   });
 });

@@ -18,9 +18,3 @@
 ## 2025-05-13 - Input Field Character Counter Accessibility Improvement
 **Learning:** 文字数カウンターを実装する際、スクリーンリーダー向けに入力フィールドとカウンターをプログラム的に関連付けるには `aria-describedby` 属性を使用するのがベストプラクティスです。`aria-live` は入力のたびに読み上げが発生するため煩わしい場合があります。
 **Action:** 今後、入力フィールドに対する文字数カウンターなど、付加的な動的情報を提供する際は `aria-live` ではなく、入力要素に `aria-describedby` を付与してカウンター要素を紐付けるアプローチをデフォルトの設計とします。
-## 2025-05-18 - Drag and Drop Upload Visual Feedback
-**Learning:** ドラッグ＆ドロップ可能なアップロード領域において、ただ機能を提供するだけでなく、ドラッグ時に枠線や背景色を変化させ、さらに「ドロップして追加」のようにテキストメッセージを切り替えることで、ユーザーは機能の存在に気付きやすく、ドロップの可否を直感的に理解できるようになります。
-**Action:** 今後、ファイルアップロード領域を実装・改善する際は、必ずドラッグ・オーバー時の明確な視覚的フィードバック（色の変化やテキストの変更）を含めるように設計します。
-## 2025-05-18 - JSDOM DataTransfer and React Drag Events
-**Learning:** Reactのドラッグ＆ドロップ実装（`onDragLeave`, `onDrop` など）を `@testing-library/react` (JSDOM) でテストする際、2つの大きな落とし穴があります。1つ目は、JSDOMがネイティブで `DataTransfer` をサポートしていないため、ドロップのハンドラーでエラーになる点です。2つ目は、`fireEvent.dragLeave` は `relatedTarget` を正しく設定できないことがあり、子要素へのホバーによるちらつき防止のテストが困難な点です。
-**Action:** `DataTransfer` のエラーを回避するために、`vitest.setup.ts` などで `global.DataTransfer` にモックをポリフィルとして追加します。また、`relatedTarget` に依存するテストを行う場合は、`fireEvent.dragLeave(el)` ではなく、`createEvent.dragLeave(el)` を使用してイベントを作成し、`Object.defineProperty` で `relatedTarget` を手動でモックしてから `fireEvent(el, event)` で発火させるか、アプリケーション側で `null` に対する防御的処理（テスト環境向けのフォールバックなど）を含めます。

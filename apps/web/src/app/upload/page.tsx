@@ -33,6 +33,19 @@ const VENUE_TYPE_OPTIONS = [
   { value: "workshop", label: "ワークショップ" },
   { value: "other", label: "その他" },
 ] as const;
+const ACCEPTED_UPLOAD_EXTENSIONS = [
+  ".pdf",
+  ".ppt",
+  ".pptx",
+  ".png",
+  ".jpg",
+  ".jpeg",
+];
+
+function isAcceptedUploadFile(file: File) {
+  const lowerName = file.name.toLowerCase();
+  return ACCEPTED_UPLOAD_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
+}
 
 type FileEntry = {
   file: File;
@@ -65,9 +78,23 @@ export default function UploadPage() {
 
   if (loading || !user) return null;
 
-  const addFiles = (selected: FileList | null) => {
+  const addFiles = (selected: FileList | File[] | null) => {
     if (!selected) return;
-    const newEntries: FileEntry[] = Array.from(selected).map((f) => ({
+    const selectedFiles = Array.from(selected);
+    const acceptedFiles = selectedFiles.filter(isAcceptedUploadFile);
+    if (acceptedFiles.length === 0) {
+      setError("対応していないファイル形式です");
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+    setError(
+      acceptedFiles.length < selectedFiles.length
+        ? "対応していないファイル形式は除外しました"
+        : "",
+    );
+    const newEntries: FileEntry[] = acceptedFiles.map((f) => ({
       file: f,
       fileType: "paper",
     }));
@@ -90,41 +117,27 @@ export default function UploadPage() {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // In actual browser, if dragging into a child, relatedTarget is that child.
-    const currentTarget = e.currentTarget as Node | null;
-    const relatedTarget = e.relatedTarget as Node | null;
-    if (currentTarget && relatedTarget && currentTarget.contains(relatedTarget)) {
+    const relatedTarget = e.relatedTarget;
+    if (
+      relatedTarget instanceof Node &&
+      e.currentTarget.contains(relatedTarget)
+    ) {
       return;
     }
     setIsDragging(false);
   };
-
-  const ACCEPTED_EXTENSIONS = [".pdf", ".ppt", ".pptx", ".png", ".jpg", ".jpeg"];
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const filtered = Array.from(e.dataTransfer.files).filter((f) =>
-        ACCEPTED_EXTENSIONS.some((ext) => f.name.toLowerCase().endsWith(ext)),
-      );
-      if (filtered.length === 0) return;
-
-      // Try using DataTransfer if available (real browser), otherwise fallback for test env
-      try {
-        const dt = new DataTransfer();
-        filtered.forEach((f) => dt.items.add(f));
-        addFiles(dt.files);
-      } catch (err) {
-        addFiles(filtered as unknown as FileList);
-      }
+      addFiles(Array.from(e.dataTransfer.files));
     }
   };
 
@@ -429,7 +442,7 @@ export default function UploadPage() {
             aria-label="アップロードファイル"
             type="file"
             multiple
-            accept=".pdf,.ppt,.pptx,.png,.jpg,.jpeg"
+            accept={ACCEPTED_UPLOAD_EXTENSIONS.join(",")}
             onChange={(e) => addFiles(e.target.files)}
             className="hidden"
           />
