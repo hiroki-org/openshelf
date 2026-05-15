@@ -165,7 +165,11 @@ describe("UploadPage", () => {
     });
 
     // simulate drag enter
-    fireEvent.dragEnter(dropzone);
+    fireEvent.dragEnter(dropzone, {
+      dataTransfer: {
+        types: ["Files"],
+      },
+    });
     expect(screen.getByText("ドロップして追加")).toBeInTheDocument();
 
     // moving across children should not clear the active drag state
@@ -184,7 +188,11 @@ describe("UploadPage", () => {
     ).toBeInTheDocument();
 
     // simulate drag enter again
-    fireEvent.dragEnter(dropzone);
+    fireEvent.dragEnter(dropzone, {
+      dataTransfer: {
+        types: ["Files"],
+      },
+    });
     expect(screen.getByText("ドロップして追加")).toBeInTheDocument();
 
     // simulate drop
@@ -204,6 +212,25 @@ describe("UploadPage", () => {
 
     // file should be added
     expect(await screen.findByText("test.pdf")).toBeInTheDocument();
+  });
+
+  it("does not show drop feedback for non-file drags", () => {
+    render(<UploadPage />);
+
+    const dropzone = screen.getByRole("button", {
+      description: /添付ファイル/i,
+    });
+
+    fireEvent.dragEnter(dropzone, {
+      dataTransfer: {
+        types: ["text/plain"],
+      },
+    });
+
+    expect(
+      screen.getByText("ファイルを複数選択（またはドラッグ＆ドロップ）"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("ドロップして追加")).not.toBeInTheDocument();
   });
 
   it("filters unsupported files dropped into the upload area", async () => {

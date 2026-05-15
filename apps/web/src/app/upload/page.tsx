@@ -124,7 +124,9 @@ export default function UploadPage() {
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
+    if (Array.from(e.dataTransfer.types).includes("Files")) {
+      setIsDragging(true);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
