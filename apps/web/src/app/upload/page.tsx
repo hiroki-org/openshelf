@@ -41,10 +41,22 @@ const ACCEPTED_UPLOAD_EXTENSIONS = [
   ".jpg",
   ".jpeg",
 ];
+const ACCEPTED_UPLOAD_MIME_TYPES = [
+  "application/pdf",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "image/png",
+  "image/jpeg",
+];
 
 function isAcceptedUploadFile(file: File) {
   const lowerName = file.name.toLowerCase();
-  return ACCEPTED_UPLOAD_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
+  const extensionOk = ACCEPTED_UPLOAD_EXTENSIONS.some((ext) =>
+    lowerName.endsWith(ext),
+  );
+  const mimeOk =
+    file.type === "" || ACCEPTED_UPLOAD_MIME_TYPES.includes(file.type);
+  return extensionOk && mimeOk;
 }
 
 type FileEntry = {

@@ -232,4 +232,45 @@ describe("UploadPage", () => {
     expect(screen.getByText("paper.pdf")).toBeInTheDocument();
     expect(screen.queryByText("notes.docx")).not.toBeInTheDocument();
   });
+
+  it("rejects files with unsupported MIME types", async () => {
+    render(<UploadPage />);
+
+    const dropzone = screen.getByRole("button", {
+      description: /添付ファイル/i,
+    });
+
+    const disguisedFile = new File(["MZ"], "evil.pdf", {
+      type: "application/x-msdownload",
+    });
+
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [disguisedFile],
+      },
+    });
+
+    expect(
+      await screen.findByText("対応していないファイル形式です"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("evil.pdf")).not.toBeInTheDocument();
+  });
+
+  it("accepts supported extensions when the browser omits MIME type", async () => {
+    render(<UploadPage />);
+
+    const dropzone = screen.getByRole("button", {
+      description: /添付ファイル/i,
+    });
+
+    const fileWithoutType = new File(["slides"], "slides.pptx");
+
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [fileWithoutType],
+      },
+    });
+
+    expect(await screen.findByText("slides.pptx")).toBeInTheDocument();
+  });
 });
