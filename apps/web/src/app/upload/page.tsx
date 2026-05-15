@@ -81,6 +81,12 @@ export default function UploadPage() {
     setFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -90,15 +96,35 @@ export default function UploadPage() {
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    // In actual browser, if dragging into a child, relatedTarget is that child.
+    const currentTarget = e.currentTarget as Node | null;
+    const relatedTarget = e.relatedTarget as Node | null;
+    if (currentTarget && relatedTarget && currentTarget.contains(relatedTarget)) {
+      return;
+    }
     setIsDragging(false);
   };
+
+  const ACCEPTED_EXTENSIONS = [".pdf", ".ppt", ".pptx", ".png", ".jpg", ".jpeg"];
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      addFiles(e.dataTransfer.files);
+      const filtered = Array.from(e.dataTransfer.files).filter((f) =>
+        ACCEPTED_EXTENSIONS.some((ext) => f.name.toLowerCase().endsWith(ext)),
+      );
+      if (filtered.length === 0) return;
+
+      // Try using DataTransfer if available (real browser), otherwise fallback for test env
+      try {
+        const dt = new DataTransfer();
+        filtered.forEach((f) => dt.items.add(f));
+        addFiles(dt.files);
+      } catch (err) {
+        addFiles(filtered as unknown as FileList);
+      }
     }
   };
 
@@ -410,6 +436,7 @@ export default function UploadPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
+            onDragEnter={handleDragEnter}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
