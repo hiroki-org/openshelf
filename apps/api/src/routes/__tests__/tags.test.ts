@@ -49,6 +49,24 @@ describe("tags routes", () => {
         expect(mockDb.select).not.toHaveBeenCalled();
     });
 
+    it("GET /api/tags/suggest rejects overly long queries", async () => {
+        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request(
+            `http://localhost/api/tags/suggest?q=${"a".repeat(101)}`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            },
+            env as any,
+        );
+
+        expect(res.status).toBe(400);
+        await expect(res.json()).resolves.toEqual({ error: "query too long" });
+        expect(mockDb.select).not.toHaveBeenCalled();
+    });
+
     it("GET /api/tags/suggest returns prefix-matched tags for current user", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Uploader" });
         const app = await createTestApp();
