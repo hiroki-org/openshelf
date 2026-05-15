@@ -2214,3 +2214,45 @@ describe("orgs routes", () => {
     });
   });
 });
+
+describe("GET /api/orgs/:slug/papers algorithmic DoS prevention", () => {
+    it("escapes wildcard characters correctly in papers query endpoint", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        queueSelectResponses([
+            { getResult: { id: "org-1", slug: "test" } },
+            { getResult: { id: "user-1", role: "admin" } },
+            { allResult: [] }
+        ]);
+
+        const res = await app.request(
+            "http://localhost/api/orgs/test/papers?venue=%25%5C_", // %\_
+            {},
+            env as any
+        );
+
+        expect(res.status).toBe(200);
+    });
+});
+
+describe("GET /api/orgs/:slug/papers algorithmic DoS prevention", () => {
+    it("escapes wildcard characters correctly in papers query endpoint", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        queueSelectResponses([
+            { getResult: { id: "org-1", slug: "test" } },
+            { getResult: { id: "user-1", role: "admin" } },
+            { allResult: [] }
+        ]);
+
+        const res = await app.request(
+            "http://localhost/api/orgs/test/papers?venue=%25%5C_", // %\_
+            {},
+            env as any
+        );
+
+        expect(res.status).toBe(200);
+    });
+});
