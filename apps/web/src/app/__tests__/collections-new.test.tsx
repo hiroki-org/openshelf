@@ -87,6 +87,61 @@ describe("NewCollectionPage", () => {
     });
   });
 
+  it("shows a spinner while creating a collection", async () => {
+    vi.useFakeTimers();
+    let resolveCreate!: (value: Response) => void;
+    vi.mocked(apiFetch).mockImplementation((url, init) => {
+      if (url === "/api/users/user-1/collections") {
+        return Promise.resolve(
+          new Response(JSON.stringify({ collections: [] }), {
+            status: 200,
+          }),
+        );
+      }
+
+      if (url === "/api/collections" && init?.method === "POST") {
+        return new Promise((resolve) => {
+          resolveCreate = resolve;
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected request: ${String(url)}`));
+    });
+
+    const { container } = render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Lab Picks" },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("✓ 使用可能")).toBeInTheDocument();
+
+    vi.useRealTimers();
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+
+    expect(
+      await screen.findByRole("button", { name: "作成中..." }),
+    ).toBeDisabled();
+    expect(
+      container.querySelector('[aria-hidden="true"].animate-spin'),
+    ).toBeInTheDocument();
+
+    resolveCreate(
+      new Response(JSON.stringify({ collection: { slug: "lab-picks" } }), {
+        status: 201,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/users/user-1/c/lab-picks");
+    });
+  });
+
   it("keeps submit disabled while slug check is still idle (debounce not finished)", async () => {
     vi.mocked(apiFetch).mockImplementation(async (url) => {
       if (url === "/api/users/user-1/collections") {
