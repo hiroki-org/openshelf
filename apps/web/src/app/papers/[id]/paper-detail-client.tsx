@@ -966,7 +966,7 @@ export default function PaperDetailClient({
                   <button
                     type="button"
                     onClick={() => handleInvite(u.id)}
-                    disabled={inviting === u.id}
+                    disabled={inviting !== null}
                     aria-busy={inviting === u.id}
                     className="inline-flex min-w-[72px] items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                   >
