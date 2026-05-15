@@ -271,27 +271,7 @@ describe("users routes", () => {
         expect(body.users).toHaveLength(1);
         expect(body.users[0].name).toBe("Bob"); // Fetched from DB since cache was evicted
     });
-});
 
-describe("GET /api/users/search algorithmic DoS prevention", () => {
-    it("escapes wildcard characters correctly in search endpoint", async () => {
-        const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
-        mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-1", name: "Tester" }] }));
-
-        const app = await createTestApp();
-        const env = createTestEnv();
-
-        const res = await app.request(
-            "http://localhost/api/users/search?q=%25%5C_", // %\_
-            { headers: { Authorization: `Bearer ${token}` } },
-            env as any
-        );
-
-        expect(res.status).toBe(200);
-    });
-});
-
-describe("GET /api/users/search algorithmic DoS prevention", () => {
     it("escapes wildcard characters correctly in search endpoint", async () => {
         const token = await createTestJWT({ sub: "user-1", githubId: "123", name: "Tester" });
         mockDb.select = vi.fn(() => makeQuery({ allResult: [{ id: "user-1", name: "Tester" }] }));

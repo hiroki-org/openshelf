@@ -116,8 +116,11 @@ describe("tags routes", () => {
 
         const app = await createTestApp();
         const env = createTestEnv();
+        const bind = vi.fn().mockReturnValue({
+            all: vi.fn().mockReturnValue({ results: [] }),
+        });
 
-        (env.DB as any).prepare = vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all: vi.fn().mockReturnValue({ results: [] }) }) });
+        (env.DB as any).prepare = vi.fn().mockReturnValue({ bind });
 
         const res = await app.request(
             "http://localhost/api/tags/suggest?q=%25%5C_", // %\_
@@ -126,6 +129,10 @@ describe("tags routes", () => {
         );
 
         expect(res.status).toBe(200);
+        const normalized = bind.mock.calls[0][1] as string;
+        expect(normalized).toContain("\\%");
+        expect(normalized).toContain("\\\\");
+        expect(normalized).toContain("\\_");
     });
 
     it("GET /api/tags/suggest escapes wildcard characters with orgSlug", async () => {
@@ -133,13 +140,16 @@ describe("tags routes", () => {
 
         const app = await createTestApp();
         const env = createTestEnv();
+        const bind = vi.fn().mockReturnValue({
+            all: vi.fn().mockReturnValue({ results: [] }),
+        });
 
         queueSelectResponses([
             { getResult: { id: "org-1" } },
             { getResult: { userId: "user-1" } },
         ]);
 
-        (env.DB as any).prepare = vi.fn().mockReturnValue({ bind: vi.fn().mockReturnValue({ all: vi.fn().mockReturnValue({ results: [] }) }) });
+        (env.DB as any).prepare = vi.fn().mockReturnValue({ bind });
 
 
         const res = await app.request(
@@ -149,6 +159,10 @@ describe("tags routes", () => {
         );
 
         expect(res.status).toBe(200);
+        const normalized = bind.mock.calls[0][2] as string;
+        expect(normalized).toContain("\\%");
+        expect(normalized).toContain("\\\\");
+        expect(normalized).toContain("\\_");
     });
 
     it("GET /api/tags/suggest returns 404 when orgSlug is not found", async () => {

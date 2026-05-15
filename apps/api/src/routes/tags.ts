@@ -71,7 +71,7 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
             LIMIT ?4
         `,
     )
-      .bind(userId, org.id, normalizedQuery || "", TAG_SUGGEST_LIMIT)
+      .bind(userId, org.id, normalizedQuery, TAG_SUGGEST_LIMIT)
       .all();
     tags = (result.results || []).map((r: any) => r.tag);
   } else {
@@ -92,7 +92,7 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
             LIMIT ?3
         `,
     )
-      .bind(userId, normalizedQuery || "", TAG_SUGGEST_LIMIT)
+      .bind(userId, normalizedQuery, TAG_SUGGEST_LIMIT)
       .all();
     tags = (result.results || []).map((r: any) => r.tag);
   }
