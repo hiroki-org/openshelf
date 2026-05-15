@@ -119,7 +119,7 @@ export function CiteButton({ paperId }: CiteButtonProps) {
               <span>{loadingFormat === option.value ? "生成中..." : option.label}</span>
               {loadingFormat === option.value && (
                 <span
-                  className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent ml-2"
+                  className="ml-2 h-3 w-3 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
                   aria-hidden="true"
                 />
               )}

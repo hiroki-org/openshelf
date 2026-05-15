@@ -174,7 +174,7 @@ export default function PaperDetailClient({
   const [showInvite, setShowInvite] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
-  const [inviting, setInviting] = useState(false);
+  const [inviting, setInviting] = useState<string | null>(null);
   const [selectedStatsDays, setSelectedStatsDays] = useState<7 | 30 | 90 | 365>(
     30,
   );
@@ -464,7 +464,7 @@ export default function PaperDetailClient({
   };
 
   const handleInvite = async (inviteeId: string) => {
-    setInviting(true);
+    setInviting(inviteeId);
     try {
       const res = await apiFetch(`/api/papers/${safePath(paperId)}/invites`, {
         method: "POST",
@@ -484,7 +484,7 @@ export default function PaperDetailClient({
     } catch {
       toast.error("ネットワークエラーが発生しました");
     } finally {
-      setInviting(false);
+      setInviting(null);
     }
   };
 
@@ -966,14 +966,18 @@ export default function PaperDetailClient({
                   <button
                     type="button"
                     onClick={() => handleInvite(u.id)}
-                    disabled={inviting}
-                    className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50 inline-flex items-center justify-center min-w-[50px]"
+                    disabled={inviting === u.id}
+                    aria-busy={inviting === u.id}
+                    className="inline-flex min-w-[72px] items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                   >
-                    {inviting ? (
-                      <span
-                        className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
-                        aria-hidden="true"
-                      />
+                    {inviting === u.id ? (
+                      <span className="flex items-center justify-center gap-1">
+                        <span
+                          className="h-3 w-3 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
+                          aria-hidden="true"
+                        />
+                        招待中...
+                      </span>
                     ) : (
                       "招待"
                     )}

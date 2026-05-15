@@ -482,7 +482,7 @@ export default function OrgSettingsPage() {
             {saving ? (
               <span className="flex items-center justify-center gap-2">
                 <span
-                  className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                  className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
                   aria-hidden="true"
                 />
                 保存中...
@@ -530,7 +530,7 @@ export default function OrgSettingsPage() {
                     {deleting ? (
                       <span className="flex items-center justify-center gap-2">
                         <span
-                          className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                          className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
                           aria-hidden="true"
                         />
                         削除中...
@@ -593,13 +593,17 @@ export default function OrgSettingsPage() {
                       type="button"
                       onClick={() => handleAddMember(u.id)}
                       disabled={inviting !== null}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50 inline-flex items-center justify-center min-w-[50px]"
+                      aria-busy={inviting === u.id}
+                      className="inline-flex min-w-[72px] items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                     >
                       {inviting === u.id ? (
-                        <span
-                          className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
-                          aria-hidden="true"
-                        />
+                        <span className="flex items-center justify-center gap-1">
+                          <span
+                            className="h-3 w-3 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
+                            aria-hidden="true"
+                          />
+                          追加中...
+                        </span>
                       ) : (
                         "追加"
                       )}
@@ -683,13 +687,17 @@ export default function OrgSettingsPage() {
                       type="button"
                       onClick={() => handleAddPaper(p.id)}
                       disabled={addingPaper !== null}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50 shrink-0 inline-flex items-center justify-center min-w-[50px]"
+                      aria-busy={addingPaper === p.id}
+                      className="inline-flex min-w-[72px] shrink-0 items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                     >
                       {addingPaper === p.id ? (
-                        <span
-                          className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
-                          aria-hidden="true"
-                        />
+                        <span className="flex items-center justify-center gap-1">
+                          <span
+                            className="h-3 w-3 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
+                            aria-hidden="true"
+                          />
+                          追加中...
+                        </span>
                       ) : (
                         "追加"
                       )}
