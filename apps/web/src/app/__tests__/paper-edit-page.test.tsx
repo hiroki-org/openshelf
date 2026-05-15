@@ -109,7 +109,7 @@ describe("PaperEditPage", () => {
 
     fireEvent.click(screen.getByLabelText(/公開ページに閲覧数を表示する/i));
     fireEvent.change(screen.getByLabelText(/タグ/i), {
-      target: { value: "AI, LLM" },
+      target: { value: "AI， LLM、CV" },
     });
     fireEvent.change(screen.getByLabelText(/Description/i), {
       target: { value: "## Updated description" },
@@ -174,7 +174,7 @@ describe("PaperEditPage", () => {
       venueType: "journal",
       year: 2026,
       category: "presentation",
-      tags: ["AI", "LLM"],
+      tags: ["AI", "LLM", "CV"],
     });
 
     expect(push).toHaveBeenCalledWith("/papers/paper-1");
