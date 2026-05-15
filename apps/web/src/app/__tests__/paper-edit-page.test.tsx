@@ -1,10 +1,4 @@
-import {
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PaperEditPage from "../papers/[id]/edit/page";
 import { apiFetch } from "@/lib/api";
@@ -95,17 +89,13 @@ describe("PaperEditPage", () => {
       target: { value: "Updated title" },
     });
 
-    expect(
-      screen.getByText(`${"Updated title".length}/300`),
-    ).toBeInTheDocument();
+    expect(screen.getByText(`${"Updated title".length}/300`)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/概要/i), {
       target: { value: "Updated abstract" },
     });
 
-    expect(
-      screen.getByText(`${"Updated abstract".length}/5000`),
-    ).toBeInTheDocument();
+    expect(screen.getByText(`${"Updated abstract".length}/5000`)).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText(/公開ページに閲覧数を表示する/i));
     fireEvent.change(screen.getByLabelText(/タグ/i), {
@@ -138,13 +128,6 @@ describe("PaperEditPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "保存する" }));
 
-    expect(screen.getByRole("button", { name: /保存中/ })).toBeInTheDocument();
-    expect(
-      screen
-        .getByRole("button", { name: /保存中/ })
-        .querySelector(".animate-spin"),
-    ).toBeInTheDocument();
-
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
         "/api/papers/paper-1",
@@ -158,8 +141,7 @@ describe("PaperEditPage", () => {
     const patchCall = vi
       .mocked(apiFetch)
       .mock.calls.find(
-        ([url, init]) =>
-          url === "/api/papers/paper-1" && init?.method === "PATCH",
+        ([url, init]) => url === "/api/papers/paper-1" && init?.method === "PATCH",
       );
     const patchBody = JSON.parse((patchCall?.[1]?.body as string) ?? "{}");
     expect(patchBody).toMatchObject({
@@ -179,6 +161,68 @@ describe("PaperEditPage", () => {
 
     expect(push).toHaveBeenCalledWith("/papers/paper-1");
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a spinner while saving edits", async () => {
+    let resolvePatch!: (value: Response) => void;
+    vi.mocked(apiFetch).mockImplementation((url, init) => {
+      if (url === "/api/papers/paper-1" && !init?.method) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              paper: {
+                title: "Original title",
+                abstract: "Original abstract",
+                description: "## Original description",
+                visibility: "private",
+                showViewCount: false,
+                language: "ja",
+                externalUrl: null,
+                doi: null,
+                venue: "Conference",
+                venueType: "conference",
+                year: 2025,
+                category: "report",
+                tags: JSON.stringify(["AI"]),
+              },
+              authors: [{ userId: "user-1" }],
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+
+      if (url === "/api/papers/paper-1" && init?.method === "PATCH") {
+        return new Promise((resolve) => {
+          resolvePatch = resolve;
+        });
+      }
+
+      if (url === "/api/papers/paper-1/description" && init?.method === "PUT") {
+        return Promise.resolve(new Response("{}", { status: 200 }));
+      }
+
+      return Promise.reject(new Error(`Unexpected request: ${String(url)}`));
+    });
+
+    const { container } = render(<PaperEditPage />);
+
+    await screen.findByDisplayValue("Original title");
+
+    fireEvent.click(screen.getByRole("button", { name: "保存する" }));
+
+    expect(
+      await screen.findByRole("button", { name: "保存中..." }),
+    ).toBeDisabled();
+    expect(
+      container.querySelector('[aria-hidden="true"].animate-spin'),
+    ).toBeInTheDocument();
+
+    resolvePatch(new Response("{}", { status: 200 }));
+
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/papers/paper-1");
+    });
   });
 
   it("redirects non-authors back to the paper page", async () => {
@@ -243,7 +287,7 @@ describe("PaperEditPage", () => {
     render(<PaperEditPage />);
 
     expect(
-      await screen.findByText("論文の取得に失敗しました"),
+      await screen.findByText("成果物の取得に失敗しました"),
     ).toBeInTheDocument();
   });
 
@@ -277,19 +321,14 @@ describe("PaperEditPage", () => {
 
     render(<PaperEditPage />);
     expect(await screen.findByDisplayValue("Initial")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/タイトル/i), {
-      target: { value: " " },
-    });
+    fireEvent.change(screen.getByLabelText(/タイトル/i), { target: { value: " " } });
     fireEvent.click(screen.getByRole("button", { name: "保存する" }));
 
-    expect(
-      await screen.findByText("タイトルを入力してください。"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("タイトルを入力してください。")).toBeInTheDocument();
     const patchCalls = vi
       .mocked(apiFetch)
       .mock.calls.filter(
-        ([url, req]) =>
-          url === "/api/papers/paper-1" && req?.method === "PATCH",
+        ([url, req]) => url === "/api/papers/paper-1" && req?.method === "PATCH",
       );
     expect(patchCalls).toHaveLength(0);
   });
@@ -324,17 +363,14 @@ describe("PaperEditPage", () => {
 
     render(<PaperEditPage />);
     expect(await screen.findByDisplayValue("Initial")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText(/発表年/i), {
-      target: { value: "" },
-    });
+    fireEvent.change(screen.getByLabelText(/発表年/i), { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "保存する" }));
 
     const patchCall = await waitFor(() =>
       vi
         .mocked(apiFetch)
         .mock.calls.find(
-          ([url, req]) =>
-            url === "/api/papers/paper-1" && req?.method === "PATCH",
+          ([url, req]) => url === "/api/papers/paper-1" && req?.method === "PATCH",
         ),
     );
     const patchBody = JSON.parse((patchCall?.[1]?.body as string) ?? "{}");
@@ -474,8 +510,7 @@ describe("PaperEditPage", () => {
       vi
         .mocked(apiFetch)
         .mock.calls.find(
-          ([url, req]) =>
-            url === "/api/papers/paper-1" && req?.method === "PATCH",
+          ([url, req]) => url === "/api/papers/paper-1" && req?.method === "PATCH",
         ),
     );
     const patchBody = JSON.parse((patchCall?.[1]?.body as string) ?? "{}");

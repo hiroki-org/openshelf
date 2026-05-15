@@ -215,11 +215,11 @@ export default function PaperDetailClient({
         if (res.status === 401) {
           setError("ログインが必要です");
         } else if (res.status === 403) {
-          setError("この論文を閲覧する権限がありません");
+          setError("この成果物を閲覧する権限がありません");
         } else if (res.status === 404) {
-          setError("論文が見つかりません");
+          setError("成果物が見つかりません");
         } else {
-          setError("論文の取得に失敗しました");
+          setError("成果物の取得に失敗しました");
         }
         return;
       }
@@ -228,7 +228,7 @@ export default function PaperDetailClient({
       setFiles(data.files);
       setAuthors(data.authors);
     } catch {
-      setError("論文の取得に失敗しました");
+      setError("成果物の取得に失敗しました");
     } finally {
       setLoading(false);
     }
