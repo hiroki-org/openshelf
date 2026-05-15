@@ -4,7 +4,6 @@ import { useAuth } from "@/components/auth-provider";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { MarkdownEditor } from "@/components/markdown-editor";
 import { apiFetch } from "@/lib/api";
-import { splitTagInput } from "@/lib/tags";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -171,7 +170,10 @@ export default function PaperEditPage() {
         throw new Error("年は数値で入力してください。");
       }
 
-      const tagsArray = splitTagInput(tagsStr);
+      const tagsArray = tagsStr
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
 
       const payload = {
         title: title.trim(),
