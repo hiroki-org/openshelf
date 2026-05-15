@@ -38,6 +38,7 @@ const MAX_ZOOM = ZOOM_PRESETS[ZOOM_PRESETS.length - 1];
 const CONTINUOUS_BUFFER = 2;
 const PAGE_ASPECT_RATIO = 1.414;
 const SEARCH_DEBOUNCE_MS = 350;
+const TEXT_HIGHLIGHT_CLASS = "highlight";
 
 function clampZoom(value: number): number {
   return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
@@ -62,6 +63,23 @@ function touchDistance(
   return Math.sqrt(dx * dx + dy * dy);
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => {
+    switch (character) {
+      case "&":
+        return "&amp;";
+      case "<":
+        return "&lt;";
+      case ">":
+        return "&gt;";
+      case '"':
+        return "&quot;";
+      default:
+        return "&#39;";
+    }
+  });
+}
+
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const options = {
@@ -81,6 +99,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   const searchTextCacheRef = useRef<Map<number, string>>(new Map());
   const isProgrammaticNavRef = useRef(false);
   const prevViewModeRef = useRef<ViewMode>("paged");
+  const goToPageRef = useRef<(targetPage: number) => void>(() => {});
 
   const [containerWidth, setContainerWidth] = useState(0);
   const [numPages, setNumPages] = useState(0);
@@ -198,6 +217,10 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     },
     [numPages, viewMode],
   );
+
+  useEffect(() => {
+    goToPageRef.current = goToPage;
+  }, [goToPage]);
 
   const onDocumentLoadSuccess = useCallback((info: unknown) => {
     const pdfDocument = info as PdfDocumentProxy;
@@ -335,6 +358,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
         return;
       }
       setActiveMatchIndex(0);
+      goToPageRef.current(matches[0]);
     })();
 
     return () => {
@@ -390,12 +414,41 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     setIsPinching(false);
   }, []);
 
+  const searchRegex = useMemo(() => {
+    if (!debouncedSearchQuery) return null;
+    const escapedQuery = debouncedSearchQuery.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      "\\$&",
+    );
+    return new RegExp("(" + escapedQuery + ")", "gi");
+  }, [debouncedSearchQuery]);
+
+  const textRenderer = useCallback(
+    (textItem: { str: string }) => {
+      if (!searchRegex) return escapeHtml(textItem.str);
+
+      const parts = textItem.str.split(searchRegex);
+      if (parts.length <= 1) return escapeHtml(textItem.str);
+
+      return parts
+        .map((part, i) =>
+          i % 2 === 1
+            ? `<mark class="${TEXT_HIGHLIGHT_CLASS}">${escapeHtml(part)}</mark>`
+            : escapeHtml(part),
+        )
+        .join("");
+    },
+    [searchRegex],
+  );
+
   const renderPage = (targetPage: number) => (
     <Page
       pageNumber={targetPage}
       width={pageWidth}
       renderTextLayer
       renderAnnotationLayer
+      // react-pdf の TextLayer ハイライトは HTML 文字列を返す customTextRenderer が前提
+      customTextRenderer={textRenderer}
     />
   );
 
@@ -621,7 +674,18 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
               </div>
             ) : (
               <div className="flex items-center justify-center">
-                {renderPage(pageNumber)}
+                <div
+                  data-page-number={pageNumber}
+                  className={`w-full rounded ${
+                    activeMatchPage === pageNumber
+                      ? "ring-2 ring-blue-500"
+                      : searchMatchSet.has(pageNumber)
+                        ? "ring-1 ring-blue-300"
+                        : ""
+                  }`}
+                >
+                  {renderPage(pageNumber)}
+                </div>
               </div>
             ))}
         </Document>

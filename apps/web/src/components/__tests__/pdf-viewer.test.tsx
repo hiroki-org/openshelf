@@ -298,6 +298,16 @@ describe("PdfViewer", () => {
     await waitFor(() => {
       expect(screen.getByText("1 / 2")).toBeInTheDocument();
     });
+
+    fireEvent.click(screen.getByRole("button", { name: "次の一致" }));
+    await waitFor(() => {
+      expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "連続スクロール" }));
+    await waitFor(() => {
+      expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    });
   });
 
   it("syncs pinch zoom with zoom controls on touch devices", async () => {
@@ -468,5 +478,124 @@ describe("PdfViewer", () => {
     } finally {
       consoleSpy.mockRestore();
     }
+  });
+
+  it("highlights search text using customTextRenderer", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
+
+    const searchBox = screen.getAllByRole("searchbox", {
+      name: "PDF内検索",
+    })[0];
+
+    fireEvent.change(searchBox, {
+      target: { value: "test.*" },
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    const pageCalls = mockPage.mock.calls;
+    const lastCallProps = pageCalls[pageCalls.length - 1]?.[0];
+
+    expect(lastCallProps).toBeDefined();
+    expect(lastCallProps.customTextRenderer).toBeDefined();
+
+    const renderer = lastCallProps.customTextRenderer!;
+    const res = renderer({ str: "this is a test.* text" });
+    expect(res).toContain('<mark class="highlight">test.*</mark>');
+    expect(res).toContain("this is a ");
+
+    const resEmpty = renderer({ str: "no match" });
+    expect(resEmpty).toBe("no match");
+  });
+
+  it("escapes HTML when rendering highlighted search text", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
+
+    const searchBox = screen.getAllByRole("searchbox", {
+      name: "PDF内検索",
+    })[0];
+
+    fireEvent.change(searchBox, {
+      target: { value: "test" },
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    const pageCalls = mockPage.mock.calls;
+    const lastCallProps = pageCalls[pageCalls.length - 1]?.[0];
+    const renderer = lastCallProps.customTextRenderer!;
+    const res = renderer({ str: `<b>test</b> & "test" 'test'` });
+
+    expect(res).toContain("&lt;b&gt;");
+    expect(res).toContain('<mark class="highlight">test</mark>');
+    expect(res).toContain("&lt;/b&gt;");
+    expect(res).toContain("&amp;");
+    expect(res).toContain("&quot;");
+    expect(res).toContain("&#39;");
+  });
+
+  it("does not highlight search text when query is empty", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
+
+    const searchBox = screen.getAllByRole("searchbox", {
+      name: "PDF内検索",
+    })[0];
+
+    fireEvent.change(searchBox, {
+      target: { value: "test" },
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    fireEvent.change(searchBox, {
+      target: { value: "" },
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    const pageCalls = mockPage.mock.calls;
+    const lastCallProps = pageCalls[pageCalls.length - 1]?.[0];
+
+    expect(lastCallProps).toBeDefined();
+    expect(lastCallProps.customTextRenderer).toBeDefined();
+
+    const renderer = lastCallProps.customTextRenderer!;
+    const res = renderer({ str: "this is a text" });
+    expect(res).toBe("this is a text");
+  });
+
+  it("shows active match border in paged mode", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      documentProps.onLoadSuccess?.(createMockPdfDocument(["alpha target"]));
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      {
+        target: { value: "target" },
+      },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 1")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      const currentPageWrapper = document.querySelector(
+        '[data-page-number="1"]',
+      );
+      expect(currentPageWrapper).toHaveClass("ring-2", "ring-blue-500");
+    });
   });
 });

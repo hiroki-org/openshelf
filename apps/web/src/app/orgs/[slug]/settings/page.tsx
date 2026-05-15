@@ -472,7 +472,17 @@ export default function OrgSettingsPage() {
             disabled={saving}
             className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
           >
-            {saving ? "保存中..." : "保存"}
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <span
+                  className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
+                  aria-hidden="true"
+                />
+                保存中...
+              </span>
+            ) : (
+              "保存"
+            )}
           </button>
 
           {/* Danger zone */}
@@ -510,7 +520,17 @@ export default function OrgSettingsPage() {
                     disabled={deleting || deleteConfirm !== org.slug}
                     className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:opacity-50"
                   >
-                    {deleting ? "削除中..." : "完全に削除する"}
+                    {deleting ? (
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
+                          aria-hidden="true"
+                        />
+                        削除中...
+                      </span>
+                    ) : (
+                      "完全に削除する"
+                    )}
                   </button>
                   <button
                     type="button"
