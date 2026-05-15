@@ -116,7 +116,17 @@ export function CiteButton({ paperId }: CiteButtonProps) {
               disabled={loadingFormat !== null}
               role="menuitem"
             >
-              {loadingFormat === option.value ? "生成中..." : option.label}
+              {loadingFormat === option.value ? (
+                <span className="flex items-center gap-2">
+                  <span
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                    aria-hidden="true"
+                  />
+                  生成中...
+                </span>
+              ) : (
+                option.label
+              )}
             </button>
           ))}
         </div>
