@@ -107,7 +107,7 @@ export default function UploadPage() {
           year: year ? Number(year) : null,
           category: category || null,
           tags: tags
-            .split(",")
+            .split(/[,，、]/)
             .map((t) => t.trim())
             .filter(Boolean),
         }),

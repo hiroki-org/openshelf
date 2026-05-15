@@ -21,7 +21,7 @@ function splitEditingState(value: string): {
   currentRaw: string;
   currentTrimmed: string;
 } {
-  const parts = value.split(",");
+  const parts = value.split(/[,，、]/);
   if (parts.length === 0) {
     return { committed: [], currentRaw: "", currentTrimmed: "" };
   }
