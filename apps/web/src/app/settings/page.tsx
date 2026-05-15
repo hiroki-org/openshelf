@@ -132,12 +132,13 @@ export default function SettingsPage() {
               maxLength={50}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
+              aria-describedby="display-name-counter"
               className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-900"
               placeholder="表示名を入力（空欄でGitHub名にフォールバック）"
             />
             <div className="mt-2 flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between">
               <span>1〜50文字</span>
-              <span>{displayName.length}/50</span>
+              <span id="display-name-counter">{displayName.length}/50</span>
             </div>
           </div>
 
