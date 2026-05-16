@@ -22,6 +22,10 @@ export default function InvitesPage() {
   const router = useRouter();
   const [invites, setInvites] = useState<ReceivedInvite[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [responding, setResponding] = useState<{
+    id: string;
+    action: "accept" | "decline";
+  } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -53,6 +57,7 @@ export default function InvitesPage() {
   }, [user]);
 
   const respond = async (inviteId: string, action: "accept" | "decline") => {
+    setResponding({ id: inviteId, action });
     try {
       const res = await apiFetch(
         `/api/invites/${encodeURIComponent(inviteId)}`,
@@ -74,6 +79,8 @@ export default function InvitesPage() {
     } catch (err) {
       console.error(`Failed to ${action} invite ${inviteId}:`, err);
       // Keep UI state unchanged when request fails.
+    } finally {
+      setResponding(null);
     }
   };
 
@@ -168,15 +175,31 @@ export default function InvitesPage() {
                     <button
                       type="button"
                       onClick={() => respond(inv.id, "accept")}
-                      className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+                      disabled={responding?.id === inv.id}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
                     >
+                      {responding?.id === inv.id &&
+                        responding.action === "accept" && (
+                          <span
+                            className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                            aria-hidden="true"
+                          />
+                        )}
                       承認
                     </button>
                     <button
                       type="button"
                       onClick={() => respond(inv.id, "decline")}
-                      className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                      disabled={responding?.id === inv.id}
+                      className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                     >
+                      {responding?.id === inv.id &&
+                        responding.action === "decline" && (
+                          <span
+                            className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                            aria-hidden="true"
+                          />
+                        )}
                       拒否
                     </button>
                   </div>
