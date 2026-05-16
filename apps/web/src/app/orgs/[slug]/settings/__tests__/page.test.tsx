@@ -371,7 +371,7 @@ describe("OrgSettingsPage", () => {
     const paperRow = screen.getByText("Transformer Tricks").closest("li");
     expect(paperRow).not.toBeNull();
 
-    fireEvent.click(within(paperRow!).getByRole("button", { name: "解除" }));
+    fireEvent.click(within(paperRow!).getByRole("button", { name: "Transformer Tricksの紐づけを解除" }));
 
     await waitFor(() => {
       expect(screen.queryByText("Transformer Tricks")).not.toBeInTheDocument();

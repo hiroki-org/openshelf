@@ -702,6 +702,7 @@ export default function OrgSettingsPage() {
                     type="button"
                     onClick={() => handleRemovePaper(p.id)}
                     className="text-red-500 hover:text-red-700 text-xs shrink-0 ml-2"
+                    aria-label={`${p.title}の紐づけを解除`}
                   >
                     解除
                   </button>
