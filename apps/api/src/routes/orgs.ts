@@ -86,9 +86,8 @@ function hasJwtSub(value: unknown): value is Pick<JwtPayload, "sub"> {
 
 const MEMBER_ROLES = ["admin", "member"] as const;
 
-const escapeLikeLiteral = (str: string) => {
-  return str.replace(/[\\%_]/g, "\\$&");
-};
+import { escapeLikeLiteral } from "../utils/sql";
+
 
 const ADMIN_LIKE_ROLES = ["admin", "owner"] as const;
 

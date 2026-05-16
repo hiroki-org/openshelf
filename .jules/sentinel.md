@@ -16,3 +16,7 @@
 **Issue:** String exceptions were not handled, causing the app to return an Internal Server Error.
 **Learning:** `e instanceof Error` correctly identifies built-in errors, but doesn't handle `throw "error"`. It caused Hono to not correctly propagate a 500 status.
 **Prevention:** Handled by validating `e instanceof Error ? e.message : typeof e === 'string' ? e : "";` and throwing an error properly at the end `throw e instanceof Error ? e : new Error(String(e));`.
+## 2024-05-18 - [Wildcard Injection via Drizzle like()]
+**Vulnerability:** Drizzle ORM's `like()` function used in `apps/api/src/routes/tags.ts` without escaping wildcards.
+**Learning:** `like()` in Drizzle or raw SQL `LIKE` queries do not automatically escape `%` and `_` characters. User input passed directly to `LIKE` allows for wildcard injection, which could lead to algorithmic complexity Denial of Service (DoS) attacks.
+**Prevention:** Always manually escape wildcard characters in user input before passing it to SQL queries using `escapeLikeLiteral` and an explicit `ESCAPE '\\'` clause.

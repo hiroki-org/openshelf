@@ -102,9 +102,8 @@ function setCachedResults(key: string, data: UserSearchResult[]) {
   searchCache.set(key, { data, timestamp: Date.now() });
 }
 
-function escapeLikeLiteral(str: string): string {
-  return str.replace(/[\\%_]/g, "\\$&");
-}
+import { escapeLikeLiteral } from "../utils/sql";
+
 
 // GET /api/users/search?q=xxx — search users for coauthor invite
 usersRoute.get("/search", authMiddleware, async (c) => {
