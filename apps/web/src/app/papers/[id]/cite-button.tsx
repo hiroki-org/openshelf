@@ -111,7 +111,7 @@ export function CiteButton({ paperId }: CiteButtonProps) {
             <button
               key={option.value}
               type="button"
-              className="block w-full rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-gray-200 dark:hover:bg-gray-800"
+              className="flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-gray-200 dark:hover:bg-gray-800"
               onClick={() => handleCopy(option.value)}
               disabled={loadingFormat !== null}
               role="menuitem"
@@ -119,7 +119,7 @@ export function CiteButton({ paperId }: CiteButtonProps) {
               {loadingFormat === option.value ? (
                 <span className="flex items-center gap-2">
                   <span
-                    className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                    className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
                     aria-hidden="true"
                   />
                   生成中...
