@@ -159,9 +159,6 @@ function isBotUserAgent(userAgent: string | undefined): boolean {
 
 function getClientIp(c: Context<{ Bindings: Env; Variables: Variables }>): string {
     return c.req.header("CF-Connecting-IP")
-        ?? c.req.header("cf-connecting-ip")
-        ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim()
-        ?? c.req.header("x-forwarded-for")?.split(",")[0]?.trim()
         ?? "unknown-ip";
 }
 
