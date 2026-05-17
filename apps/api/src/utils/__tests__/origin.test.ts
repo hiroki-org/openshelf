@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAllowedOrigin, matchesOriginPattern, normalizeOrigin } from "../origin";
+import { isAllowedOrigin, matchesOriginPattern, normalizeOrigin, parseOriginList } from "../origin";
 
 describe("origin utils", () => {
     it("allows request when origin matches the normalized frontend origin", () => {
@@ -13,6 +13,34 @@ describe("origin utils", () => {
                 { allowWildcard: false },
             ),
         ).toBe(true);
+    });
+
+    describe("parseOriginList", () => {
+        it("returns empty array for undefined", () => {
+            expect(parseOriginList(undefined)).toEqual([]);
+        });
+
+        it("returns empty array for empty string", () => {
+            expect(parseOriginList("")).toEqual([]);
+        });
+
+        it("returns single origin for single string", () => {
+            expect(parseOriginList("https://example.com")).toEqual(["https://example.com"]);
+        });
+
+        it("returns array of origins for comma-separated string", () => {
+            expect(parseOriginList("https://example.com,https://app.example.com")).toEqual([
+                "https://example.com",
+                "https://app.example.com",
+            ]);
+        });
+
+        it("trims whitespace and ignores empty parts", () => {
+            expect(parseOriginList(" https://example.com ,  , https://app.example.com , ")).toEqual([
+                "https://example.com",
+                "https://app.example.com",
+            ]);
+        });
     });
 
     describe("matchesOriginPattern", () => {
