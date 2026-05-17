@@ -96,7 +96,9 @@ function isMemberRole(role: unknown): role is (typeof MEMBER_ROLES)[number] {
   return (MEMBER_ROLES as readonly unknown[]).includes(role);
 }
 
-function isAdminLikeRole(role: unknown): role is (typeof ADMIN_LIKE_ROLES)[number] {
+function isAdminLikeRole(
+  role: unknown,
+): role is (typeof ADMIN_LIKE_ROLES)[number] {
   return (ADMIN_LIKE_ROLES as readonly unknown[]).includes(role);
 }
 
@@ -253,8 +255,7 @@ orgsRoute.get("/:slug/tags", async (c) => {
   if (orgPapers.length === 0) return c.json({ tags: [] });
 
   const counts = new Map<string, number>();
-  const tagCache = new Map<string, string[]>();
-  const lowerCache = new Map<string, string>();
+  const rawTagCounts = new Map<string, number>();
 
   for (const paper of orgPapers) {
     const isAuthor = paper.authorUserId === currentUserId;
@@ -265,22 +266,18 @@ orgsRoute.get("/:slug/tags", async (c) => {
     if (!isVisible) continue;
 
     const rawTags = paper.tags ?? "";
-    let tags = tagCache.get(rawTags);
-    if (tags === undefined) {
-      tags = parseStoredTags(rawTags);
-      tagCache.set(rawTags, tags);
+    if (rawTags) {
+      rawTagCounts.set(rawTags, (rawTagCounts.get(rawTags) ?? 0) + 1);
     }
+  }
 
+  for (const [rawTags, count] of rawTagCounts) {
+    const tags = parseStoredTags(rawTags);
     for (const tag of tags) {
       if (query) {
-        let lower = lowerCache.get(tag);
-        if (lower === undefined) {
-          lower = tag.toLowerCase();
-          lowerCache.set(tag, lower);
-        }
-        if (!lower.startsWith(query)) continue;
+        if (!tag.toLowerCase().startsWith(query)) continue;
       }
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      counts.set(tag, (counts.get(tag) ?? 0) + count);
     }
   }
 
