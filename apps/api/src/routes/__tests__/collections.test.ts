@@ -55,7 +55,7 @@ describe("collections routes", () => {
     expect(res.status).toBe(401);
   });
 
-  it("POST /api/collections ignores general db insert errors", async () => {
+  it("POST /api/collections propagates general db insert errors", async () => {
     const err = new Error("General insert error");
     mockDb.insert = vi.fn().mockReturnValue({
       values: vi.fn().mockRejectedValue(err),
@@ -733,7 +733,7 @@ describe("collections routes", () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Invalid visibility" });
   });
-  it("PATCH /api/collections/:id ignores general db update errors", async () => {
+  it("PATCH /api/collections/:id propagates general db update errors", async () => {
     queueSelectResponses([
       { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
     ]);
@@ -1266,7 +1266,7 @@ describe("collections routes", () => {
     expect(await res.json()).toEqual({ error: "Paper not found" });
   });
 
-  it("POST /api/collections/:id/papers ignores general db insert errors", async () => {
+  it("POST /api/collections/:id/papers propagates general db insert errors", async () => {
     queueSelectResponses([
       { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
       { getResult: { id: "p1" } },
@@ -1770,6 +1770,40 @@ describe("collections routes", () => {
     await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
   });
 
+
+  it("PATCH /api/collections/:id/papers returns 400 when paper_ids is empty array", async () => {
+    const token = await createTestJWT({ sub: "user-1" });
+    queueSelectResponses([
+      {
+        getResult: {
+          id: "col-1",
+          ownerType: "user",
+          ownerId: "user-1",
+          visibility: "private",
+        },
+      },
+    ]);
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/api/collections/col-1/papers",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ paper_ids: [] }),
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as any).error).toBe("paper_ids is required");
+  });
+
   it("PATCH /api/collections/:id/papers rejects duplicate paper IDs", async () => {
     const token = await createTestJWT({ sub: "user-1" });
     queueSelectResponses([
@@ -1846,6 +1880,103 @@ describe("collections routes", () => {
     );
   });
 
+
+  it("DELETE /api/collections/:id/papers/:paperId returns 400 when paperId is invalid", async () => {
+    const token = await createTestJWT({ sub: "user-1" });
+    queueSelectResponses([
+      {
+        getResult: {
+          id: "col-1",
+          ownerType: "user",
+          ownerId: "user-1",
+          visibility: "private",
+        },
+      },
+    ]);
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    // Passing empty space so it gets normalized to empty string
+    const res = await app.request(
+      "http://localhost/api/collections/col-1/papers/   %20", // Space encoded
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as any).error).toBe("paper_id is invalid or too long");
+  });
+
+  it("DELETE /api/collections/:id/papers/:paperId returns 200 on successful deletion", async () => {
+    const token = await createTestJWT({ sub: "user-1" });
+    queueSelectResponses([
+      {
+        getResult: {
+          id: "col-1",
+          ownerType: "user",
+          ownerId: "user-1",
+          visibility: "private",
+        },
+      },
+    ]);
+
+    mockDb.delete = vi.fn(() => ({
+      where: vi.fn(async () => ({ meta: { changes: 1 } })),
+    }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/api/collections/col-1/papers/paper-1",
+      {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as any).ok).toBe(true);
+  });
+
+  it("PATCH /api/collections/:id/papers returns 400 when body is an array", async () => {
+    const token = await createTestJWT({ sub: "user-1" });
+    queueSelectResponses([
+      {
+        getResult: {
+          id: "col-1",
+          ownerType: "user",
+          ownerId: "user-1",
+          visibility: "private",
+        },
+      },
+    ]);
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/api/collections/col-1/papers",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify([]),
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as any).error).toBe("Invalid JSON body");
+  });
+
   it("DELETE /api/collections/:id/papers/:paperId returns 404 when the paper is not in the collection", async () => {
     const token = await createTestJWT({ sub: "user-1" });
     queueSelectResponses([
@@ -1877,6 +2008,96 @@ describe("collections routes", () => {
 
     expect(res.status).toBe(404);
     expect(((await res.json()) as any).error).toBe("Paper not in collection");
+  });
+
+
+  it("GET /api/collections/:id/papers returns all papers when all papers are public", async () => {
+    const token = await createTestJWT({ sub: "user-1" });
+    queueSelectResponses([
+      {
+        getResult: {
+          id: "col-1",
+          ownerType: "user",
+          ownerId: "user-1",
+          visibility: "public",
+        },
+      },
+      {
+        allResult: [
+          {
+            id: "paper-public",
+            title: "Public 1",
+            visibility: "public",
+            sortOrder: 0,
+          },
+          {
+            id: "paper-public-2",
+            title: "Public 2",
+            visibility: "public",
+            sortOrder: 1,
+          },
+        ],
+      },
+    ]);
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/api/collections/col-1/papers",
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    expect(
+      ((await res.json()) as any).papers.map((paper: any) => paper.id),
+    ).toEqual(["paper-public", "paper-public-2"]);
+  });
+
+  it("GET /api/collections/:id/papers filters out non-public papers when unauthenticated", async () => {
+    queueSelectResponses([
+      {
+        getResult: {
+          id: "col-1",
+          ownerType: "user",
+          ownerId: "user-1",
+          visibility: "public",
+        },
+      },
+      {
+        allResult: [
+          {
+            id: "paper-public",
+            title: "Public",
+            visibility: "public",
+            sortOrder: 0,
+          },
+          {
+            id: "paper-private",
+            title: "Private",
+            visibility: "private",
+            sortOrder: 1,
+          },
+        ],
+      },
+    ]);
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/api/collections/col-1/papers",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    expect(
+      ((await res.json()) as any).papers.map((paper: any) => paper.id),
+    ).toEqual(["paper-public"]);
   });
 
   it("GET /api/collections/:id/papers filters restricted papers by authorship and org access", async () => {
