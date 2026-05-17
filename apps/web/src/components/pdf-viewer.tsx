@@ -321,34 +321,53 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
     void (async () => {
       const matches: number[] = [];
-      for (let page = 1; page <= doc.numPages; page += 1) {
-        try {
-          let pageText = searchTextCacheRef.current.get(page);
-          if (pageText === undefined) {
-            const pdfPage = await doc.getPage(page);
-            const textContent = await pdfPage.getTextContent();
-            pageText = textContent.items
-              .map((item) => {
-                if (
-                  item &&
-                  typeof item === "object" &&
-                  "str" in item &&
-                  typeof (item as { str?: unknown }).str === "string"
-                ) {
-                  return (item as { str: string }).str.toLowerCase();
+      const BATCH_SIZE = 10;
+      for (let i = 1; i <= doc.numPages; i += BATCH_SIZE) {
+        if (cancelled) return;
+        const batch = [];
+        for (let j = 0; j < BATCH_SIZE && i + j <= doc.numPages; j++) {
+          const page = i + j;
+          batch.push(
+            (async () => {
+              try {
+                let pageText = searchTextCacheRef.current.get(page);
+                if (pageText === undefined) {
+                  const pdfPage = await doc.getPage(page);
+                  const textContent = await pdfPage.getTextContent();
+                  pageText = textContent.items
+                    .map((item) => {
+                      if (
+                        item &&
+                        typeof item === "object" &&
+                        "str" in item &&
+                        typeof (item as { str?: unknown }).str === "string"
+                      ) {
+                        return (item as { str: string }).str.toLowerCase();
+                      }
+                      return "";
+                    })
+                    .join(" ");
+                  searchTextCacheRef.current.set(page, pageText);
                 }
-                return "";
-              })
-              .join(" ");
-            searchTextCacheRef.current.set(page, pageText);
+                return { page, hasMatch: pageText.includes(query) };
+              } catch (error) {
+                const message =
+                  error instanceof Error ? String(error) : String(error);
+                console.warn(
+                  `Failed to extract text for page ${page}:`,
+                  message,
+                );
+                return { page, hasMatch: false };
+              }
+            })(),
+          );
+        }
+        const results = await Promise.all(batch);
+        if (cancelled) return;
+        for (const res of results) {
+          if (res.hasMatch) {
+            matches.push(res.page);
           }
-          if (pageText.includes(query)) {
-            matches.push(page);
-          }
-        } catch (error) {
-          const message =
-            error instanceof Error ? String(error) : String(error);
-          console.warn(`Failed to extract text for page ${page}:`, message);
         }
       }
       if (cancelled) return;
