@@ -252,3 +252,159 @@ describe("papers preview routes", () => {
     expect(body.filename).toBe("sample.pdf");
   });
 });
+
+it("POST /api/papers/:id/files/batch-preview ignores missing files in results", async () => {
+  mockDb.select = vi
+    .fn()
+    .mockImplementationOnce(() =>
+      makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+    )
+    .mockImplementationOnce(() =>
+      makeQuery({
+        allResult: [
+          {
+            id: "file-1",
+            mimeType: "image/png",
+            filename: "1.png",
+            r2Key: "k1",
+          },
+          // file-2 is missing from DB results
+        ],
+      }),
+    );
+
+  const app = await createTestApp();
+  const env = createTestEnv({
+    BUCKET: {
+      createSignedUrl: vi.fn(async (key) => `https://signed.example/${key}`),
+    } as any,
+  });
+
+  const res = await app.request(
+    "http://localhost/api/papers/paper-1/files/batch-preview",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({ fileIds: ["file-1", "file-2"] }),
+    },
+    env as any,
+  );
+
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as any;
+  expect(body.previews["file-1"]).toBeDefined();
+  expect(body.previews["file-2"]).toBeUndefined();
+});
+
+it("POST /api/papers/:id/files/batch-preview returns 404 for invalid paper", async () => {
+  mockDb.select = vi
+    .fn()
+    .mockImplementationOnce(() => makeQuery({ getResult: null }));
+  const app = await createTestApp();
+  const res = await app.request(
+    "http://localhost/api/papers/paper-invalid/files/batch-preview",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({ fileIds: ["file-1"] }),
+    },
+    createTestEnv() as any,
+  );
+  expect(res.status).toBe(404);
+});
+
+it("POST /api/papers/:id/files/batch-preview returns error if unauthorized", async () => {
+  mockDb.select = vi
+    .fn()
+    .mockImplementationOnce(() =>
+      makeQuery({ getResult: { id: "paper-1", visibility: "private" } }),
+    );
+  const app = await createTestApp();
+  const res = await app.request(
+    "http://localhost/api/papers/paper-1/files/batch-preview",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({ fileIds: ["file-1"] }),
+    },
+    createTestEnv() as any,
+  );
+  expect(res.status).toBe(401);
+});
+
+it("POST /api/papers/:id/files/batch-preview falls back to stream URL when signed URL generation fails for some files", async () => {
+  mockDb.select = vi
+    .fn()
+    .mockImplementationOnce(() =>
+      makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+    )
+    .mockImplementationOnce(() =>
+      makeQuery({
+        allResult: [
+          {
+            id: "file-1",
+            paperId: "paper-1",
+            r2Key: "papers/paper-1/paper/sample1.png",
+            mimeType: "image/png",
+            filename: "sample1.png",
+          },
+        ],
+      }),
+    );
+
+  const app = await createTestApp();
+  const env = createTestEnv({
+    BUCKET: {
+      createSignedUrl: vi.fn(async () => {
+        throw new Error("presign failed");
+      }),
+    } as any,
+  });
+
+  const res = await app.request(
+    "http://localhost/api/papers/paper-1/files/batch-preview",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "http://localhost:3000",
+      },
+      body: JSON.stringify({ fileIds: ["file-1"] }),
+    },
+    env as any,
+  );
+
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as any;
+  expect(body.previews["file-1"]).toEqual({
+    url: "/api/papers/paper-1/files/file-1/stream",
+    mimeType: "image/png",
+    filename: "sample1.png",
+  });
+});
+
+it("GET /api/papers/:id/files/:fileId/preview returns 404 for missing file", async () => {
+  mockDb.select = vi
+    .fn()
+    .mockImplementationOnce(() =>
+      makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+    )
+    .mockImplementationOnce(() => makeQuery({ getResult: null }));
+
+  const app = await createTestApp();
+  const res = await app.request(
+    "http://localhost/api/papers/paper-1/files/file-missing/preview",
+    {},
+    createTestEnv() as any,
+  );
+  expect(res.status).toBe(404);
+});

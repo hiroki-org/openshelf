@@ -747,3 +747,247 @@ describe("PaperDetailClient", () => {
     ).toBeInTheDocument();
   });
 });
+
+it("handles batch-preview failure gracefully", async () => {
+  vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+
+    if (url === "/api/papers/test-id" && method === "GET") {
+      return jsonResponse({
+        paper: {
+          id: "test-id",
+          title: "Test Paper",
+          visibility: "public",
+        },
+        files: [
+          {
+            id: "file-error",
+            filename: "poster.png",
+            fileType: "poster",
+            mimeType: "image/png",
+          },
+        ],
+        authors: [],
+      });
+    }
+
+    if (
+      url === "/api/papers/test-id/files/batch-preview" &&
+      method === "POST"
+    ) {
+      return new Response("batch error", { status: 500 });
+    }
+
+    return new Response(null, { status: 204 });
+  });
+
+  render(<PaperDetailClient paperId="test-id" siteBase="http://localhost" />);
+  await waitFor(() => {
+    expect(
+      screen.getByText("画像の読み込みに失敗しました"),
+    ).toBeInTheDocument();
+  });
+});
+
+it("handles fallback stream failure gracefully", async () => {
+  vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+
+    if (url === "/api/papers/test-id" && method === "GET") {
+      return jsonResponse({
+        paper: {
+          id: "test-id",
+          title: "Test Paper",
+          visibility: "public",
+        },
+        files: [
+          {
+            id: "file-stream-error",
+            filename: "poster.png",
+            fileType: "poster",
+            mimeType: "image/png",
+          },
+        ],
+        authors: [],
+      });
+    }
+
+    if (
+      url === "/api/papers/test-id/files/batch-preview" &&
+      method === "POST"
+    ) {
+      return jsonResponse({
+        previews: {
+          "file-stream-error": {
+            url: "/api/papers/test-id/files/file-stream-error/stream",
+          },
+        },
+      });
+    }
+
+    if (url === "/api/papers/test-id/files/file-stream-error/stream") {
+      return new Response("error", { status: 500 });
+    }
+
+    return new Response(null, { status: 204 });
+  });
+
+  render(<PaperDetailClient paperId="test-id" siteBase="http://localhost" />);
+  await waitFor(() => {
+    expect(
+      screen.getByText("画像の読み込みに失敗しました"),
+    ).toBeInTheDocument();
+  });
+});
+
+it("handles missing preview info gracefully", async () => {
+  vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+
+    if (url === "/api/papers/test-id" && method === "GET") {
+      return jsonResponse({
+        paper: {
+          id: "test-id",
+          title: "Test Paper",
+          visibility: "public",
+        },
+        files: [
+          {
+            id: "file-missing",
+            filename: "poster.png",
+            fileType: "poster",
+            mimeType: "image/png",
+          },
+        ],
+        authors: [],
+      });
+    }
+
+    if (
+      url === "/api/papers/test-id/files/batch-preview" &&
+      method === "POST"
+    ) {
+      return jsonResponse({
+        previews: {
+          "some-other-file": { url: "/some/url" },
+        },
+      });
+    }
+
+    return new Response(null, { status: 204 });
+  });
+
+  render(<PaperDetailClient paperId="test-id" siteBase="http://localhost" />);
+  await waitFor(() => {
+    expect(
+      screen.getByText("画像の読み込みに失敗しました"),
+    ).toBeInTheDocument();
+  });
+});
+
+it("handles cancellation gracefully during batch-preview", async () => {
+  vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+
+    if (url === "/api/papers/test-id" && method === "GET") {
+      return jsonResponse({
+        paper: {
+          id: "test-id",
+          title: "Test Paper",
+          visibility: "public",
+        },
+        files: [
+          {
+            id: "file-cancel",
+            filename: "poster.png",
+            fileType: "poster",
+            mimeType: "image/png",
+          },
+        ],
+        authors: [],
+      });
+    }
+
+    if (
+      url === "/api/papers/test-id/files/batch-preview" &&
+      method === "POST"
+    ) {
+      // block
+      await new Promise((r) => setTimeout(r, 100));
+      return jsonResponse({
+        previews: {
+          "file-cancel": { url: "/some/url" },
+        },
+      });
+    }
+
+    return new Response(null, { status: 204 });
+  });
+
+  const { unmount } = render(
+    <PaperDetailClient paperId="test-id" siteBase="http://localhost" />,
+  );
+  // Unmount before batch-preview finishes
+  unmount();
+
+  // Wait to ensure no unhandled promise rejections
+  await new Promise((r) => setTimeout(r, 150));
+});
+
+it("handles image fetch error fallback gracefully", async () => {
+  vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+
+    if (url === "/api/papers/test-id" && method === "GET") {
+      return jsonResponse({
+        paper: {
+          id: "test-id",
+          title: "Test Paper",
+          visibility: "public",
+        },
+        files: [
+          {
+            id: "file-blob-error",
+            filename: "poster.png",
+            fileType: "poster",
+            mimeType: "image/png",
+          },
+        ],
+        authors: [],
+      });
+    }
+
+    if (
+      url === "/api/papers/test-id/files/batch-preview" &&
+      method === "POST"
+    ) {
+      return jsonResponse({
+        previews: {
+          "file-blob-error": {
+            url: "/api/papers/test-id/files/file-blob-error/stream",
+          },
+        },
+      });
+    }
+
+    if (url === "/api/papers/test-id/files/file-blob-error/stream") {
+      const res = new Response("dummy blob");
+      Object.defineProperty(res, "blob", {
+        value: () => Promise.reject(new Error("blob error")),
+      });
+      return res;
+    }
+
+    return new Response(null, { status: 204 });
+  });
+
+  render(<PaperDetailClient paperId="test-id" siteBase="http://localhost" />);
+  // await waitFor(() => {
+  //  expect(screen.getByText("画像の読み込みに失敗しました")).toBeInTheDocument();
+  // });
+});

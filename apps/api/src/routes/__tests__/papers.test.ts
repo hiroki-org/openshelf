@@ -3356,6 +3356,63 @@ describe("Error handling and untested branches", () => {
     expect(json.total.views).toBe(0);
   });
 
+  it("GET /api/papers/:id/files/:fileId/stream returns 404 if paper not found", async () => {
+    const { makeQuery } = await import("../../test/helpers");
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() => makeQuery({ getResult: null }));
+
+    const res = await app.request(
+      "http://localhost/api/papers/paper-invalid/files/file-1/stream",
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /api/papers/:id/files/:fileId/stream returns error if unauthorized", async () => {
+    const { makeQuery } = await import("../../test/helpers");
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({ getResult: { id: "paper-1", visibility: "private" } }),
+      );
+
+    const res = await app.request(
+      "http://localhost/api/papers/paper-1/files/file-1/stream",
+      {
+        method: "GET",
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(401);
+  });
+
+  it("GET /api/papers/:id/files/:fileId/stream returns 404 if file metadata not found", async () => {
+    const { makeQuery } = await import("../../test/helpers");
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+      )
+      .mockImplementationOnce(() => makeQuery({ getResult: null }));
+
+    const res = await app.request(
+      "http://localhost/api/papers/paper-1/files/file-missing/stream",
+      {
+        method: "GET",
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(404);
+  });
+
   it("GET /api/papers/:id/files/:fileId/stream returns 404 if file is not in R2", async () => {
     const { makeQuery } = await import("../../test/helpers");
     mockDb.select = vi
