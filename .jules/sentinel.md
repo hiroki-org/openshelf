@@ -16,3 +16,8 @@
 **Issue:** String exceptions were not handled, causing the app to return an Internal Server Error.
 **Learning:** `e instanceof Error` correctly identifies built-in errors, but doesn't handle `throw "error"`. It caused Hono to not correctly propagate a 500 status.
 **Prevention:** Handled by validating `e instanceof Error ? e.message : typeof e === 'string' ? e : "";` and throwing an error properly at the end `throw e instanceof Error ? e : new Error(String(e));`.
+
+## 2024-05-17 - [SQL Injection via LIKE Operator Wildcards]
+**Vulnerability:** The Drizzle ORM `like()` helper does not natively escape literal wildcard characters (`%`, `_`) or support an `ESCAPE` clause, leading to wildcard injection (algorithmic complexity DoS) when using user input in `LIKE` queries.
+**Learning:** `tags.ts` has multiple occurrences of `AND ${TRIMMED_TAG_SQL} LIKE ?3 || '%' ESCAPE '\\' COLLATE NOCASE` and similar constructs without escaping wildcards in user input. `escapeLikeLiteral` is defined locally in multiple routes (`orgs.ts`, `users.ts`), but it should be a shared utility and used consistently wherever user input is matched with `LIKE`.
+**Prevention:** Always use a shared `escapeLikeLiteral` utility to escape user input before using it in `LIKE` queries, whether using raw SQL statements, Drizzle's `like()` (which actually requires `sql\...\` for escape clauses), or `db.prepare`.
