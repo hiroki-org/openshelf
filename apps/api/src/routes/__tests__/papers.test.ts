@@ -3238,6 +3238,54 @@ describe("papers routes", () => {
 
       expect(res.status).toBe(500);
     });
+
+    it("POST /api/papers/:id/invites propagates error when fetching invitee by email fails", async () => {
+      const token = await createTestJWT({
+        sub: "user-uploader",
+        githubId: "123",
+        name: "Uploader",
+      });
+
+      const { makeQuery } = await import("../../test/helpers");
+      mockDb.select = vi
+        .fn()
+        .mockImplementationOnce(() =>
+          makeQuery({
+            getResult: {
+              paperId: "paper-1",
+              userId: "user-uploader",
+              role: "uploader",
+            },
+          }),
+        )
+        .mockImplementationOnce(() => {
+          return {
+            from: vi.fn().mockReturnThis(),
+            where: vi.fn().mockReturnThis(),
+            get: vi
+              .fn()
+              .mockRejectedValue(new Error("DB error when fetching by email")),
+          };
+        });
+
+      const app = await createTestApp();
+      const env = createTestEnv();
+
+      const res = await app.request(
+        "http://localhost/api/papers/paper-1/invites",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ inviteeEmail: "test@example.com" }),
+        },
+        env as any,
+      );
+
+      expect(res.status).toBe(500);
+    });
   });
 });
 
