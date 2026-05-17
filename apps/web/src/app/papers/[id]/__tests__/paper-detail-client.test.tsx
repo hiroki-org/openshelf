@@ -149,6 +149,19 @@ describe("PaperDetailClient", () => {
         return blobResponse("image", "image/png");
       }
 
+      if (
+        url === "/api/papers/test-id/files/batch-preview" &&
+        method === "POST"
+      ) {
+        return jsonResponse({
+          previews: {
+            "file-image": {
+              url: "/api/papers/test-id/files/file-image/stream",
+              mimeType: "image/png",
+            },
+          },
+        });
+      }
       if (url === "/api/papers/test-id/track" && method === "POST") {
         return new Response(null, { status: 204 });
       }
@@ -294,6 +307,19 @@ describe("PaperDetailClient", () => {
         return blobResponse("preview", "application/pdf");
       }
 
+      if (
+        url === "/api/papers/paper-1/files/batch-preview" &&
+        method === "POST"
+      ) {
+        return jsonResponse({
+          previews: {
+            "file-image": {
+              url: "/api/papers/paper-1/files/file-image/stream",
+              mimeType: "image/png",
+            },
+          },
+        });
+      }
       if (
         url === "/api/papers/paper-1/files/file-image/stream" &&
         method === "GET"

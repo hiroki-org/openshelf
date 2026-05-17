@@ -390,41 +390,78 @@ export default function PaperDetailClient({
 
     const loadImages = async () => {
       const currentFailedIds: string[] = [];
-      const entries = await Promise.all(
-        imageFiles.map(async (img) => {
-          try {
-            const streamPath = `/api/papers/${safePath(paperId)}/files/${safePath(img.id)}/stream`;
-            const res = await apiFetch(streamPath);
-            if (!res.ok) {
+
+      try {
+        const fileIds = imageFiles.map((img) => img.id);
+        const res = await apiFetch(
+          `/api/papers/${safePath(paperId)}/files/batch-preview`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fileIds }),
+          },
+        );
+
+        if (!res.ok) throw new Error("batch-preview failed");
+
+        const data = (await res.json()) as {
+          previews: Record<string, { url: string }>;
+        };
+
+        const entries = await Promise.all(
+          imageFiles.map(async (img) => {
+            try {
+              const previewInfo = data.previews[img.id];
+              if (!previewInfo) {
+                currentFailedIds.push(img.id);
+                return [img.id, ""] as const;
+              }
+
+              let resolvedUrl = previewInfo.url;
+              if (!isAbsoluteUrl(previewInfo.url)) {
+                // Fallback to stream object URL for non-absolute URLs
+                const streamRes = await apiFetch(previewInfo.url);
+                if (!streamRes.ok) {
+                  currentFailedIds.push(img.id);
+                  return [img.id, ""] as const;
+                }
+                const blob = await streamRes.blob();
+                resolvedUrl = URL.createObjectURL(blob);
+                createdUrls.push(resolvedUrl);
+              }
+
+              return [img.id, resolvedUrl] as const;
+            } catch (err) {
+              console.error(`Error loading image ${img.id}:`, err);
               currentFailedIds.push(img.id);
               return [img.id, ""] as const;
             }
-            const blob = await res.blob();
-            const objectUrl = URL.createObjectURL(blob);
-            createdUrls.push(objectUrl);
-            return [img.id, objectUrl] as const;
-          } catch (err) {
-            console.error(`Error loading image ${img.id}:`, err);
-            currentFailedIds.push(img.id);
-            return [img.id, ""] as const;
-          }
-        }),
-      );
+          }),
+        );
 
-      if (cancelled) {
-        revokeUrlsIdle(createdUrls);
-        return;
-      }
+        if (cancelled) {
+          revokeUrlsIdle(createdUrls);
+          return;
+        }
 
-      setImagePreviewUrls(Object.fromEntries(entries.filter(([, url]) => url)));
-      setFailedImageIds(currentFailedIds);
+        setImagePreviewUrls(
+          Object.fromEntries(entries.filter(([, url]) => url)),
+        );
+        setFailedImageIds(currentFailedIds);
 
-      if (
-        entries.some(([, url]) => Boolean(url)) &&
-        trackedPreviewPaperIdRef.current !== paperId
-      ) {
-        trackedPreviewPaperIdRef.current = paperId;
-        trackEvent("preview");
+        if (
+          entries.some(([, url]) => Boolean(url)) &&
+          trackedPreviewPaperIdRef.current !== paperId
+        ) {
+          trackedPreviewPaperIdRef.current = paperId;
+          trackEvent("preview");
+        }
+      } catch (err) {
+        console.error("Critical error in loadImages batch preview fetch:", err);
+        if (!cancelled) {
+          setImagePreviewUrls({});
+          setFailedImageIds(imageFiles.map((f) => f.id));
+        }
       }
     };
 
