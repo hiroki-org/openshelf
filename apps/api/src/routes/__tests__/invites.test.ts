@@ -140,9 +140,10 @@ describe("invites routes", () => {
 
     expect(res.status).toBe(200);
     await expect(res.json()).resolves.toEqual({ ok: true, status: "accepted" });
+    expect(mockDb.batch).toHaveBeenCalledTimes(1);
   });
 
-  it("PUT /api/invites/:id declines invite", async () => {
+  it("PATCH /api/invites/:id declines invite", async () => {
     const token = await createTestJWT({
       sub: "user-2",
       githubId: "456",
@@ -165,7 +166,7 @@ describe("invites routes", () => {
     const res = await app.request(
       "http://localhost/api/invites/inv-1",
       {
-        method: "PUT",
+        method: "PATCH",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -390,27 +391,38 @@ describe("invites routes", () => {
       }),
     );
     mockDb.batch = vi.fn().mockRejectedValue(new Error("DB batch error"));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
 
     const app = await createTestApp();
     const env = createTestEnv();
 
-    const res = await app.request(
-      "http://localhost/api/invites/inv-1",
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+    try {
+      const res = await app.request(
+        "http://localhost/api/invites/inv-1",
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "accept" }),
         },
-        body: JSON.stringify({ action: "accept" }),
-      },
-      env as any,
-    );
+        env as any,
+      );
 
-    expect(res.status).toBe(500);
-    await expect(res.json()).resolves.toEqual({
-      error: "Failed to respond to invite",
-    });
+      expect(res.status).toBe(500);
+      await expect(res.json()).resolves.toEqual({
+        error: "Failed to respond to invite",
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Failed to respond to invite",
+        expect.any(Error),
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 
   it("PUT /api/invites/:id propagates db.update error on decline", async () => {
@@ -434,26 +446,37 @@ describe("invites routes", () => {
         where: vi.fn().mockRejectedValue(new Error("DB update error")),
       })),
     }));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
 
     const app = await createTestApp();
     const env = createTestEnv();
 
-    const res = await app.request(
-      "http://localhost/api/invites/inv-1",
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+    try {
+      const res = await app.request(
+        "http://localhost/api/invites/inv-1",
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "decline" }),
         },
-        body: JSON.stringify({ action: "decline" }),
-      },
-      env as any,
-    );
+        env as any,
+      );
 
-    expect(res.status).toBe(500);
-    await expect(res.json()).resolves.toEqual({
-      error: "Failed to respond to invite",
-    });
+      expect(res.status).toBe(500);
+      await expect(res.json()).resolves.toEqual({
+        error: "Failed to respond to invite",
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Failed to respond to invite",
+        expect.any(Error),
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
   });
 });

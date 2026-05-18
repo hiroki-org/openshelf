@@ -103,7 +103,8 @@ const respondInviteHandler = async (c: any) => {
                 })
                 .where(eq(coauthorInvites.id, inviteId));
         }
-    } catch {
+    } catch (error) {
+        console.error("Failed to respond to invite", error);
         return c.json({ error: "Failed to respond to invite" }, 500);
     }
 
