@@ -19,7 +19,7 @@ describe("badge utils", () => {
     describe("BADGE_CACHE_CONTROL", () => {
         it("has the correct cache control string", () => {
             expect(BADGE_CACHE_CONTROL).toBe(
-                "public, max-age=86400, stale-while-revalidate=3600",
+                "public, max-age=86400, stale-while-revalidate=3600"
             );
         });
     });

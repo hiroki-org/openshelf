@@ -84,7 +84,13 @@ function readBadgeOptions(c: BadgeContext) {
 badgeRoute.get("/:paperId", async (c) => {
     const paperId = c.req.param("paperId");
     const options = readBadgeOptions(c);
-    const paper = await fetchPublicPaper(c, paperId);
+
+    let paper;
+    try {
+        paper = await fetchPublicPaper(c, paperId);
+    } catch (e) {
+        return c.body(null, 500);
+    }
 
     if (!paper) {
         const notFound = buildNotFoundBadge(options);

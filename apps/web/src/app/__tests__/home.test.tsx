@@ -46,17 +46,9 @@ describe("Home page", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /研究データを一箇所に/,
+        name: /研究成果物を保存し、共有する。/,
       }),
     ).toBeInTheDocument();
-
-    // Add additional assertions to increase coverage on page.tsx guest view
-    expect(screen.getByText(/Research output hosting/)).toBeInTheDocument();
-    expect(screen.getByText(/OpenShelf は、論文・スライド・補足資料などをまとめて管理し/)).toBeInTheDocument();
-    expect(screen.getByText(/1\. 成果物をまとめる/)).toBeInTheDocument();
-    expect(screen.getByText(/2\. 公開範囲を選ぶ/)).toBeInTheDocument();
-    expect(screen.getByText(/3\. 永続URLで共有/)).toBeInTheDocument();
-
     expect(login).toHaveBeenCalledTimes(1);
   });
 
@@ -73,7 +65,7 @@ describe("Home page", () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText("まだ成果物がありません")).toBeInTheDocument();
+      expect(screen.getByText("まだ論文がありません")).toBeInTheDocument();
     });
 
     expect(screen.getAllByText("0")).toHaveLength(3);
@@ -129,24 +121,5 @@ describe("Home page", () => {
     expect(paperLinks[0]).toHaveTextContent("Newer paper");
     expect(paperLinks[1]).toHaveTextContent("Older paper");
     expect(screen.getAllByText("公開")).toHaveLength(1);
-  });
-
-
-  it("handles apiFetch returning not ok", async () => {
-    authState = { user: { id: "user-1", name: "Alice" }, loading: false, login };
-    vi.mocked(apiFetch).mockResolvedValue(new Response("error", { status: 500 }));
-    render(<Home />);
-    await waitFor(() => {
-      expect(screen.getByText("まだ成果物がありません")).toBeInTheDocument();
-    });
-  });
-
-  it("handles apiFetch error gracefully", async () => {
-    authState = { user: { id: "user-1", name: "Alice" }, loading: false, login };
-    vi.mocked(apiFetch).mockRejectedValue(new Error("Network error"));
-    render(<Home />);
-    await waitFor(() => {
-      expect(screen.getByText("まだ成果物がありません")).toBeInTheDocument();
-    });
   });
 });

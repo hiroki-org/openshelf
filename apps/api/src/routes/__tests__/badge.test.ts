@@ -236,6 +236,22 @@ describe("badge routes", () => {
         expect(second.headers.get("etag")).toBe(etag);
     });
 
+    it("propagates general db select errors", async () => {
+        mockDb.select = vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+                where: vi.fn().mockReturnValue({
+                    get: vi.fn().mockRejectedValue(new Error("DB Error"))
+                })
+            })
+        });
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request("http://localhost/badge/paper-error", {}, env as any);
+        expect(res.status).toBe(500);
+    });
+
     it("returns 304 when If-None-Match includes multiple values", async () => {
         queueSelectResponses([
             {
