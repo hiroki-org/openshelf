@@ -3492,22 +3492,25 @@ describe("Error handling and untested branches", () => {
     });
   });
 
-  it("POST /api/papers rejects upload when form data has completely invalid JSON metadata", async () => {
-    const formData = new FormData();
-    formData.append("metadata", "unparseable-json-here");
+  it.each(["\"just a string\"", "42", "null"])(
+    "POST /api/papers rejects upload when parsed metadata JSON is not an object: %s",
+    async (metadata) => {
+      const formData = new FormData();
+      formData.append("metadata", metadata);
 
-    const res = await app.request(
-      "http://localhost/api/papers",
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      },
-      env as any,
-    );
-    expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Invalid metadata JSON" });
-  });
+      const res = await app.request(
+        "http://localhost/api/papers",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        },
+        env as any,
+      );
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "Invalid metadata JSON" });
+    },
+  );
 
   it("POST /api/papers handles missing/invalid metadata JSON correctly", async () => {
     const formData = new FormData();
