@@ -3442,7 +3442,6 @@ describe("Error handling and untested branches", () => {
     formData.append("file_types_0", "paper");
 
     const customEnv = createTestEnv({
-      DB: mockDb as any,
       BUCKET: {
         put: vi.fn().mockRejectedValue(new Error("R2 put failure")),
         delete: vi.fn().mockResolvedValue(undefined),
