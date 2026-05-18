@@ -1,5 +1,6 @@
 "use client";
 
+import { Spinner } from "@/components/spinner";
 import { toast } from "@/components/toast";
 import { apiFetch } from "@/lib/api";
 import { safePath } from "@/lib/sanitization";
@@ -118,11 +119,11 @@ export function CiteButton({ paperId }: CiteButtonProps) {
             >
               {loadingFormat === option.value ? (
                 <span className="flex items-center gap-2">
-                  <span
-                    className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
-                    aria-hidden="true"
-                  />
-                  生成中...
+                  <Spinner className="h-3 w-3" />
+                  <span aria-hidden="true">生成中...</span>
+                  <span className="sr-only">
+                    {option.label} の引用を生成中
+                  </span>
                 </span>
               ) : (
                 option.label
