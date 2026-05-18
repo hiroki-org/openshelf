@@ -298,6 +298,91 @@ describe("invites routes", () => {
     await expect(res.json()).resolves.toEqual({ error: "Invite not found" });
   });
 
+  it("PUT /api/invites/:id returns 500 when foreign key setup fails", async () => {
+    const token = await createTestJWT({
+      sub: "user-2",
+      githubId: "456",
+      name: "Invitee",
+    });
+    mockDb.run = vi.fn().mockRejectedValue(new Error("FK setup failed"));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    try {
+      const res = await app.request(
+        "http://localhost/api/invites/inv-1",
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "accept" }),
+        },
+        env as any,
+      );
+
+      expect(res.status).toBe(500);
+      await expect(res.json()).resolves.toEqual({
+        error: "Failed to respond to invite",
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Failed to respond to invite",
+        expect.any(Error),
+      );
+      expect(mockDb.select).not.toHaveBeenCalled();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it("PUT /api/invites/:id returns 500 when invite lookup fails", async () => {
+    const token = await createTestJWT({
+      sub: "user-2",
+      githubId: "456",
+      name: "Invitee",
+    });
+    mockDb.select = vi.fn(() => {
+      throw new Error("DB select error");
+    });
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    try {
+      const res = await app.request(
+        "http://localhost/api/invites/inv-1",
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "accept" }),
+        },
+        env as any,
+      );
+
+      expect(res.status).toBe(500);
+      await expect(res.json()).resolves.toEqual({
+        error: "Failed to respond to invite",
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "Failed to respond to invite",
+        expect.any(Error),
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("PUT /api/invites/:id returns 403 when user is not invitee", async () => {
     const token = await createTestJWT({
       sub: "user-3",

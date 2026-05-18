@@ -62,14 +62,20 @@ const respondInviteHandler = async (c: any) => {
     }
 
     const db = drizzle(c.env.DB);
-    await enableForeignKeys(db);
     const userId = c.get("user").sub;
 
-    const invite = await db
-        .select()
-        .from(coauthorInvites)
-        .where(eq(coauthorInvites.id, inviteId))
-        .get();
+    let invite;
+    try {
+        await enableForeignKeys(db);
+        invite = await db
+            .select()
+            .from(coauthorInvites)
+            .where(eq(coauthorInvites.id, inviteId))
+            .get();
+    } catch (error) {
+        console.error("Failed to respond to invite", error);
+        return c.json({ error: "Failed to respond to invite" }, 500);
+    }
     if (!invite) return c.json({ error: "Invite not found" }, 404);
     if (invite.inviteeId !== userId)
         return c.json({ error: "Forbidden" }, 403);
