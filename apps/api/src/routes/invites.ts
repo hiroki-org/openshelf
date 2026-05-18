@@ -78,29 +78,33 @@ const respondInviteHandler = async (c: any) => {
 
     const newStatus = action === "accept" ? "accepted" : "declined";
 
-    if (action === "accept") {
-        await db.batch([
-            db
+    try {
+        if (action === "accept") {
+            await db.batch([
+                db
+                    .update(coauthorInvites)
+                    .set({
+                        status: newStatus,
+                        respondedAt: sql`(datetime('now'))`,
+                    })
+                    .where(eq(coauthorInvites.id, inviteId)),
+                db.insert(paperAuthors).values({
+                    paperId: invite.paperId,
+                    userId,
+                    role: "coauthor",
+                }),
+            ]);
+        } else {
+            await db
                 .update(coauthorInvites)
                 .set({
                     status: newStatus,
                     respondedAt: sql`(datetime('now'))`,
                 })
-                .where(eq(coauthorInvites.id, inviteId)),
-            db.insert(paperAuthors).values({
-                paperId: invite.paperId,
-                userId,
-                role: "coauthor",
-            }),
-        ]);
-    } else {
-        await db
-            .update(coauthorInvites)
-            .set({
-                status: newStatus,
-                respondedAt: sql`(datetime('now'))`,
-            })
-            .where(eq(coauthorInvites.id, inviteId));
+                .where(eq(coauthorInvites.id, inviteId));
+        }
+    } catch {
+        return c.json({ error: "Failed to respond to invite" }, 500);
     }
 
     return c.json({ ok: true, status: newStatus });

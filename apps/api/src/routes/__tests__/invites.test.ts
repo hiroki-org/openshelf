@@ -93,8 +93,16 @@ describe("invites routes", () => {
     );
 
     expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
-    expect(body.invites).toHaveLength(1);
+    await expect(res.json()).resolves.toEqual({
+      invites: [
+        {
+          id: "inv-1",
+          paperId: "paper-1",
+          paperTitle: "Paper",
+          status: "pending",
+        },
+      ],
+    });
   });
 
   it("PUT /api/invites/:id accepts invite", async () => {
@@ -131,6 +139,7 @@ describe("invites routes", () => {
     );
 
     expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true, status: "accepted" });
   });
 
   it("PUT /api/invites/:id declines invite", async () => {
@@ -167,6 +176,7 @@ describe("invites routes", () => {
     );
 
     expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true, status: "declined" });
   });
 
   it("PUT /api/invites/:id returns 400 for invalid JSON", async () => {
@@ -193,8 +203,8 @@ describe("invites routes", () => {
     );
 
     expect(res.status).toBe(400);
-    const body = (await res.json()) as any;
-    expect(body).toEqual({ error: "Invalid JSON body" });
+    await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
+    expect(mockDb.select).not.toHaveBeenCalled();
   });
 
   it("POST /api/papers/:id/invites returns 400 when inviting self", async () => {
@@ -230,34 +240,6 @@ describe("invites routes", () => {
     expect(res.status).toBe(400);
   });
 
-  it("PUT /api/invites/:id returns 400 for invalid JSON body", async () => {
-    const token = await createTestJWT({
-      sub: "user-1",
-      githubId: "123",
-      name: "Uploader",
-    });
-    const app = await createTestApp();
-    const env = createTestEnv();
-
-    // Malformed JSON should fail before invite lookup or authorization.
-    const res = await app.request(
-      "http://localhost/api/invites/inv-1",
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: "{",
-      },
-      env as any,
-    );
-
-    expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
-    expect(mockDb.select).not.toHaveBeenCalled();
-  });
-
   it("PUT /api/invites/:id returns 400 for invalid action", async () => {
     const token = await createTestJWT({
       sub: "user-1",
@@ -281,6 +263,10 @@ describe("invites routes", () => {
     );
 
     expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error: "action must be accept or decline",
+    });
+    expect(mockDb.select).not.toHaveBeenCalled();
   });
 
   it("PUT /api/invites/:id returns 404 when invite not found", async () => {
@@ -308,6 +294,7 @@ describe("invites routes", () => {
     );
 
     expect(res.status).toBe(404);
+    await expect(res.json()).resolves.toEqual({ error: "Invite not found" });
   });
 
   it("PUT /api/invites/:id returns 403 when user is not invitee", async () => {
@@ -344,6 +331,7 @@ describe("invites routes", () => {
     );
 
     expect(res.status).toBe(403);
+    await expect(res.json()).resolves.toEqual({ error: "Forbidden" });
   });
 
   it("PUT /api/invites/:id returns 400 when invite is already responded to", async () => {
@@ -380,6 +368,9 @@ describe("invites routes", () => {
     );
 
     expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error: "Invite already responded",
+    });
   });
 
   it("PUT /api/invites/:id propagates db.batch error on accept", async () => {
@@ -417,5 +408,8 @@ describe("invites routes", () => {
     );
 
     expect(res.status).toBe(500);
+    await expect(res.json()).resolves.toEqual({
+      error: "Failed to respond to invite",
+    });
   });
 });
