@@ -3258,6 +3258,7 @@ describe("Error handling and untested branches", () => {
   });
 
   it("POST /api/papers/:id/invites handles malformed JSON body", async () => {
+    // Send invalid JSON that throws an error when c.req.json() parses it.
     const res = await app.request(
       "http://localhost/api/papers/paper-1/invites",
       {
@@ -3266,7 +3267,7 @@ describe("Error handling and untested branches", () => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: "{",
+        body: "{ bad json: [ }",
       },
       env as any,
     );
@@ -3596,6 +3597,7 @@ describe("Error handling and untested branches", () => {
   });
 
   it("PUT /api/papers/:id/description handles malformed JSON body", async () => {
+    // Send invalid JSON that throws an error when c.req.json() parses it.
     const res = await app.request(
       "http://localhost/api/papers/paper-1/description",
       {
@@ -3604,7 +3606,7 @@ describe("Error handling and untested branches", () => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: "{",
+        body: "{ bad json: [ }",
       },
       env as any,
     );
@@ -3630,6 +3632,7 @@ describe("Error handling and untested branches", () => {
   });
 
   it("PATCH /api/papers/:id handles malformed JSON body", async () => {
+    // Send invalid JSON that throws an error when c.req.json() parses it.
     const res = await app.request(
       "http://localhost/api/papers/paper-1",
       {
@@ -3638,7 +3641,7 @@ describe("Error handling and untested branches", () => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: "{",
+        body: "{ bad json: [ }",
       },
       env as any,
     );
