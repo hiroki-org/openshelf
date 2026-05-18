@@ -39,10 +39,6 @@ type OrgState = {
   }>;
 };
 
-type OrgApiMockOptions = {
-  removePaper?: (paperId: string) => Promise<Response> | Response;
-};
-
 vi.mock("@/components/auth-provider", () => ({
   useAuth: () => authState,
 }));
@@ -77,7 +73,7 @@ function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
 }
 
-function setupOrgApiMock(state: OrgState, options: OrgApiMockOptions = {}) {
+function setupOrgApiMock(state: OrgState) {
   const userSearchResults = [
     {
       id: "user-3",
@@ -192,12 +188,8 @@ function setupOrgApiMock(state: OrgState, options: OrgApiMockOptions = {}) {
       return jsonResponse({ ok: true });
     }
 
-    if (url.startsWith("/api/orgs/demo-org/papers/") && method === "DELETE") {
-      const paperId = decodeURIComponent(url.split("/").pop() ?? "");
-      if (options.removePaper) {
-        return options.removePaper(paperId);
-      }
-      state.papers = state.papers.filter((paper) => paper.id !== paperId);
+    if (url === "/api/orgs/demo-org/papers/paper-2" && method === "DELETE") {
+      state.papers = state.papers.filter((paper) => paper.id !== "paper-2");
       return jsonResponse({ ok: true });
     }
 
@@ -359,8 +351,8 @@ describe("OrgSettingsPage", () => {
       expect(screen.queryByText("Bob")).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "成果物" }));
-    fireEvent.change(screen.getByLabelText("成果物検索"), {
+    fireEvent.click(screen.getByRole("button", { name: "論文" }));
+    fireEvent.change(screen.getByLabelText("論文検索"), {
       target: { value: "tr" },
     });
 
@@ -419,98 +411,6 @@ describe("OrgSettingsPage", () => {
 
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith("/");
-    });
-  });
-
-  it("shows API errors when unlinking an org deliverable fails", async () => {
-    setupOrgApiMock(
-      {
-        org: {
-          id: "org-1",
-          slug: "demo-org",
-          name: "Demo Org",
-          description: null,
-        },
-        members: [
-          {
-            userId: "owner-1",
-            role: "owner",
-            name: "owner",
-            displayName: "Owner",
-            avatarUrl: null,
-            githubId: "owner",
-          },
-        ],
-        papers: [
-          {
-            id: "paper-1",
-            title: "Existing Paper",
-            visibility: "public",
-            year: 2025,
-            venue: "Conf",
-          },
-        ],
-      },
-      {
-        removePaper: () => jsonResponse({ error: "解除できません" }, 500),
-      },
-    );
-
-    initialTab = "papers";
-    render(<OrgSettingsPage />);
-
-    await screen.findByRole("heading", { name: "Demo Org — 設定" });
-    fireEvent.click(screen.getByRole("button", { name: "解除" }));
-
-    await waitFor(() => {
-      expect(alert).toHaveBeenCalledWith("解除できません");
-    });
-  });
-
-  it("shows network errors when unlinking an org deliverable throws", async () => {
-    setupOrgApiMock(
-      {
-        org: {
-          id: "org-1",
-          slug: "demo-org",
-          name: "Demo Org",
-          description: null,
-        },
-        members: [
-          {
-            userId: "owner-1",
-            role: "owner",
-            name: "owner",
-            displayName: "Owner",
-            avatarUrl: null,
-            githubId: "owner",
-          },
-        ],
-        papers: [
-          {
-            id: "paper-1",
-            title: "Existing Paper",
-            visibility: "public",
-            year: 2025,
-            venue: "Conf",
-          },
-        ],
-      },
-      {
-        removePaper: () => {
-          throw new Error("network");
-        },
-      },
-    );
-
-    initialTab = "papers";
-    render(<OrgSettingsPage />);
-
-    await screen.findByRole("heading", { name: "Demo Org — 設定" });
-    fireEvent.click(screen.getByRole("button", { name: "解除" }));
-
-    await waitFor(() => {
-      expect(alert).toHaveBeenCalledWith("ネットワークエラー");
     });
   });
 

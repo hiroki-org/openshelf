@@ -18,3 +18,7 @@
 ## 2025-05-13 - Input Field Character Counter Accessibility Improvement
 **Learning:** 文字数カウンターを実装する際、スクリーンリーダー向けに入力フィールドとカウンターをプログラム的に関連付けるには `aria-describedby` 属性を使用するのがベストプラクティスです。`aria-live` は入力のたびに読み上げが発生するため煩わしい場合があります。
 **Action:** 今後、入力フィールドに対する文字数カウンターなど、付加的な動的情報を提供する際は `aria-live` ではなく、入力要素に `aria-describedby` を付与してカウンター要素を紐付けるアプローチをデフォルトの設計とします。
+
+## 2025-05-19 - Accessible Loading Spinner in Dropdown Menu Items
+**Learning:** The loading spinner pattern inside a `button` (e.g. `animate-spin` with `aria-hidden="true"`) is equally effective when applied to interactive dropdown menu items (e.g., `role="menuitem"`) during async operations like generating formats, providing better visual context than text changes alone.
+**Action:** Moving forward, apply visual loading indicators not just to primary form submit buttons, but also to secondary action items like dropdown menu items that execute async actions.
