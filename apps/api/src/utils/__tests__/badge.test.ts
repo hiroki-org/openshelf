@@ -17,7 +17,7 @@ import {
 
 describe("badge utils", () => {
     describe("BADGE_CACHE_CONTROL", () => {
-        it("has the correct cache control string", () => {
+        it("sets 24h public cache with 1h stale-while-revalidate window", () => {
             expect(BADGE_CACHE_CONTROL).toBe(
                 "public, max-age=86400, stale-while-revalidate=3600",
             );
