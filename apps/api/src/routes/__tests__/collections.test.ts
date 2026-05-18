@@ -764,69 +764,45 @@ describe("collections routes", () => {
     expect(res.status).toBe(500);
   });
 
-  it("PATCH /api/collections/:id returns 409 if sqlite throws a unique constraint error D1_ERROR", async () => {
-    queueSelectResponses([
-      { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
-    ]);
-    const err = new Error("D1_ERROR: UNIQUE constraint failed: collections.slug");
-    mockDb.update = vi.fn().mockReturnValue({
-      set: vi.fn().mockReturnValue({
-        where: vi.fn().mockRejectedValue(err),
-      }),
-    });
-    const app = await createTestApp();
-    const env = createTestEnv();
-    const res = await app.request(
-      "http://localhost/api/collections/c1",
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}`,
-        },
-        body: JSON.stringify({
-          name: "C2",
-          slug: "col-2",
-          description: "desc",
-          visibility: "public",
+  it.each([
+    "D1_ERROR: UNIQUE constraint failed: collections.slug",
+    "UNIQUE constraint failed: collections.slug",
+  ])(
+    "PATCH /api/collections/:id returns 409 if slug already in use (%s)",
+    async (errorMessage) => {
+      queueSelectResponses([
+        { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
+      ]);
+      const err = new Error(errorMessage);
+      mockDb.update = vi.fn().mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockRejectedValue(err),
         }),
-      },
-      env,
-    );
-    expect(res.status).toBe(409);
-    expect(await res.json()).toEqual({ error: "slug already in use" });
-  });
-
-  it("PATCH /api/collections/:id returns 409 if slug already in use", async () => {
-    queueSelectResponses([
-      { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
-    ]);
-    const err = new Error("UNIQUE constraint failed: collections.slug");
-    mockDb.update = vi.fn().mockReturnValue({
-      set: vi.fn().mockReturnValue({
-        where: vi.fn().mockRejectedValue(err),
-      }),
-    });
-    const app = await createTestApp();
-    const env = createTestEnv();
-    const res = await app.request(
-      "http://localhost/api/collections/c1",
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}`,
+      });
+      const app = await createTestApp();
+      const env = createTestEnv();
+      const res = await app.request(
+        "http://localhost/api/collections/c1",
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}`,
+          },
+          body: JSON.stringify({
+            name: "C2",
+            slug: "col-2",
+            description: "desc",
+            visibility: "public",
+          }),
         },
-        body: JSON.stringify({
-          name: "C2",
-          slug: "col-2",
-          description: "desc",
-          visibility: "public",
-        }),
-      },
-      env,
-    );
-    expect(res.status).toBe(409);
-    expect(await res.json()).toEqual({ error: "slug already in use" });
-  });
+        env,
+      );
+      expect(res.status).toBe(409);
+      await expect(res.json()).resolves.toEqual({
+        error: "slug already in use",
+      });
+    },
+  );
 
   it("PATCH /api/collections/:id returns 400 when name is invalid", async () => {
     queueSelectResponses([
