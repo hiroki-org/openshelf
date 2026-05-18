@@ -1,5 +1,6 @@
 import {
   cleanup,
+  createEvent,
   fireEvent,
   render,
   screen,
@@ -60,7 +61,7 @@ describe("UploadPage", () => {
       target: { value: "My paper" },
     });
     fireEvent.click(
-      screen.getByRole("button", { name: "論文をアップロードする" }),
+      screen.getByRole("button", { name: "成果物をアップロードする" }),
     );
 
     expect(
@@ -81,9 +82,7 @@ describe("UploadPage", () => {
     fireEvent.change(screen.getByLabelText(/タイトル/i), {
       target: { value: "  My paper  " },
     });
-    expect(
-      screen.getByText(`${"  My paper  ".length}/300`),
-    ).toBeInTheDocument();
+    expect(screen.getByText(`${"  My paper  ".length}/300`)).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/概要/i), {
       target: { value: "Abstract" },
@@ -98,7 +97,7 @@ describe("UploadPage", () => {
       }),
     );
     fireEvent.change(screen.getByLabelText(/タグ（カンマ区切り）/i), {
-      target: { value: "AI, LLM" },
+      target: { value: "AI，LLM、CV" },
     });
 
     const input = screen.getByLabelText("アップロードファイル");
@@ -111,7 +110,7 @@ describe("UploadPage", () => {
     });
 
     fireEvent.click(
-      screen.getByRole("button", { name: "論文をアップロードする" }),
+      screen.getByRole("button", { name: "成果物をアップロードする" }),
     );
 
     await waitFor(() => {
@@ -142,12 +141,161 @@ describe("UploadPage", () => {
       venueType: null,
       year: 2025,
       category: null,
-      tags: ["AI", "LLM"],
+      tags: ["AI", "LLM", "CV"],
     });
     expect(formData.get("file_types_0")).toBe("paper");
     expect(formData.get("files_0")).toBeInstanceOf(File);
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith("/papers/paper-1");
     });
+  });
+
+  it("handles drag and drop events for file upload", async () => {
+    render(<UploadPage />);
+
+    // initially normal text
+    expect(
+      screen.getByText("ファイルを複数選択（またはドラッグ＆ドロップ）"),
+    ).toBeInTheDocument();
+
+    const dropzone = screen.getByRole("button", {
+      description: /添付ファイル/i,
+    });
+
+    // simulate drag enter
+    fireEvent.dragEnter(dropzone, {
+      dataTransfer: {
+        types: ["Files"],
+      },
+    });
+    expect(screen.getByText("ドロップして追加")).toBeInTheDocument();
+
+    // moving across children should not clear the active drag state
+    const child = dropzone.querySelector("span");
+    const internalDragLeave = createEvent.dragLeave(dropzone);
+    Object.defineProperty(internalDragLeave, "relatedTarget", {
+      value: child,
+    });
+    fireEvent(dropzone, internalDragLeave);
+    expect(screen.getByText("ドロップして追加")).toBeInTheDocument();
+
+    // simulate drag leave outside
+    fireEvent.dragLeave(dropzone);
+    expect(
+      screen.getByText("ファイルを複数選択（またはドラッグ＆ドロップ）"),
+    ).toBeInTheDocument();
+
+    // simulate drag enter again
+    fireEvent.dragEnter(dropzone, {
+      dataTransfer: {
+        types: ["Files"],
+      },
+    });
+    expect(screen.getByText("ドロップして追加")).toBeInTheDocument();
+
+    // simulate drop
+    const file = new File(["dummy content"], "test.pdf", {
+      type: "application/pdf",
+    });
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [file],
+      },
+    });
+
+    // text should reset to normal
+    expect(
+      screen.getByText("ファイルを複数選択（またはドラッグ＆ドロップ）"),
+    ).toBeInTheDocument();
+
+    // file should be added
+    expect(await screen.findByText("test.pdf")).toBeInTheDocument();
+  });
+
+  it("does not show drop feedback for non-file drags", () => {
+    render(<UploadPage />);
+
+    const dropzone = screen.getByRole("button", {
+      description: /添付ファイル/i,
+    });
+
+    fireEvent.dragEnter(dropzone, {
+      dataTransfer: {
+        types: ["text/plain"],
+      },
+    });
+
+    expect(
+      screen.getByText("ファイルを複数選択（またはドラッグ＆ドロップ）"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("ドロップして追加")).not.toBeInTheDocument();
+  });
+
+  it("filters unsupported files dropped into the upload area", async () => {
+    render(<UploadPage />);
+
+    const dropzone = screen.getByRole("button", {
+      description: /添付ファイル/i,
+    });
+
+    const validFile = new File(["%PDF-1.7"], "paper.pdf", {
+      type: "application/pdf",
+    });
+    const invalidFile = new File(["doc"], "notes.docx", {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [validFile, invalidFile],
+      },
+    });
+
+    expect(
+      await screen.findByText("対応していないファイル形式は除外しました"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("paper.pdf")).toBeInTheDocument();
+    expect(screen.queryByText("notes.docx")).not.toBeInTheDocument();
+  });
+
+  it("rejects files with unsupported MIME types", async () => {
+    render(<UploadPage />);
+
+    const dropzone = screen.getByRole("button", {
+      description: /添付ファイル/i,
+    });
+
+    const disguisedFile = new File(["MZ"], "evil.pdf", {
+      type: "application/x-msdownload",
+    });
+
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [disguisedFile],
+      },
+    });
+
+    expect(
+      await screen.findByText("対応していないファイル形式です"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("evil.pdf")).not.toBeInTheDocument();
+  });
+
+  it("accepts supported extensions when the browser omits MIME type", async () => {
+    render(<UploadPage />);
+
+    const dropzone = screen.getByRole("button", {
+      description: /添付ファイル/i,
+    });
+
+    const fileWithoutType = new File(["slides"], "slides.pptx");
+
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [fileWithoutType],
+      },
+    });
+
+    expect(await screen.findByText("slides.pptx")).toBeInTheDocument();
   });
 });
