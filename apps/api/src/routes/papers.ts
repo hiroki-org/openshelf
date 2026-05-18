@@ -1200,17 +1200,21 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
     let resolvedInviteeEmail: string | null = inviteeEmail;
 
     if (!resolvedInviteeId && resolvedInviteeEmail) {
-        const matchedUser = await db
-            .select({ id: users.id })
-            .from(users)
-            .where(eq(users.email, resolvedInviteeEmail))
-            .get();
-        if (matchedUser) {
-            if (matchedUser.id === userId) {
-                return c.json({ error: "Cannot invite yourself" }, 400);
+        try {
+            const matchedUser = await db
+                .select({ id: users.id })
+                .from(users)
+                .where(eq(users.email, resolvedInviteeEmail))
+                .get();
+            if (matchedUser) {
+                if (matchedUser.id === userId) {
+                    return c.json({ error: "Cannot invite yourself" }, 400);
+                }
+                resolvedInviteeId = matchedUser.id;
+                resolvedInviteeEmail = null;
             }
-            resolvedInviteeId = matchedUser.id;
-            resolvedInviteeEmail = null;
+        } catch (e: unknown) {
+            return c.json({ error: "Internal server error" }, 500);
         }
     }
 

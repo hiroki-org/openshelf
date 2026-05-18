@@ -3238,6 +3238,47 @@ describe("papers routes", () => {
 
       expect(res.status).toBe(500);
     });
+    it("POST /api/papers/:id/invites handles database error during invitee lookup by email", async () => {
+      const token = await createTestJWT({
+        sub: "user-uploader",
+        githubId: "123",
+        name: "Uploader",
+      });
+
+      mockDb.select = vi
+        .fn()
+        .mockImplementationOnce(() =>
+          makeQuery({
+            getResult: {
+              paperId: "paper-1",
+              userId: "user-uploader",
+              role: "uploader",
+            },
+          }),
+        )
+        .mockImplementationOnce(() => {
+          throw new Error("DB Error on email lookup");
+        });
+
+      const app = await createTestApp();
+      const env = createTestEnv();
+      const customRes = await app.request(
+        "http://localhost/api/papers/paper-1/invites",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ inviteeEmail: "error@example.com" }),
+        },
+        env as any,
+      );
+
+      expect(customRes.status).toBe(500);
+      const data = (await customRes.json()) as any;
+      expect(data.error).toBe("Internal server error");
+    });
   });
 });
 
