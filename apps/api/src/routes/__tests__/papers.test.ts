@@ -3247,6 +3247,30 @@ describe("Error handling and untested branches", () => {
   let token: string;
 
   beforeEach(async () => {
+    mockDb = {
+      run: vi.fn(async () => undefined),
+      prepare: vi.fn(() => ({
+        bind: vi.fn(() => ({
+          run: vi.fn(async () => ({ meta: { changes: 1 } })),
+        })),
+      })),
+      select: vi.fn(() => makeQuery()),
+      insert: vi.fn(() => ({
+        values: vi.fn(() => ({
+          onConflictDoUpdate: vi.fn(async () => undefined),
+          onConflictDoNothing: vi.fn(async () => undefined),
+        })),
+      })),
+      update: vi.fn(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn(async () => undefined),
+        })),
+      })),
+      delete: vi.fn(() => ({
+        where: vi.fn(async () => undefined),
+      })),
+      batch: vi.fn(async () => undefined),
+    };
     app = await createTestApp();
     env = createTestEnv();
     const { createTestJWT } = await import("../../test/helpers");
@@ -3661,6 +3685,42 @@ describe("Error handling and untested branches", () => {
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+  });
+
+  it("PATCH /api/papers/:id returns 409 when UNIQUE constraint fails on update", async () => {
+    const localToken = await createTestJWT({ sub: "user-1" });
+    const localApp = await createTestApp();
+    const localEnv = createTestEnv();
+
+
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+      ) // get paper
+      .mockImplementationOnce(() =>
+        makeQuery({ getResult: { userId: "user-1" } }),
+      ); // author check
+
+    mockDb.update = vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockRejectedValue(new Error("UNIQUE constraint failed: papers.title")),
+      }),
+    });
+    const res = await localApp.request(
+      "http://localhost/api/papers/paper-1",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${localToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title: "New Title" }),
+      },
+      localEnv as any,
+    );
+    expect(res.status).toBe(409);
+    expect(await res.json()).toEqual({ error: "Paper title and filename combination already exists" });
   });
 
   it("POST /api/papers/:id/track handles missing json payload", async () => {
