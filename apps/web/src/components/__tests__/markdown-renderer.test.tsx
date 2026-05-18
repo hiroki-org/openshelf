@@ -55,7 +55,7 @@ describe("MarkdownRenderer", () => {
   });
 
   it("renders code blocks with pre correctly", () => {
-    const markdown = "```javascript\nconsole.log('hello');\n```";
+    const markdown = "```javascript\nconst x = 1;\n```";
     const { container } = render(<MarkdownRenderer markdown={markdown} />);
     const pre = container.querySelector("pre");
     expect(pre).toBeInTheDocument();
