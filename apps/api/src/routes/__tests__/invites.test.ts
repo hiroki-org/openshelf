@@ -180,6 +180,43 @@ describe("invites routes", () => {
     await expect(res.json()).resolves.toEqual({ ok: true, status: "declined" });
   });
 
+  it("PUT /api/invites/:id declines invite", async () => {
+    const token = await createTestJWT({
+      sub: "user-2",
+      githubId: "456",
+      name: "Invitee",
+    });
+    mockDb.select = vi.fn(() =>
+      makeQuery({
+        getResult: {
+          id: "inv-1",
+          inviteeId: "user-2",
+          paperId: "paper-1",
+          status: "pending",
+        },
+      }),
+    );
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/api/invites/inv-1",
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ action: "decline" }),
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ ok: true, status: "declined" });
+  });
+
   it("PUT /api/invites/:id returns 400 for invalid JSON", async () => {
     const token = await createTestJWT({
       sub: "user-2",
