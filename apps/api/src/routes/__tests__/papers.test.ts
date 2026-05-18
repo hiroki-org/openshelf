@@ -3416,6 +3416,65 @@ describe("Error handling and untested branches", () => {
     });
   });
 
+  it("POST /api/papers propagates general R2 put errors", async () => {
+    const formData = new FormData();
+    formData.append(
+      "metadata",
+      JSON.stringify({
+        title: "Test Paper",
+        abstract: "Abstract",
+        visibility: "public",
+        showViewCount: true,
+        language: "en",
+        externalUrl: "https://example.com",
+        doi: null,
+        venue: null,
+        venueType: null,
+        year: null,
+        category: null,
+        tags: [],
+      }),
+    );
+    const file = new File(["%PDF-1.4\n%dummy-pdf"], "dummy.pdf", {
+      type: "application/pdf",
+    });
+    formData.append("files_0", file);
+    formData.append("file_types_0", "paper");
+
+    const customEnv = createTestEnv({
+      BUCKET: {
+        put: vi.fn().mockRejectedValue(new Error("R2 put failure")),
+        delete: vi.fn().mockResolvedValue(undefined),
+      } as any,
+    });
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    try {
+      const res = await app.request(
+        "http://localhost/api/papers",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        },
+        customEnv as any,
+      );
+
+      expect(res.status).toBe(500);
+      await expect(res.text()).resolves.toBe("Internal Server Error");
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "File upload errors:",
+        expect.objectContaining({
+          errors: ["R2 put failure"],
+        }),
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("POST /api/papers/:id/invites handles malformed JSON body", async () => {
     // Send invalid JSON that throws an error when c.req.json() parses it.
     const res = await app.request(
