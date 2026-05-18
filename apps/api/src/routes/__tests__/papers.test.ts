@@ -2161,11 +2161,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2209,11 +2211,13 @@ describe("papers routes", () => {
       githubId: "123",
       name: "Uploader",
     });
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
 
     const app = await createTestApp();
     const env = createTestEnv();
@@ -2367,11 +2371,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2417,11 +2423,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2457,11 +2465,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2495,11 +2505,13 @@ describe("papers routes", () => {
       githubId: "123",
       name: "Uploader",
     });
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
 
     const app = await createTestApp();
     const env = createTestEnv();
@@ -2529,11 +2541,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2569,11 +2583,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2611,11 +2627,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2651,11 +2669,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2691,11 +2711,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2739,11 +2761,13 @@ describe("papers routes", () => {
       githubId: "123",
       name: "Uploader",
     });
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
 
     const app = await createTestApp();
     const env = createTestEnv();
@@ -2897,11 +2921,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2940,11 +2966,13 @@ describe("papers routes", () => {
   });
 
   it("GET /api/papers/:id returns 401 for private paper without Bearer token", async () => {
-    mockDb.select = vi.fn().mockImplementationOnce(() =>
-      makeQuery({
-        getResult: { id: "paper-1", title: "P1", visibility: "private" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: { id: "paper-1", title: "P1", visibility: "private" },
+        }),
+      );
 
     const app = await createTestApp();
     const env = createTestEnv();
@@ -3201,6 +3229,7 @@ describe("papers routes", () => {
 
       expect(res.status).toBe(500);
     });
+
     it("POST /api/papers/:id/invites handles non-string non-Error rejections", async () => {
       const token = await createTestJWT({
         sub: "user-uploader",
@@ -3238,6 +3267,7 @@ describe("papers routes", () => {
 
       expect(res.status).toBe(500);
     });
+
   });
 });
 
@@ -3258,6 +3288,7 @@ describe("Error handling and untested branches", () => {
   });
 
   it("POST /api/papers/:id/invites handles malformed JSON body", async () => {
+    // Send invalid JSON that throws an error when c.req.json() parses it.
     const res = await app.request(
       "http://localhost/api/papers/paper-1/invites",
       {
@@ -3266,7 +3297,7 @@ describe("Error handling and untested branches", () => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: "{",
+        body: "{ bad json: [ }",
       },
       env as any,
     );
@@ -3613,6 +3644,7 @@ describe("Error handling and untested branches", () => {
   });
 
   it("PUT /api/papers/:id/description handles malformed JSON body", async () => {
+    // Send invalid JSON that throws an error when c.req.json() parses it.
     const res = await app.request(
       "http://localhost/api/papers/paper-1/description",
       {
@@ -3621,7 +3653,7 @@ describe("Error handling and untested branches", () => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: "{",
+        body: "{ bad json: [ }",
       },
       env as any,
     );
@@ -3647,6 +3679,7 @@ describe("Error handling and untested branches", () => {
   });
 
   it("PATCH /api/papers/:id handles malformed JSON body", async () => {
+    // Send invalid JSON that throws an error when c.req.json() parses it.
     const res = await app.request(
       "http://localhost/api/papers/paper-1",
       {
@@ -3655,7 +3688,7 @@ describe("Error handling and untested branches", () => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: "{",
+        body: "{ bad json: [ }",
       },
       env as any,
     );
