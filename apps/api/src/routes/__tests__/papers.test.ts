@@ -1105,6 +1105,51 @@ describe("papers routes", () => {
     expect(body.citation).toContain("向井 宏樹");
   });
 
+  it("POST /api/papers handles unreadable file during magic number validation", async () => {
+    const token = await createTestJWT({
+      sub: "user-1",
+      githubId: "123",
+      name: "Uploader",
+    });
+    const app = await createTestApp();
+    const env = createTestEnv({ DB: mockDb as any });
+
+    const form = new FormData();
+    form.set(
+      "metadata",
+      JSON.stringify({ title: "Corrupted Paper", visibility: "private" }),
+    );
+
+    const badFile = new File(["dummy content"], "corrupt.pdf", {
+      type: "application/pdf",
+    });
+    badFile.slice = vi.fn().mockImplementation(() => ({
+      arrayBuffer: () =>
+        Promise.reject(
+          new DOMException("The file could not be read", "InvalidStateError"),
+        ),
+    }));
+
+    form.set("files_0", badFile);
+    form.set("file_types_0", "paper");
+
+    const res = await app.request(
+      "http://localhost/api/papers",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({
+      error:
+        "File corrupt.pdf does not match expected format for application/pdf",
+    });
+  });
+
   it("POST /api/papers rejects a non-boolean showViewCount", async () => {
     const token = await createTestJWT({
       sub: "user-1",
