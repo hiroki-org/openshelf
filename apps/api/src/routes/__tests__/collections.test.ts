@@ -400,7 +400,7 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(400);
-    expect(((await res.json()) as any).error).toBe("Invalid JSON body");
+    await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
   });
 
   it("POST /api/collections rejects JSON body that is not an object", async () => {
@@ -422,8 +422,9 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(400);
-    expect(((await res.json()) as any).error).toBe("Invalid JSON body");
+    await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
   });
+
   it("GET /api/collections/:id returns 404 when not found", async () => {
     mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
 
@@ -712,7 +713,7 @@ describe("collections routes", () => {
       env,
     );
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+    await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
   });
 
   it("PATCH /api/collections/:id rejects JSON body that is not an object", async () => {
@@ -734,7 +735,7 @@ describe("collections routes", () => {
       env,
     );
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+    await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
   });
 
   it("PATCH /api/collections/:id returns 400 for invalid visibility", async () => {
@@ -1889,13 +1890,12 @@ describe("collections routes", () => {
     await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
   });
 
-  it("PATCH /api/collections/:id/papers rejects when paper_ids is missing or empty", async () => {
+  it("PATCH /api/collections/:id/papers rejects when paper_ids is missing", async () => {
     const token = await createTestJWT({ sub: "user-1" });
 
     const app = await createTestApp();
     const env = createTestEnv();
 
-    // Test missing paper_ids
     queueSelectResponses([
       {
         getResult: {
@@ -1907,7 +1907,7 @@ describe("collections routes", () => {
       },
     ]);
 
-    let res = await app.request(
+    const res = await app.request(
       "http://localhost/api/collections/col-1/papers",
       {
         method: "PATCH",
@@ -1922,8 +1922,14 @@ describe("collections routes", () => {
 
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toEqual({ error: "paper_ids is required" });
+  });
 
-    // Test empty paper_ids array
+  it("PATCH /api/collections/:id/papers rejects when paper_ids is empty", async () => {
+    const token = await createTestJWT({ sub: "user-1" });
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
     queueSelectResponses([
       {
         getResult: {
@@ -1935,7 +1941,7 @@ describe("collections routes", () => {
       },
     ]);
 
-    res = await app.request(
+    const res = await app.request(
       "http://localhost/api/collections/col-1/papers",
       {
         method: "PATCH",
