@@ -1329,7 +1329,11 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
         .all();
 
     const keys = files.map((f) => f.r2Key);
-    await deleteKeysInBatches(c.env.BUCKET, keys);
+    try {
+        await deleteKeysInBatches(c.env.BUCKET, keys);
+    } catch (error) {
+        console.error("R2 deletion failed", error);
+    }
     await db.delete(papers).where(eq(papers.id, paperId));
 
     return c.json({ ok: true });

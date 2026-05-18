@@ -1399,7 +1399,8 @@ describe("papers routes", () => {
       env as any,
     );
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
   });
 
   it("POST /api/papers/:id/track returns 404 when paper does not exist", async () => {
@@ -3325,7 +3326,8 @@ describe("Error handling and untested branches", () => {
       },
       env as any,
     );
-    expect(res.status).toBe(500); // Throws an error up instead of being captured transparently
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
     expect(fakeBucket.delete).toHaveBeenCalled();
   });
 
