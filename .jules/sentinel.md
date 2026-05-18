@@ -16,3 +16,7 @@
 **Issue:** String exceptions were not handled, causing the app to return an Internal Server Error.
 **Learning:** `e instanceof Error` correctly identifies built-in errors, but doesn't handle `throw "error"`. It caused Hono to not correctly propagate a 500 status.
 **Prevention:** Handled by validating `e instanceof Error ? e.message : typeof e === 'string' ? e : "";` and throwing an error properly at the end `throw e instanceof Error ? e : new Error(String(e));`.
+## 2026-05-18 - UNIQUE Constraint Handling
+**Vulnerability:** Untested UNIQUE constraint error could crash server or hide useful feedback.
+**Learning:** Add try/catch specifically targeting `isUniqueConstraintError` when inserting/updating, return a 409 status code.
+**Prevention:** Follow the established try/catch patterns for DB operations and mock them in Vitest using mockRejectedValue.

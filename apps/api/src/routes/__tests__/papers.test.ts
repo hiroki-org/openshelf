@@ -1366,6 +1366,54 @@ describe("papers routes", () => {
     expect(res.status).toBe(204);
   });
 
+
+  it("PATCH /api/papers/:id returns 409 when paper title and filename combination already exists (UNIQUE constraint error)", async () => {
+    const env = createTestEnv({ DB: mockDb as any });
+    const app = await createTestApp(env);
+    const token = await createTestJWT({ sub: "user-123" });
+
+    mockDb.select = vi.fn().mockImplementation(() => {
+      let isAuthorCheck = false;
+      return {
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            get: vi.fn().mockImplementation(() => {
+              if (!isAuthorCheck) {
+                isAuthorCheck = true;
+                return { id: "p1", visibility: "public" };
+              }
+              return { paperId: "p1", userId: "user-123", role: "uploader" };
+            }),
+          }),
+        }),
+      };
+    });
+
+    mockDb.update = vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockRejectedValue(new Error("UNIQUE constraint failed")),
+      }),
+    });
+
+    const res = await app.request("/api/papers/p1", {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title: "New Title",
+      }),
+    }, env as any);
+
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    expect(body.error).toBe(
+      "Paper title and filename combination already exists",
+    );
+  });
+
+
   it("DELETE /api/papers/:id handles R2 deletion failure", async () => {
     const token = await createTestJWT({
       sub: "user-1",

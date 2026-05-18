@@ -25,6 +25,15 @@ import { validateMagicNumbers } from "../utils/file";
 import { buildCitation, isCitationFormat } from "../utils/citation";
 import pMap from "p-map";
 
+function isUniqueConstraintError(err: unknown): boolean {
+    const message = err instanceof Error ? err.message : String(err);
+    return (
+        message.includes("UNIQUE") ||
+        message.includes("unique") ||
+        message.includes("constraint")
+    );
+}
+
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -1635,7 +1644,14 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         return c.json({ error: "No valid fields to update" }, 400);
     }
 
-    await db.update(papers).set(updates).where(eq(papers.id, paperId));
+    try {
+        await db.update(papers).set(updates).where(eq(papers.id, paperId));
+    } catch (err) {
+        if (isUniqueConstraintError(err)) {
+            return c.json({ error: "Paper title and filename combination already exists" }, 409);
+        }
+        throw err;
+    }
     return c.json({ ok: true });
 });
 
