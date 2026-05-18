@@ -4,6 +4,7 @@ import { useAuth } from "@/components/auth-provider";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { MarkdownEditor } from "@/components/markdown-editor";
 import { apiFetch } from "@/lib/api";
+import { splitTagInput } from "@/lib/tags";
 import { useRouter, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -100,7 +101,7 @@ export default function PaperEditPage() {
             router.replace("/");
             return;
           }
-          throw new Error("論文の取得に失敗しました");
+          throw new Error("成果物の取得に失敗しました");
         }
 
         const data = (await res.json()) as PaperEditResponse;
@@ -170,10 +171,7 @@ export default function PaperEditPage() {
         throw new Error("年は数値で入力してください。");
       }
 
-      const tagsArray = tagsStr
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
+      const tagsArray = splitTagInput(tagsStr);
 
       const payload = {
         title: title.trim(),
@@ -273,7 +271,7 @@ export default function PaperEditPage() {
             onChange={(e) => setTitle(e.target.value)}
             aria-describedby="title-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 dark:border-gray-700 dark:bg-gray-900"
-            placeholder="論文のタイトル"
+            placeholder="成果物のタイトル"
           />
           <div
             id="title-counter"
@@ -532,19 +530,15 @@ export default function PaperEditPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="rounded-md bg-blue-600 px-6 py-2 text-white hover:bg-blue-500 disabled:opacity-50 transition-colors font-medium"
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-500 disabled:opacity-50 font-medium"
           >
-            {submitting ? (
-              <span className="flex items-center gap-2">
-                <span
-                  className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                  aria-hidden="true"
-                />
-                保存中...
-              </span>
-            ) : (
-              "保存する"
+            {submitting && (
+              <span
+                aria-hidden="true"
+                className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+              />
             )}
+            {submitting ? "保存中..." : "保存する"}
           </button>
         </div>
       </form>
