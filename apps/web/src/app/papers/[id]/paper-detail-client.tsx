@@ -174,7 +174,7 @@ export default function PaperDetailClient({
   const [showInvite, setShowInvite] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
-  const [inviting, setInviting] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
   const [selectedStatsDays, setSelectedStatsDays] = useState<7 | 30 | 90 | 365>(
     30,
   );
@@ -215,11 +215,11 @@ export default function PaperDetailClient({
         if (res.status === 401) {
           setError("ログインが必要です");
         } else if (res.status === 403) {
-          setError("この成果物を閲覧する権限がありません");
+          setError("この論文を閲覧する権限がありません");
         } else if (res.status === 404) {
-          setError("成果物が見つかりません");
+          setError("論文が見つかりません");
         } else {
-          setError("成果物の取得に失敗しました");
+          setError("論文の取得に失敗しました");
         }
         return;
       }
@@ -228,7 +228,7 @@ export default function PaperDetailClient({
       setFiles(data.files);
       setAuthors(data.authors);
     } catch {
-      setError("成果物の取得に失敗しました");
+      setError("論文の取得に失敗しました");
     } finally {
       setLoading(false);
     }
@@ -464,7 +464,7 @@ export default function PaperDetailClient({
   };
 
   const handleInvite = async (inviteeId: string) => {
-    setInviting(inviteeId);
+    setInviting(true);
     try {
       const res = await apiFetch(`/api/papers/${safePath(paperId)}/invites`, {
         method: "POST",
@@ -484,7 +484,7 @@ export default function PaperDetailClient({
     } catch {
       toast.error("ネットワークエラーが発生しました");
     } finally {
-      setInviting(null);
+      setInviting(false);
     }
   };
 
@@ -966,21 +966,10 @@ export default function PaperDetailClient({
                   <button
                     type="button"
                     onClick={() => handleInvite(u.id)}
-                    disabled={inviting !== null}
-                    aria-busy={inviting === u.id}
-                    className="inline-flex min-w-[72px] items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
+                    disabled={inviting}
+                    className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                   >
-                    {inviting === u.id ? (
-                      <span className="flex items-center justify-center gap-1">
-                        <span
-                          className="h-3 w-3 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
-                          aria-hidden="true"
-                        />
-                        招待中...
-                      </span>
-                    ) : (
-                      "招待"
-                    )}
+                    招待
                   </button>
                 </li>
               ))}

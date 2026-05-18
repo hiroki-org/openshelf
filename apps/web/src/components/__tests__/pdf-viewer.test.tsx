@@ -32,7 +32,7 @@ type MockPageProps = {
   width?: number;
   renderTextLayer?: boolean;
   renderAnnotationLayer?: boolean;
-  customTextRenderer?: (item: { str: string }) => string;
+  customTextRenderer?: (textItem: { str: string }) => string;
 };
 
 type MockObserverEntry = {
@@ -276,9 +276,12 @@ describe("PdfViewer", () => {
       );
     });
 
-    fireEvent.change(screen.getByRole("searchbox", { name: "PDF内検索" }), {
-      target: { value: "target" },
-    });
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      {
+        target: { value: "target" },
+      },
+    );
 
     await waitFor(() => {
       expect(screen.getByText("1 / 2")).toBeInTheDocument();
@@ -411,9 +414,12 @@ describe("PdfViewer", () => {
         documentProps.onLoadSuccess?.(mockDoc);
       });
 
-      fireEvent.change(screen.getByRole("searchbox", { name: "PDF内検索" }), {
-        target: { value: "target" },
-      });
+      fireEvent.change(
+        screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+        {
+          target: { value: "target" },
+        },
+      );
 
       await waitFor(() => {
         // Should still find the match on page 3 despite page 2 failing
@@ -465,9 +471,12 @@ describe("PdfViewer", () => {
         documentProps.onLoadSuccess?.(mockDoc);
       });
 
-      fireEvent.change(screen.getByRole("searchbox", { name: "PDF内検索" }), {
-        target: { value: "target" },
-      });
+      fireEvent.change(
+        screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+        {
+          target: { value: "target" },
+        },
+      );
 
       await waitFor(() => {
         expect(screen.getByText("1 / 1")).toBeInTheDocument();
