@@ -1,0 +1,36 @@
+<<<<<<< SEARCH
+    it("propagates general db select errors", async () => {
+        mockDb.select = vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+                where: vi.fn().mockReturnValue({
+                    get: vi.fn().mockRejectedValue(new Error("DB Error"))
+                })
+            })
+        });
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request("http://localhost/badge/paper-error", {}, env as any);
+        expect(res.status).toBe(500);
+    });
+=======
+    it("propagates general db select errors", async () => {
+        mockDb.select = vi.fn().mockReturnValue({
+            from: vi.fn().mockReturnValue({
+                where: vi.fn().mockReturnValue({
+                    get: vi.fn().mockRejectedValue(new Error("DB Error"))
+                })
+            })
+        });
+
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        const res = await app.request("http://localhost/badge/paper-error", {}, env as any);
+        expect(res.status).toBe(500);
+
+        const apiRes = await app.request("http://localhost/badge/api/paper-error", {}, env as any);
+        expect(apiRes.status).toBe(500);
+    });
+>>>>>>> REPLACE

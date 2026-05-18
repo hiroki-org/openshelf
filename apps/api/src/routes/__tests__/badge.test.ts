@@ -250,6 +250,9 @@ describe("badge routes", () => {
 
         const res = await app.request("http://localhost/badge/paper-error", {}, env as any);
         expect(res.status).toBe(500);
+
+        const apiRes = await app.request("http://localhost/badge/api/paper-error", {}, env as any);
+        expect(apiRes.status).toBe(500);
     });
 
     it("returns 304 when If-None-Match includes multiple values", async () => {
