@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCitation } from "../citation";
+import { buildCitation, isCitationFormat } from "../citation";
 
 describe("buildCitation", () => {
     const paperBase = {
@@ -168,5 +168,26 @@ describe("buildCitation", () => {
         expect(result.key).toBeNull();
         expect(result.citation).toContain("Hiroki Mukai, Yusaku Kato.");
         expect(result.citation).toContain('"Balance Boundary Explorer", ASE, 2026. https://openshelf.example/papers/paper-1.');
+    });
+});
+
+describe("isCitationFormat", () => {
+    const validFormats = ["bibtex", "biblatex", "apa", "ieee", "mla", "plain"] as const;
+
+    it.each(validFormats)("returns true for valid format: %s", (format) => {
+        expect(isCitationFormat(format)).toBe(true);
+    });
+
+    it.each([
+        "chicago",
+        "BIBTEX",
+        "",
+        "unknown",
+        "bibtex ",
+        null,
+        undefined,
+        123,
+    ] satisfies unknown[])("returns false for invalid format: %s", (format) => {
+        expect(isCitationFormat(format as string)).toBe(false);
     });
 });
