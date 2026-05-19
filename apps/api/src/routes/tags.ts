@@ -34,6 +34,9 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
     if (query.length < TAG_SUGGEST_MIN_QUERY_LENGTH) {
         return c.json({ tags: [] });
     }
+    if (query.length > 100) {
+        return c.json({ error: "query too long" }, 400);
+    }
 
     let tags: string[] = [];
 

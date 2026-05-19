@@ -21,4 +21,8 @@ describe("escapeLikeLiteral", () => {
   it("returns unchanged if no special chars", () => {
     expect(escapeLikeLiteral("hello world")).toBe("hello world");
   });
+
+  it("handles empty string", () => {
+    expect(escapeLikeLiteral("")).toBe("");
+  });
 });
