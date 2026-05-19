@@ -726,9 +726,9 @@ describe("papers routes", () => {
     mockDb.insert
       .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
       .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
-      .mockImplementationOnce(() => {
-        throw dbError;
-      });
+      .mockImplementationOnce(() => ({
+        values: vi.fn().mockRejectedValue(dbError),
+      }));
 
     const mockDeleteWhere = vi.fn().mockRejectedValue(new Error("DB cleanup failed"));
     mockDb.delete = vi.fn(() => ({ where: mockDeleteWhere }));
