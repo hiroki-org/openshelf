@@ -460,7 +460,7 @@ describe("OrgSettingsPage", () => {
     render(<OrgSettingsPage />);
 
     await screen.findByRole("heading", { name: "Demo Org — 設定" });
-    fireEvent.click(screen.getByRole("button", { name: "解除" }));
+    fireEvent.click(screen.getByRole("button", { name: "Existing Paperの紐づけを解除" }));
 
     await waitFor(() => {
       expect(alert).toHaveBeenCalledWith("解除できません");
@@ -507,7 +507,7 @@ describe("OrgSettingsPage", () => {
     render(<OrgSettingsPage />);
 
     await screen.findByRole("heading", { name: "Demo Org — 設定" });
-    fireEvent.click(screen.getByRole("button", { name: "解除" }));
+    fireEvent.click(screen.getByRole("button", { name: "Existing Paperの紐づけを解除" }));
 
     await waitFor(() => {
       expect(alert).toHaveBeenCalledWith("ネットワークエラー");
