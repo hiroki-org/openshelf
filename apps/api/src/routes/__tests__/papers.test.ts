@@ -3625,7 +3625,9 @@ describe("Error handling and untested branches", () => {
       delete: vi.fn(() => ({
         where: vi.fn(async () => undefined),
       })),
-      batch: vi.fn(async () => undefined),
+      batch: vi.fn(async (queries) =>
+        Promise.all(queries.map((q: any) => (q.all ? q.all() : q))),
+      ),
     };
     app = await createTestApp();
     env = createTestEnv();
@@ -4153,7 +4155,9 @@ describe("Error handling and untested branches", () => {
       env as any,
     );
     expect(res.status).toBe(409);
-    expect(await res.json()).toEqual({ error: "Paper title and filename combination already exists" });
+    expect(await res.json()).toEqual({
+      error: "Paper update conflicts with an existing record",
+    });
   });
 
   it("PATCH /api/papers/:id propagates non-unique constraint failures on update", async () => {
