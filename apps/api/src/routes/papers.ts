@@ -71,6 +71,10 @@ type DeleteBatchErrorInfo = {
     error: string;
 };
 
+function formatCaughtError(error: unknown): string {
+    return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+}
+
 function formatDateKey(date: Date): string {
     return date.toISOString().slice(0, 10);
 }
@@ -139,7 +143,7 @@ async function deleteKeysInBatches(
                     chunkEndExclusive: chunkStart + chunk.length,
                     chunkSize: chunk.length,
                     chunkSample: chunk.slice(0, 3),
-                    error: error instanceof Error ? error.message : String(error),
+                    error: formatCaughtError(error),
                 });
             }
         },
@@ -740,7 +744,14 @@ papersRoute.post("/", authMiddleware, async (c) => {
             // Ignore cleanup errors during rollback after a later failure.
             console.error("Cleanup error (non-fatal, rollback continues):", info.error);
         });
-        await db.delete(papers).where(eq(papers.id, paperId));
+        try {
+            await db.delete(papers).where(eq(papers.id, paperId));
+        } catch (cleanupError) {
+            console.error(
+                "Cleanup error (non-fatal, rollback continues):",
+                `original=${formatCaughtError(error)} cleanup=${formatCaughtError(cleanupError)}`,
+            );
+        }
         throw error instanceof Error ? error : new Error(String(error));
     }
 

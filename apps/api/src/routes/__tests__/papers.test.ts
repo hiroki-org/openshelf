@@ -703,7 +703,7 @@ describe("papers routes", () => {
     );
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "Cleanup error (non-fatal, rollback continues):",
-      "Cleanup failed",
+      "Error: Cleanup failed",
     );
 
     // db.delete should be called for papers
@@ -783,7 +783,7 @@ describe("papers routes", () => {
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "Cleanup error (non-fatal, rollback continues):",
-        "R2 batch error",
+        "Error: R2 batch error",
       );
       expect(mockDb.delete).toHaveBeenCalledTimes(1);
     } finally {
