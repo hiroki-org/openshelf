@@ -62,20 +62,14 @@ const respondInviteHandler = async (c: any) => {
     }
 
     const db = drizzle(c.env.DB);
+    await enableForeignKeys(db);
     const userId = c.get("user").sub;
 
-    let invite;
-    try {
-        await enableForeignKeys(db);
-        invite = await db
-            .select()
-            .from(coauthorInvites)
-            .where(eq(coauthorInvites.id, inviteId))
-            .get();
-    } catch (error) {
-        console.error("Failed to respond to invite", error);
-        return c.json({ error: "Failed to respond to invite" }, 500);
-    }
+    const invite = await db
+        .select()
+        .from(coauthorInvites)
+        .where(eq(coauthorInvites.id, inviteId))
+        .get();
     if (!invite) return c.json({ error: "Invite not found" }, 404);
     if (invite.inviteeId !== userId)
         return c.json({ error: "Forbidden" }, 403);
@@ -84,34 +78,29 @@ const respondInviteHandler = async (c: any) => {
 
     const newStatus = action === "accept" ? "accepted" : "declined";
 
-    try {
-        if (action === "accept") {
-            await db.batch([
-                db
-                    .update(coauthorInvites)
-                    .set({
-                        status: newStatus,
-                        respondedAt: sql`(datetime('now'))`,
-                    })
-                    .where(eq(coauthorInvites.id, inviteId)),
-                db.insert(paperAuthors).values({
-                    paperId: invite.paperId,
-                    userId,
-                    role: "coauthor",
-                }),
-            ]);
-        } else {
-            await db
+    if (action === "accept") {
+        await db.batch([
+            db
                 .update(coauthorInvites)
                 .set({
                     status: newStatus,
                     respondedAt: sql`(datetime('now'))`,
                 })
-                .where(eq(coauthorInvites.id, inviteId));
-        }
-    } catch (error) {
-        console.error("Failed to respond to invite", error);
-        return c.json({ error: "Failed to respond to invite" }, 500);
+                .where(eq(coauthorInvites.id, inviteId)),
+            db.insert(paperAuthors).values({
+                paperId: invite.paperId,
+                userId,
+                role: "coauthor",
+            }),
+        ]);
+    } else {
+        await db
+            .update(coauthorInvites)
+            .set({
+                status: newStatus,
+                respondedAt: sql`(datetime('now'))`,
+            })
+            .where(eq(coauthorInvites.id, inviteId));
     }
 
     return c.json({ ok: true, status: newStatus });

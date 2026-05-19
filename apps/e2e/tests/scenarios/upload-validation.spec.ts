@@ -18,7 +18,7 @@ test.describe('Upload Validation', () => {
       'input[type="file"]',
       path.resolve(__dirname, '../../fixtures/test-paper.pdf'),
     );
-    await page.getByRole('button', { name: '成果物をアップロードする' }).click();
+    await page.getByRole('button', { name: '論文をアップロードする' }).click();
 
     await expect(page.getByText('タイトルは必須です')).toBeVisible();
   });
@@ -31,7 +31,7 @@ test.describe('Upload Validation', () => {
     });
 
     await page.getByLabel(/タイトル/).fill(`Validation ${randomUUID().slice(0, 8)}`);
-    await page.getByRole('button', { name: '成果物をアップロードする' }).click();
+    await page.getByRole('button', { name: '論文をアップロードする' }).click();
 
     await expect(page.getByText('ファイルを1つ以上添付してください')).toBeVisible();
   });
