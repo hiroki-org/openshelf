@@ -41,6 +41,14 @@ describe("origin utils", () => {
                 "https://app.example.com",
             ]);
         });
+
+        it("returns empty array for commas-only string", () => {
+            expect(parseOriginList(",,,")).toEqual([]);
+        });
+
+        it("returns empty array for whitespace-only string", () => {
+            expect(parseOriginList("   ")).toEqual([]);
+        });
     });
 
     describe("matchesOriginPattern", () => {
