@@ -18,7 +18,7 @@ async function uploadPublicPaper(page: Page, title: string): Promise<string> {
             response.request().method() === "POST",
     );
 
-    await page.getByRole("button", { name: "論文をアップロードする" }).click();
+    await page.getByRole("button", { name: "成果物をアップロードする" }).click();
     const response = await uploadResponsePromise;
     expect(response.ok()).toBeTruthy();
 
