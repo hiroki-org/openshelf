@@ -188,7 +188,7 @@ describe("TagAutocompleteInput", () => {
     expect(screen.getByRole("option", { name: "Math" })).toBeInTheDocument();
   });
 
-  it("renders chips only for committed tags", () => {
+  it("renders chips for all tags including the currently typing tag", () => {
     render(
       <TagAutocompleteInput
         id="paper-tags"
@@ -198,6 +198,20 @@ describe("TagAutocompleteInput", () => {
     );
 
     expect(screen.getByText("AI")).toBeInTheDocument();
-    expect(screen.queryByText("Ma")).not.toBeInTheDocument();
+    expect(screen.getByText("Ma")).toBeInTheDocument();
+  });
+
+  it("renders chips when tags are separated by full-width delimiters", () => {
+    render(
+      <TagAutocompleteInput
+        id="paper-tags"
+        value="AI，機械学習、深層学習"
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("AI")).toBeInTheDocument();
+    expect(screen.getByText("機械学習")).toBeInTheDocument();
+    expect(screen.getByText("深層学習")).toBeInTheDocument();
   });
 });
