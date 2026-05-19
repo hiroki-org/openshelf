@@ -1,6 +1,7 @@
 "use client";
 
 import { apiFetch } from "@/lib/api";
+import { TAG_DELIMITER_PATTERN, splitTagInput } from "@/lib/tags";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 300;
@@ -21,7 +22,7 @@ function splitEditingState(value: string): {
   currentRaw: string;
   currentTrimmed: string;
 } {
-  const parts = value.split(",");
+  const parts = value.split(TAG_DELIMITER_PATTERN);
   if (parts.length === 0) {
     return { committed: [], currentRaw: "", currentTrimmed: "" };
   }
@@ -53,6 +54,8 @@ export function TagAutocompleteInput({
     () => splitEditingState(value),
     [value],
   );
+
+  const displayChips = useMemo(() => splitTagInput(value), [value]);
 
   useEffect(() => {
     const requestId = ++requestIdRef.current;
@@ -222,11 +225,11 @@ export function TagAutocompleteInput({
         </ul>
       )}
 
-      {committed.length > 0 && (
+      {displayChips.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-2">
-          {committed.map((tag) => (
+          {displayChips.map((tag, index) => (
             <span
-              key={tag}
+              key={`${tag}-${index}`}
               className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200"
             >
               {tag}

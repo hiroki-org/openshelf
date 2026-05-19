@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+    BADGE_CACHE_CONTROL,
     escapeXml,
     normalizeBadgeStyle,
     normalizeBadgeLabel,
@@ -15,6 +16,14 @@ import {
 } from "../badge";
 
 describe("badge utils", () => {
+    describe("BADGE_CACHE_CONTROL", () => {
+        it("sets 24h public cache with 1h stale-while-revalidate window", () => {
+            expect(BADGE_CACHE_CONTROL).toBe(
+                "public, max-age=86400, stale-while-revalidate=3600",
+            );
+        });
+    });
+
     describe("escapeXml", () => {
         it("escapes special characters", () => {
             expect(escapeXml('a & b < c > d " e \' f')).toBe(
