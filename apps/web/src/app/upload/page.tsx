@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/auth-provider";
+import { Spinner } from "@/components/spinner";
 import { TagAutocompleteInput } from "@/components/tag-autocomplete-input";
 import { apiFetch } from "@/lib/api";
 import { splitTagInput } from "@/lib/tags";
@@ -548,7 +549,10 @@ export default function UploadPage() {
         </div>
 
         {error && (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+          <div
+            role="alert"
+            className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+          >
             {error}
           </div>
         )}
@@ -561,7 +565,7 @@ export default function UploadPage() {
           >
             {uploading ? (
               <span className="flex items-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <Spinner className="h-4 w-4" />
                 アップロード中...
               </span>
             ) : (

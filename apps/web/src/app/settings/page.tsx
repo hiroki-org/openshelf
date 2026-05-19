@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/components/auth-provider";
+import { Spinner } from "@/components/spinner";
 import { apiFetch } from "@/lib/api";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -162,17 +163,13 @@ export default function SettingsPage() {
             disabled={saving}
             className="inline-flex min-w-32 items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
           >
-            {saving && (
-              <span
-                aria-hidden="true"
-                className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
-            )}
+            {saving && <Spinner className="h-4 w-4" />}
             {saving ? "保存中..." : "保存"}
           </button>
 
           {message && (
             <p
+              role={messageType === "error" ? "alert" : "status"}
               className={`rounded-xl px-3 py-2 text-sm ${
                 messageType === "error"
                   ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
