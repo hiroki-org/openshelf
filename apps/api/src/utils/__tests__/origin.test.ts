@@ -77,6 +77,19 @@ describe("origin utils", () => {
             expect(matchesOriginPattern("https://example.com", pattern)).toBe(false);
         });
 
+        it("does not let wildcard matches cross URL delimiters", () => {
+            const pattern = p("https://*", "example", "com");
+            expect(matchesOriginPattern("https://evil/example.com", pattern)).toBe(false);
+            expect(matchesOriginPattern("https://evil?example.com", pattern)).toBe(false);
+            expect(matchesOriginPattern("https://evil#example.com", pattern)).toBe(false);
+        });
+
+        it("restricts wildcard matches to hostname label characters", () => {
+            const pattern = p("https://*", "example", "com");
+            expect(matchesOriginPattern("https://abc-123.example.com", pattern)).toBe(true);
+            expect(matchesOriginPattern("https://bad_underscore.example.com", pattern)).toBe(false);
+        });
+
         it("matches multiple wildcards", () => {
             const pattern = p("https://*", "*", "example", "com");
             expect(matchesOriginPattern("https://app.dev.example.com", pattern)).toBe(true);
