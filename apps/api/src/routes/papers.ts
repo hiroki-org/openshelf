@@ -23,18 +23,10 @@ import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
 import { buildCitation, isCitationFormat } from "../utils/citation";
+import { isUniqueConstraintError } from "../utils/db";
 import pMap from "p-map";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
-
-function isUniqueConstraintError(err: unknown): boolean {
-    const message = err instanceof Error ? err.message : String(err);
-    return (
-        message.includes("UNIQUE") ||
-        message.includes("unique") ||
-        message.includes("constraint")
-    );
-}
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 const MAX_CONCURRENT_UPLOADS = 3;

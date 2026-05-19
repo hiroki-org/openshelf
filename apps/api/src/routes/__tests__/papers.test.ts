@@ -4126,18 +4126,13 @@ describe("Error handling and untested branches", () => {
   });
 
   it("PATCH /api/papers/:id returns 409 when UNIQUE constraint fails on update", async () => {
-    const localToken = await createTestJWT({ sub: "user-1" });
-    const localApp = await createTestApp();
-    const localEnv = createTestEnv();
-
-
     mockDb.select = vi
       .fn()
       .mockImplementationOnce(() =>
         makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
       ) // get paper
       .mockImplementationOnce(() =>
-        makeQuery({ getResult: { userId: "user-1" } }),
+        makeQuery({ getResult: { userId: "user-test" } }),
       ); // author check
 
     mockDb.update = vi.fn().mockReturnValue({
@@ -4145,20 +4140,53 @@ describe("Error handling and untested branches", () => {
         where: vi.fn().mockRejectedValue(new Error("UNIQUE constraint failed: papers.title")),
       }),
     });
-    const res = await localApp.request(
+    const res = await app.request(
       "http://localhost/api/papers/paper-1",
       {
         method: "PATCH",
         headers: {
-          Authorization: `Bearer ${localToken}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ title: "New Title" }),
       },
-      localEnv as any,
+      env as any,
     );
     expect(res.status).toBe(409);
     expect(await res.json()).toEqual({ error: "Paper title and filename combination already exists" });
+  });
+
+  it("PATCH /api/papers/:id propagates non-unique constraint failures on update", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+      ) // get paper
+      .mockImplementationOnce(() =>
+        makeQuery({ getResult: { userId: "user-test" } }),
+      ); // author check
+
+    mockDb.update = vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockRejectedValue(new Error("NOT NULL constraint failed: papers.title")),
+      }),
+    });
+
+    const res = await app.request(
+      "http://localhost/api/papers/paper-1",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title: "New Title" }),
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(500);
+    expect(await res.text()).toBe("Internal Server Error");
   });
 
   it("POST /api/papers/:id/track handles missing json payload", async () => {
