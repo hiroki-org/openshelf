@@ -255,7 +255,7 @@ orgsRoute.get("/:slug/tags", async (c) => {
   const rawTagCounts = new Map<string, number>();
 
   for (const paper of orgPapers) {
-    const isAuthor = paper.authorUserId === currentUserId;
+    const isAuthor = currentUserId !== null && paper.authorUserId === currentUserId;
     const isVisible =
       paper.visibility === "public" ||
       (paper.visibility === "org_only" && (isMember || isAuthor)) ||
