@@ -3973,7 +3973,6 @@ describe("Error handling and untested branches", () => {
   });
 
   it("POST /api/papers/:id/track captures parsing errors in promise", async () => {
-    mockDb.run = vi.fn().mockResolvedValue({});
     const { makeQuery } = await import("../../test/helpers");
     mockDb = {
       select: vi
@@ -3986,11 +3985,11 @@ describe("Error handling and untested branches", () => {
         .mockImplementation(() => ({
           bind: vi.fn().mockReturnThis(),
           all: vi.fn().mockRejectedValue(new Error("Track DB failure")),
-        })),
+      })),
       run: vi.fn().mockResolvedValue({}),
     };
-    env = createTestEnv({ DB: mockDb as any });
-    app = await createTestApp();
+    const env = createTestEnv({ DB: mockDb as any });
+    const app = await createTestApp();
 
     const consoleErrorSpy = vi
       .spyOn(console, "error")
