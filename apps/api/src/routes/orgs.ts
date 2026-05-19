@@ -17,6 +17,7 @@ import {
 import type { Env, JwtPayload, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { parseStoredTags } from "../utils/tags";
+import { escapeLikeLiteral } from "../utils/sql";
 import { ID_MAX_LENGTH } from "../utils/constants";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -86,17 +87,15 @@ function hasJwtSub(value: unknown): value is Pick<JwtPayload, "sub"> {
 
 const MEMBER_ROLES = ["admin", "member"] as const;
 
-const escapeLikeLiteral = (str: string) => {
-  return str.replace(/[\\%_]/g, "\\$&");
-};
-
 const ADMIN_LIKE_ROLES = ["admin", "owner"] as const;
 
 function isMemberRole(role: unknown): role is (typeof MEMBER_ROLES)[number] {
   return (MEMBER_ROLES as readonly unknown[]).includes(role);
 }
 
-function isAdminLikeRole(role: unknown): role is (typeof ADMIN_LIKE_ROLES)[number] {
+function isAdminLikeRole(
+  role: unknown,
+): role is (typeof ADMIN_LIKE_ROLES)[number] {
   return (ADMIN_LIKE_ROLES as readonly unknown[]).includes(role);
 }
 
