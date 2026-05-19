@@ -3697,6 +3697,23 @@ describe("Error handling and untested branches", () => {
   });
 
   it("POST /api/papers/:id/track handles missing json payload", async () => {
+    const { makeQuery } = await import("../../test/helpers");
+    mockDb = {
+      run: vi.fn().mockResolvedValue({}),
+      prepare: vi
+        .fn()
+        .mockImplementation(() => ({
+          bind: vi.fn().mockReturnThis(),
+          all: vi.fn().mockResolvedValue([]),
+        })),
+      select: vi
+        .fn()
+        .mockImplementationOnce(() =>
+          makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+        ),
+    };
+    const env = createTestEnv({ DB: mockDb as any });
+    const app = await createTestApp();
     const res = await app.request(
       "http://localhost/api/papers/paper-1/track",
       {
@@ -3714,6 +3731,23 @@ describe("Error handling and untested branches", () => {
   });
 
   it("POST /api/papers/:id/track handles non-object JSON body", async () => {
+    const { makeQuery } = await import("../../test/helpers");
+    mockDb = {
+      run: vi.fn().mockResolvedValue({}),
+      prepare: vi
+        .fn()
+        .mockImplementation(() => ({
+          bind: vi.fn().mockReturnThis(),
+          all: vi.fn().mockResolvedValue([]),
+        })),
+      select: vi
+        .fn()
+        .mockImplementationOnce(() =>
+          makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+        ),
+    };
+    const env = createTestEnv({ DB: mockDb as any });
+    const app = await createTestApp();
     const res = await app.request(
       "http://localhost/api/papers/paper-1/track",
       {
@@ -3732,15 +3766,22 @@ describe("Error handling and untested branches", () => {
 
   it("POST /api/papers/:id/track captures parsing errors in promise", async () => {
     const { makeQuery } = await import("../../test/helpers");
-    mockDb.select = vi
-      .fn()
-      .mockImplementationOnce(() =>
-        makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
-      );
-    mockDb.prepare = vi.fn().mockImplementation(() => ({
-      bind: vi.fn().mockReturnThis(),
-      all: vi.fn().mockRejectedValue(new Error("Track DB failure")),
-    }));
+    mockDb = {
+      select: vi
+        .fn()
+        .mockImplementationOnce(() =>
+          makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+        ),
+      prepare: vi
+        .fn()
+        .mockImplementation(() => ({
+          bind: vi.fn().mockReturnThis(),
+          all: vi.fn().mockRejectedValue(new Error("Track DB failure")),
+      })),
+      run: vi.fn().mockResolvedValue({}),
+    };
+    const env = createTestEnv({ DB: mockDb as any });
+    const app = await createTestApp();
 
     const consoleErrorSpy = vi
       .spyOn(console, "error")
