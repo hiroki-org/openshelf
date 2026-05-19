@@ -133,7 +133,7 @@ async function deleteKeysInBatches(
             try {
                 await bucket.delete(chunk);
             } catch (error) {
-                if (!onChunkError) throw error;
+                if (!onChunkError) throw error instanceof Error ? error : new Error(String(error));
                 onChunkError({
                     chunkStart,
                     chunkEndExclusive: chunkStart + chunk.length,
@@ -736,7 +736,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
             console.error("Cleanup error (non-fatal, rollback continues):", info.error);
         });
         await db.delete(papers).where(eq(papers.id, paperId));
-        throw error;
+        throw error instanceof Error ? error : new Error(String(error));
     }
 
     return c.json({ paper: { id: paperId } }, 201);

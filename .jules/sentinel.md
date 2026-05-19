@@ -20,3 +20,7 @@
 **Vulnerability:** X-Forwarded-For ヘッダーを使用した IP アドレスのフォールバック
 **Learning:** Cloudflare Workers 環境などでは CF-Connecting-IP が信頼できる IP アドレスのソースとなります。X-Forwarded-For にフォールバックすると、クライアントがヘッダーを偽装（スプーフィング）し、IP ベースのアクセス制御やレート制限を回避できる可能性があります。
 **Prevention:** 信頼できるロードバランサーや CDN が設定するヘッダー（例：CF-Connecting-IP）のみを使用し、クライアントから送信される可能性のあるヘッダー（例：X-Forwarded-For）へのフォールバックは避ける。
+## 2026-05-19 - [Unhandled String Exceptions in Catch Blocks]
+**Vulnerability:** Several `catch (err)` blocks across the API codebase directly re-throw the caught error (`throw err;`). If the original thrown value was not an `Error` instance (e.g. a string or plain object), this can cause the Hono global error handler to fail to properly propagate the error with a 500 status.
+**Learning:** In TypeScript/JavaScript, any value can be thrown. Wrapping unknown errors in an `Error` instance ensures uniform behavior and prevents unintentional information leakage or server crashes.
+**Prevention:** When catching and re-throwing errors, always ensure an `Error` object is thrown: `throw err instanceof Error ? err : new Error(String(err));`.
