@@ -107,7 +107,7 @@ export default function InvitesPage() {
               共著者招待
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
-              論文への招待を確認し、必要に応じて承認または拒否できます。
+              成果物への招待を確認し、必要に応じて承認または拒否できます。
               研究成果物への参加依頼を落ち着いて整理できる画面です。
             </p>
           </div>
