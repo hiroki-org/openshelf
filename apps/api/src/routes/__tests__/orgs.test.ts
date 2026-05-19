@@ -96,6 +96,39 @@ describe("orgs routes", () => {
       expect(text).toContain("Internal Server Error");
     });
 
+    it("wraps non-Error insert failures", async () => {
+      const token = await createTestJWT({
+        sub: "user-1",
+        githubId: "123",
+        name: "Tester",
+      });
+
+      mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+
+      mockDb.insert = vi.fn().mockImplementationOnce(() => ({
+        values: vi.fn().mockRejectedValue("Some other DB error"),
+      }));
+
+      const app = await createTestApp();
+      const env = createTestEnv();
+
+      const res = await app.request(
+        "http://localhost/api/orgs",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: "Lab", slug: "lab" }),
+        },
+        env as any,
+      );
+      expect(res.status).toBe(500);
+      const text = await res.text();
+      expect(text).toContain("Internal Server Error");
+    });
+
     it("returns 409 for UNIQUE constraint violation race condition", async () => {
       const token = await createTestJWT({
         sub: "user-1",
