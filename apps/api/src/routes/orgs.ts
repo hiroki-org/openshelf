@@ -18,7 +18,6 @@ import type { Env, JwtPayload, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { parseStoredTags } from "../utils/tags";
 import { ID_MAX_LENGTH } from "../utils/constants";
-import { escapeLikeLiteral } from "../utils/sql";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 const ORG_TAGS_LIMIT = 100;
