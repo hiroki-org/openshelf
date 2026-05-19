@@ -740,10 +740,17 @@ papersRoute.post("/", authMiddleware, async (c) => {
             })),
         );
     } catch (error) {
-        await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
-            // Ignore cleanup errors during rollback after a later failure.
-            console.error("Cleanup error (non-fatal, rollback continues):", info.error);
-        });
+        try {
+            await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
+                // Ignore cleanup errors during rollback after a later failure.
+                console.error("Cleanup error (non-fatal, rollback continues):", info.error);
+            });
+        } catch (cleanupError) {
+            console.error(
+                "Cleanup error (non-fatal, rollback continues):",
+                `original=${formatCaughtError(error)} cleanup=${formatCaughtError(cleanupError)}`,
+            );
+        }
         try {
             await db.delete(papers).where(eq(papers.id, paperId));
         } catch (cleanupError) {
