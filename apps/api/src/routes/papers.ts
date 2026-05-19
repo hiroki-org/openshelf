@@ -489,19 +489,14 @@ type ParsedMetadata = {
 };
 
 function parseAndValidateMetadata(c: Context, metadataStr: string): { errorResponse?: Response; data?: ParsedMetadata } {
-    let meta: unknown;
+    let meta: Record<string, unknown>;
     try {
         meta = JSON.parse(metadataStr);
     } catch {
         return { errorResponse: c.json({ error: "Invalid metadata JSON" }, 400) };
     }
-    if (meta === null || typeof meta !== "object" || Array.isArray(meta)) {
-        return { errorResponse: c.json({ error: "Invalid metadata JSON" }, 400) };
-    }
 
-    const metadata = meta as Record<string, unknown>;
-
-    const title = metadata.title as string | undefined;
+    const title = meta.title as string | undefined;
     if (
         !title ||
         typeof title !== "string" ||
@@ -510,31 +505,31 @@ function parseAndValidateMetadata(c: Context, metadataStr: string): { errorRespo
     )
         return { errorResponse: c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400) };
 
-    const vis = (metadata.visibility as string) || "private";
+    const vis = (meta.visibility as string) || "private";
     if (!VALID_VISIBILITY.includes(vis))
         return { errorResponse: c.json({ error: "Invalid visibility" }, 400) };
 
-    const venueType = (metadata.venueType as string | null | undefined) ?? null;
+    const venueType = (meta.venueType as string | null | undefined) ?? null;
     if (venueType !== null && !(VALID_VENUE_TYPES as readonly string[]).includes(venueType))
         return { errorResponse: c.json({ error: "Invalid venueType" }, 400) };
 
-    const category = (metadata.category as string | null | undefined) ?? null;
+    const category = (meta.category as string | null | undefined) ?? null;
     if (category !== null && !(VALID_CATEGORIES as readonly string[]).includes(category))
         return { errorResponse: c.json({ error: "Invalid category" }, 400) };
 
-    const externalUrl = (metadata.externalUrl as string) || null;
+    const externalUrl = (meta.externalUrl as string) || null;
     if (externalUrl && !isValidUrlScheme(externalUrl)) {
         return { errorResponse: c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400) };
     }
 
     if (
-        metadata.showViewCount !== undefined
-        && typeof metadata.showViewCount !== "boolean"
+        meta.showViewCount !== undefined
+        && typeof meta.showViewCount !== "boolean"
     ) {
         return { errorResponse: c.json({ error: "showViewCount must be a boolean" }, 400) };
     }
 
-    const orgId = metadata.orgId as string | undefined;
+    const orgId = meta.orgId as string | undefined;
     if (vis === "org_only" && !orgId) {
         return { errorResponse: c.json({ error: "orgId is required for org_only visibility" }, 400) };
     }
@@ -542,17 +537,17 @@ function parseAndValidateMetadata(c: Context, metadataStr: string): { errorRespo
     return {
         data: {
             title: title.trim(),
-            abstract: (metadata.abstract as string) || null,
+            abstract: (meta.abstract as string) || null,
             visibility: vis as "public" | "org_only" | "private",
-            showViewCount: Boolean(metadata.showViewCount),
-            language: (metadata.language as string) || null,
+            showViewCount: Boolean(meta.showViewCount),
+            language: (meta.language as string) || null,
             externalUrl,
-            doi: (metadata.doi as string) || null,
-            venue: (metadata.venue as string) || null,
+            doi: (meta.doi as string) || null,
+            venue: (meta.venue as string) || null,
             venueType: venueType as VenueType | null,
-            year: metadata.year ? Number(metadata.year) : null,
+            year: meta.year ? Number(meta.year) : null,
             category: category as CategoryType | null,
-            tags: metadata.tags ? JSON.stringify(metadata.tags) : null,
+            tags: meta.tags ? JSON.stringify(meta.tags) : null,
             orgId,
         }
     };
@@ -1202,22 +1197,17 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
     let resolvedInviteeEmail: string | null = inviteeEmail;
 
     if (!resolvedInviteeId && resolvedInviteeEmail) {
-        try {
-            const matchedUser = await db
-                .select({ id: users.id })
-                .from(users)
-                .where(eq(users.email, resolvedInviteeEmail))
-                .get();
-            if (matchedUser) {
-                if (matchedUser.id === userId) {
-                    return c.json({ error: "Cannot invite yourself" }, 400);
-                }
-                resolvedInviteeId = matchedUser.id;
-                resolvedInviteeEmail = null;
+        const matchedUser = await db
+            .select({ id: users.id })
+            .from(users)
+            .where(eq(users.email, resolvedInviteeEmail))
+            .get();
+        if (matchedUser) {
+            if (matchedUser.id === userId) {
+                return c.json({ error: "Cannot invite yourself" }, 400);
             }
-        } catch (e: unknown) {
-            console.error("Failed to lookup invitee by email:", e);
-            return c.json({ error: "Internal server error" }, 500);
+            resolvedInviteeId = matchedUser.id;
+            resolvedInviteeEmail = null;
         }
     }
 

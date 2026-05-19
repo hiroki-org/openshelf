@@ -163,7 +163,7 @@ export default function SettingsPage() {
             disabled={saving}
             className="inline-flex min-w-32 items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
           >
-            {saving && <Spinner />}
+            {saving && <Spinner className="h-4 w-4" />}
             {saving ? "保存中..." : "保存"}
           </button>
 
