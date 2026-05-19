@@ -357,7 +357,7 @@ orgsRoute.post("/", authMiddleware, async (c) => {
     if (message.includes("UNIQUE") || message.includes("unique")) {
       return c.json({ error: "slug already in use" }, 409);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(message);
   }
 
   const org = await db.select().from(orgs).where(eq(orgs.id, orgId)).get();
@@ -569,7 +569,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     if (message.includes("UNIQUE") || message.includes("unique")) {
       return c.json({ error: "User is already a member" }, 409);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(message);
   }
 
   return c.json({ ok: true }, 201);
@@ -1042,7 +1042,7 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
         409,
       );
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(message);
   }
 
   return c.json({ ok: true }, 201);

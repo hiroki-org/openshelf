@@ -703,7 +703,7 @@ describe("papers routes", () => {
     );
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "Cleanup error (non-fatal, rollback continues):",
-      "Cleanup failed",
+      "Error: Cleanup failed",
     );
 
     // db.delete should be called for papers
@@ -711,6 +711,203 @@ describe("papers routes", () => {
     expect(mockDb.delete).toHaveBeenCalledWith(papers);
     expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
     expect(mockDeleteWhere).toHaveBeenCalledWith(expect.anything());
+    consoleErrorSpy.mockRestore();
+    bucketDeleteSpy.mockRestore();
+  });
+
+  it("POST /api/papers preserves original error when paper rollback delete fails", async () => {
+    const token = await createTestJWT({
+      sub: "user-1",
+      githubId: "123",
+      name: "Uploader",
+    });
+
+    const dbError = new Error("Mock DB Error");
+    mockDb.insert
+      .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
+      .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
+      .mockImplementationOnce(() => ({
+        values: vi.fn().mockRejectedValue(dbError),
+      }));
+
+    const mockDeleteWhere = vi.fn().mockRejectedValue(new Error("DB cleanup failed"));
+    mockDb.delete = vi.fn(() => ({ where: mockDeleteWhere }));
+
+    const app = await createTestApp();
+    const env = createTestEnv({ DB: mockDb as any });
+    const bucketDeleteSpy = vi
+      .spyOn(env.BUCKET, "delete")
+      .mockResolvedValue(undefined);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const form = new FormData();
+    form.set(
+      "metadata",
+      JSON.stringify({ title: "Test Paper", visibility: "private" }),
+    );
+    form.set(
+      "files_0",
+      new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    form.set("file_types_0", "paper");
+
+    const res = await app.request(
+      "http://localhost/api/papers",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Origin: "http://localhost:3000",
+        },
+        body: form,
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(500);
+    expect(bucketDeleteSpy).toHaveBeenCalledTimes(1);
+    expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Cleanup error (non-fatal, rollback continues):",
+      "original=Error: Mock DB Error cleanup=Error: DB cleanup failed",
+    );
+
+    consoleErrorSpy.mockRestore();
+    bucketDeleteSpy.mockRestore();
+  });
+
+  it("POST /api/papers wraps non-Error insert failures after rollback", async () => {
+    const token = await createTestJWT({
+      sub: "user-1",
+      githubId: "123",
+      name: "Uploader",
+    });
+
+    mockDb.insert
+      .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
+      .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
+      .mockImplementationOnce(() => ({
+        values: vi.fn().mockRejectedValue("Mock DB Error"),
+      }));
+
+    const mockDeleteWhere = vi.fn().mockRejectedValue("DB cleanup failed");
+    mockDb.delete = vi.fn(() => ({ where: mockDeleteWhere }));
+
+    const app = await createTestApp();
+    const env = createTestEnv({ DB: mockDb as any });
+    const bucketDeleteSpy = vi
+      .spyOn(env.BUCKET, "delete")
+      .mockResolvedValue(undefined);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const form = new FormData();
+    form.set(
+      "metadata",
+      JSON.stringify({ title: "Test Paper", visibility: "private" }),
+    );
+    form.set(
+      "files_0",
+      new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    form.set("file_types_0", "paper");
+
+    const res = await app.request(
+      "http://localhost/api/papers",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Origin: "http://localhost:3000",
+        },
+        body: form,
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(500);
+    expect(bucketDeleteSpy).toHaveBeenCalledTimes(1);
+    expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Cleanup error (non-fatal, rollback continues):",
+      "original=Mock DB Error cleanup=DB cleanup failed",
+    );
+
+    consoleErrorSpy.mockRestore();
+    bucketDeleteSpy.mockRestore();
+  });
+
+  it("POST /api/papers continues DB rollback when R2 cleanup callback fails", async () => {
+    const token = await createTestJWT({
+      sub: "user-1",
+      githubId: "123",
+      name: "Uploader",
+    });
+
+    const dbError = new Error("Mock DB Error");
+    mockDb.insert
+      .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
+      .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
+      .mockImplementationOnce(() => ({
+        values: vi.fn().mockRejectedValue(dbError),
+      }));
+
+    const mockDeleteWhere = vi.fn(async () => undefined);
+    mockDb.delete = vi.fn(() => ({ where: mockDeleteWhere }));
+
+    const app = await createTestApp();
+    const env = createTestEnv({ DB: mockDb as any });
+    const bucketDeleteSpy = vi
+      .spyOn(env.BUCKET, "delete")
+      .mockRejectedValue(new Error("R2 cleanup failed"));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementationOnce(() => {
+        throw new Error("cleanup log failed");
+      })
+      .mockImplementation(() => {});
+
+    const form = new FormData();
+    form.set(
+      "metadata",
+      JSON.stringify({ title: "Test Paper", visibility: "private" }),
+    );
+    form.set(
+      "files_0",
+      new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    form.set("file_types_0", "paper");
+
+    const res = await app.request(
+      "http://localhost/api/papers",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Origin: "http://localhost:3000",
+        },
+        body: form,
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(500);
+    expect(bucketDeleteSpy).toHaveBeenCalledTimes(1);
+    expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Cleanup error (non-fatal, rollback continues):",
+      "original=Error: Mock DB Error cleanup=Error: cleanup log failed",
+    );
+
     consoleErrorSpy.mockRestore();
     bucketDeleteSpy.mockRestore();
   });
@@ -783,7 +980,7 @@ describe("papers routes", () => {
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "Cleanup error (non-fatal, rollback continues):",
-        "R2 batch error",
+        "Error: R2 batch error",
       );
       expect(mockDb.delete).toHaveBeenCalledTimes(1);
     } finally {
