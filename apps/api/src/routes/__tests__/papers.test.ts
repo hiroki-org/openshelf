@@ -4127,40 +4127,7 @@ describe("Error handling and untested branches", () => {
     expect(await res.json()).toEqual({ error: "Invalid JSON body" });
   });
 
-  it("PATCH /api/papers/:id returns 409 when UNIQUE constraint fails on update", async () => {
-    mockDb.select = vi
-      .fn()
-      .mockImplementationOnce(() =>
-        makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
-      ) // get paper
-      .mockImplementationOnce(() =>
-        makeQuery({ getResult: { userId: "user-test" } }),
-      ); // author check
-
-    mockDb.update = vi.fn().mockReturnValue({
-      set: vi.fn().mockReturnValue({
-        where: vi.fn().mockRejectedValue(new Error("UNIQUE constraint failed: papers.title")),
-      }),
-    });
-    const res = await app.request(
-      "http://localhost/api/papers/paper-1",
-      {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ title: "New Title" }),
-      },
-      env as any,
-    );
-    expect(res.status).toBe(409);
-    expect(await res.json()).toEqual({
-      error: "Paper update conflicts with an existing record",
-    });
-  });
-
-  it("PATCH /api/papers/:id propagates non-unique constraint failures on update", async () => {
+  it("PATCH /api/papers/:id propagates db update failures", async () => {
     mockDb.select = vi
       .fn()
       .mockImplementationOnce(() =>

@@ -23,11 +23,9 @@ import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
 import { buildCitation, isCitationFormat } from "../utils/citation";
-import { isUniqueConstraintError } from "../utils/db";
 import pMap from "p-map";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
-const PAPER_UNIQUE_CONFLICT_MESSAGE = "Paper update conflicts with an existing record";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
 const MAX_CONCURRENT_UPLOADS = 3;
@@ -1662,14 +1660,7 @@ papersRoute.patch("/:id", authMiddleware, async (c) => {
         return c.json({ error: "No valid fields to update" }, 400);
     }
 
-    try {
-        await db.update(papers).set(updates).where(eq(papers.id, paperId));
-    } catch (err) {
-        if (isUniqueConstraintError(err)) {
-            return c.json({ error: PAPER_UNIQUE_CONFLICT_MESSAGE }, 409);
-        }
-        throw err;
-    }
+    await db.update(papers).set(updates).where(eq(papers.id, paperId));
     return c.json({ ok: true });
 });
 
