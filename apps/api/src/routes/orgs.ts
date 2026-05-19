@@ -17,6 +17,7 @@ import {
 import type { Env, JwtPayload, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { parseStoredTags } from "../utils/tags";
+import { escapeLikeLiteral } from "../utils/sql";
 import { ID_MAX_LENGTH } from "../utils/constants";
 import { escapeLikeLiteral } from "../utils/sql";
 
@@ -93,7 +94,9 @@ function isMemberRole(role: unknown): role is (typeof MEMBER_ROLES)[number] {
   return (MEMBER_ROLES as readonly unknown[]).includes(role);
 }
 
-function isAdminLikeRole(role: unknown): role is (typeof ADMIN_LIKE_ROLES)[number] {
+function isAdminLikeRole(
+  role: unknown,
+): role is (typeof ADMIN_LIKE_ROLES)[number] {
   return (ADMIN_LIKE_ROLES as readonly unknown[]).includes(role);
 }
 
@@ -355,7 +358,7 @@ orgsRoute.post("/", authMiddleware, async (c) => {
     if (message.includes("UNIQUE") || message.includes("unique")) {
       return c.json({ error: "slug already in use" }, 409);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(message);
   }
 
   const org = await db.select().from(orgs).where(eq(orgs.id, orgId)).get();
@@ -567,7 +570,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     if (message.includes("UNIQUE") || message.includes("unique")) {
       return c.json({ error: "User is already a member" }, 409);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(message);
   }
 
   return c.json({ ok: true }, 201);
@@ -1040,7 +1043,7 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
         409,
       );
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(message);
   }
 
   return c.json({ ok: true }, 201);
