@@ -296,7 +296,7 @@ collectionsRoute.post("/collections", authMiddleware, async (c) => {
     if (isUniqueConstraintError(err)) {
       return c.json({ error: "slug already in use" }, 409);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(String(err));
   }
 
   const collection = await db
@@ -402,7 +402,7 @@ collectionsRoute.patch("/collections/:id", authMiddleware, async (c) => {
     if (isUniqueConstraintError(err)) {
       return c.json({ error: "slug already in use" }, 409);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(String(err));
   }
 
   const updated = await db
@@ -556,7 +556,7 @@ collectionsRoute.post("/collections/:id/papers", authMiddleware, async (c) => {
     if (isUniqueConstraintError(err)) {
       return c.json({ error: "Paper already added" }, 409);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(String(err));
   }
   return c.json({ ok: true }, 201);
 });
