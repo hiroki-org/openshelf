@@ -113,7 +113,7 @@ export default function UserCollectionPageClient({
       </div>
 
       {papers.length === 0 ? (
-        <p className="text-sm text-gray-500">論文がありません</p>
+        <p className="text-sm text-gray-500">成果物がありません</p>
       ) : (
         <ul className="space-y-3">
           {papers.map((paper) => (
