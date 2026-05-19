@@ -16,6 +16,7 @@ import {
 import { authMiddleware } from "../middleware/auth";
 import type { Env, Variables } from "../types";
 import { ID_MAX_LENGTH } from "../utils/constants";
+import { isUniqueConstraintError } from "../utils/db";
 
 const collectionsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
@@ -65,15 +66,6 @@ function parseVisibility(value: unknown): Visibility | null {
     return value as Visibility;
   }
   return null;
-}
-
-function isUniqueConstraintError(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err);
-  return (
-    message.includes("UNIQUE") ||
-    message.includes("unique") ||
-    message.includes("constraint")
-  );
 }
 
 async function getCurrentUser(c: any): Promise<CurrentUser> {
@@ -296,7 +288,7 @@ collectionsRoute.post("/collections", authMiddleware, async (c) => {
     if (isUniqueConstraintError(err)) {
       return c.json({ error: "slug already in use" }, 409);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(String(err));
   }
 
   const collection = await db
@@ -402,7 +394,7 @@ collectionsRoute.patch("/collections/:id", authMiddleware, async (c) => {
     if (isUniqueConstraintError(err)) {
       return c.json({ error: "slug already in use" }, 409);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(String(err));
   }
 
   const updated = await db
@@ -556,7 +548,7 @@ collectionsRoute.post("/collections/:id/papers", authMiddleware, async (c) => {
     if (isUniqueConstraintError(err)) {
       return c.json({ error: "Paper already added" }, 409);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(String(err));
   }
   return c.json({ ok: true }, 201);
 });
