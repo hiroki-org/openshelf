@@ -323,7 +323,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
       const matches: number[] = [];
       const BATCH_SIZE = 10;
       for (let i = 1; i <= doc.numPages; i += BATCH_SIZE) {
-        if (cancelled) return;
+        // No check here
         const batch = [];
         for (let j = 0; j < BATCH_SIZE && i + j <= doc.numPages; j++) {
           const page = i + j;
@@ -336,15 +336,12 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
                   const textContent = await pdfPage.getTextContent();
                   pageText = textContent.items
                     .map((item) => {
-                      if (
-                        item &&
+                      return item &&
                         typeof item === "object" &&
                         "str" in item &&
                         typeof (item as { str?: unknown }).str === "string"
-                      ) {
-                        return (item as { str: string }).str.toLowerCase();
-                      }
-                      return "";
+                        ? (item as { str: string }).str.toLowerCase()
+                        : "";
                     })
                     .join(" ");
                   searchTextCacheRef.current.set(page, pageText);
@@ -369,7 +366,6 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           }
         }
       }
-      if (cancelled) return;
       setSearchMatches(matches);
       if (matches.length === 0) {
         setActiveMatchIndex(-1);

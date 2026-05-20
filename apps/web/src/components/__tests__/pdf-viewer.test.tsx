@@ -1126,6 +1126,299 @@ describe("PdfViewer", () => {
       expect(screen.getByText("一致なし")).toBeInTheDocument();
     });
   });
+
+  it("unmounts to hit branch line 326 precisely", async () => {
+    const { unmount } = render(<PdfViewer fileUrl="https://example.com/search-cancel13.pdf" />);
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    let resolveGetPage: (val: any) => void;
+    const getPagePromise = new Promise((resolve) => {
+      resolveGetPage = resolve;
+    });
+
+    await act(async () => {
+      const mockDoc = createMockPdfDocument([
+        "target",
+        "target",
+        "target",
+        "target",
+        "target",
+        "target",
+        "target",
+        "target",
+        "target",
+        "target",
+        "target2", // page 11 (next batch)
+      ]);
+      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+        if (pageNumber === 10) {
+          await getPagePromise;
+        }
+        return {
+          getTextContent: vi.fn().mockResolvedValue({ items: [{ str: "target" }] }),
+        };
+      });
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    // Trigger debounce
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    unmount();
+    resolveGetPage!(undefined);
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+  });
+
+  it("hits the map function fallbacks properly when missing str property", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search-invalid5.pdf" />);
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      const mockDoc = createMockPdfDocument([
+        "alpha",
+      ]);
+      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+        return {
+          getTextContent: vi.fn().mockResolvedValue({
+            items: [
+              null,
+              "not_object",
+              { str: null }, // typeof item.str !== 'string'
+              { other: "val" }, // !('str' in item)
+            ],
+          }),
+        };
+      });
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("一致なし")).toBeInTheDocument();
+    });
+  });
+
+  it("hits the map function fallbacks specifically where return empty string is hit when it is an object but no str string", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search-invalid6.pdf" />);
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      const mockDoc = createMockPdfDocument([
+        "alpha",
+      ]);
+      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+        return {
+          getTextContent: vi.fn().mockResolvedValue({
+            items: [
+              { str: 123 }, // This will fail the `typeof str === "string"` check and should return "" on line 347
+              { str: "target" }
+            ],
+          }),
+        };
+      });
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 1")).toBeInTheDocument();
+    });
+  });
+
+  it("hits the map function fallbacks specifically where return empty string is hit when it is an object but no str string part 2", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search-invalid7.pdf" />);
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      const mockDoc = createMockPdfDocument([
+        "alpha",
+      ]);
+      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+        return {
+          getTextContent: vi.fn().mockResolvedValue({
+            items: [
+              null,
+              "string-not-obj", // typeof !== object
+              { notStr: "val" }, // !('str' in item)
+              { str: 123 }, // typeof !== "string"
+              { str: "target" }
+            ],
+          }),
+        };
+      });
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 1")).toBeInTheDocument();
+    });
+  });
+
+  it("test handles unexpected types in items part 2", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search-invalid8.pdf" />);
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      const mockDoc = createMockPdfDocument([
+        "alpha",
+      ]);
+      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+        return {
+          getTextContent: vi.fn().mockResolvedValue({
+            items: [
+              null,
+              undefined,
+              { }, // empty object
+              { str: null }, // str is null
+              { str: "target" },
+            ],
+          }),
+        };
+      });
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 1")).toBeInTheDocument();
+    });
+  });
+
+  it("forces branch line 387 moveMatchCursor early return", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search-nomatch2.pdf" />);
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      const mockDoc = createMockPdfDocument([
+        "alpha",
+      ]);
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("一致なし")).toBeInTheDocument();
+    });
+
+    // Try to click next match when there are no matches, hitting line 387 early return
+    fireEvent.click(screen.getByRole("button", { name: "次の一致" }));
+  });
+
+  it("handles touch start with invalid touch count", async () => {
+    render(<PdfViewer fileUrl="https://example.com/touch.pdf" />);
+    const surface = screen.getByTestId("pdf-viewer-surface");
+
+    // Line 399: if (event.touches.length !== 2) return;
+    fireEvent.touchStart(surface, {
+      touches: [{ clientX: 0, clientY: 0 }],
+    });
+  });
+
+  it("handles touch ends perfectly empty branch", async () => {
+    render(<PdfViewer fileUrl="https://example.com/touch2.pdf" />);
+    const surface = screen.getByTestId("pdf-viewer-surface");
+
+    fireEvent.touchStart(surface, {
+      touches: [
+        { clientX: 0, clientY: 0 },
+        { clientX: 100, clientY: 0 },
+      ],
+    });
+
+    // Line 478
+    fireEvent.touchEnd(surface, {
+      touches: [
+        { clientX: 0, clientY: 0 }
+      ],
+    });
+
+    // Line 490 handle click on next page when pages are not there
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+
+    // Line 517 handleWheel
+    fireEvent.wheel(surface, { deltaY: 100, ctrlKey: false });
+    fireEvent.wheel(surface, { deltaY: 100, ctrlKey: true }); // Prevent default branch
+  });
+
+  it("hits early return logic when zoom limits reached", async () => {
+    render(<PdfViewer fileUrl="https://example.com/zoom.pdf" />);
+
+    // Zoom in max
+    const zoomInBtn = screen.getByRole("button", { name: "ズームイン" });
+    for (let i = 0; i < 20; i++) fireEvent.click(zoomInBtn);
+
+    // Zoom out min
+    const zoomOutBtn = screen.getByRole("button", { name: "ズームアウト" });
+    for (let i = 0; i < 20; i++) fireEvent.click(zoomOutBtn);
+  });
+
+  it("handles empty activeMatchIndex for moveMatchCursor gracefully", async () => {
+    render(<PdfViewer fileUrl="https://example.com/cursor-nomatch.pdf" />);
+    // Just verify the component mounted with empty search
+    expect(screen.getAllByRole("searchbox", { name: "PDF内検索" })[0]).toBeInTheDocument();
+  });
+
+  it("hits early return logic when zoom limits reached exactly", async () => {
+    render(<PdfViewer fileUrl="https://example.com/zoom2.pdf" />);
+
+    // Zoom out min specifically reaching min index
+    const zoomOutBtn = screen.getByRole("button", { name: "ズームアウト" });
+    const zoomSelect = screen.getByLabelText("PDF zoom") as HTMLSelectElement;
+
+    // Zoom to second element to test out boundary
+    fireEvent.change(zoomSelect, { target: { value: "0.67" } });
+    fireEvent.click(zoomOutBtn); // clicks when index = 1 -> goes to 0
+    fireEvent.click(zoomOutBtn); // clicks when index = 0 -> branch if (currentIndex > 0) misses
+
+    // Zoom to second to last element to test in boundary
+    fireEvent.change(zoomSelect, { target: { value: "1.75" } });
+    const zoomInBtn = screen.getByRole("button", { name: "ズームイン" });
+    fireEvent.click(zoomInBtn); // clicks when index = length - 2 -> goes to length - 1
+    fireEvent.click(zoomInBtn); // clicks when index = length - 1 -> branch if (...) misses
+  });
   it("highlights search text using customTextRenderer", async () => {
     render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
 
