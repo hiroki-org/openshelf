@@ -256,8 +256,17 @@ export default function NewCollectionPage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={100}
+            aria-describedby="name-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
+          <div className="flex justify-end mt-1">
+            <span
+              id="name-counter"
+              className={`text-xs ${name.length > 90 ? "text-red-500" : "text-gray-500 dark:text-gray-400"}`}
+            >
+              {name.length}/100
+            </span>
+          </div>
         </div>
 
         <div>
@@ -295,8 +304,17 @@ export default function NewCollectionPage() {
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
             maxLength={500}
+            aria-describedby="description-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
+          <div className="flex justify-end mt-1">
+            <span
+              id="description-counter"
+              className={`text-xs ${description.length > 480 ? "text-red-500" : "text-gray-500 dark:text-gray-400"}`}
+            >
+              {description.length}/500
+            </span>
+          </div>
         </div>
 
         <div>
