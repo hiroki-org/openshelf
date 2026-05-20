@@ -411,7 +411,7 @@ describe("PaperDetailClient", () => {
     const slideRow = screen.getByText("deck.pptx").closest("li");
     expect(slideRow).not.toBeNull();
     fireEvent.click(
-      within(slideRow!).getByRole("button", { name: "ダウンロード" }),
+      within(slideRow!).getByRole("button", { name: "deck.pptxをダウンロード" }),
     );
 
     await waitFor(() => {
@@ -423,7 +423,7 @@ describe("PaperDetailClient", () => {
       target: { value: "bo" },
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: "招待" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Bob Candidateを招待" }));
 
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledWith("招待を送信しました");

@@ -252,10 +252,11 @@ orgsRoute.get("/:slug/tags", async (c) => {
   if (orgPapers.length === 0) return c.json({ tags: [] });
 
   const counts = new Map<string, number>();
-  const rawTagCounts = new Map<string, number>();
+  const tagCache = new Map<string, string[]>();
+  const lowerCache = new Map<string, string>();
 
   for (const paper of orgPapers) {
-    const isAuthor = currentUserId !== null && paper.authorUserId === currentUserId;
+    const isAuthor = paper.authorUserId === currentUserId;
     const isVisible =
       paper.visibility === "public" ||
       (paper.visibility === "org_only" && (isMember || isAuthor)) ||
@@ -263,18 +264,22 @@ orgsRoute.get("/:slug/tags", async (c) => {
     if (!isVisible) continue;
 
     const rawTags = paper.tags ?? "";
-    if (rawTags) {
-      rawTagCounts.set(rawTags, (rawTagCounts.get(rawTags) ?? 0) + 1);
+    let tags = tagCache.get(rawTags);
+    if (tags === undefined) {
+      tags = parseStoredTags(rawTags);
+      tagCache.set(rawTags, tags);
     }
-  }
 
-  for (const [rawTags, count] of rawTagCounts) {
-    const tags = parseStoredTags(rawTags);
     for (const tag of tags) {
       if (query) {
-        if (!tag.toLowerCase().startsWith(query)) continue;
+        let lower = lowerCache.get(tag);
+        if (lower === undefined) {
+          lower = tag.toLowerCase();
+          lowerCache.set(tag, lower);
+        }
+        if (!lower.startsWith(query)) continue;
       }
-      counts.set(tag, (counts.get(tag) ?? 0) + count);
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
     }
   }
 
@@ -352,7 +357,7 @@ orgsRoute.post("/", authMiddleware, async (c) => {
     if (message.includes("UNIQUE") || message.includes("unique")) {
       return c.json({ error: "slug already in use" }, 409);
     }
-    throw err instanceof Error ? err : new Error(message);
+    throw err;
   }
 
   const org = await db.select().from(orgs).where(eq(orgs.id, orgId)).get();
@@ -564,7 +569,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     if (message.includes("UNIQUE") || message.includes("unique")) {
       return c.json({ error: "User is already a member" }, 409);
     }
-    throw err instanceof Error ? err : new Error(message);
+    throw err;
   }
 
   return c.json({ ok: true }, 201);
@@ -1037,7 +1042,7 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
         409,
       );
     }
-    throw err instanceof Error ? err : new Error(message);
+    throw err;
   }
 
   return c.json({ ok: true }, 201);

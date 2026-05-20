@@ -15,7 +15,7 @@
 ## 2026-05-11 - [Catching String Rejections]
 **Issue:** String exceptions were not handled, causing the app to return an Internal Server Error.
 **Learning:** `e instanceof Error` correctly identifies built-in errors, but doesn't handle `throw "error"`. It caused Hono to not correctly propagate a 500 status.
-**Prevention:** Handle unknown thrown values by deriving a safe message for comparisons and always re-throwing an `Error` object, for example `throw e instanceof Error ? e : new Error(message);`.
+**Prevention:** Handled by validating `e instanceof Error ? e.message : typeof e === 'string' ? e : "";` and throwing an error properly at the end `throw e instanceof Error ? e : new Error(String(e));`.
 ## 2026-05-15 - [IPスプーフィングの脆弱性]
 **Vulnerability:** X-Forwarded-For ヘッダーを使用した IP アドレスのフォールバック
 **Learning:** Cloudflare Workers 環境などでは CF-Connecting-IP が信頼できる IP アドレスのソースとなります。X-Forwarded-For にフォールバックすると、クライアントがヘッダーを偽装（スプーフィング）し、IP ベースのアクセス制御やレート制限を回避できる可能性があります。
