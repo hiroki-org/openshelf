@@ -351,8 +351,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
                 }
                 return { page, hasMatch: pageText.includes(query) };
               } catch (error) {
-                const message =
-                  error instanceof Error ? String(error) : String(error);
+                const message = String(error);
                 console.warn(
                   `Failed to extract text for page ${page}:`,
                   message,
