@@ -13,7 +13,7 @@ test.describe('認証', () => {
         await loginAsTestUser(page, { name: 'Token User' });
 
         await expect(page.getByText('Token User')).toBeVisible();
-        await expect(page.getByRole('heading', { name: 'マイライブラリ' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'マイ論文' })).toBeVisible();
     });
 
     test('ログアウト操作後、localStorage からトークンが削除され、未認証状態に戻ること', async ({ page }) => {

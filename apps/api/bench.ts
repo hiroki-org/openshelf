@@ -17,13 +17,13 @@ function original() {
 }
 
 function optimized() {
-  const acc: Record<string, boolean> = Object.create(null);
+  const uniqueMap = Object.create(null);
   for (const inv of inviteRows) {
     if (typeof inv.inviteeId === "string") {
-      acc[inv.inviteeId] = true;
+      uniqueMap[inv.inviteeId] = true;
     }
   }
-  return Object.keys(acc);
+  return Object.keys(uniqueMap);
 }
 
 function optimizedReduce() {

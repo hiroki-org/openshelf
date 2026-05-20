@@ -136,9 +136,12 @@ export default function SettingsPage() {
               className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-900"
               placeholder="表示名を入力（空欄でGitHub名にフォールバック）"
             />
-            <div className="mt-2 flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between">
+            <div
+              id="display-name-counter"
+              className="mt-2 flex flex-col gap-1 text-xs text-gray-500 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between"
+            >
               <span>1〜50文字</span>
-              <span id="display-name-counter">{displayName.length}/50</span>
+              <span>{displayName.length}/50</span>
             </div>
           </div>
 
@@ -160,15 +163,19 @@ export default function SettingsPage() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex min-w-32 items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+            className="inline-flex min-w-32 items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
           >
-            {saving && (
-              <span
-                aria-hidden="true"
-                className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <span
+                  className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+                  aria-hidden="true"
+                />
+                保存中...
+              </span>
+            ) : (
+              "保存"
             )}
-            {saving ? "保存中..." : "保存"}
           </button>
 
           {message && (
