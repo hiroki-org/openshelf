@@ -22,10 +22,9 @@ export default function InvitesPage() {
   const router = useRouter();
   const [invites, setInvites] = useState<ReceivedInvite[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [responding, setResponding] = useState<{
-    id: string;
-    action: "accept" | "decline";
-  } | null>(null);
+  const [responding, setResponding] = useState<Record<string, "accept" | "decline">>(
+    {}
+  );
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -57,7 +56,7 @@ export default function InvitesPage() {
   }, [user]);
 
   const respond = async (inviteId: string, action: "accept" | "decline") => {
-    setResponding({ id: inviteId, action });
+    setResponding((prev) => ({ ...prev, [inviteId]: action }));
     try {
       const res = await apiFetch(
         `/api/invites/${encodeURIComponent(inviteId)}`,
@@ -80,7 +79,10 @@ export default function InvitesPage() {
       console.error(`Failed to ${action} invite ${inviteId}:`, err);
       // Keep UI state unchanged when request fails.
     } finally {
-      setResponding(null);
+      setResponding((prev) => {
+        const { [inviteId]: _, ...rest } = prev;
+        return rest;
+      });
     }
   };
 
@@ -175,11 +177,12 @@ export default function InvitesPage() {
                     <button
                       type="button"
                       onClick={() => respond(inv.id, "accept")}
-                      disabled={responding?.id === inv.id}
-                      className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+                      disabled={!!responding[inv.id]}
+                      aria-busy={responding[inv.id] === "accept"}
+                      className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
                     >
-                      {responding?.id === inv.id &&
-                        responding.action === "accept" && (
+                      {responding[inv.id] === "accept" && <span className="sr-only">Accepting invite</span>}
+                      {responding[inv.id] === "accept" && (
                           <span
                             className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
                             aria-hidden="true"
@@ -190,11 +193,12 @@ export default function InvitesPage() {
                     <button
                       type="button"
                       onClick={() => respond(inv.id, "decline")}
-                      disabled={responding?.id === inv.id}
-                      className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                      disabled={!!responding[inv.id]}
+                      aria-busy={responding[inv.id] === "decline"}
+                      className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                     >
-                      {responding?.id === inv.id &&
-                        responding.action === "decline" && (
+                      {responding[inv.id] === "decline" && <span className="sr-only">Declining invite</span>}
+                      {responding[inv.id] === "decline" && (
                           <span
                             className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
                             aria-hidden="true"
