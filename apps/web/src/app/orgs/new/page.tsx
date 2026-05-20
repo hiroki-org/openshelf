@@ -16,6 +16,8 @@ function slugify(text: string): string {
     .slice(0, 40);
 }
 
+const DESCRIPTION_MAX_LENGTH = 500;
+
 export default function NewOrgPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -201,15 +203,15 @@ export default function NewOrgPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            maxLength={500}
+            maxLength={DESCRIPTION_MAX_LENGTH}
             aria-describedby="org-description-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
           <div
             id="org-description-counter"
-            className="mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400"
+            className={"mt-1 flex justify-end text-xs " + (description.length >= DESCRIPTION_MAX_LENGTH ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400")}
           >
-            <span>{description.length} / 500</span>
+            <span>{description.length} / {DESCRIPTION_MAX_LENGTH}</span>
           </div>
         </div>
 
