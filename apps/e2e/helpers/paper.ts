@@ -30,7 +30,7 @@ async function uploadPaper(page: Page, title: string, visibility: "public" | "pr
             response.request().method() === "POST",
     );
 
-    await page.getByRole("button", { name: "成果物をアップロードする" }).click();
+    await page.getByRole("button", { name: "論文をアップロードする" }).click();
     const response = await uploadResponsePromise;
     if (!response.ok()) {
         throw new Error(`uploadPaper failed: ${response.status()} ${await response.text()}`);

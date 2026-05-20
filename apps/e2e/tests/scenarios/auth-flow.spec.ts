@@ -10,7 +10,7 @@ test.describe('Auth Flow', () => {
         await expect(page.locator('header')).toContainText(user.name);
 
         await page.goto('/upload');
-        await expect(page.getByRole('heading', { name: "成果物アップロード" })).toBeVisible();
+        await expect(page.getByRole('heading', { name: "論文アップロード" })).toBeVisible();
 
         // トークンが localStorage に存在すること
         const token = await page.evaluate(() => localStorage.getItem('auth_token'));

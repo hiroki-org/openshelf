@@ -32,7 +32,7 @@ type MockPageProps = {
   width?: number;
   renderTextLayer?: boolean;
   renderAnnotationLayer?: boolean;
-  customTextRenderer?: (item: { str: string }) => string;
+  customTextRenderer?: (textItem: { str: string }) => string;
 };
 
 type MockObserverEntry = {
@@ -276,9 +276,12 @@ describe("PdfViewer", () => {
       );
     });
 
-    fireEvent.change(screen.getByRole("searchbox", { name: "PDF内検索" }), {
-      target: { value: "target" },
-    });
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      {
+        target: { value: "target" },
+      },
+    );
 
     await waitFor(() => {
       expect(screen.getByText("1 / 2")).toBeInTheDocument();
@@ -411,9 +414,12 @@ describe("PdfViewer", () => {
         documentProps.onLoadSuccess?.(mockDoc);
       });
 
-      fireEvent.change(screen.getByRole("searchbox", { name: "PDF内検索" }), {
-        target: { value: "target" },
-      });
+      fireEvent.change(
+        screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+        {
+          target: { value: "target" },
+        },
+      );
 
       await waitFor(() => {
         // Should still find the match on page 3 despite page 2 failing
@@ -465,9 +471,12 @@ describe("PdfViewer", () => {
         documentProps.onLoadSuccess?.(mockDoc);
       });
 
-      fireEvent.change(screen.getByRole("searchbox", { name: "PDF内検索" }), {
-        target: { value: "target" },
-      });
+      fireEvent.change(
+        screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+        {
+          target: { value: "target" },
+        },
+      );
 
       await waitFor(() => {
         expect(screen.getByText("1 / 1")).toBeInTheDocument();
@@ -481,9 +490,10 @@ describe("PdfViewer", () => {
     }
   });
 
-
   it("cancels search if component unmounts or query changes", async () => {
-    const { unmount } = render(<PdfViewer fileUrl="https://example.com/search-cancel.pdf" />);
+    const { unmount } = render(
+      <PdfViewer fileUrl="https://example.com/search-cancel.pdf" />,
+    );
     const [documentProps] = mockDocument.mock.calls[
       mockDocument.mock.calls.length - 1
     ] as [MockDocumentProps];
@@ -502,7 +512,9 @@ describe("PdfViewer", () => {
       mockDoc.getPage = vi.fn(async (pageNumber: number) => {
         await getPagePromise;
         return {
-          getTextContent: vi.fn().mockResolvedValue({ items: [{ str: "target" }] }),
+          getTextContent: vi
+            .fn()
+            .mockResolvedValue({ items: [{ str: "target" }] }),
         };
       });
       documentProps.onLoadSuccess?.(mockDoc);
@@ -528,7 +540,6 @@ describe("PdfViewer", () => {
     });
   });
 
-
   it("shows no matches found if query doesn't match any text", async () => {
     render(<PdfViewer fileUrl="https://example.com/search-nomatch.pdf" />);
     const [documentProps] = mockDocument.mock.calls[
@@ -536,11 +547,7 @@ describe("PdfViewer", () => {
     ] as [MockDocumentProps];
 
     await act(async () => {
-      const mockDoc = createMockPdfDocument([
-        "alpha",
-        "beta",
-        "gamma",
-      ]);
+      const mockDoc = createMockPdfDocument(["alpha", "beta", "gamma"]);
       documentProps.onLoadSuccess?.(mockDoc);
     });
 
@@ -554,9 +561,10 @@ describe("PdfViewer", () => {
     });
   });
 
-
   it("cancels search if component unmounts right after Promise.all finishes", async () => {
-    const { unmount } = render(<PdfViewer fileUrl="https://example.com/search-cancel2.pdf" />);
+    const { unmount } = render(
+      <PdfViewer fileUrl="https://example.com/search-cancel2.pdf" />,
+    );
     const [documentProps] = mockDocument.mock.calls[
       mockDocument.mock.calls.length - 1
     ] as [MockDocumentProps];
@@ -567,13 +575,13 @@ describe("PdfViewer", () => {
     });
 
     await act(async () => {
-      const mockDoc = createMockPdfDocument([
-        "alpha",
-      ]);
+      const mockDoc = createMockPdfDocument(["alpha"]);
       mockDoc.getPage = vi.fn(async (pageNumber: number) => {
         await getPagePromise;
         return {
-          getTextContent: vi.fn().mockResolvedValue({ items: [{ str: "target" }] }),
+          getTextContent: vi
+            .fn()
+            .mockResolvedValue({ items: [{ str: "target" }] }),
         };
       });
       documentProps.onLoadSuccess?.(mockDoc);
@@ -602,17 +610,16 @@ describe("PdfViewer", () => {
     });
   });
 
-
   it("cancels search if component unmounts right before batch starts", async () => {
-    const { unmount } = render(<PdfViewer fileUrl="https://example.com/search-cancel3.pdf" />);
+    const { unmount } = render(
+      <PdfViewer fileUrl="https://example.com/search-cancel3.pdf" />,
+    );
     const [documentProps] = mockDocument.mock.calls[
       mockDocument.mock.calls.length - 1
     ] as [MockDocumentProps];
 
     await act(async () => {
-      const mockDoc = createMockPdfDocument([
-        "alpha",
-      ]);
+      const mockDoc = createMockPdfDocument(["alpha"]);
       documentProps.onLoadSuccess?.(mockDoc);
     });
 
@@ -628,7 +635,6 @@ describe("PdfViewer", () => {
       await new Promise((resolve) => setTimeout(resolve, 400));
     });
   });
-
 
   it("shows active match cursor when moveMatchCursor is called via next/prev buttons", async () => {
     render(<PdfViewer fileUrl="https://example.com/search-cursor.pdf" />);
@@ -667,22 +673,23 @@ describe("PdfViewer", () => {
     fireEvent.click(screen.getByRole("button", { name: "次の一致" }));
   });
 
-
   it("cancels search gracefully when unmounting during batch wait", async () => {
-    const { unmount } = render(<PdfViewer fileUrl="https://example.com/search-cancel4.pdf" />);
+    const { unmount } = render(
+      <PdfViewer fileUrl="https://example.com/search-cancel4.pdf" />,
+    );
     const [documentProps] = mockDocument.mock.calls[
       mockDocument.mock.calls.length - 1
     ] as [MockDocumentProps];
 
     await act(async () => {
-      const mockDoc = createMockPdfDocument([
-        "alpha",
-      ]);
+      const mockDoc = createMockPdfDocument(["alpha"]);
       // Slow down getPage significantly so it's in the middle of waiting
       mockDoc.getPage = vi.fn(async (pageNumber: number) => {
         await new Promise((resolve) => setTimeout(resolve, 500));
         return {
-          getTextContent: vi.fn().mockResolvedValue({ items: [{ str: "target" }] }),
+          getTextContent: vi
+            .fn()
+            .mockResolvedValue({ items: [{ str: "target" }] }),
         };
       });
       documentProps.onLoadSuccess?.(mockDoc);
@@ -707,9 +714,10 @@ describe("PdfViewer", () => {
     });
   });
 
-
   it("cancels search if component unmounts right after batch loop finishes before state update", async () => {
-    const { unmount } = render(<PdfViewer fileUrl="https://example.com/search-cancel5.pdf" />);
+    const { unmount } = render(
+      <PdfViewer fileUrl="https://example.com/search-cancel5.pdf" />,
+    );
     const [documentProps] = mockDocument.mock.calls[
       mockDocument.mock.calls.length - 1
     ] as [MockDocumentProps];
@@ -720,13 +728,13 @@ describe("PdfViewer", () => {
     });
 
     await act(async () => {
-      const mockDoc = createMockPdfDocument([
-        "alpha",
-      ]);
+      const mockDoc = createMockPdfDocument(["alpha"]);
       mockDoc.getPage = vi.fn(async (pageNumber: number) => {
         await getPagePromise;
         return {
-          getTextContent: vi.fn().mockResolvedValue({ items: [{ str: "target" }] }),
+          getTextContent: vi
+            .fn()
+            .mockResolvedValue({ items: [{ str: "target" }] }),
         };
       });
       documentProps.onLoadSuccess?.(mockDoc);
@@ -753,17 +761,16 @@ describe("PdfViewer", () => {
     });
   });
 
-
   it("cancels search if component unmounts immediately after results loop", async () => {
-    const { unmount } = render(<PdfViewer fileUrl="https://example.com/search-cancel6.pdf" />);
+    const { unmount } = render(
+      <PdfViewer fileUrl="https://example.com/search-cancel6.pdf" />,
+    );
     const [documentProps] = mockDocument.mock.calls[
       mockDocument.mock.calls.length - 1
     ] as [MockDocumentProps];
 
     await act(async () => {
-      const mockDoc = createMockPdfDocument([
-        "alpha",
-      ]);
+      const mockDoc = createMockPdfDocument(["alpha"]);
       documentProps.onLoadSuccess?.(mockDoc);
     });
 
@@ -789,9 +796,7 @@ describe("PdfViewer", () => {
     ] as [MockDocumentProps];
 
     await act(async () => {
-      const mockDoc = createMockPdfDocument([
-        "alpha",
-      ]);
+      const mockDoc = createMockPdfDocument(["alpha"]);
       mockDoc.getPage = vi.fn(async (pageNumber: number) => {
         return {
           getTextContent: vi.fn().mockResolvedValue({
@@ -820,15 +825,15 @@ describe("PdfViewer", () => {
   });
 
   it("cancels search if component unmounts at start of outer loop", async () => {
-    const { unmount } = render(<PdfViewer fileUrl="https://example.com/search-cancel7.pdf" />);
+    const { unmount } = render(
+      <PdfViewer fileUrl="https://example.com/search-cancel7.pdf" />,
+    );
     const [documentProps] = mockDocument.mock.calls[
       mockDocument.mock.calls.length - 1
     ] as [MockDocumentProps];
 
     await act(async () => {
-      const mockDoc = createMockPdfDocument([
-        "alpha",
-      ]);
+      const mockDoc = createMockPdfDocument(["alpha"]);
       documentProps.onLoadSuccess?.(mockDoc);
     });
 
@@ -853,17 +858,11 @@ describe("PdfViewer", () => {
     ] as [MockDocumentProps];
 
     await act(async () => {
-      const mockDoc = createMockPdfDocument([
-        "alpha",
-      ]);
+      const mockDoc = createMockPdfDocument(["alpha"]);
       mockDoc.getPage = vi.fn(async (pageNumber: number) => {
         return {
           getTextContent: vi.fn().mockResolvedValue({
-            items: [
-              null,
-              undefined,
-              { str: "target" },
-            ],
+            items: [null, undefined, { str: "target" }],
           }),
         };
       });
