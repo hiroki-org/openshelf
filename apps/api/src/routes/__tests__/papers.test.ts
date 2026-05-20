@@ -703,7 +703,7 @@ describe("papers routes", () => {
     );
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       "Cleanup error (non-fatal, rollback continues):",
-      "Cleanup failed",
+      "Error: Cleanup failed",
     );
 
     // db.delete should be called for papers
@@ -711,6 +711,203 @@ describe("papers routes", () => {
     expect(mockDb.delete).toHaveBeenCalledWith(papers);
     expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
     expect(mockDeleteWhere).toHaveBeenCalledWith(expect.anything());
+    consoleErrorSpy.mockRestore();
+    bucketDeleteSpy.mockRestore();
+  });
+
+  it("POST /api/papers preserves original error when paper rollback delete fails", async () => {
+    const token = await createTestJWT({
+      sub: "user-1",
+      githubId: "123",
+      name: "Uploader",
+    });
+
+    const dbError = new Error("Mock DB Error");
+    mockDb.insert
+      .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
+      .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
+      .mockImplementationOnce(() => ({
+        values: vi.fn().mockRejectedValue(dbError),
+      }));
+
+    const mockDeleteWhere = vi.fn().mockRejectedValue(new Error("DB cleanup failed"));
+    mockDb.delete = vi.fn(() => ({ where: mockDeleteWhere }));
+
+    const app = await createTestApp();
+    const env = createTestEnv({ DB: mockDb as any });
+    const bucketDeleteSpy = vi
+      .spyOn(env.BUCKET, "delete")
+      .mockResolvedValue(undefined);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const form = new FormData();
+    form.set(
+      "metadata",
+      JSON.stringify({ title: "Test Paper", visibility: "private" }),
+    );
+    form.set(
+      "files_0",
+      new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    form.set("file_types_0", "paper");
+
+    const res = await app.request(
+      "http://localhost/api/papers",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Origin: "http://localhost:3000",
+        },
+        body: form,
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(500);
+    expect(bucketDeleteSpy).toHaveBeenCalledTimes(1);
+    expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Cleanup error (non-fatal, rollback continues):",
+      "original=Error: Mock DB Error cleanup=Error: DB cleanup failed",
+    );
+
+    consoleErrorSpy.mockRestore();
+    bucketDeleteSpy.mockRestore();
+  });
+
+  it("POST /api/papers wraps non-Error insert failures after rollback", async () => {
+    const token = await createTestJWT({
+      sub: "user-1",
+      githubId: "123",
+      name: "Uploader",
+    });
+
+    mockDb.insert
+      .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
+      .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
+      .mockImplementationOnce(() => ({
+        values: vi.fn().mockRejectedValue("Mock DB Error"),
+      }));
+
+    const mockDeleteWhere = vi.fn().mockRejectedValue("DB cleanup failed");
+    mockDb.delete = vi.fn(() => ({ where: mockDeleteWhere }));
+
+    const app = await createTestApp();
+    const env = createTestEnv({ DB: mockDb as any });
+    const bucketDeleteSpy = vi
+      .spyOn(env.BUCKET, "delete")
+      .mockResolvedValue(undefined);
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    const form = new FormData();
+    form.set(
+      "metadata",
+      JSON.stringify({ title: "Test Paper", visibility: "private" }),
+    );
+    form.set(
+      "files_0",
+      new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    form.set("file_types_0", "paper");
+
+    const res = await app.request(
+      "http://localhost/api/papers",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Origin: "http://localhost:3000",
+        },
+        body: form,
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(500);
+    expect(bucketDeleteSpy).toHaveBeenCalledTimes(1);
+    expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Cleanup error (non-fatal, rollback continues):",
+      "original=Mock DB Error cleanup=DB cleanup failed",
+    );
+
+    consoleErrorSpy.mockRestore();
+    bucketDeleteSpy.mockRestore();
+  });
+
+  it("POST /api/papers continues DB rollback when R2 cleanup callback fails", async () => {
+    const token = await createTestJWT({
+      sub: "user-1",
+      githubId: "123",
+      name: "Uploader",
+    });
+
+    const dbError = new Error("Mock DB Error");
+    mockDb.insert
+      .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
+      .mockImplementationOnce(() => ({ values: vi.fn(async () => undefined) }))
+      .mockImplementationOnce(() => ({
+        values: vi.fn().mockRejectedValue(dbError),
+      }));
+
+    const mockDeleteWhere = vi.fn(async () => undefined);
+    mockDb.delete = vi.fn(() => ({ where: mockDeleteWhere }));
+
+    const app = await createTestApp();
+    const env = createTestEnv({ DB: mockDb as any });
+    const bucketDeleteSpy = vi
+      .spyOn(env.BUCKET, "delete")
+      .mockRejectedValue(new Error("R2 cleanup failed"));
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementationOnce(() => {
+        throw new Error("cleanup log failed");
+      })
+      .mockImplementation(() => {});
+
+    const form = new FormData();
+    form.set(
+      "metadata",
+      JSON.stringify({ title: "Test Paper", visibility: "private" }),
+    );
+    form.set(
+      "files_0",
+      new File(["%PDF-1.4\n%dummy-pdf"], "paper.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    form.set("file_types_0", "paper");
+
+    const res = await app.request(
+      "http://localhost/api/papers",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Origin: "http://localhost:3000",
+        },
+        body: form,
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(500);
+    expect(bucketDeleteSpy).toHaveBeenCalledTimes(1);
+    expect(mockDeleteWhere).toHaveBeenCalledTimes(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      "Cleanup error (non-fatal, rollback continues):",
+      "original=Error: Mock DB Error cleanup=Error: cleanup log failed",
+    );
+
     consoleErrorSpy.mockRestore();
     bucketDeleteSpy.mockRestore();
   });
@@ -783,7 +980,7 @@ describe("papers routes", () => {
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "Cleanup error (non-fatal, rollback continues):",
-        "R2 batch error",
+        "Error: R2 batch error",
       );
       expect(mockDb.delete).toHaveBeenCalledTimes(1);
     } finally {
@@ -2161,11 +2358,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2209,11 +2408,13 @@ describe("papers routes", () => {
       githubId: "123",
       name: "Uploader",
     });
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
 
     const app = await createTestApp();
     const env = createTestEnv();
@@ -2367,11 +2568,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2417,11 +2620,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2457,11 +2662,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2495,11 +2702,13 @@ describe("papers routes", () => {
       githubId: "123",
       name: "Uploader",
     });
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
 
     const app = await createTestApp();
     const env = createTestEnv();
@@ -2529,11 +2738,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2569,11 +2780,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2611,11 +2824,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2651,11 +2866,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2691,11 +2908,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2739,11 +2958,13 @@ describe("papers routes", () => {
       githubId: "123",
       name: "Uploader",
     });
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
 
     const app = await createTestApp();
     const env = createTestEnv();
@@ -2897,11 +3118,13 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi.fn().mockImplementation(() =>
-      makeQuery({
-        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementation(() =>
+        makeQuery({
+          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+        }),
+      );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2940,11 +3163,13 @@ describe("papers routes", () => {
   });
 
   it("GET /api/papers/:id returns 401 for private paper without Bearer token", async () => {
-    mockDb.select = vi.fn().mockImplementationOnce(() =>
-      makeQuery({
-        getResult: { id: "paper-1", title: "P1", visibility: "private" },
-      }),
-    );
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: { id: "paper-1", title: "P1", visibility: "private" },
+        }),
+      );
 
     const app = await createTestApp();
     const env = createTestEnv();
@@ -3201,6 +3426,7 @@ describe("papers routes", () => {
 
       expect(res.status).toBe(500);
     });
+
     it("POST /api/papers/:id/invites handles non-string non-Error rejections", async () => {
       const token = await createTestJWT({
         sub: "user-uploader",
@@ -3238,6 +3464,136 @@ describe("papers routes", () => {
 
       expect(res.status).toBe(500);
     });
+    it("POST /api/papers/:id/invites handles database error during invitee lookup by email", async () => {
+      const token = await createTestJWT({
+        sub: "user-uploader",
+        githubId: "123",
+        name: "Uploader",
+      });
+
+      mockDb.select = vi
+        .fn()
+        .mockImplementationOnce(() =>
+          makeQuery({
+            getResult: {
+              paperId: "paper-1",
+              userId: "user-uploader",
+              role: "uploader",
+            },
+          }),
+        )
+        .mockImplementationOnce(() => {
+          throw new Error("DB Error on email lookup");
+        });
+
+      const app = await createTestApp();
+      const env = createTestEnv();
+      const customRes = await app.request(
+        "http://localhost/api/papers/paper-1/invites",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ inviteeEmail: "error@example.com" }),
+        },
+        env as any,
+      );
+
+      expect(customRes.status).toBe(500);
+      const data = (await customRes.json()) as any;
+      expect(data.error).toBe("Internal server error");
+    });
+
+    it("POST /api/papers/:id/invites resolves invitee email to a user id", async () => {
+      const token = await createTestJWT({
+        sub: "user-uploader",
+        githubId: "123",
+        name: "Uploader",
+      });
+
+      mockDb.select = vi
+        .fn()
+        .mockImplementationOnce(() =>
+          makeQuery({
+            getResult: {
+              paperId: "paper-1",
+              userId: "user-uploader",
+              role: "uploader",
+            },
+          }),
+        )
+        .mockImplementationOnce(() =>
+          makeQuery({ getResult: { id: "user-invitee" } }),
+        )
+        .mockImplementationOnce(() => makeQuery({ getResult: null }))
+        .mockImplementationOnce(() =>
+          makeQuery({ getResult: { id: "user-invitee" } }),
+        );
+      mockDb.insert = vi.fn().mockReturnValue({
+        values: vi.fn().mockResolvedValue(undefined),
+      });
+
+      const app = await createTestApp();
+      const env = createTestEnv();
+      const customRes = await app.request(
+        "http://localhost/api/papers/paper-1/invites",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ inviteeEmail: "invitee@example.com" }),
+        },
+        env as any,
+      );
+
+      expect(customRes.status).toBe(201);
+      expect(await customRes.json()).toEqual({ ok: true });
+    });
+
+    it("POST /api/papers/:id/invites rejects invitee email matching the uploader", async () => {
+      const token = await createTestJWT({
+        sub: "user-uploader",
+        githubId: "123",
+        name: "Uploader",
+      });
+
+      mockDb.select = vi
+        .fn()
+        .mockImplementationOnce(() =>
+          makeQuery({
+            getResult: {
+              paperId: "paper-1",
+              userId: "user-uploader",
+              role: "uploader",
+            },
+          }),
+        )
+        .mockImplementationOnce(() =>
+          makeQuery({ getResult: { id: "user-uploader" } }),
+        );
+
+      const app = await createTestApp();
+      const env = createTestEnv();
+      const customRes = await app.request(
+        "http://localhost/api/papers/paper-1/invites",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ inviteeEmail: "uploader@example.com" }),
+        },
+        env as any,
+      );
+
+      expect(customRes.status).toBe(400);
+      expect(await customRes.json()).toEqual({ error: "Cannot invite yourself" });
+    });
   });
 });
 
@@ -3257,7 +3613,67 @@ describe("Error handling and untested branches", () => {
     });
   });
 
+  it("POST /api/papers propagates general R2 put errors", async () => {
+    const formData = new FormData();
+    formData.append(
+      "metadata",
+      JSON.stringify({
+        title: "Test Paper",
+        abstract: "Abstract",
+        visibility: "public",
+        showViewCount: true,
+        language: "en",
+        externalUrl: "https://example.com",
+        doi: null,
+        venue: null,
+        venueType: null,
+        year: null,
+        category: null,
+        tags: [],
+      }),
+    );
+    const file = new File(["%PDF-1.4\n%dummy-pdf"], "dummy.pdf", {
+      type: "application/pdf",
+    });
+    formData.append("files_0", file);
+    formData.append("file_types_0", "paper");
+
+    const customEnv = createTestEnv({
+      BUCKET: {
+        put: vi.fn().mockRejectedValue(new Error("R2 put failure")),
+        delete: vi.fn().mockResolvedValue(undefined),
+      } as any,
+    });
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    try {
+      const res = await app.request(
+        "http://localhost/api/papers",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        },
+        customEnv as any,
+      );
+
+      expect(res.status).toBe(500);
+      await expect(res.text()).resolves.toBe("Internal Server Error");
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "File upload errors:",
+        expect.objectContaining({
+          errors: ["R2 put failure"],
+        }),
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("POST /api/papers/:id/invites handles malformed JSON body", async () => {
+    // Send invalid JSON that throws an error when c.req.json() parses it.
     const res = await app.request(
       "http://localhost/api/papers/paper-1/invites",
       {
@@ -3266,7 +3682,7 @@ describe("Error handling and untested branches", () => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: "{",
+        body: "{ bad json: [ }",
       },
       env as any,
     );
@@ -3461,6 +3877,26 @@ describe("Error handling and untested branches", () => {
     });
   });
 
+  it.each(["\"just a string\"", "42", "null"])(
+    "POST /api/papers rejects upload when parsed metadata JSON is not an object: %s",
+    async (metadata) => {
+      const formData = new FormData();
+      formData.append("metadata", metadata);
+
+      const res = await app.request(
+        "http://localhost/api/papers",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        },
+        env as any,
+      );
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ error: "Invalid metadata JSON" });
+    },
+  );
+
   it("POST /api/papers handles missing/invalid metadata JSON correctly", async () => {
     const formData = new FormData();
     formData.append("metadata", "{"); // invalid JSON
@@ -3596,6 +4032,7 @@ describe("Error handling and untested branches", () => {
   });
 
   it("PUT /api/papers/:id/description handles malformed JSON body", async () => {
+    // Send invalid JSON that throws an error when c.req.json() parses it.
     const res = await app.request(
       "http://localhost/api/papers/paper-1/description",
       {
@@ -3604,7 +4041,7 @@ describe("Error handling and untested branches", () => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: "{",
+        body: "{ bad json: [ }",
       },
       env as any,
     );
@@ -3630,6 +4067,7 @@ describe("Error handling and untested branches", () => {
   });
 
   it("PATCH /api/papers/:id handles malformed JSON body", async () => {
+    // Send invalid JSON that throws an error when c.req.json() parses it.
     const res = await app.request(
       "http://localhost/api/papers/paper-1",
       {
@@ -3638,7 +4076,7 @@ describe("Error handling and untested branches", () => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: "{",
+        body: "{ bad json: [ }",
       },
       env as any,
     );
@@ -3664,6 +4102,23 @@ describe("Error handling and untested branches", () => {
   });
 
   it("POST /api/papers/:id/track handles missing json payload", async () => {
+    const { makeQuery } = await import("../../test/helpers");
+    mockDb = {
+      run: vi.fn().mockResolvedValue({}),
+      prepare: vi
+        .fn()
+        .mockImplementation(() => ({
+          bind: vi.fn().mockReturnThis(),
+          all: vi.fn().mockResolvedValue([]),
+        })),
+      select: vi
+        .fn()
+        .mockImplementationOnce(() =>
+          makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+        ),
+    };
+    const env = createTestEnv({ DB: mockDb as any });
+    const app = await createTestApp();
     const res = await app.request(
       "http://localhost/api/papers/paper-1/track",
       {
@@ -3681,6 +4136,23 @@ describe("Error handling and untested branches", () => {
   });
 
   it("POST /api/papers/:id/track handles non-object JSON body", async () => {
+    const { makeQuery } = await import("../../test/helpers");
+    mockDb = {
+      run: vi.fn().mockResolvedValue({}),
+      prepare: vi
+        .fn()
+        .mockImplementation(() => ({
+          bind: vi.fn().mockReturnThis(),
+          all: vi.fn().mockResolvedValue([]),
+        })),
+      select: vi
+        .fn()
+        .mockImplementationOnce(() =>
+          makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+        ),
+    };
+    const env = createTestEnv({ DB: mockDb as any });
+    const app = await createTestApp();
     const res = await app.request(
       "http://localhost/api/papers/paper-1/track",
       {
@@ -3699,15 +4171,22 @@ describe("Error handling and untested branches", () => {
 
   it("POST /api/papers/:id/track captures parsing errors in promise", async () => {
     const { makeQuery } = await import("../../test/helpers");
-    mockDb.select = vi
-      .fn()
-      .mockImplementationOnce(() =>
-        makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
-      );
-    mockDb.prepare = vi.fn().mockImplementation(() => ({
-      bind: vi.fn().mockReturnThis(),
-      all: vi.fn().mockRejectedValue(new Error("Track DB failure")),
-    }));
+    mockDb = {
+      select: vi
+        .fn()
+        .mockImplementationOnce(() =>
+          makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+        ),
+      prepare: vi
+        .fn()
+        .mockImplementation(() => ({
+          bind: vi.fn().mockReturnThis(),
+          all: vi.fn().mockRejectedValue(new Error("Track DB failure")),
+      })),
+      run: vi.fn().mockResolvedValue({}),
+    };
+    const env = createTestEnv({ DB: mockDb as any });
+    const app = await createTestApp();
 
     const consoleErrorSpy = vi
       .spyOn(console, "error")
