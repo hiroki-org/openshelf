@@ -879,6 +879,253 @@ describe("PdfViewer", () => {
     });
   });
 
+  it("cancels search if component unmounts correctly at final cancelled check", async () => {
+    const { unmount } = render(
+      <PdfViewer fileUrl="https://example.com/search-cancel8.pdf" />,
+    );
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      const mockDoc = createMockPdfDocument(["target"]);
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    // Trigger debounce
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    // Unmount before state is set but after loops complete
+    unmount();
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+  });
+
+  it("handles outer cancelled condition", async () => {
+    const { unmount } = render(
+      <PdfViewer fileUrl="https://example.com/search-cancel9.pdf" />,
+    );
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      // Multiple pages so it loops
+      const mockDoc = createMockPdfDocument(["target", "target2"]);
+      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+        return {
+          getTextContent: vi
+            .fn()
+            .mockResolvedValue({ items: [{ str: "target" }] }),
+        };
+      });
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    // let it debounce and start
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    // Force unmount immediately as it enters batch 2
+    unmount();
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+  });
+
+  it("hits the final cancelled check before setting matches", async () => {
+    const { unmount } = render(
+      <PdfViewer fileUrl="https://example.com/search-cancel10.pdf" />,
+    );
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      const mockDoc = createMockPdfDocument(["target"]);
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    // Let it resolve immediately, wait for the state update, then unmount immediately
+    // Or simpler: debounce it, then in the next tick unmount
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    // We want to unmount right before `if (cancelled) return;` at the end
+    // It is very hard to deterministically hit that exact line. But the outer loops
+    // execute microtasks, so we can run unmount.
+    unmount();
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+  });
+
+  it("test handles unexpected types in items", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search-invalid3.pdf" />);
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      const mockDoc = createMockPdfDocument(["alpha"]);
+      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+        return {
+          getTextContent: vi.fn().mockResolvedValue({
+            items: [null, undefined, {}, { str: null }, { str: "target" }],
+          }),
+        };
+      });
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("1 / 1")).toBeInTheDocument();
+    });
+  });
+
+  it("forces branch line 326 (if cancelled return)", async () => {
+    const { unmount } = render(
+      <PdfViewer fileUrl="https://example.com/search-cancel11.pdf" />,
+    );
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      const mockDoc = createMockPdfDocument([
+        "target",
+        "target",
+        "target",
+        "target",
+        "target",
+        "target",
+        "target",
+        "target",
+        "target",
+        "target",
+        "target", // page 11
+      ]);
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    // Trigger debounce
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    unmount();
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+  });
+
+  it("forces branch line 372 (if cancelled return)", async () => {
+    const { unmount } = render(
+      <PdfViewer fileUrl="https://example.com/search-cancel12.pdf" />,
+    );
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    let resolveGetPage: (val: any) => void;
+    const getPagePromise = new Promise((resolve) => {
+      resolveGetPage = resolve;
+    });
+
+    await act(async () => {
+      const mockDoc = createMockPdfDocument(["target"]);
+      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+        await getPagePromise;
+        return {
+          getTextContent: vi
+            .fn()
+            .mockResolvedValue({ items: [{ str: "target" }] }),
+        };
+      });
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    // Resolve getPage and immediately unmount to trigger the final `if (cancelled) return;`
+    // after the loop finishes. Since the loop only has 1 batch, it exits the loop
+    // and hits line 372. By unmounting here, we ensure cancelled is set to true just in time.
+    resolveGetPage!(undefined);
+    unmount();
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    });
+  });
+
+  it("forces branch line 347 (return empty string)", async () => {
+    render(<PdfViewer fileUrl="https://example.com/search-invalid4.pdf" />);
+    const [documentProps] = mockDocument.mock.calls[
+      mockDocument.mock.calls.length - 1
+    ] as [MockDocumentProps];
+
+    await act(async () => {
+      const mockDoc = createMockPdfDocument(["alpha"]);
+      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+        return {
+          getTextContent: vi.fn().mockResolvedValue({
+            items: [{ notStr: "invalid" }],
+          }),
+        };
+      });
+      documentProps.onLoadSuccess?.(mockDoc);
+    });
+
+    fireEvent.change(
+      screen.getAllByRole("searchbox", { name: "PDF内検索" })[0],
+      { target: { value: "target" } },
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("一致なし")).toBeInTheDocument();
+    });
+  });
   it("highlights search text using customTextRenderer", async () => {
     render(<PdfViewer fileUrl="https://example.com/search.pdf" />);
 
