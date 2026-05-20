@@ -285,7 +285,7 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
         </div>
         <div className="flex gap-4 mt-4 text-sm text-gray-500">
           <span>👥 {memberCount} メンバー</span>
-          <span>📄 {orgPaperCount} 成果物</span>
+          <span>📄 {orgPaperCount} 論文</span>
           <span>📚 {collections.length} コレクション</span>
         </div>
       </div>
@@ -363,13 +363,13 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
       {/* Papers */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">成果物</h2>
+          <h2 className="text-lg font-semibold">論文</h2>
           {isAdmin && (
             <Link
               href={`/orgs/${slug}/settings?tab=papers`}
               className="text-sm text-blue-600 hover:underline dark:text-blue-400"
             >
-              + 成果物を追加
+              + 論文を追加
             </Link>
           )}
         </div>
@@ -445,7 +445,7 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
             </label>
           </div>
           <div className="mt-3 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-            <span>{papersTotal}件の成果物が見つかりました</span>
+            <span>{papersTotal}件の論文が見つかりました</span>
             <button
               type="button"
               className="rounded border border-gray-300 px-2 py-1 text-xs hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
@@ -457,7 +457,7 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
         </div>
 
         {orgPapers.length === 0 ? (
-          <p className="text-sm text-gray-500">まだ成果物がありません</p>
+          <p className="text-sm text-gray-500">まだ論文がありません</p>
         ) : (
           <ul className="space-y-3">
             {orgPapers.map((p) => {

@@ -4,7 +4,6 @@ import { eq, or, and, ne, sql, type InferSelectModel } from "drizzle-orm";
 import { users, enableForeignKeys, touchUpdatedAt } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
-import { escapeLikeLiteral } from "../utils/sql";
 
 const usersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -103,6 +102,10 @@ function setCachedResults(key: string, data: UserSearchResult[]) {
   searchCache.set(key, { data, timestamp: Date.now() });
 }
 
+function escapeLikeLiteral(str: string): string {
+  return str.replace(/[\\%_]/g, "\\$&");
+}
+
 // GET /api/users/search?q=xxx — search users for coauthor invite
 usersRoute.get("/search", authMiddleware, async (c) => {
   const q = c.req.query("q");
@@ -133,7 +136,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
       and(
         or(
           sql`${users.name} LIKE ${searchPattern} ESCAPE '\\' COLLATE NOCASE`,
-          sql`${users.githubId} LIKE ${searchPattern} ESCAPE '\\' COLLATE NOCASE`,
+          sql`${users.githubId} LIKE ${searchPattern} ESCAPE '\\' COLLATE NOCASE`
         ),
         ne(users.id, currentUserId),
       ),

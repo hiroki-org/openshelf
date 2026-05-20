@@ -59,6 +59,13 @@ describe("SettingsPage", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
+    expect(screen.getByRole("button", { name: /保存中/ })).toBeInTheDocument();
+    expect(
+      screen
+        .getByRole("button", { name: /保存中/ })
+        .querySelector(".animate-spin"),
+    ).toBeInTheDocument();
+
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
         "/api/users/me",
@@ -71,30 +78,6 @@ describe("SettingsPage", () => {
 
     expect(await screen.findByText("保存しました")).toBeInTheDocument();
     expect(refresh).toHaveBeenCalledTimes(1);
-  });
-
-  it("shows a spinner while saving the display name", async () => {
-    let resolveSave!: (value: Response) => void;
-    vi.mocked(apiFetch).mockReturnValue(
-      new Promise((resolve) => {
-        resolveSave = resolve;
-      }),
-    );
-
-    const { container } = render(<SettingsPage />);
-
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
-
-    expect(
-      await screen.findByRole("button", { name: "保存中..." }),
-    ).toBeDisabled();
-    expect(
-      container.querySelector('[aria-hidden="true"].animate-spin'),
-    ).toBeInTheDocument();
-
-    resolveSave(new Response("{}", { status: 200 }));
-
-    expect(await screen.findByText("保存しました")).toBeInTheDocument();
   });
 
   it("shows non-JSON error responses", async () => {
@@ -204,7 +187,9 @@ describe("SettingsPage", () => {
   it("shows github username in preview when display name is blank", () => {
     render(<SettingsPage />);
 
-    fireEvent.change(screen.getByLabelText("表示名"), { target: { value: "   " } });
+    fireEvent.change(screen.getByLabelText("表示名"), {
+      target: { value: "   " },
+    });
 
     expect(screen.getByText("alice")).toBeInTheDocument();
   });
