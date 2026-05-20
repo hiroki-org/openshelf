@@ -400,7 +400,7 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(400);
-    expect(((await res.json()) as any).error).toBe("Invalid JSON body");
+    await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
   });
   it("GET /api/collections/:id returns 404 when not found", async () => {
     mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
@@ -1801,7 +1801,7 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(400);
-    expect(((await res.json()) as any).error).toBe("paper_ids is required");
+    await expect(res.json()).resolves.toEqual({ error: "paper_ids is required" });
   });
 
   it("PATCH /api/collections/:id/papers rejects duplicate paper IDs", async () => {
@@ -1897,9 +1897,9 @@ describe("collections routes", () => {
     const app = await createTestApp();
     const env = createTestEnv();
 
-    // Passing empty space so it gets normalized to empty string
+    // Passing percent-encoded spaces only so they normalize to empty string
     const res = await app.request(
-      "http://localhost/api/collections/col-1/papers/   %20", // Space encoded
+      "http://localhost/api/collections/col-1/papers/%20%20%20", // All spaces encoded
       {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
@@ -1908,7 +1908,7 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(400);
-    expect(((await res.json()) as any).error).toBe("paper_id is invalid or too long");
+    await expect(res.json()).resolves.toEqual({ error: "paper_id is invalid or too long" });
   });
 
   it("DELETE /api/collections/:id/papers/:paperId returns 200 on successful deletion", async () => {
@@ -1941,7 +1941,7 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(((await res.json()) as any).ok).toBe(true);
+    await expect(res.json()).resolves.toEqual({ ok: true });
   });
 
   it("PATCH /api/collections/:id/papers returns 400 when body is an array", async () => {
@@ -1974,7 +1974,7 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(400);
-    expect(((await res.json()) as any).error).toBe("Invalid JSON body");
+    await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
   });
 
   it("DELETE /api/collections/:id/papers/:paperId returns 404 when the paper is not in the collection", async () => {
@@ -2052,9 +2052,22 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(
-      ((await res.json()) as any).papers.map((paper: any) => paper.id),
-    ).toEqual(["paper-public", "paper-public-2"]);
+    await expect(res.json()).resolves.toEqual({
+      papers: [
+        {
+          id: "paper-public",
+          title: "Public 1",
+          visibility: "public",
+          sortOrder: 0,
+        },
+        {
+          id: "paper-public-2",
+          title: "Public 2",
+          visibility: "public",
+          sortOrder: 1,
+        },
+      ],
+    });
   });
 
   it("GET /api/collections/:id/papers filters out non-public papers when unauthenticated", async () => {
@@ -2095,9 +2108,16 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(
-      ((await res.json()) as any).papers.map((paper: any) => paper.id),
-    ).toEqual(["paper-public"]);
+    await expect(res.json()).resolves.toEqual({
+      papers: [
+        {
+          id: "paper-public",
+          title: "Public",
+          visibility: "public",
+          sortOrder: 0,
+        },
+      ],
+    });
   });
 
   it("GET /api/collections/:id/papers filters restricted papers by authorship and org access", async () => {
