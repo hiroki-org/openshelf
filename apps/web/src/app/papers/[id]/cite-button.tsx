@@ -1,6 +1,5 @@
 "use client";
 
-import { Spinner } from "@/components/spinner";
 import { toast } from "@/components/toast";
 import { apiFetch } from "@/lib/api";
 import { safePath } from "@/lib/sanitization";
@@ -112,22 +111,12 @@ export function CiteButton({ paperId }: CiteButtonProps) {
             <button
               key={option.value}
               type="button"
-              className="flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-gray-200 dark:hover:bg-gray-800"
+              className="block w-full rounded px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60 dark:text-gray-200 dark:hover:bg-gray-800"
               onClick={() => handleCopy(option.value)}
               disabled={loadingFormat !== null}
               role="menuitem"
             >
-              {loadingFormat === option.value ? (
-                <span className="flex items-center gap-2">
-                  <Spinner className="h-3 w-3" />
-                  <span aria-hidden="true">生成中...</span>
-                  <span className="sr-only">
-                    {option.label} の引用を生成中
-                  </span>
-                </span>
-              ) : (
-                option.label
-              )}
+              {loadingFormat === option.value ? "生成中..." : option.label}
             </button>
           ))}
         </div>

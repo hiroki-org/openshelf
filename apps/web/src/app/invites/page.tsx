@@ -22,9 +22,9 @@ export default function InvitesPage() {
   const router = useRouter();
   const [invites, setInvites] = useState<ReceivedInvite[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [responding, setResponding] = useState<Record<string, "accept" | "decline">>(
-    {}
-  );
+  const [responding, setResponding] = useState<
+    Record<string, "accept" | "decline">
+  >({});
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -80,8 +80,9 @@ export default function InvitesPage() {
       // Keep UI state unchanged when request fails.
     } finally {
       setResponding((prev) => {
-        const { [inviteId]: _, ...rest } = prev;
-        return rest;
+        const next = { ...prev };
+        delete next[inviteId];
+        return next;
       });
     }
   };
@@ -109,7 +110,7 @@ export default function InvitesPage() {
               共著者招待
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
-              成果物への招待を確認し、必要に応じて承認または拒否できます。
+              論文への招待を確認し、必要に応じて承認または拒否できます。
               研究成果物への参加依頼を落ち着いて整理できる画面です。
             </p>
           </div>
@@ -181,13 +182,15 @@ export default function InvitesPage() {
                       aria-busy={responding[inv.id] === "accept"}
                       className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
                     >
-                      {responding[inv.id] === "accept" && <span className="sr-only">Accepting invite</span>}
                       {responding[inv.id] === "accept" && (
+                        <>
                           <span
                             className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
                             aria-hidden="true"
                           />
-                        )}
+                          <span className="sr-only">処理中</span>
+                        </>
+                      )}
                       承認
                     </button>
                     <button
@@ -197,13 +200,15 @@ export default function InvitesPage() {
                       aria-busy={responding[inv.id] === "decline"}
                       className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                     >
-                      {responding[inv.id] === "decline" && <span className="sr-only">Declining invite</span>}
                       {responding[inv.id] === "decline" && (
+                        <>
                           <span
                             className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
                             aria-hidden="true"
                           />
-                        )}
+                          <span className="sr-only">処理中</span>
+                        </>
+                      )}
                       拒否
                     </button>
                   </div>
