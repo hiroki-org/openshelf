@@ -587,6 +587,7 @@ export default function OrgSettingsPage() {
                       onClick={() => handleAddMember(u.id)}
                       disabled={inviting !== null}
                       aria-busy={inviting === u.id}
+                      aria-label={`${u.displayName ?? u.name}をメンバーに追加`}
                       className="inline-flex min-w-[72px] items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                     >
                       {inviting === u.id ? (
@@ -633,6 +634,7 @@ export default function OrgSettingsPage() {
                     value={m.role === "owner" ? "admin" : m.role}
                     onChange={(e) => handleChangeRole(m.userId, e.target.value)}
                     disabled={m.userId === user?.id}
+                    aria-label={`${m.displayName ?? m.name}の権限を変更`}
                     className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
                   >
                     <option value="admin">admin</option>
@@ -642,6 +644,7 @@ export default function OrgSettingsPage() {
                     <button
                       type="button"
                       onClick={() => handleRemoveMember(m.userId)}
+                      aria-label={`${m.displayName ?? m.name}をメンバーから削除`}
                       className="text-red-500 hover:text-red-700 text-xs"
                     >
                       削除
@@ -681,6 +684,7 @@ export default function OrgSettingsPage() {
                       onClick={() => handleAddPaper(p.id)}
                       disabled={addingPaper !== null}
                       aria-busy={addingPaper === p.id}
+                      aria-label={`成果物「${p.title}」を追加`}
                       className="inline-flex min-w-[72px] shrink-0 items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                     >
                       {addingPaper === p.id ? (
