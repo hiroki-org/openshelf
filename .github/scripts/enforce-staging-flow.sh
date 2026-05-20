@@ -141,7 +141,16 @@ process_pr() {
   fi
 
   echo "Retargeting PR #$pr_number from $base_branch to $target_base"
-  with_retry gh pr edit "$pr_number" --repo "$GH_REPO" --base "$target_base"
+  local edit_err=""
+  if ! edit_err=$(with_retry gh pr edit "$pr_number" --repo "$GH_REPO" --base "$target_base" 2>&1); then
+    if echo "$edit_err" | grep -q "A pull request already exists"; then
+      echo "A PR already exists for base branch '$target_base' and this head branch. Leaving as is."
+      return 0
+    else
+      echo "Failed to retarget PR: $edit_err" >&2
+      return 1
+    fi
+  fi
   comment_on_change "$pr_number" "$target_base"
 }
 
