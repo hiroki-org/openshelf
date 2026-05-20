@@ -1369,7 +1369,7 @@ describe("papers routes", () => {
 
   it("PATCH /api/papers/:id returns 409 when paper title and filename combination already exists (UNIQUE constraint error)", async () => {
     const env = createTestEnv({ DB: mockDb as any });
-    const app = await createTestApp(env);
+    const app = await createTestApp();
     const token = await createTestJWT({ sub: "user-123" });
 
     mockDb.select = vi.fn().mockImplementation(() => {
