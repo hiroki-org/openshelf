@@ -3273,7 +3273,7 @@ describe("Error handling and untested branches", () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Invalid JSON body" });
   });
-  it("POST /api/papers/:id/invites handles invalid JSON string body", async () => {
+  it("POST /api/papers/:id/invites handles non-object JSON body", async () => {
     const res = await app.request(
       "http://localhost/api/papers/paper-1/invites",
       {
@@ -3282,12 +3282,12 @@ describe("Error handling and untested branches", () => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: "invalid string that is not json",
+        body: JSON.stringify("valid string but not an object"),
       },
       env as any,
     );
     expect(res.status).toBe(400);
-    expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+    await expect(res.json()).resolves.toEqual({ error: "Invalid JSON body" });
   });
 
   it("POST /api/papers/:id/invites handles missing invitee info", async () => {
