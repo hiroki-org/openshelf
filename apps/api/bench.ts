@@ -17,17 +17,13 @@ function original() {
 }
 
 function optimized() {
-  return Object.keys(
-    inviteRows.reduce(
-      (acc, inv) => {
-        if (typeof inv.inviteeId === "string") {
-          acc[inv.inviteeId] = true;
-        }
-        return acc;
-      },
-      {} as Record<string, boolean>,
-    ),
-  );
+  const acc: Record<string, boolean> = Object.create(null);
+  for (const inv of inviteRows) {
+    if (typeof inv.inviteeId === "string") {
+      acc[inv.inviteeId] = true;
+    }
+  }
+  return Object.keys(acc);
 }
 
 function optimizedReduce() {
@@ -49,11 +45,11 @@ for (let i = 0; i < N; i++) {
 }
 console.timeEnd("original");
 
-console.time("optimized (for...of)");
+console.time("optimized (for...of + obj)");
 for (let i = 0; i < N; i++) {
   optimized();
 }
-console.timeEnd("optimized (for...of)");
+console.timeEnd("optimized (for...of + obj)");
 
 console.time("optimized (reduce)");
 for (let i = 0; i < N; i++) {
