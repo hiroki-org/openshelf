@@ -21,7 +21,7 @@ test.describe('Cite & Download', () => {
 
     await page.goto(`/papers/${paperId}`);
 
-    await page.getByRole('button', { name: /Cite/ }).click();
+    await page.getByRole('button', { name: '📋 Cite' }).click();
     await page.getByRole('menuitem', { name: 'BibTeX' }).click();
 
     await expect(page.getByText('コピーしました')).toBeVisible();
@@ -37,7 +37,9 @@ test.describe('Cite & Download', () => {
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('button', { name: 'ダウンロード' }).first().click(),
+      page
+        .getByRole('button', { name: /test-paper\.pdfをダウンロード/ })
+        .click(),
     ]);
 
     expect(download.suggestedFilename().toLowerCase()).toContain('.pdf');

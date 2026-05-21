@@ -41,7 +41,7 @@ test.describe('Paper Edit Flow', () => {
     await expect(page.getByText('実行手順')).toBeVisible();
     await expect(page.getByText('alert("xss")')).toHaveCount(0);
 
-    const citeButton = page.getByRole('button', { name: /Cite/ });
+    const citeButton = page.getByRole('button', { name: '📋 Cite' });
     await citeButton.click();
     await expect(page.getByRole('menuitem', { name: 'BibTeX' })).toBeVisible();
   });

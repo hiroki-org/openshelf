@@ -310,6 +310,12 @@ describe("PaperDetailClient", () => {
               displayName: "Bob Candidate",
               avatarUrl: null,
             },
+            {
+              id: "user-4",
+              name: "fallbackbob",
+              displayName: null,
+              avatarUrl: null,
+            },
           ],
         });
       }
@@ -411,19 +417,32 @@ describe("PaperDetailClient", () => {
     const slideRow = screen.getByText("deck.pptx").closest("li");
     expect(slideRow).not.toBeNull();
     fireEvent.click(
-      within(slideRow!).getByRole("button", { name: "ダウンロード" }),
+      within(slideRow!).getByRole("button", { name: "deck.pptxをダウンロード" }),
     );
 
     await waitFor(() => {
       expect(URL.createObjectURL).toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "+ 共著者を招待" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Transformer Tricksに共著者を招待",
+      }),
+    );
     fireEvent.change(screen.getByPlaceholderText("ユーザー名で検索..."), {
       target: { value: "bo" },
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: "招待" }));
+    expect(
+      await screen.findByRole("button", {
+        name: "fallbackbobを共著者として招待",
+      }),
+    ).toBeInTheDocument();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Bob Candidateを共著者として招待",
+      }),
+    );
 
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledWith("招待を送信しました");
@@ -695,7 +714,11 @@ describe("PaperDetailClient", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Badge")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "ダウンロードする" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "restricted.pdfをPDFプレビューからダウンロード",
+      }),
+    );
 
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith(

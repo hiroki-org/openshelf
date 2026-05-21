@@ -43,10 +43,12 @@
     "vitest": "^4.1.5"
   },
   "overrides": {
+    "brace-expansion": "5.0.6",
     "next": {
       "postcss": "8.5.12"
     },
-    "postcss": "$postcss"
+    "postcss": "$postcss",
+    "ws": "8.20.1"
   },
   "license": "MIT"
 }

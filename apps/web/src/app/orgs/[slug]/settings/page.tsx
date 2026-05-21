@@ -67,14 +67,14 @@ export default function OrgSettingsPage() {
   // Members tab
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchUser[]>([]);
-  const [inviting, setInviting] = useState(false);
+  const [inviting, setInviting] = useState<string | null>(null);
 
   // Papers tab
   const [paperSearch, setPaperSearch] = useState("");
   const [paperSearchResults, setPaperSearchResults] = useState<
     { id: string; title: string }[]
   >([]);
-  const [addingPaper, setAddingPaper] = useState(false);
+  const [addingPaper, setAddingPaper] = useState<string | null>(null);
 
   // Delete dialog
   const [showDelete, setShowDelete] = useState(false);
@@ -228,7 +228,7 @@ export default function OrgSettingsPage() {
   };
 
   const handleAddMember = async (userId: string, role: string = "member") => {
-    setInviting(true);
+    setInviting(userId);
     try {
       const res = await apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/members`,
@@ -249,7 +249,7 @@ export default function OrgSettingsPage() {
     } catch {
       alert("ネットワークエラー");
     } finally {
-      setInviting(false);
+      setInviting(null);
     }
   };
 
@@ -324,7 +324,7 @@ export default function OrgSettingsPage() {
   };
 
   const handleAddPaper = async (paperId: string) => {
-    setAddingPaper(true);
+    setAddingPaper(paperId);
     try {
       const res = await apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/papers`,
@@ -345,12 +345,12 @@ export default function OrgSettingsPage() {
     } catch {
       alert("ネットワークエラー");
     } finally {
-      setAddingPaper(false);
+      setAddingPaper(null);
     }
   };
 
   const handleRemovePaper = async (paperId: string) => {
-    if (!confirm("この論文の紐づけを解除しますか？")) return;
+    if (!confirm("この成果物の紐づけを解除しますか？")) return;
     try {
       const res = await apiFetch(
         `/api/orgs/${encodeURIComponent(slug)}/papers/${encodeURIComponent(paperId)}`,
@@ -392,27 +392,20 @@ export default function OrgSettingsPage() {
 
       {/* Tabs */}
       <div className="flex border-b dark:border-gray-700 mb-6">
-        <button
-          type="button"
-          className={tabClass("general")}
-          onClick={() => setTab("general")}
-        >
-          一般
-        </button>
-        <button
-          type="button"
-          className={tabClass("members")}
-          onClick={() => setTab("members")}
-        >
-          メンバー
-        </button>
-        <button
-          type="button"
-          className={tabClass("papers")}
-          onClick={() => setTab("papers")}
-        >
-          論文
-        </button>
+        {[
+          { id: "general", label: "一般" },
+          { id: "members", label: "メンバー" },
+          { id: "papers", label: "成果物" },
+        ].map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={tabClass(t.id)}
+            onClick={() => setTab(t.id as typeof tab)}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {/* ── General Tab ── */}
@@ -477,10 +470,10 @@ export default function OrgSettingsPage() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+            className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200 inline-flex items-center justify-center min-w-20"
           >
             {saving ? (
-              <span className="flex items-center gap-2">
+              <span className="flex items-center justify-center gap-2">
                 <span
                   className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
                   aria-hidden="true"
@@ -498,7 +491,7 @@ export default function OrgSettingsPage() {
               Danger Zone
             </h3>
             <p className="text-xs text-gray-500 mb-3">
-              組織を削除すると、メンバー情報と論文の紐づけが全て削除されます。
+              組織を削除すると、メンバー情報と成果物の紐づけが全て削除されます。
             </p>
             {!showDelete ? (
               <button
@@ -525,10 +518,10 @@ export default function OrgSettingsPage() {
                     type="button"
                     onClick={handleDelete}
                     disabled={deleting || deleteConfirm !== org.slug}
-                    className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:opacity-50"
+                    className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:opacity-50 inline-flex items-center justify-center min-w-32"
                   >
                     {deleting ? (
-                      <span className="flex items-center gap-2">
+                      <span className="flex items-center justify-center gap-2">
                         <span
                           className="h-4 w-4 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
                           aria-hidden="true"
@@ -592,10 +585,22 @@ export default function OrgSettingsPage() {
                     <button
                       type="button"
                       onClick={() => handleAddMember(u.id)}
-                      disabled={inviting}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
+                      disabled={inviting !== null}
+                      aria-busy={inviting === u.id}
+                      aria-label={`${u.displayName ?? u.name}をメンバーに追加`}
+                      className="inline-flex min-w-[72px] items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                     >
-                      追加
+                      {inviting === u.id ? (
+                        <span className="flex items-center justify-center gap-1">
+                          <span
+                            className="h-3 w-3 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
+                            aria-hidden="true"
+                          />
+                          追加中...
+                        </span>
+                      ) : (
+                        "追加"
+                      )}
                     </button>
                   </li>
                 ))}
@@ -629,6 +634,7 @@ export default function OrgSettingsPage() {
                     value={m.role === "owner" ? "admin" : m.role}
                     onChange={(e) => handleChangeRole(m.userId, e.target.value)}
                     disabled={m.userId === user?.id}
+                    aria-label={`${m.displayName ?? m.name}の権限を変更`}
                     className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-700 dark:bg-gray-900"
                   >
                     <option value="admin">admin</option>
@@ -638,6 +644,7 @@ export default function OrgSettingsPage() {
                     <button
                       type="button"
                       onClick={() => handleRemoveMember(m.userId)}
+                      aria-label={`${m.displayName ?? m.name}をメンバーから削除`}
                       className="text-red-500 hover:text-red-700 text-xs"
                     >
                       削除
@@ -655,13 +662,13 @@ export default function OrgSettingsPage() {
         <div>
           {/* Add paper form */}
           <div className="mb-6">
-            <h3 className="text-sm font-medium mb-2">論文を追加</h3>
+            <h3 className="text-sm font-medium mb-2">成果物を追加</h3>
             <input
               type="text"
               value={paperSearch}
               onChange={(e) => handlePaperSearch(e.target.value)}
-              placeholder="論文タイトルで検索..."
-              aria-label="論文検索"
+              placeholder="成果物タイトルで検索..."
+              aria-label="成果物検索"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm mb-2 dark:border-gray-700 dark:bg-gray-900"
             />
             {paperSearchResults.length > 0 && (
@@ -675,10 +682,22 @@ export default function OrgSettingsPage() {
                     <button
                       type="button"
                       onClick={() => handleAddPaper(p.id)}
-                      disabled={addingPaper}
-                      className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50 shrink-0"
+                      disabled={addingPaper !== null}
+                      aria-busy={addingPaper === p.id}
+                      aria-label={`${p.title}を組織に追加`}
+                      className="inline-flex min-w-[72px] shrink-0 items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                     >
-                      追加
+                      {addingPaper === p.id ? (
+                        <span className="flex items-center justify-center gap-1">
+                          <span
+                            className="h-3 w-3 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
+                            aria-hidden="true"
+                          />
+                          追加中...
+                        </span>
+                      ) : (
+                        "追加"
+                      )}
                     </button>
                   </li>
                 ))}
@@ -687,9 +706,9 @@ export default function OrgSettingsPage() {
           </div>
 
           {/* Paper list */}
-          <h3 className="text-sm font-medium mb-2">紐づけ済み論文</h3>
+          <h3 className="text-sm font-medium mb-2">紐づけ済み成果物</h3>
           {orgPapers.length === 0 ? (
-            <p className="text-sm text-gray-500">まだ論文がありません</p>
+            <p className="text-sm text-gray-500">まだ成果物がありません</p>
           ) : (
             <ul className="space-y-2">
               {orgPapers.map((p) => (
@@ -701,6 +720,7 @@ export default function OrgSettingsPage() {
                   <button
                     type="button"
                     onClick={() => handleRemovePaper(p.id)}
+                    aria-label={`${p.title}の紐づけを解除`}
                     className="text-red-500 hover:text-red-700 text-xs shrink-0 ml-2"
                   >
                     解除
