@@ -45,6 +45,28 @@ describe("NewOrgPage", () => {
     authState = { user: { id: "user-1" }, loading: false };
   });
 
+  it("updates the description character counter and keeps it associated with the textarea", () => {
+    render(<NewOrgPage />);
+
+    const description = screen.getByLabelText(/説明/i);
+    const counter = screen.getByText("0/500");
+
+    expect(description).toHaveAttribute(
+      "aria-describedby",
+      "org-description-counter",
+    );
+    expect(counter).toHaveAttribute("id", "org-description-counter");
+    expect(counter).toHaveClass("text-gray-500");
+
+    fireEvent.change(description, { target: { value: "abc" } });
+
+    expect(screen.getByText("3/500")).toBeInTheDocument();
+
+    fireEvent.change(description, { target: { value: "x".repeat(500) } });
+
+    expect(screen.getByText("500/500")).toHaveClass("text-red-600");
+  });
+
   it("checks slug availability and creates an org", async () => {
     vi.useFakeTimers();
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
