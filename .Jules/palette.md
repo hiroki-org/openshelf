@@ -18,3 +18,6 @@
 ## 2025-05-13 - Input Field Character Counter Accessibility Improvement
 **Learning:** 文字数カウンターを実装する際、スクリーンリーダー向けに入力フィールドとカウンターをプログラム的に関連付けるには `aria-describedby` 属性を使用するのがベストプラクティスです。`aria-live` は入力のたびに読み上げが発生するため煩わしい場合があります。
 **Action:** 今後、入力フィールドに対する文字数カウンターなど、付加的な動的情報を提供する際は `aria-live` ではなく、入力要素に `aria-describedby` を付与してカウンター要素を紐付けるアプローチをデフォルトの設計とします。
+## 2026-05-20 - [Add character counter for long text inputs]
+**Learning:** 文字数制限（maxLength）があるテキスト入力では、カウンターを動的に更新すると支援技術（スクリーンリーダーなど）が不必要に毎回読み上げてしまい、ユーザーの入力を阻害することがある。
+**Action:** カウンター要素に `aria-live` を付与せず、代わりに入力要素側に `aria-describedby` を指定してカウンター要素と関連付けることで、フォーカス移動時や読み上げ指示時に適切に文字数情報を伝達するよう実装する。

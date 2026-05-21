@@ -55,7 +55,7 @@ describe("collections routes", () => {
     expect(res.status).toBe(401);
   });
 
-  it("POST /api/collections propagates general db insert errors", async () => {
+  it("POST /api/collections ignores general db insert errors", async () => {
     const err = new Error("General insert error");
     mockDb.insert = vi.fn().mockReturnValue({
       values: vi.fn().mockRejectedValue(err),
@@ -799,7 +799,7 @@ describe("collections routes", () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Invalid visibility" });
   });
-  it("PATCH /api/collections/:id propagates general db update errors", async () => {
+  it("PATCH /api/collections/:id ignores general db update errors", async () => {
     queueSelectResponses([
       { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
     ]);
@@ -1403,7 +1403,7 @@ describe("collections routes", () => {
     expect(await res.json()).toEqual({ error: "Paper not found" });
   });
 
-  it("POST /api/collections/:id/papers propagates general db insert errors", async () => {
+  it("POST /api/collections/:id/papers ignores general db insert errors", async () => {
     queueSelectResponses([
       { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
       { getResult: { id: "p1" } },

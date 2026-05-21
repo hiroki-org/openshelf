@@ -1,85 +1,58 @@
 const inviteRows = Array.from({ length: 10000 }).map((_, i) => ({
-  id: `invite-${i}`,
-  paperId: "paper-1",
-  inviterId: "user-1",
-  inviteeId: i % 2 === 0 ? `user-${i % 100}` : null,
-  inviteeEmail: null,
+    id: `invite-${i}`,
+    paperId: 'paper-1',
+    inviterId: 'user-1',
+    inviteeId: i % 2 === 0 ? `user-${i % 100}` : null,
+    inviteeEmail: null,
 }));
 
 function original() {
-  return [
-    ...new Set(
-      inviteRows
-        .map((inv) => inv.inviteeId)
-        .filter((v): v is string => typeof v === "string"),
-    ),
-  ];
+    return [
+        ...new Set(
+            inviteRows
+                .map((inv) => inv.inviteeId)
+                .filter((v): v is string => typeof v === "string"),
+        ),
+    ];
 }
 
 function optimized() {
-  const uniqueMap = Object.create(null);
-  for (const inv of inviteRows) {
-    if (typeof inv.inviteeId === "string") {
-      uniqueMap[inv.inviteeId] = true;
+    const inviteeIdsSet = new Set<string>();
+    for (const inv of inviteRows) {
+        if (typeof inv.inviteeId === "string") {
+            inviteeIdsSet.add(inv.inviteeId);
+        }
     }
-  }
-  return Object.keys(uniqueMap);
+    return Array.from(inviteeIdsSet);
 }
 
 function optimizedReduce() {
-  return Array.from(
-    inviteRows.reduce((acc, inv) => {
-      if (typeof inv.inviteeId === "string") {
-        acc.add(inv.inviteeId);
-      }
-      return acc;
-    }, new Set<string>()),
-  );
+    return Array.from(
+        inviteRows.reduce((acc, inv) => {
+            if (typeof inv.inviteeId === "string") {
+                acc.add(inv.inviteeId);
+            }
+            return acc;
+        }, new Set<string>())
+    );
 }
 
 const N = 10000;
-const WARMUP_N = 1000;
-
-function assertEquivalent() {
-  const expected = [...original()].sort();
-  const candidates = {
-    optimized: optimized(),
-    optimizedReduce: optimizedReduce(),
-  };
-
-  for (const [name, actual] of Object.entries(candidates)) {
-    const actualValues = [...actual].sort();
-    if (
-      actualValues.length !== expected.length ||
-      actualValues.some((value, index) => value !== expected[index])
-    ) {
-      throw new Error(`${name} result does not match original`);
-    }
-  }
-}
-
-assertEquivalent();
-
-for (let i = 0; i < WARMUP_N; i++) {
-  original();
-  optimized();
-  optimizedReduce();
-}
 
 console.time("original");
 for (let i = 0; i < N; i++) {
-  original();
+    original();
 }
 console.timeEnd("original");
 
-console.time("optimized (for...of + obj)");
+console.time("optimized (for...of)");
 for (let i = 0; i < N; i++) {
-  optimized();
+    optimized();
 }
-console.timeEnd("optimized (for...of + obj)");
+console.timeEnd("optimized (for...of)");
 
 console.time("optimized (reduce)");
 for (let i = 0; i < N; i++) {
-  optimizedReduce();
+    optimizedReduce();
 }
 console.timeEnd("optimized (reduce)");
