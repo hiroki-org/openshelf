@@ -26,6 +26,13 @@ vi.mock("@/lib/api", () => ({
   apiFetch: vi.fn(),
 }));
 
+vi.mock("@/components/toast", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
+}));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
 }));
@@ -226,6 +233,7 @@ describe("InvitesPage", () => {
     });
     expect(firstDecline).toBeDisabled();
     expect(firstAccept).toHaveAttribute("aria-busy", "true");
+    expect(firstAccept).toHaveAccessibleName("承認");
 
     const secondDecline = within(secondItem!).getByRole("button", {
       name: "拒否",
@@ -237,6 +245,7 @@ describe("InvitesPage", () => {
       expect(secondDecline).toBeDisabled();
     });
     expect(secondDecline).toHaveAttribute("aria-busy", "true");
+    expect(secondDecline).toHaveAccessibleName("拒否");
     expect(firstAccept).toBeDisabled();
 
     await act(async () => {
