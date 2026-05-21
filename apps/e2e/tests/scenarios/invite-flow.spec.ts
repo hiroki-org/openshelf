@@ -24,13 +24,15 @@ test.describe('Coauthor Invite Flow', () => {
       });
 
       await page.goto(`/papers/${paperId}`);
-      await page.getByRole('button', { name: '+ 共著者を招待' }).click();
+      await page.getByRole('button', { name: `${title}に共著者を招待` }).click();
 
       const searchBox = page.getByPlaceholder('ユーザー名で検索...');
       await searchBox.fill(inviteeName);
       const resultRow = page.locator('li', { hasText: inviteeName }).first();
       await expect(resultRow).toBeVisible();
-      await resultRow.getByRole('button', { name: '招待' }).click();
+      await resultRow
+        .getByRole('button', { name: `${inviteeName}を共著者として招待` })
+        .click();
 
       await expect(page.getByText('招待を送信しました')).toBeVisible();
       await expect(page.getByText('招待状況')).toBeVisible();
