@@ -418,12 +418,20 @@ describe("PaperDetailClient", () => {
       expect(URL.createObjectURL).toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "+ 共著者を招待" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Transformer Tricksに共著者を招待",
+      }),
+    );
     fireEvent.change(screen.getByPlaceholderText("ユーザー名で検索..."), {
       target: { value: "bo" },
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: "Bob Candidateを招待" }));
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Bob Candidateを共著者として招待",
+      }),
+    );
 
     await waitFor(() => {
       expect(toastSuccess).toHaveBeenCalledWith("招待を送信しました");
@@ -695,7 +703,11 @@ describe("PaperDetailClient", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Badge")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "ダウンロードする" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "restricted.pdfをPDFプレビューからダウンロード",
+      }),
+    );
 
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith(

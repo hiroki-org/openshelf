@@ -55,10 +55,30 @@ describe("collections routes", () => {
     expect(res.status).toBe(401);
   });
 
-  it("POST /api/collections ignores general db insert errors", async () => {
+  it("POST /api/collections propagates general db insert errors", async () => {
     const err = new Error("General insert error");
     mockDb.insert = vi.fn().mockReturnValue({
       values: vi.fn().mockRejectedValue(err),
+    });
+    const app = await createTestApp();
+    const env = createTestEnv();
+    const res = await app.request(
+      "http://localhost/api/collections",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}`,
+        },
+        body: JSON.stringify({ name: "C1", slug: "col-1", owner_type: "user" }),
+      },
+      env,
+    );
+    expect(res.status).toBe(500);
+  });
+
+  it("POST /api/collections wraps non-Error db insert errors", async () => {
+    mockDb.insert = vi.fn().mockReturnValue({
+      values: vi.fn().mockRejectedValue("General insert error"),
     });
     const app = await createTestApp();
     const env = createTestEnv();
@@ -779,7 +799,7 @@ describe("collections routes", () => {
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Invalid visibility" });
   });
-  it("PATCH /api/collections/:id ignores general db update errors", async () => {
+  it("PATCH /api/collections/:id propagates general db update errors", async () => {
     queueSelectResponses([
       { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
     ]);
@@ -849,6 +869,36 @@ describe("collections routes", () => {
       });
     },
   );
+
+  it("PATCH /api/collections/:id wraps non-Error db update errors", async () => {
+    queueSelectResponses([
+      { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
+    ]);
+    mockDb.update = vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockRejectedValue("Unexpected update failure"),
+      }),
+    });
+    const app = await createTestApp();
+    const env = createTestEnv();
+    const res = await app.request(
+      "http://localhost/api/collections/c1",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${await createTestJWT({ sub: "user-1" })}`,
+        },
+        body: JSON.stringify({
+          name: "C2",
+          slug: "col-2",
+          description: "desc",
+          visibility: "public",
+        }),
+      },
+      env,
+    );
+    expect(res.status).toBe(500);
+  });
 
   it("PATCH /api/collections/:id returns 400 when name is invalid", async () => {
     queueSelectResponses([
@@ -1353,7 +1403,7 @@ describe("collections routes", () => {
     expect(await res.json()).toEqual({ error: "Paper not found" });
   });
 
-  it("POST /api/collections/:id/papers ignores general db insert errors", async () => {
+  it("POST /api/collections/:id/papers propagates general db insert errors", async () => {
     queueSelectResponses([
       { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
       { getResult: { id: "p1" } },
@@ -2186,6 +2236,43 @@ describe("collections routes", () => {
 
     mockDb.insert = vi.fn(() => ({
       values: vi.fn().mockRejectedValue(new Error("Unexpected database error")),
+    }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/api/collections/col-1/papers",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ paper_id: "paper-1" }),
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(500);
+  });
+
+  it("POST /api/collections/:id/papers wraps non-Error insert errors", async () => {
+    const token = await createTestJWT({ sub: "user-1" });
+    const collection = {
+      id: "col-1",
+      ownerType: "user",
+      ownerId: "user-1",
+      visibility: "private",
+    };
+    queueSelectResponses([
+      { getResult: collection },
+      { getResult: { id: "paper-1", visibility: "public" } },
+      { getResult: { maxOrder: 2 } },
+    ]);
+
+    mockDb.insert = vi.fn(() => ({
+      values: vi.fn().mockRejectedValue("Unexpected insert failure"),
     }));
 
     const app = await createTestApp();

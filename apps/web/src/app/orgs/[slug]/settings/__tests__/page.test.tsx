@@ -329,7 +329,9 @@ describe("OrgSettingsPage", () => {
     );
     expect(candidateRow).not.toBeNull();
     fireEvent.click(
-      within(candidateRow!).getByRole("button", { name: "追加" }),
+      within(candidateRow!).getByRole("button", {
+        name: "Alice Candidateをメンバーに追加",
+      }),
     );
 
     await waitFor(() => {
@@ -339,9 +341,12 @@ describe("OrgSettingsPage", () => {
     const bobRow = screen.getByText("Bob").closest("li");
     expect(bobRow).not.toBeNull();
 
-    fireEvent.change(within(bobRow!).getByRole("combobox"), {
-      target: { value: "admin" },
-    });
+    fireEvent.change(
+      within(bobRow!).getByRole("combobox", { name: "Bobの権限を変更" }),
+      {
+        target: { value: "admin" },
+      },
+    );
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
@@ -353,7 +358,11 @@ describe("OrgSettingsPage", () => {
       );
     });
 
-    fireEvent.click(within(bobRow!).getByRole("button", { name: "削除" }));
+    fireEvent.click(
+      within(bobRow!).getByRole("button", {
+        name: "Bobをメンバーから削除",
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.queryByText("Bob")).not.toBeInTheDocument();
@@ -369,7 +378,9 @@ describe("OrgSettingsPage", () => {
     ).closest("li");
     expect(paperCandidateRow).not.toBeNull();
     fireEvent.click(
-      within(paperCandidateRow!).getByRole("button", { name: "追加" }),
+      within(paperCandidateRow!).getByRole("button", {
+        name: "Transformer Tricksを組織に追加",
+      }),
     );
 
     await waitFor(() => {
@@ -379,7 +390,11 @@ describe("OrgSettingsPage", () => {
     const paperRow = screen.getByText("Transformer Tricks").closest("li");
     expect(paperRow).not.toBeNull();
 
-    fireEvent.click(within(paperRow!).getByRole("button", { name: "Transformer Tricksの紐づけを解除" }));
+    fireEvent.click(
+      within(paperRow!).getByRole("button", {
+        name: "Transformer Tricksの紐づけを解除",
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.queryByText("Transformer Tricks")).not.toBeInTheDocument();
@@ -460,7 +475,9 @@ describe("OrgSettingsPage", () => {
     render(<OrgSettingsPage />);
 
     await screen.findByRole("heading", { name: "Demo Org — 設定" });
-    fireEvent.click(screen.getByRole("button", { name: "Existing Paperの紐づけを解除" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Existing Paperの紐づけを解除" }),
+    );
 
     await waitFor(() => {
       expect(alert).toHaveBeenCalledWith("解除できません");
@@ -507,7 +524,9 @@ describe("OrgSettingsPage", () => {
     render(<OrgSettingsPage />);
 
     await screen.findByRole("heading", { name: "Demo Org — 設定" });
-    fireEvent.click(screen.getByRole("button", { name: "Existing Paperの紐づけを解除" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Existing Paperの紐づけを解除" }),
+    );
 
     await waitFor(() => {
       expect(alert).toHaveBeenCalledWith("ネットワークエラー");
