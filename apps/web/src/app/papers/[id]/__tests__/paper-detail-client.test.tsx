@@ -310,6 +310,12 @@ describe("PaperDetailClient", () => {
               displayName: "Bob Candidate",
               avatarUrl: null,
             },
+            {
+              id: "user-4",
+              name: "fallbackbob",
+              displayName: null,
+              avatarUrl: null,
+            },
           ],
         });
       }
@@ -427,6 +433,11 @@ describe("PaperDetailClient", () => {
       target: { value: "bo" },
     });
 
+    expect(
+      await screen.findByRole("button", {
+        name: "fallbackbobを共著者として招待",
+      }),
+    ).toBeInTheDocument();
     fireEvent.click(
       await screen.findByRole("button", {
         name: "Bob Candidateを共著者として招待",

@@ -85,6 +85,12 @@ function setupOrgApiMock(state: OrgState, options: OrgApiMockOptions = {}) {
       displayName: "Alice Candidate",
       avatarUrl: null,
     },
+    {
+      id: "user-4",
+      name: "fallbackalice",
+      displayName: null,
+      avatarUrl: null,
+    },
   ];
 
   const searchablePapers = [
@@ -303,6 +309,14 @@ describe("OrgSettingsPage", () => {
           avatarUrl: null,
           githubId: "bob",
         },
+        {
+          userId: "member-3",
+          role: "member",
+          name: "charlie",
+          displayName: null,
+          avatarUrl: null,
+          githubId: "charlie",
+        },
       ],
       papers: [
         {
@@ -328,6 +342,11 @@ describe("OrgSettingsPage", () => {
       "li",
     );
     expect(candidateRow).not.toBeNull();
+    expect(
+      screen.getByRole("button", {
+        name: "fallbackaliceをメンバーに追加",
+      }),
+    ).toBeInTheDocument();
     fireEvent.click(
       within(candidateRow!).getByRole("button", {
         name: "Alice Candidateをメンバーに追加",
@@ -340,6 +359,18 @@ describe("OrgSettingsPage", () => {
 
     const bobRow = screen.getByText("Bob").closest("li");
     expect(bobRow).not.toBeNull();
+    const charlieRow = screen.getByText("charlie").closest("li");
+    expect(charlieRow).not.toBeNull();
+    expect(
+      within(charlieRow!).getByRole("combobox", {
+        name: "charlieの権限を変更",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(charlieRow!).getByRole("button", {
+        name: "charlieをメンバーから削除",
+      }),
+    ).toBeInTheDocument();
 
     fireEvent.change(
       within(bobRow!).getByRole("combobox", { name: "Bobの権限を変更" }),
