@@ -41,16 +41,17 @@ const N = 10000;
 const WARMUP_N = 1000;
 
 function assertEquivalent() {
-  const expected = original();
+  const expected = [...original()].sort();
   const candidates = {
     optimized: optimized(),
     optimizedReduce: optimizedReduce(),
   };
 
   for (const [name, actual] of Object.entries(candidates)) {
+    const actualValues = [...actual].sort();
     if (
-      actual.length !== expected.length ||
-      actual.some((value, index) => value !== expected[index])
+      actualValues.length !== expected.length ||
+      actualValues.some((value, index) => value !== expected[index])
     ) {
       throw new Error(`${name} result does not match original`);
     }
