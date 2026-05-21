@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getInviteStatusBadge } from "@/lib/presentation";
+import { Spinner } from "@/components/spinner";
+import { toast } from "@/components/toast";
 
 type ReceivedInvite = {
   id: string;
@@ -22,6 +24,8 @@ export default function InvitesPage() {
   const router = useRouter();
   const [invites, setInvites] = useState<ReceivedInvite[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [processingAction, setProcessingAction] = useState<"accept" | "decline" | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -53,6 +57,8 @@ export default function InvitesPage() {
   }, [user]);
 
   const respond = async (inviteId: string, action: "accept" | "decline") => {
+    setProcessingId(inviteId);
+    setProcessingAction(action);
     try {
       const res = await apiFetch(
         `/api/invites/${encodeURIComponent(inviteId)}`,
@@ -70,10 +76,17 @@ export default function InvitesPage() {
               : i,
           ),
         );
+        toast.success(action === "accept" ? "招待を承認しました" : "招待を拒否しました");
+      } else {
+        toast.error("処理に失敗しました");
       }
     } catch (err) {
       console.error(`Failed to ${action} invite ${inviteId}:`, err);
+      toast.error("ネットワークエラーが発生しました");
       // Keep UI state unchanged when request fails.
+    } finally {
+      setProcessingId(null);
+      setProcessingAction(null);
     }
   };
 
@@ -168,16 +181,26 @@ export default function InvitesPage() {
                     <button
                       type="button"
                       onClick={() => respond(inv.id, "accept")}
-                      className="rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+                      disabled={processingId === inv.id}
+                      className="inline-flex min-w-[72px] items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
                     >
-                      承認
+                      {processingId === inv.id && processingAction === "accept" ? (
+                        <Spinner className="h-4 w-4" />
+                      ) : (
+                        "承認"
+                      )}
                     </button>
                     <button
                       type="button"
                       onClick={() => respond(inv.id, "decline")}
-                      className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                      disabled={processingId === inv.id}
+                      className="inline-flex min-w-[72px] items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                     >
-                      拒否
+                      {processingId === inv.id && processingAction === "decline" ? (
+                        <Spinner className="h-4 w-4" />
+                      ) : (
+                        "拒否"
+                      )}
                     </button>
                   </div>
                 ) : (
