@@ -86,7 +86,11 @@ describe("InvitesPage", () => {
 
     expect(await screen.findByText("Paper title")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "承認" }));
+    const acceptBtn = screen.getByRole("button", { name: "承認" });
+    fireEvent.click(acceptBtn);
+
+    expect(acceptBtn).toBeDisabled();
+    expect(acceptBtn).toHaveAttribute("aria-busy", "true");
 
     await waitFor(() => {
       expect(screen.getByText("承認済み")).toBeInTheDocument();
@@ -140,7 +144,12 @@ describe("InvitesPage", () => {
     render(<InvitesPage />);
 
     expect(await screen.findByText("Paper title")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "拒否" }));
+
+    const declineBtn = screen.getByRole("button", { name: "拒否" });
+    fireEvent.click(declineBtn);
+
+    expect(declineBtn).toBeDisabled();
+    expect(declineBtn).toHaveAttribute("aria-busy", "true");
 
     await waitFor(() => {
       expect(screen.getByText("拒否済み")).toBeInTheDocument();
