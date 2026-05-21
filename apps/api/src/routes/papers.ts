@@ -710,7 +710,8 @@ papersRoute.post("/", authMiddleware, async (c) => {
             console.error("File upload errors:", {
                 errors: errors.map((e) => (e instanceof Error ? e.message : String(e))),
             });
-            throw errors[0] ?? new Error("An unknown upload error occurred.");
+            const firstError = errors[0];
+            throw firstError instanceof Error ? firstError : new Error(String(firstError) || "An unknown upload error occurred.");
         }
 
         await db.insert(papers).values(paperValues);
