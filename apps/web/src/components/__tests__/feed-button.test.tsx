@@ -174,7 +174,9 @@ describe("FeedButton", () => {
 
     const trigger = screen.getByRole("button", { name: "📡 Feed" });
     fireEvent.click(trigger);
-    expect(screen.getByRole("dialog", { name: "フィード URL" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "フィード URL" }),
+    ).toBeInTheDocument();
 
     fireEvent.click(trigger);
     await waitFor(() => {

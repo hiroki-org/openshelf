@@ -15,15 +15,6 @@ function slugify(text: string): string {
 }
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
-const COLLECTION_NAME_MAX_LENGTH = 100;
-const COLLECTION_DESCRIPTION_MAX_LENGTH = 500;
-const COUNTER_WARNING_RATIO = 0.9;
-
-function counterClassName(length: number, maxLength: number): string {
-  return length >= Math.ceil(maxLength * COUNTER_WARNING_RATIO)
-    ? "text-red-500"
-    : "text-gray-500 dark:text-gray-400";
-}
 
 export default function NewCollectionPage() {
   const { user, loading } = useAuth();
@@ -264,16 +255,16 @@ export default function NewCollectionPage() {
             id="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            maxLength={COLLECTION_NAME_MAX_LENGTH}
+            maxLength={100}
             aria-describedby="name-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
           <div className="flex justify-end mt-1">
             <span
               id="name-counter"
-              className={`text-xs ${counterClassName(name.length, COLLECTION_NAME_MAX_LENGTH)}`}
+              className={`text-xs ${name.length > 90 ? "text-red-500" : "text-gray-500 dark:text-gray-400"}`}
             >
-              {name.length}/{COLLECTION_NAME_MAX_LENGTH}
+              {name.length}/100
             </span>
           </div>
         </div>
@@ -312,16 +303,16 @@ export default function NewCollectionPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            maxLength={COLLECTION_DESCRIPTION_MAX_LENGTH}
+            maxLength={500}
             aria-describedby="description-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
           <div className="flex justify-end mt-1">
             <span
               id="description-counter"
-              className={`text-xs ${counterClassName(description.length, COLLECTION_DESCRIPTION_MAX_LENGTH)}`}
+              className={`text-xs ${description.length > 480 ? "text-red-500" : "text-gray-500 dark:text-gray-400"}`}
             >
-              {description.length}/{COLLECTION_DESCRIPTION_MAX_LENGTH}
+              {description.length}/500
             </span>
           </div>
         </div>
