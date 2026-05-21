@@ -21,7 +21,7 @@ const COUNTER_WARNING_RATIO = 0.9;
 
 function counterClassName(length: number, maxLength: number): string {
   return length >= Math.ceil(maxLength * COUNTER_WARNING_RATIO)
-    ? "text-red-500"
+    ? "text-red-500 dark:text-red-400"
     : "text-gray-500 dark:text-gray-400";
 }
 

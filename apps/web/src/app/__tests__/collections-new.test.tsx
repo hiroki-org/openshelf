@@ -64,12 +64,14 @@ describe("NewCollectionPage", () => {
 
     fireEvent.change(name, { target: { value: "x".repeat(90) } });
     expect(screen.getByText("90/100")).toHaveClass("text-red-500");
+    expect(screen.getByText("90/100")).toHaveClass("dark:text-red-400");
 
     fireEvent.change(description, { target: { value: "x".repeat(449) } });
     expect(screen.getByText("449/500")).toHaveClass("text-gray-500");
 
     fireEvent.change(description, { target: { value: "x".repeat(450) } });
     expect(screen.getByText("450/500")).toHaveClass("text-red-500");
+    expect(screen.getByText("450/500")).toHaveClass("dark:text-red-400");
   });
 
   it("slugifies the name, checks availability, and creates a user collection", async () => {
