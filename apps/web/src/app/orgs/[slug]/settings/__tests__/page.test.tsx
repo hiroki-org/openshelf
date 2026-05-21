@@ -85,6 +85,12 @@ function setupOrgApiMock(state: OrgState, options: OrgApiMockOptions = {}) {
       displayName: "Alice Candidate",
       avatarUrl: null,
     },
+    {
+      id: "user-4",
+      name: "fallbackalice",
+      displayName: null,
+      avatarUrl: null,
+    },
   ];
 
   const searchablePapers = [
@@ -303,6 +309,14 @@ describe("OrgSettingsPage", () => {
           avatarUrl: null,
           githubId: "bob",
         },
+        {
+          userId: "member-3",
+          role: "member",
+          name: "charlie",
+          displayName: null,
+          avatarUrl: null,
+          githubId: "charlie",
+        },
       ],
       papers: [
         {
@@ -328,8 +342,15 @@ describe("OrgSettingsPage", () => {
       "li",
     );
     expect(candidateRow).not.toBeNull();
+    expect(
+      screen.getByRole("button", {
+        name: "fallbackaliceをメンバーに追加",
+      }),
+    ).toBeInTheDocument();
     fireEvent.click(
-      within(candidateRow!).getByRole("button", { name: "追加" }),
+      within(candidateRow!).getByRole("button", {
+        name: "Alice Candidateをメンバーに追加",
+      }),
     );
 
     await waitFor(() => {
@@ -338,10 +359,25 @@ describe("OrgSettingsPage", () => {
 
     const bobRow = screen.getByText("Bob").closest("li");
     expect(bobRow).not.toBeNull();
+    const charlieRow = screen.getByText("charlie").closest("li");
+    expect(charlieRow).not.toBeNull();
+    expect(
+      within(charlieRow!).getByRole("combobox", {
+        name: "charlieの権限を変更",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(charlieRow!).getByRole("button", {
+        name: "charlieをメンバーから削除",
+      }),
+    ).toBeInTheDocument();
 
-    fireEvent.change(within(bobRow!).getByRole("combobox"), {
-      target: { value: "admin" },
-    });
+    fireEvent.change(
+      within(bobRow!).getByRole("combobox", { name: "Bobの権限を変更" }),
+      {
+        target: { value: "admin" },
+      },
+    );
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
@@ -353,7 +389,11 @@ describe("OrgSettingsPage", () => {
       );
     });
 
-    fireEvent.click(within(bobRow!).getByRole("button", { name: "削除" }));
+    fireEvent.click(
+      within(bobRow!).getByRole("button", {
+        name: "Bobをメンバーから削除",
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.queryByText("Bob")).not.toBeInTheDocument();
@@ -369,7 +409,9 @@ describe("OrgSettingsPage", () => {
     ).closest("li");
     expect(paperCandidateRow).not.toBeNull();
     fireEvent.click(
-      within(paperCandidateRow!).getByRole("button", { name: "追加" }),
+      within(paperCandidateRow!).getByRole("button", {
+        name: "Transformer Tricksを組織に追加",
+      }),
     );
 
     await waitFor(() => {
@@ -379,7 +421,11 @@ describe("OrgSettingsPage", () => {
     const paperRow = screen.getByText("Transformer Tricks").closest("li");
     expect(paperRow).not.toBeNull();
 
-    fireEvent.click(within(paperRow!).getByRole("button", { name: "解除" }));
+    fireEvent.click(
+      within(paperRow!).getByRole("button", {
+        name: "Transformer Tricksの紐づけを解除",
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.queryByText("Transformer Tricks")).not.toBeInTheDocument();
@@ -460,7 +506,9 @@ describe("OrgSettingsPage", () => {
     render(<OrgSettingsPage />);
 
     await screen.findByRole("heading", { name: "Demo Org — 設定" });
-    fireEvent.click(screen.getByRole("button", { name: "解除" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Existing Paperの紐づけを解除" }),
+    );
 
     await waitFor(() => {
       expect(alert).toHaveBeenCalledWith("解除できません");
@@ -507,7 +555,9 @@ describe("OrgSettingsPage", () => {
     render(<OrgSettingsPage />);
 
     await screen.findByRole("heading", { name: "Demo Org — 設定" });
-    fireEvent.click(screen.getByRole("button", { name: "解除" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Existing Paperの紐づけを解除" }),
+    );
 
     await waitFor(() => {
       expect(alert).toHaveBeenCalledWith("ネットワークエラー");

@@ -819,6 +819,7 @@ export default function PaperDetailClient({
                   type="button"
                   className="underline"
                   onClick={() => handleDownload(pdfFile)}
+                  aria-label={`${pdfFile.filename}をPDFプレビューからダウンロード`}
                 >
                   ダウンロードする
                 </button>
@@ -873,6 +874,7 @@ export default function PaperDetailClient({
               <button
                 type="button"
                 onClick={() => handleDownload(f)}
+                aria-label={`${f.filename}をダウンロード`}
                 className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white hover:bg-blue-500 transition-colors"
               >
                 ダウンロード
@@ -926,6 +928,7 @@ export default function PaperDetailClient({
           <button
             type="button"
             onClick={() => setShowInvite(true)}
+            aria-label={`${paper.title}に共著者を招待`}
             className="mt-3 text-sm text-blue-600 hover:underline dark:text-blue-400"
           >
             + 共著者を招待
@@ -968,6 +971,7 @@ export default function PaperDetailClient({
                     onClick={() => handleInvite(u.id)}
                     disabled={inviting !== null}
                     aria-busy={inviting === u.id}
+                    aria-label={`${u.displayName ?? u.name}を共著者として招待`}
                     className="inline-flex min-w-[72px] items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
                   >
                     {inviting === u.id ? (
