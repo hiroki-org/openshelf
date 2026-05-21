@@ -19,13 +19,16 @@ type ReceivedInvite = {
   createdAt: string;
 };
 
+type InviteAction = "accept" | "decline";
+
 export default function InvitesPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [invites, setInvites] = useState<ReceivedInvite[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [processingId, setProcessingId] = useState<string | null>(null);
-  const [processingAction, setProcessingAction] = useState<"accept" | "decline" | null>(null);
+  const [processingById, setProcessingById] = useState<Map<string, InviteAction>>(
+    () => new Map(),
+  );
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -56,9 +59,12 @@ export default function InvitesPage() {
     };
   }, [user]);
 
-  const respond = async (inviteId: string, action: "accept" | "decline") => {
-    setProcessingId(inviteId);
-    setProcessingAction(action);
+  const respond = async (inviteId: string, action: InviteAction) => {
+    setProcessingById((current) => {
+      const next = new Map(current);
+      next.set(inviteId, action);
+      return next;
+    });
     try {
       const res = await apiFetch(
         `/api/invites/${encodeURIComponent(inviteId)}`,
@@ -85,8 +91,11 @@ export default function InvitesPage() {
       toast.error("ネットワークエラーが発生しました");
       // Keep UI state unchanged when request fails.
     } finally {
-      setProcessingId(null);
-      setProcessingAction(null);
+      setProcessingById((current) => {
+        const next = new Map(current);
+        next.delete(inviteId);
+        return next;
+      });
     }
   };
 
@@ -145,11 +154,15 @@ export default function InvitesPage() {
         </div>
       ) : (
         <ul className="space-y-4">
-          {invites.map((inv) => (
-            <li
-              key={inv.id}
-              className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
-            >
+          {invites.map((inv) => {
+            const processingAction = processingById.get(inv.id);
+            const isProcessing = processingAction !== undefined;
+
+            return (
+              <li
+                key={inv.id}
+                className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
+              >
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
@@ -181,10 +194,11 @@ export default function InvitesPage() {
                     <button
                       type="button"
                       onClick={() => respond(inv.id, "accept")}
-                      disabled={processingId === inv.id}
+                      disabled={isProcessing}
+                      aria-busy={processingAction === "accept"}
                       className="inline-flex min-w-[72px] items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
                     >
-                      {processingId === inv.id && processingAction === "accept" ? (
+                      {processingAction === "accept" ? (
                         <Spinner className="h-4 w-4" />
                       ) : (
                         "承認"
@@ -193,10 +207,11 @@ export default function InvitesPage() {
                     <button
                       type="button"
                       onClick={() => respond(inv.id, "decline")}
-                      disabled={processingId === inv.id}
+                      disabled={isProcessing}
+                      aria-busy={processingAction === "decline"}
                       className="inline-flex min-w-[72px] items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                     >
-                      {processingId === inv.id && processingAction === "decline" ? (
+                      {processingAction === "decline" ? (
                         <Spinner className="h-4 w-4" />
                       ) : (
                         "拒否"
@@ -208,7 +223,8 @@ export default function InvitesPage() {
                 )}
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>
