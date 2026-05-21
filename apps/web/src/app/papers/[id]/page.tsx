@@ -73,13 +73,13 @@ export async function generateMetadata(props: {
   try {
     safePath(id);
   } catch {
-    return { title: "論文詳細 | OpenShelf" };
+    return { title: "成果物詳細 | OpenShelf" };
   }
 
   const data = await fetchPaperMetadata(id);
 
   if (!data || data.paper.visibility !== "public") {
-    const genericTitle = "論文詳細 | OpenShelf";
+    const genericTitle = "成果物詳細 | OpenShelf";
     const ogImage = buildOgImageUrl("paper", genericTitle);
     return {
       title: genericTitle,
@@ -101,7 +101,7 @@ export async function generateMetadata(props: {
   const description =
     toDescription(data.paper.description) ||
     toDescription(data.paper.abstract) ||
-    "OpenShelf の論文詳細ページ";
+    "OpenShelf の成果物詳細ページ";
   const authors = data.authors
     .map((author) => author.displayName ?? author.name)
     .filter(Boolean)
