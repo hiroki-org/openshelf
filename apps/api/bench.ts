@@ -38,6 +38,32 @@ function optimizedReduce() {
 }
 
 const N = 10000;
+const WARMUP_N = 1000;
+
+function assertEquivalent() {
+  const expected = original();
+  const candidates = {
+    optimized: optimized(),
+    optimizedReduce: optimizedReduce(),
+  };
+
+  for (const [name, actual] of Object.entries(candidates)) {
+    if (
+      actual.length !== expected.length ||
+      actual.some((value, index) => value !== expected[index])
+    ) {
+      throw new Error(`${name} result does not match original`);
+    }
+  }
+}
+
+assertEquivalent();
+
+for (let i = 0; i < WARMUP_N; i++) {
+  original();
+  optimized();
+  optimizedReduce();
+}
 
 console.time("original");
 for (let i = 0; i < N; i++) {
