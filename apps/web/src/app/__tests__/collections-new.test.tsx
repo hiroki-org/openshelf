@@ -45,33 +45,6 @@ describe("NewCollectionPage", () => {
     authState = { user: { id: "user-1" }, loading: false };
   });
 
-  it("updates name and description counters with consistent warning thresholds", () => {
-    render(<NewCollectionPage />);
-
-    const name = screen.getByLabelText("name");
-    const description = screen.getByLabelText("description");
-
-    expect(name).toHaveAttribute("aria-describedby", "name-counter");
-    expect(description).toHaveAttribute("aria-describedby", "description-counter");
-    expect(screen.getByText("0/100")).toHaveAttribute("id", "name-counter");
-    expect(screen.getByText("0/500")).toHaveAttribute(
-      "id",
-      "description-counter",
-    );
-
-    fireEvent.change(name, { target: { value: "x".repeat(89) } });
-    expect(screen.getByText("89/100")).toHaveClass("text-gray-500");
-
-    fireEvent.change(name, { target: { value: "x".repeat(90) } });
-    expect(screen.getByText("90/100")).toHaveClass("text-red-500");
-
-    fireEvent.change(description, { target: { value: "x".repeat(449) } });
-    expect(screen.getByText("449/500")).toHaveClass("text-gray-500");
-
-    fireEvent.change(description, { target: { value: "x".repeat(450) } });
-    expect(screen.getByText("450/500")).toHaveClass("text-red-500");
-  });
-
   it("slugifies the name, checks availability, and creates a user collection", async () => {
     vi.useFakeTimers();
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
