@@ -45,6 +45,25 @@ describe("NewCollectionPage", () => {
     authState = { user: { id: "user-1" }, loading: false };
   });
 
+  it("updates the description character counter and keeps it associated with the textarea", () => {
+    render(<NewCollectionPage />);
+
+    const description = screen.getByLabelText("description");
+    const counter = screen.getByText("0/500");
+
+    expect(description).toHaveAttribute("aria-describedby", "description-counter");
+    expect(counter).toHaveAttribute("id", "description-counter");
+    expect(counter).toHaveClass("text-gray-500");
+
+    fireEvent.change(description, { target: { value: "abc" } });
+
+    expect(screen.getByText("3/500")).toBeInTheDocument();
+
+    fireEvent.change(description, { target: { value: "x".repeat(500) } });
+
+    expect(screen.getByText("500/500")).toHaveClass("text-red-600");
+  });
+
   it("slugifies the name, checks availability, and creates a user collection", async () => {
     vi.useFakeTimers();
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {

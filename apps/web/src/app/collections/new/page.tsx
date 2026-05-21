@@ -295,8 +295,19 @@ export default function NewCollectionPage() {
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
             maxLength={500}
+            aria-describedby="description-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
+          <div
+            id="description-counter"
+            className={`mt-1 flex justify-end text-xs ${
+              description.length >= 500
+                ? "text-red-600 dark:text-red-400"
+                : "text-gray-500 dark:text-gray-400"
+            }`}
+          >
+            {description.length}/500
+          </div>
         </div>
 
         <div>
