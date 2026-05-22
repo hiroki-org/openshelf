@@ -207,6 +207,7 @@ export default function NewOrgPage() {
           />
           <div
             id="org-description-counter"
+            aria-live="polite"
             className={`mt-1 flex justify-end text-xs ${
               description.length >= 500
                 ? "text-red-600 dark:text-red-400"
