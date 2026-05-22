@@ -30,8 +30,10 @@ describe("splitTagInput", () => {
 
 describe("TAG_DELIMITER_PATTERN", () => {
   it("matches all supported delimiters", () => {
-    expect([",", "，", "、"].every((delimiter) =>
-      TAG_DELIMITER_PATTERN.test(delimiter),
-    )).toBe(true);
+    expect(
+      [",", "，", "、"].every((delimiter) =>
+        TAG_DELIMITER_PATTERN.test(delimiter),
+      ),
+    ).toBe(true);
   });
 });
