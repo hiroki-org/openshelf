@@ -50,6 +50,14 @@ const ACCEPTED_UPLOAD_MIME_TYPES = [
   "image/jpeg",
 ];
 
+const COUNTER_WARNING_RATIO = 0.9;
+
+function counterClassName(length: number, maxLength: number): string {
+  return length >= Math.ceil(maxLength * COUNTER_WARNING_RATIO)
+    ? "mt-1 flex justify-end text-xs text-red-500 dark:text-red-400"
+    : "mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400";
+}
+
 function isAcceptedUploadFile(file: File) {
   const lowerName = file.name.toLowerCase();
   const extensionOk = ACCEPTED_UPLOAD_EXTENSIONS.some((ext) =>
@@ -270,7 +278,7 @@ export default function UploadPage() {
           />
           <div
             id="title-counter"
-            className="mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400"
+            className={counterClassName(title.length, 300)}
           >
             {title.length}/300
           </div>
@@ -294,7 +302,7 @@ export default function UploadPage() {
           />
           <div
             id="abstract-counter"
-            className="mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400"
+            className={counterClassName(abstract.length, 5000)}
           >
             {abstract.length}/5000
           </div>
