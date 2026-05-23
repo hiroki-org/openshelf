@@ -16,6 +16,7 @@ import {
 import { CiteButton } from "./cite-button";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { BadgeSnippet } from "./badge-snippet";
+import { Spinner } from "@/components/spinner";
 
 const PdfViewer = dynamic(
   () => import("@/components/pdf-viewer").then((mod) => mod.PdfViewer),
@@ -976,10 +977,7 @@ export default function PaperDetailClient({
                   >
                     {inviting === u.id ? (
                       <span className="flex items-center justify-center gap-1">
-                        <span
-                          className="h-3 w-3 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
-                          aria-hidden="true"
-                        />
+                        <Spinner className="h-3 w-3" />
                         招待中...
                       </span>
                     ) : (

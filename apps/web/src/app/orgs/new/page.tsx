@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import { Spinner } from "@/components/spinner";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 
@@ -229,12 +230,7 @@ export default function NewOrgPage() {
           }
           className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2.5 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
         >
-          {submitting && (
-            <span
-              aria-hidden="true"
-              className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-            />
-          )}
+          {submitting && <Spinner className="h-4 w-4" />}
           {submitting ? "作成中..." : "作成"}
         </button>
       </form>

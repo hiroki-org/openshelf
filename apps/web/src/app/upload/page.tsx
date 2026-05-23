@@ -7,6 +7,7 @@ import { splitTagInput } from "@/lib/tags";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Spinner } from "@/components/spinner";
 
 const VALID_FILE_TYPES = [
   "paper",
@@ -561,7 +562,7 @@ export default function UploadPage() {
           >
             {uploading ? (
               <span className="flex items-center gap-2">
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <Spinner className="h-4 w-4" />
                 アップロード中...
               </span>
             ) : (

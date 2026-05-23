@@ -22,3 +22,9 @@
 ## 2026-05-21 - Invite Action UX Improvement
 **Learning:** 非同期のアクション（招待の承認・拒否など）において、ボタンを押した後にレスポンスが返るまでの間、処理中であることを明示するために `<Spinner />` を表示しボタンを非活性（disabled）にすることが UX/アクセシビリティ観点で重要です。また、成功時・失敗時それぞれに `toast.success` と `toast.error` を用いて明確な結果のフィードバックを行うことで、ユーザー体験が大きく向上します。
 **Action:** 今後リスト内の各アイテムに対して非同期アクションを実行する際は、該当する `id` と `action` の種類を状態として保持し、ローディングとフィードバックの UX パターンを適用します。
+## 2025-05-22 - Form Input Field Character Counter Accessibility & Unified Loading Spinner Improvements
+**Learning:**
+- 文字数カウンターを `aria-describedby` で入力フィールド（`textarea` など）に紐づけることで、スクリーンリーダーが不必要な読み上げを避けつつ情報を伝えることができます。
+- 非同期ボタンのローディング状態について、ハードコードされた `animate-spin` を使用するのではなく、共通の `Spinner` コンポーネントを使用することで、`aria-hidden="true"` などのアクセシビリティ担保を統一的かつ漏れなく行うことができ、テストでのセレクタも `motion-safe:animate-spin` に安定させることができます。
+**Action:**
+今後も入力フィールドへの文字数カウンター追加時は `aria-describedby` を使用し、非同期アクションのローディング表示には必ず共有の `Spinner` コンポーネントを活用します。またテストの際は `motion-safe:animate-spin` を用いて検証します。

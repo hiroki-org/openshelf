@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Spinner } from "@/components/spinner";
 
 export default function SettingsPage() {
   const { user, loading, refresh } = useAuth();
@@ -162,12 +163,7 @@ export default function SettingsPage() {
             disabled={saving}
             className="inline-flex min-w-32 items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
           >
-            {saving && (
-              <span
-                aria-hidden="true"
-                className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-              />
-            )}
+            {saving && <Spinner className="h-4 w-4" />}
             {saving ? "保存中..." : "保存"}
           </button>
 

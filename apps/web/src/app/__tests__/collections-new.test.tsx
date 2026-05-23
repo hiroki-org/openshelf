@@ -157,7 +157,7 @@ describe("NewCollectionPage", () => {
       await screen.findByRole("button", { name: "作成中..." }),
     ).toBeDisabled();
     expect(
-      container.querySelector('[aria-hidden="true"].animate-spin'),
+      container.querySelector('[aria-hidden="true"].motion-safe\\:animate-spin'),
     ).toBeInTheDocument();
 
     resolveCreate(
