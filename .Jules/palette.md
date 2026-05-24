@@ -22,3 +22,6 @@
 ## 2026-05-21 - Invite Action UX Improvement
 **Learning:** 非同期のアクション（招待の承認・拒否など）において、ボタンを押した後にレスポンスが返るまでの間、処理中であることを明示するために `<Spinner />` を表示しボタンを非活性（disabled）にすることが UX/アクセシビリティ観点で重要です。また、成功時・失敗時それぞれに `toast.success` と `toast.error` を用いて明確な結果のフィードバックを行うことで、ユーザー体験が大きく向上します。
 **Action:** 今後リスト内の各アイテムに対して非同期アクションを実行する際は、該当する `id` と `action` の種類を状態として保持し、ローディングとフィードバックの UX パターンを適用します。
+## 2024-05-24 - Spinner Component Usage
+**Learning:** Loading states should use the shared `<Spinner />` component for consistency and ease of maintenance, rather than raw HTML with inline `.animate-spin` classes. When refactoring components to use `<Spinner />`, always remember to update associated DOM tests to query for `[aria-hidden="true"].motion-safe\:animate-spin` instead of generic `.animate-spin` selectors to prevent regressions.
+**Action:** When adding or refactoring loading states in the future, check if a shared `<Spinner />` component exists and use it. Update tests to match its specific DOM structure.
