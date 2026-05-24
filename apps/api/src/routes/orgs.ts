@@ -102,7 +102,7 @@ function isAdminLikeRole(
 // ─── Validation helpers ─────────────────────────────────────────
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 
-function validateSlug(slug: unknown): string | null {
+export function validateSlug(slug: unknown): string | null {
   if (typeof slug !== "string") return "slug is required";
   const s = slug.trim().toLowerCase();
   if (s.length < 3 || s.length > 40) return "slug must be 3–40 characters";

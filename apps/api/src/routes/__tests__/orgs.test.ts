@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { validateSlug } from "../orgs";
 import {
   createTestApp,
   createMockDb as createSharedMockDb,
@@ -25,6 +26,67 @@ function queueSelectResponses(
 }
 
 describe("orgs routes", () => {
+
+  describe("validateSlug", () => {
+    it("returns error if not a string", () => {
+      expect(validateSlug(123)).toBe("slug is required");
+      expect(validateSlug(null)).toBe("slug is required");
+      expect(validateSlug(undefined)).toBe("slug is required");
+      expect(validateSlug({})).toBe("slug is required");
+    });
+
+    it("returns error if length < 3", () => {
+      expect(validateSlug("ab")).toBe("slug must be 3–40 characters");
+      expect(validateSlug("a")).toBe("slug must be 3–40 characters");
+      expect(validateSlug("  ab  ")).toBe("slug must be 3–40 characters"); // Testing trim
+    });
+
+    it("returns error if length > 40", () => {
+      const longSlug = "a".repeat(41);
+      expect(validateSlug(longSlug)).toBe("slug must be 3–40 characters");
+    });
+
+    it("returns error for invalid characters", () => {
+      expect(validateSlug("invalid_slug")).toBe(
+        "slug must contain only lowercase letters, numbers, and hyphens",
+      );
+      expect(validateSlug("invalid.slug")).toBe(
+        "slug must contain only lowercase letters, numbers, and hyphens",
+      );
+      expect(validateSlug("invalid@slug")).toBe(
+        "slug must contain only lowercase letters, numbers, and hyphens",
+      );
+      expect(validateSlug(" invalid slug ")).toBe(
+        "slug must contain only lowercase letters, numbers, and hyphens",
+      ); // Spaces inside
+      expect(validateSlug("-invalid")).toBe(
+        "slug must contain only lowercase letters, numbers, and hyphens",
+      );
+      expect(validateSlug("invalid-")).toBe(
+        "slug must contain only lowercase letters, numbers, and hyphens",
+      );
+    });
+
+    it("returns error for consecutive hyphens", () => {
+      expect(validateSlug("in--valid")).toBe(
+        "slug must not contain consecutive hyphens",
+      );
+      expect(validateSlug("in---valid")).toBe(
+        "slug must not contain consecutive hyphens",
+      );
+    });
+
+    it("returns null for valid slugs", () => {
+      expect(validateSlug("valid-slug")).toBeNull();
+      expect(validateSlug("valid")).toBeNull();
+      expect(validateSlug("v123")).toBeNull();
+      expect(validateSlug("123-abc")).toBeNull();
+      // Should trim and lowercase before validating
+      expect(validateSlug("  VALID-SLUG  ")).toBeNull();
+      expect(validateSlug("Valid-Slug")).toBeNull();
+    });
+  });
+
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.resetModules();
