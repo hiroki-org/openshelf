@@ -390,26 +390,41 @@ export default function PaperDetailClient({
 
     const loadImages = async () => {
       const currentFailedIds: string[] = [];
-      const entries = await Promise.all(
-        imageFiles.map(async (img) => {
+      const entries: (readonly [string, string])[] = [];
+
+      let index = 0;
+      const worker = async () => {
+        while (index < imageFiles.length) {
+          if (cancelled) break;
+          const currentIndex = index++;
+          const img = imageFiles[currentIndex];
           try {
             const streamPath = `/api/papers/${safePath(paperId)}/files/${safePath(img.id)}/stream`;
             const res = await apiFetch(streamPath);
             if (!res.ok) {
               currentFailedIds.push(img.id);
-              return [img.id, ""] as const;
+              entries[currentIndex] = [img.id, ""] as const;
+              continue;
             }
             const blob = await res.blob();
+            if (cancelled) break;
             const objectUrl = URL.createObjectURL(blob);
             createdUrls.push(objectUrl);
-            return [img.id, objectUrl] as const;
+            entries[currentIndex] = [img.id, objectUrl] as const;
           } catch (err) {
             console.error(`Error loading image ${img.id}:`, err);
             currentFailedIds.push(img.id);
-            return [img.id, ""] as const;
+            entries[currentIndex] = [img.id, ""] as const;
           }
-        }),
+        }
+      };
+
+      // Limit concurrency to 3 parallel requests to prevent network congestion
+      const workers = Array.from(
+        { length: Math.min(3, imageFiles.length) },
+        worker,
       );
+      await Promise.all(workers);
 
       if (cancelled) {
         revokeUrlsIdle(createdUrls);
