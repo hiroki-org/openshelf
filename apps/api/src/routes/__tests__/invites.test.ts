@@ -368,8 +368,8 @@ describe("invites routes", () => {
         error: "Failed to respond to invite",
       });
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Failed to respond to invite",
-        expect.any(Error),
+        "Failed to respond to invite:",
+        expect.any(String),
       );
       expect(mockDb.select).not.toHaveBeenCalled();
     } finally {
@@ -412,8 +412,8 @@ describe("invites routes", () => {
         error: "Failed to respond to invite",
       });
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Failed to respond to invite",
-        expect.any(Error),
+        "Failed to respond to invite:",
+        expect.any(String),
       );
     } finally {
       consoleErrorSpy.mockRestore();
@@ -539,8 +539,8 @@ describe("invites routes", () => {
         error: "Failed to respond to invite",
       });
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Failed to respond to invite",
-        expect.any(Error),
+        "Failed to respond to invite:",
+        expect.any(String),
       );
     } finally {
       consoleErrorSpy.mockRestore();
@@ -594,8 +594,8 @@ describe("invites routes", () => {
         error: "Failed to respond to invite",
       });
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Failed to respond to invite",
-        expect.any(Error),
+        "Failed to respond to invite:",
+        expect.any(String),
       );
     } finally {
       consoleErrorSpy.mockRestore();
