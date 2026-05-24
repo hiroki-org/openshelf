@@ -88,9 +88,8 @@ describe("SettingsPage", () => {
     expect(
       await screen.findByRole("button", { name: "保存中..." }),
     ).toBeDisabled();
-    expect(
-      container.querySelector('[aria-hidden="true"].animate-spin'),
-    ).toBeInTheDocument();
+    const spinner = Array.from(container.querySelectorAll('[aria-hidden="true"]')).find(el => el.className.includes("animate-spin"));
+    expect(spinner).toBeInTheDocument();
 
     resolveSave(new Response("{}", { status: 200 }));
 

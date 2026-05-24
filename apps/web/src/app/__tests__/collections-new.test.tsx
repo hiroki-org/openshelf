@@ -156,9 +156,8 @@ describe("NewCollectionPage", () => {
     expect(
       await screen.findByRole("button", { name: "作成中..." }),
     ).toBeDisabled();
-    expect(
-      container.querySelector('[aria-hidden="true"].animate-spin'),
-    ).toBeInTheDocument();
+    const spinner = Array.from(container.querySelectorAll('[aria-hidden="true"]')).find(el => el.className.includes("animate-spin"));
+    expect(spinner).toBeInTheDocument();
 
     resolveCreate(
       new Response(JSON.stringify({ collection: { slug: "lab-picks" } }), {

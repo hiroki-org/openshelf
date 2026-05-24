@@ -113,6 +113,11 @@ describe("UploadPage", () => {
       screen.getByRole("button", { name: "成果物をアップロードする" }),
     );
 
+    const button = screen.getByRole("button", { name: "アップロード中..." });
+    expect(button).toBeDisabled();
+    const spinner = button.querySelector('[aria-hidden="true"].motion-safe\\:animate-spin');
+    expect(spinner).toBeInTheDocument();
+
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
         "/api/papers",

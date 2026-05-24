@@ -22,3 +22,6 @@
 ## 2026-05-21 - Invite Action UX Improvement
 **Learning:** 非同期のアクション（招待の承認・拒否など）において、ボタンを押した後にレスポンスが返るまでの間、処理中であることを明示するために `<Spinner />` を表示しボタンを非活性（disabled）にすることが UX/アクセシビリティ観点で重要です。また、成功時・失敗時それぞれに `toast.success` と `toast.error` を用いて明確な結果のフィードバックを行うことで、ユーザー体験が大きく向上します。
 **Action:** 今後リスト内の各アイテムに対して非同期アクションを実行する際は、該当する `id` と `action` の種類を状態として保持し、ローディングとフィードバックの UX パターンを適用します。
+## 2026-05-24 - Spinner Selection in Tests
+**Learning:** JSDOM内で、Tailwindのバリアントクラス名（例：`motion-safe:animate-spin`）を `querySelector` でエスケープして指定すると失敗する場合があるため、テストでは `container.querySelectorAll` で要素を取得し、JSの `Array.find` と `className.includes('animate-spin')` を用いて柔軟に検証する方が安全です。
+**Action:** 今後、`<Spinner />` のようなTailwindの複雑なクラス名を持つ要素をテストで検証する際は、`querySelector` のエスケープに頼らず、JSの配列メソッドと `.includes` を組み合わせる手法を採用します。
