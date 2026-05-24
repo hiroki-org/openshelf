@@ -33,6 +33,62 @@ describe("orgs routes", () => {
 
   // ─── POST /api/orgs ────────────────────────────────────────
   describe("POST /api/orgs", () => {
+    it("returns 400 for invalid name (empty string)", async () => {
+      const token = await createTestJWT({
+        sub: "user-1",
+        githubId: "123",
+        name: "Tester",
+      });
+      const app = await createTestApp();
+      const env = createTestEnv();
+
+      const res = await app.request(
+        "http://localhost/api/orgs",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: "", slug: "lab", description: "desc" }),
+        },
+        env as any,
+      );
+
+      expect(res.status).toBe(400);
+      await expect(res.json()).resolves.toEqual({
+        error: "name is required",
+      });
+    });
+
+    it("returns 400 for name exceeding 100 characters", async () => {
+      const token = await createTestJWT({
+        sub: "user-1",
+        githubId: "123",
+        name: "Tester",
+      });
+      const app = await createTestApp();
+      const env = createTestEnv();
+
+      const res = await app.request(
+        "http://localhost/api/orgs",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: "a".repeat(101), slug: "lab", description: "desc" }),
+        },
+        env as any,
+      );
+
+      expect(res.status).toBe(400);
+      await expect(res.json()).resolves.toEqual({
+        error: "name must be 100 characters or less",
+      });
+    });
+
     it("returns 400 for invalid description", async () => {
       const token = await createTestJWT({
         sub: "user-1",
