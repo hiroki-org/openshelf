@@ -159,6 +159,16 @@ describe("UploadPage", () => {
     expect(abstractCounter).toHaveClass("text-gray-500");
 
     fireEvent.change(screen.getByLabelText(/タイトル/i), {
+      target: { value: "T".repeat(269) },
+    });
+    fireEvent.change(screen.getByLabelText(/概要/i), {
+      target: { value: "A".repeat(4499) },
+    });
+
+    expect(screen.getByText("269/300")).toHaveClass("text-gray-500");
+    expect(screen.getByText("4499/5000")).toHaveClass("text-gray-500");
+
+    fireEvent.change(screen.getByLabelText(/タイトル/i), {
       target: { value: "T".repeat(270) },
     });
     fireEvent.change(screen.getByLabelText(/概要/i), {
