@@ -7,6 +7,7 @@ import {
   makeQuery,
   queueSelectResponses as queueSharedSelectResponses,
 } from "../../test/helpers";
+import { validateName } from "../collections";
 
 let mockDb: any;
 
@@ -23,6 +24,34 @@ function queueSelectResponses(
 ) {
   queueSharedSelectResponses(mockDb, responses);
 }
+
+describe("validateName", () => {
+  it("should return null for valid names", () => {
+    expect(validateName("My Collection")).toBeNull();
+    expect(validateName("a".repeat(100))).toBeNull();
+  });
+
+  it("should return error for invalid types", () => {
+    expect(validateName(undefined)).toBe("name is required");
+    expect(validateName(null)).toBe("name is required");
+    expect(validateName(123)).toBe("name is required");
+    expect(validateName({})).toBe("name is required");
+  });
+
+  it("should return error for empty or whitespace-only names", () => {
+    expect(validateName("")).toBe("name is required");
+    expect(validateName("   ")).toBe("name is required");
+  });
+
+  it("should return error for names longer than 100 characters", () => {
+    expect(validateName("a".repeat(101))).toBe(
+      "name must be 100 characters or less",
+    );
+    expect(validateName(" a".repeat(101))).toBe(
+      "name must be 100 characters or less",
+    );
+  });
+});
 
 describe("collections routes", () => {
   beforeEach(() => {
@@ -1971,7 +2000,9 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toEqual({ error: "paper_ids is required" });
+    await expect(res.json()).resolves.toEqual({
+      error: "paper_ids is required",
+    });
   });
 
   it("PATCH /api/collections/:id/papers rejects when paper_ids is empty", async () => {
@@ -2005,7 +2036,9 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toEqual({ error: "paper_ids is required" });
+    await expect(res.json()).resolves.toEqual({
+      error: "paper_ids is required",
+    });
   });
 
   it("PATCH /api/collections/:id/papers rejects duplicate paper IDs", async () => {

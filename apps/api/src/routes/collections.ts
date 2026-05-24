@@ -35,7 +35,7 @@ function validateSlug(slug: unknown): string | null {
   return null;
 }
 
-function validateName(name: unknown): string | null {
+export function validateName(name: unknown): string | null {
   if (typeof name !== "string" || name.trim().length === 0)
     return "name is required";
   if (name.trim().length > 100) return "name must be 100 characters or less";
