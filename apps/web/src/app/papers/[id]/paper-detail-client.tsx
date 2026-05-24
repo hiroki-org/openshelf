@@ -977,7 +977,7 @@ export default function PaperDetailClient({
                   >
                     {inviting === u.id ? (
                       <span className="flex items-center justify-center gap-1">
-                        <Spinner sizeClassName="h-3 w-3" />
+                        <Spinner className="h-3 w-3" />
                         招待中...
                       </span>
                     ) : (

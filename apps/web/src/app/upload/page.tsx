@@ -562,7 +562,7 @@ export default function UploadPage() {
           >
             {uploading ? (
               <span className="flex items-center gap-2">
-                <Spinner />
+                <Spinner className="h-4 w-4" />
                 アップロード中...
               </span>
             ) : (

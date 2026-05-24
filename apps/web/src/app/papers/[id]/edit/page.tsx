@@ -230,11 +230,7 @@ export default function PaperEditPage() {
   if (authLoading || loading) {
     return (
       <div className="flex justify-center py-20">
-        <Spinner
-          sizeClassName="h-8 w-8"
-          borderClassName="border-4"
-          className="border-blue-600"
-        />
+        <Spinner className="h-8 w-8 border-4 border-blue-600" />
       </div>
     );
   }
@@ -537,7 +533,7 @@ export default function PaperEditPage() {
             disabled={submitting}
             className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-500 disabled:opacity-50 font-medium"
           >
-            {submitting && <Spinner />}
+            {submitting && <Spinner className="h-4 w-4" />}
             {submitting ? "保存中..." : "保存する"}
           </button>
         </div>
