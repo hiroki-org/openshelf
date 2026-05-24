@@ -230,7 +230,7 @@ export default function NewOrgPage() {
           }
           className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2.5 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
         >
-          {submitting && <Spinner className="h-4 w-4" />}
+          {submitting && <Spinner />}
           {submitting ? "作成中..." : "作成"}
         </button>
       </form>

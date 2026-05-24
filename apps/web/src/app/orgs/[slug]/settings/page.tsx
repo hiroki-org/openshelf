@@ -15,6 +15,15 @@ type Org = {
   description: string | null;
 };
 
+const DESCRIPTION_MAX_LENGTH = 500;
+const COUNTER_WARNING_RATIO = 0.9;
+
+function descriptionCounterClassName(length: number): string {
+  return length >= Math.ceil(DESCRIPTION_MAX_LENGTH * COUNTER_WARNING_RATIO)
+    ? "mt-1 flex justify-end text-xs text-red-600 dark:text-red-400"
+    : "mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400";
+}
+
 type Member = {
   userId: string;
   role: string;
@@ -460,19 +469,16 @@ export default function OrgSettingsPage() {
               value={editDescription}
               onChange={(e) => setEditDescription(e.target.value)}
               rows={3}
-              maxLength={500}
+              maxLength={DESCRIPTION_MAX_LENGTH}
               aria-describedby="org-edit-description-counter"
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
             />
             <div
               id="org-edit-description-counter"
-              className={`mt-1 flex justify-end text-xs ${
-                editDescription.length >= 500
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-gray-500 dark:text-gray-400"
-              }`}
+              aria-live="polite"
+              className={descriptionCounterClassName(editDescription.length)}
             >
-              {editDescription.length}/500
+              {editDescription.length}/{DESCRIPTION_MAX_LENGTH}
             </div>
           </div>
 
@@ -486,7 +492,7 @@ export default function OrgSettingsPage() {
           >
             {saving ? (
               <span className="flex items-center justify-center gap-2">
-                <Spinner className="h-4 w-4" />
+                <Spinner />
                 保存中...
               </span>
             ) : (
@@ -531,7 +537,7 @@ export default function OrgSettingsPage() {
                   >
                     {deleting ? (
                       <span className="flex items-center justify-center gap-2">
-                        <Spinner className="h-4 w-4" />
+                        <Spinner />
                         削除中...
                       </span>
                     ) : (
@@ -598,7 +604,7 @@ export default function OrgSettingsPage() {
                     >
                       {inviting === u.id ? (
                         <span className="flex items-center justify-center gap-1">
-                          <Spinner className="h-3 w-3" />
+                          <Spinner sizeClassName="h-3 w-3" />
                           追加中...
                         </span>
                       ) : (
@@ -692,7 +698,7 @@ export default function OrgSettingsPage() {
                     >
                       {addingPaper === p.id ? (
                         <span className="flex items-center justify-center gap-1">
-                          <Spinner className="h-3 w-3" />
+                          <Spinner sizeClassName="h-3 w-3" />
                           追加中...
                         </span>
                       ) : (

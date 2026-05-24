@@ -267,6 +267,15 @@ describe("OrgSettingsPage", () => {
     fireEvent.change(screen.getByLabelText("説明"), {
       target: { value: " Updated description " },
     });
+    expect(screen.getByText("21/500")).toHaveAttribute(
+      "aria-live",
+      "polite",
+    );
+    expect(screen.getByText("21/500")).toHaveClass("text-gray-500");
+    fireEvent.change(screen.getByLabelText("説明"), {
+      target: { value: "D".repeat(450) },
+    });
+    expect(screen.getByText("450/500")).toHaveClass("text-red-600");
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     expect(await screen.findByText("保存しました")).toBeInTheDocument();
@@ -278,7 +287,7 @@ describe("OrgSettingsPage", () => {
         body: JSON.stringify({
           name: "Renamed Org",
           slug: "renamed-team",
-          description: "Updated description",
+          description: "D".repeat(450),
         }),
       }),
     );

@@ -609,6 +609,8 @@ describe("PaperEditPage", () => {
     authState = { user: null, loading: true };
 
     const { container } = render(<PaperEditPage />);
-    expect(container.querySelector(".motion-safe\\:animate-spin")).not.toBeNull();
+    const spinner = container.querySelector(".motion-safe\\:animate-spin");
+    expect(spinner).not.toBeNull();
+    expect(spinner).toHaveAttribute("aria-hidden", "true");
   });
 });
