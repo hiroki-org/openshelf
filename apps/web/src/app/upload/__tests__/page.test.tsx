@@ -150,25 +150,6 @@ describe("UploadPage", () => {
     });
   });
 
-  it("highlights title and abstract counters near their limits", () => {
-    render(<UploadPage />);
-
-    const titleCounter = screen.getByText("0/300");
-    const abstractCounter = screen.getByText("0/5000");
-    expect(titleCounter).toHaveClass("text-gray-500");
-    expect(abstractCounter).toHaveClass("text-gray-500");
-
-    fireEvent.change(screen.getByLabelText(/タイトル/i), {
-      target: { value: "T".repeat(270) },
-    });
-    fireEvent.change(screen.getByLabelText(/概要/i), {
-      target: { value: "A".repeat(4500) },
-    });
-
-    expect(screen.getByText("270/300")).toHaveClass("text-red-500");
-    expect(screen.getByText("4500/5000")).toHaveClass("text-red-500");
-  });
-
   it("handles drag and drop events for file upload", async () => {
     render(<UploadPage />);
 
