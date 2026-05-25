@@ -30,6 +30,11 @@ export function matchesOriginPattern(origin: string, pattern: string): boolean {
     if (!pattern.includes("*")) return origin === pattern;
 
     const parts = pattern.split("*");
+
+    // Limit the number of wildcards to prevent ReDoS attacks.
+    // 2 wildcards (3 parts) are sufficient for legitimate use cases.
+    if (parts.length > 3) return false;
+
     const escapedParts = parts.map((part) => part.replace(/[|\\{}()[\]^$+?.]/g, "\\$&"));
     const regexSource = `^${escapedParts.join("[a-zA-Z0-9-]+")}$`;
 
