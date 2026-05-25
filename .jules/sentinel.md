@@ -20,3 +20,8 @@
 **Vulnerability:** X-Forwarded-For ヘッダーを使用した IP アドレスのフォールバック
 **Learning:** Cloudflare Workers 環境などでは CF-Connecting-IP が信頼できる IP アドレスのソースとなります。X-Forwarded-For にフォールバックすると、クライアントがヘッダーを偽装（スプーフィング）し、IP ベースのアクセス制御やレート制限を回避できる可能性があります。
 **Prevention:** 信頼できるロードバランサーや CDN が設定するヘッダー（例：CF-Connecting-IP）のみを使用し、クライアントから送信される可能性のあるヘッダー（例：X-Forwarded-For）へのフォールバックは避ける。
+
+## 2026-05-25 - [Error Logging Information Leakage]
+**Vulnerability:** Raw Error objects were being passed directly to `console.error` in API routes (`apps/api/src/routes/papers.ts`, `invites.ts`).
+**Learning:** Passing raw Error objects to the console can expose sensitive backend details, stack traces, and database structures in the application logs, which could be accessed by unauthorized parties or attackers if log access is compromised.
+**Prevention:** Always sanitize Error objects before logging them. Use a dedicated formatting utility like `formatCaughtError` (which extracts safe properties like `error.name` and `error.message`) or manually format the error string (e.g., `error instanceof Error ? error.name + ": " + error.message : String(error)`) when logging in API routes.

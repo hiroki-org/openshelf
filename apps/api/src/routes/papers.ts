@@ -744,7 +744,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
         try {
             await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
                 // Ignore cleanup errors during rollback after a later failure.
-                console.error("Cleanup error (non-fatal, rollback continues):", info.error);
+                console.error("Cleanup error (non-fatal, rollback continues):", formatCaughtError(info.error));
             });
         } catch (cleanupError) {
             console.error(
@@ -960,7 +960,7 @@ papersRoute.post("/:id/track", async (c) => {
             console.error("Failed to record paper track event", {
                 paperId,
                 event: payload.event,
-                error: error instanceof Error ? error.message : String(error),
+                error: formatCaughtError(error),
             });
         }),
     );
@@ -1235,7 +1235,7 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
                 resolvedInviteeEmail = null;
             }
         } catch (e: unknown) {
-            console.error("Failed to lookup invitee by email:", e);
+            console.error("Failed to lookup invitee by email:", formatCaughtError(e));
             return c.json({ error: "Internal server error" }, 500);
         }
     }
