@@ -49,13 +49,14 @@ describe("MarkdownRenderer", () => {
 
   it("handles image without src properly", () => {
     render(<MarkdownRenderer markdown="![Alt text]()" />);
-    const img = screen.getByRole("img", { name: "Alt text" });
-    expect(img).toBeInTheDocument();
-    expect(img).toHaveAttribute("alt", "Alt text");
+    const fallback = screen.getByText("[Image: Alt text]");
+    expect(fallback).toBeInTheDocument();
   });
 
   it("handles image without alt text properly", () => {
-    const { container } = render(<MarkdownRenderer markdown="![](https://example.com/image.png)" />);
+    const { container } = render(
+      <MarkdownRenderer markdown="![](https://example.com/image.png)" />,
+    );
     const img = container.querySelector("img");
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute("src", "https://example.com/image.png");

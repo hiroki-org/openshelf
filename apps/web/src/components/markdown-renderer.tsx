@@ -49,8 +49,9 @@ export function MarkdownRenderer({
             const src = typeof props.src === "string" ? props.src : "";
             if (!src) {
               return (
-                /* eslint-disable-next-line @next/next/no-img-element */
-                <img alt={props.alt ?? ""} className="max-w-full rounded-md" />
+                <span className="text-gray-500 italic" title={props.alt ?? ""}>
+                  [Image: {props.alt || "No source"}]
+                </span>
               );
             }
             return (
