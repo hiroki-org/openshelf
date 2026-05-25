@@ -49,11 +49,8 @@ export function MarkdownRenderer({
             const src = typeof props.src === "string" ? props.src : "";
             if (!src) {
               return (
-                <img
-                  src={src}
-                  alt={props.alt ?? ""}
-                  className="max-w-full rounded-md"
-                />
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img alt={props.alt ?? ""} className="max-w-full rounded-md" />
               );
             }
             return (
