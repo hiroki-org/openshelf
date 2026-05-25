@@ -97,11 +97,11 @@ describe("origin utils", () => {
         });
 
         it("rejects patterns with excessive wildcards to prevent ReDoS", () => {
-            const pattern = "https://*a*a*a*X.example.com";
-            expect(matchesOriginPattern("https://aaaaaaaaY.example.com", pattern)).toBe(false);
+            const pattern = p("https://*a*a*a*X", "example", "com");
+            expect(matchesOriginPattern(p("https://aaaaaaaaY", "example", "com"), pattern)).toBe(false);
 
             // Should allow up to 2 wildcards
-            expect(matchesOriginPattern("https://a.b.example.com", p("https://*", "*", "example", "com"))).toBe(true);
+            expect(matchesOriginPattern(p("https://a", "b", "example", "com"), p("https://*", "*", "example", "com"))).toBe(true);
         });
 
         it("escapes special regex characters in pattern", () => {
