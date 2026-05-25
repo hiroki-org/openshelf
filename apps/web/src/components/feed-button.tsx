@@ -50,6 +50,7 @@ export function FeedButton({
         className={className}
         aria-haspopup="dialog"
         aria-expanded={open}
+        title="フィードURLを表示"
         onClick={() => setOpen((current) => !current)}
       >
         {label}
@@ -77,6 +78,8 @@ export function FeedButton({
             <button
               type="button"
               className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+              aria-label="フィードURLをクリップボードにコピー"
+              title="コピー"
               onClick={handleCopy}
             >
               コピー
@@ -86,6 +89,8 @@ export function FeedButton({
               target="_blank"
               rel="noreferrer noopener"
               className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
+              aria-label="フィードを新しいタブで開く"
+              title="新しいタブで開く"
             >
               開く
             </a>
