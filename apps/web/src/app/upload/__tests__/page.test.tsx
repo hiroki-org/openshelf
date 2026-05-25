@@ -82,7 +82,9 @@ describe("UploadPage", () => {
     fireEvent.change(screen.getByLabelText(/タイトル/i), {
       target: { value: "  My paper  " },
     });
-    expect(screen.getByText(`${"  My paper  ".length}/300`)).toBeInTheDocument();
+    expect(
+      screen.getByText(`${"  My paper  ".length}/300`),
+    ).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText(/概要/i), {
       target: { value: "Abstract" },
@@ -210,6 +212,95 @@ describe("UploadPage", () => {
 
     // file should be added
     expect(await screen.findByText("test.pdf")).toBeInTheDocument();
+  });
+
+  it("shows specific server error when upload fails", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({ error: "Invalid metadata provided" }), {
+        status: 400,
+      }),
+    );
+
+    render(<UploadPage />);
+
+    fireEvent.change(screen.getByLabelText(/タイトル/i), {
+      target: { value: "My paper" },
+    });
+
+    const input = screen.getByLabelText("アップロードファイル");
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(["%PDF-1.7"], "paper.pdf", { type: "application/pdf" }),
+        ],
+      },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "成果物をアップロードする" }),
+    );
+
+    expect(
+      await screen.findByText("Invalid metadata provided"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows default error when upload fails without specific error", async () => {
+    vi.mocked(apiFetch).mockResolvedValue(
+      new Response(JSON.stringify({}), {
+        status: 500,
+      }),
+    );
+
+    render(<UploadPage />);
+
+    fireEvent.change(screen.getByLabelText(/タイトル/i), {
+      target: { value: "My paper" },
+    });
+
+    const input = screen.getByLabelText("アップロードファイル");
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(["%PDF-1.7"], "paper.pdf", { type: "application/pdf" }),
+        ],
+      },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "成果物をアップロードする" }),
+    );
+
+    expect(
+      await screen.findByText("アップロードに失敗しました"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows network error when fetch rejects", async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new Error("Network Error"));
+
+    render(<UploadPage />);
+
+    fireEvent.change(screen.getByLabelText(/タイトル/i), {
+      target: { value: "My paper" },
+    });
+
+    const input = screen.getByLabelText("アップロードファイル");
+    fireEvent.change(input, {
+      target: {
+        files: [
+          new File(["%PDF-1.7"], "paper.pdf", { type: "application/pdf" }),
+        ],
+      },
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "成果物をアップロードする" }),
+    );
+
+    expect(
+      await screen.findByText("ネットワークエラーが発生しました"),
+    ).toBeInTheDocument();
   });
 
   it("does not show drop feedback for non-file drags", () => {
