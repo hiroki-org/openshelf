@@ -47,6 +47,21 @@ describe("MarkdownRenderer", () => {
     expect(img).toHaveClass("max-w-full rounded-md");
   });
 
+  it("handles image without src properly", () => {
+    render(<MarkdownRenderer markdown="![Alt text]()" />);
+    const img = screen.getByRole("img", { name: "Alt text" });
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute("alt", "Alt text");
+  });
+
+  it("handles image without alt text properly", () => {
+    const { container } = render(<MarkdownRenderer markdown="![](https://example.com/image.png)" />);
+    const img = container.querySelector("img");
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute("src", "https://example.com/image.png");
+    expect(img).toHaveAttribute("alt", "");
+  });
+
   it("renders inline code correctly", () => {
     render(<MarkdownRenderer markdown="Here is some `inline code`" />);
     const code = screen.getByText("inline code");

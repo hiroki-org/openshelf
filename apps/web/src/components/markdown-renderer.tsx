@@ -47,6 +47,15 @@ export function MarkdownRenderer({
           ),
           img: ({ node: _node, ...props }) => {
             const src = typeof props.src === "string" ? props.src : "";
+            if (!src) {
+              return (
+                <img
+                  src={src}
+                  alt={props.alt ?? ""}
+                  className="max-w-full rounded-md"
+                />
+              );
+            }
             return (
               <Image
                 src={src}
