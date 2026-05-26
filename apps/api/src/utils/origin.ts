@@ -1,3 +1,5 @@
+const MAX_ORIGIN_PATTERN_WILDCARDS = 2;
+
 export function normalizeOrigin(value: string | undefined): string | null {
     if (!value) return null;
     try {
@@ -30,10 +32,10 @@ export function matchesOriginPattern(origin: string, pattern: string): boolean {
     if (!pattern.includes("*")) return origin === pattern;
 
     const parts = pattern.split("*");
+    const wildcardCount = parts.length - 1;
 
-    // Limit the number of wildcards to prevent ReDoS attacks.
-    // 2 wildcards (3 parts) are sufficient for legitimate use cases.
-    if (parts.length > 3) return false;
+    // Keep wildcard complexity bounded while still allowing app.env.example.com.
+    if (wildcardCount > MAX_ORIGIN_PATTERN_WILDCARDS) return false;
 
     const escapedParts = parts.map((part) => part.replace(/[|\\{}()[\]^$+?.]/g, "\\$&"));
     const regexSource = `^${escapedParts.join("[a-zA-Z0-9-]+")}$`;
