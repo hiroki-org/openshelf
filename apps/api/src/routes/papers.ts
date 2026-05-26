@@ -71,8 +71,20 @@ type DeleteBatchErrorInfo = {
     error: string;
 };
 
+const CLEANUP_ROLLBACK_MSG = "Cleanup error (non-fatal, rollback continues):";
+
 function formatCaughtError(error: unknown): string {
-    return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    if (error instanceof Error) {
+        return `${error.name}: ${error.message}`;
+    }
+    if (error && typeof error === "object") {
+        try {
+            return JSON.stringify(error);
+        } catch {
+            return String(error);
+        }
+    }
+    return String(error);
 }
 
 function formatDateKey(date: Date): string {
@@ -744,11 +756,11 @@ papersRoute.post("/", authMiddleware, async (c) => {
         try {
             await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
                 // Ignore cleanup errors during rollback after a later failure.
-                console.error("Cleanup error (non-fatal, rollback continues):", formatCaughtError(info.error));
+                console.error(CLEANUP_ROLLBACK_MSG, info.error);
             });
         } catch (cleanupError) {
             console.error(
-                "Cleanup error (non-fatal, rollback continues):",
+                CLEANUP_ROLLBACK_MSG,
                 `original=${formatCaughtError(error)} cleanup=${formatCaughtError(cleanupError)}`,
             );
         }
@@ -756,7 +768,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
             await db.delete(papers).where(eq(papers.id, paperId));
         } catch (cleanupError) {
             console.error(
-                "Cleanup error (non-fatal, rollback continues):",
+                CLEANUP_ROLLBACK_MSG,
                 `original=${formatCaughtError(error)} cleanup=${formatCaughtError(cleanupError)}`,
             );
         }
