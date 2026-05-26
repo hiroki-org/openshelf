@@ -788,12 +788,13 @@ orgsRoute.get("/:slug/papers", async (c) => {
   );
 
   const baseFilters = [eq(paperOrgs.orgId, org.id), visibilityCondition];
+  const escapedVenueQuery = venueQuery ? escapeLikeLiteral(venueQuery) : null;
 
   let effectiveYear = requestedYear;
   const latestYearFilters = [...baseFilters];
-  if (venueQuery) {
+  if (escapedVenueQuery) {
     latestYearFilters.push(
-      sql`${papers.venue} LIKE '%' || ${escapeLikeLiteral(venueQuery)} || '%' ESCAPE '\\'`,
+      sql`${papers.venue} COLLATE NOCASE LIKE '%' || ${escapedVenueQuery} || '%' ESCAPE '\\'`,
     );
   }
   if (categoryFilter) {
@@ -811,9 +812,9 @@ orgsRoute.get("/:slug/papers", async (c) => {
   }
 
   const finalFilters = [...baseFilters];
-  if (venueQuery) {
+  if (escapedVenueQuery) {
     finalFilters.push(
-      sql`${papers.venue} LIKE '%' || ${escapeLikeLiteral(venueQuery)} || '%' ESCAPE '\\'`,
+      sql`${papers.venue} COLLATE NOCASE LIKE '%' || ${escapedVenueQuery} || '%' ESCAPE '\\'`,
     );
   }
   if (categoryFilter) {
@@ -883,8 +884,8 @@ orgsRoute.get("/:slug/papers", async (c) => {
         .where(
           and(
             ...baseFilters,
-            venueQuery
-              ? sql`${papers.venue} LIKE '%' || ${escapeLikeLiteral(venueQuery)} || '%' ESCAPE '\\'`
+            escapedVenueQuery
+              ? sql`${papers.venue} COLLATE NOCASE LIKE '%' || ${escapedVenueQuery} || '%' ESCAPE '\\'`
               : undefined,
             categoryFilter ? eq(papers.category, categoryFilter) : undefined,
             isNotNull(papers.year),
@@ -924,8 +925,8 @@ orgsRoute.get("/:slug/papers", async (c) => {
           and(
             ...baseFilters,
             effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
-            venueQuery
-              ? sql`${papers.venue} LIKE '%' || ${escapeLikeLiteral(venueQuery)} || '%' ESCAPE '\\'`
+            escapedVenueQuery
+              ? sql`${papers.venue} COLLATE NOCASE LIKE '%' || ${escapedVenueQuery} || '%' ESCAPE '\\'`
               : undefined,
             isNotNull(papers.category),
           ),
