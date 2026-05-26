@@ -247,8 +247,7 @@ describe("tags routes", () => {
     );
 
     expect(res.status).toBe(404);
-    const body = (await res.json()) as any;
-    expect(body.error).toBe("Org not found");
+    await expect(res.json()).resolves.toEqual({ error: "Org not found" });
   });
 
   it("GET /api/tags/suggest returns 403 when user is not a member of the org", async () => {
@@ -272,7 +271,6 @@ describe("tags routes", () => {
     );
 
     expect(res.status).toBe(403);
-    const body = (await res.json()) as any;
-    expect(body.error).toBe("Forbidden");
+    await expect(res.json()).resolves.toEqual({ error: "Forbidden" });
   });
 });
