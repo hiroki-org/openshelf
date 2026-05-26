@@ -182,7 +182,11 @@ describe("AuthProvider", () => {
     try {
       Object.defineProperty(window, "location", {
         configurable: true,
-        value: { ...originalLocation, href: "https://app.example.com/current" },
+        value: {
+          href: "https://app.example.com/current",
+          assign: vi.fn(),
+          replace: vi.fn(),
+        },
       });
 
       render(
@@ -211,9 +215,10 @@ describe("AuthProvider", () => {
       Object.defineProperty(window, "location", {
         configurable: true,
         value: {
-          ...originalLocation,
           origin: "https://app.example.com",
           href: "https://app.example.com/current",
+          assign: vi.fn(),
+          replace: vi.fn(),
         },
       });
 
