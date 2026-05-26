@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
+const ORG_DESCRIPTION_MAX_LENGTH = 500;
 
 function slugify(text: string): string {
   return text
@@ -201,20 +202,21 @@ export default function NewOrgPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            maxLength={500}
+            maxLength={ORG_DESCRIPTION_MAX_LENGTH}
             aria-describedby="org-description-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
           <div
             id="org-description-counter"
             aria-live="polite"
+            aria-atomic="true"
             className={`mt-1 flex justify-end text-xs ${
-              description.length >= 500
+              description.length >= ORG_DESCRIPTION_MAX_LENGTH
                 ? "text-red-600 dark:text-red-400"
                 : "text-gray-500 dark:text-gray-400"
             }`}
           >
-            {description.length}/500
+            {description.length}/{ORG_DESCRIPTION_MAX_LENGTH}
           </div>
         </div>
 

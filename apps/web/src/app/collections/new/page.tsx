@@ -320,6 +320,7 @@ export default function NewCollectionPage() {
             <span
               id="description-counter"
               aria-live="polite"
+              aria-atomic="true"
               className={`text-xs ${counterClassName(description.length, COLLECTION_DESCRIPTION_MAX_LENGTH)}`}
             >
               {description.length}/{COLLECTION_DESCRIPTION_MAX_LENGTH}
