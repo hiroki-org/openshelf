@@ -482,11 +482,12 @@ export default function OrgSettingsPage() {
             type="button"
             onClick={handleSave}
             disabled={saving}
+            aria-busy={saving}
             className="rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200 inline-flex items-center justify-center min-w-20"
           >
             {saving ? (
               <span className="flex items-center justify-center gap-2">
-                <Spinner className="h-4 w-4" />
+                <Spinner />
                 保存中...
               </span>
             ) : (
@@ -527,11 +528,12 @@ export default function OrgSettingsPage() {
                     type="button"
                     onClick={handleDelete}
                     disabled={deleting || deleteConfirm !== org.slug}
+                    aria-busy={deleting}
                     className="rounded-md bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-500 disabled:opacity-50 inline-flex items-center justify-center min-w-32"
                   >
                     {deleting ? (
                       <span className="flex items-center justify-center gap-2">
-                        <Spinner className="h-4 w-4" />
+                        <Spinner />
                         削除中...
                       </span>
                     ) : (
