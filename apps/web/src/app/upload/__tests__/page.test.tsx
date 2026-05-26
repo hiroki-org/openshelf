@@ -115,7 +115,7 @@ describe("UploadPage", () => {
 
     const button = screen.getByRole("button", { name: "アップロード中..." });
     expect(button).toBeDisabled();
-    const spinner = button.querySelector('[aria-hidden="true"].motion-safe\\:animate-spin');
+    const spinner = Array.from(button.querySelectorAll('[aria-hidden="true"]')).find(el => el.className.includes("animate-spin"));
     expect(spinner).toBeInTheDocument();
 
     await waitFor(() => {
