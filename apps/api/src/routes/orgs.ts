@@ -19,6 +19,7 @@ import { authMiddleware } from "../middleware/auth";
 import { parseStoredTags } from "../utils/tags";
 import { escapeLikeLiteral } from "../utils/sql";
 import { ID_MAX_LENGTH } from "../utils/constants";
+import { validateName, validateSlug } from "../utils/validation";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 const ORG_TAGS_LIMIT = 100;
@@ -100,24 +101,6 @@ function isAdminLikeRole(
 }
 
 // ─── Validation helpers ─────────────────────────────────────────
-const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
-
-function validateSlug(slug: unknown): string | null {
-  if (typeof slug !== "string") return "slug is required";
-  const s = slug.trim().toLowerCase();
-  if (s.length < 3 || s.length > 40) return "slug must be 3–40 characters";
-  if (!SLUG_RE.test(s))
-    return "slug must contain only lowercase letters, numbers, and hyphens";
-  if (s.includes("--")) return "slug must not contain consecutive hyphens";
-  return null;
-}
-
-function validateName(name: unknown): string | null {
-  if (typeof name !== "string" || name.trim().length === 0)
-    return "name is required";
-  if (name.trim().length > 100) return "name must be 100 characters or less";
-  return null;
-}
 
 function validateDescription(description: unknown): string | null {
   if (description === undefined || description === null || description === "")
@@ -788,12 +771,13 @@ orgsRoute.get("/:slug/papers", async (c) => {
   );
 
   const baseFilters = [eq(paperOrgs.orgId, org.id), visibilityCondition];
+  const escapedVenueQuery = venueQuery ? escapeLikeLiteral(venueQuery) : null;
 
   let effectiveYear = requestedYear;
   const latestYearFilters = [...baseFilters];
-  if (venueQuery) {
+  if (escapedVenueQuery) {
     latestYearFilters.push(
-      sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`,
+      sql`${papers.venue} COLLATE NOCASE LIKE '%' || ${escapedVenueQuery} || '%' ESCAPE '\\'`,
     );
   }
   if (categoryFilter) {
@@ -811,9 +795,9 @@ orgsRoute.get("/:slug/papers", async (c) => {
   }
 
   const finalFilters = [...baseFilters];
-  if (venueQuery) {
+  if (escapedVenueQuery) {
     finalFilters.push(
-      sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`,
+      sql`${papers.venue} COLLATE NOCASE LIKE '%' || ${escapedVenueQuery} || '%' ESCAPE '\\'`,
     );
   }
   if (categoryFilter) {
@@ -883,8 +867,8 @@ orgsRoute.get("/:slug/papers", async (c) => {
         .where(
           and(
             ...baseFilters,
-            venueQuery
-              ? sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`
+            escapedVenueQuery
+              ? sql`${papers.venue} COLLATE NOCASE LIKE '%' || ${escapedVenueQuery} || '%' ESCAPE '\\'`
               : undefined,
             categoryFilter ? eq(papers.category, categoryFilter) : undefined,
             isNotNull(papers.year),
@@ -924,8 +908,8 @@ orgsRoute.get("/:slug/papers", async (c) => {
           and(
             ...baseFilters,
             effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
-            venueQuery
-              ? sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`
+            escapedVenueQuery
+              ? sql`${papers.venue} COLLATE NOCASE LIKE '%' || ${escapedVenueQuery} || '%' ESCAPE '\\'`
               : undefined,
             isNotNull(papers.category),
           ),

@@ -7,3 +7,6 @@ reviews:
     base_branches:
       - "^main$"
       - "^staging$"
+issue_enrichment:
+  auto_enrich:
+    enabled: false
