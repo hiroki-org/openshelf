@@ -2175,9 +2175,28 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(200);
-    expect(
-      ((await res.json()) as any).papers.map((paper: any) => paper.id),
-    ).toEqual(["paper-public", "paper-authored", "paper-org"]);
+    await expect(res.json()).resolves.toEqual({
+      papers: [
+        {
+          id: "paper-public",
+          title: "Public",
+          visibility: "public",
+          sortOrder: 0,
+        },
+        {
+          id: "paper-authored",
+          title: "Mine",
+          visibility: "private",
+          sortOrder: 1,
+        },
+        {
+          id: "paper-org",
+          title: "Org only",
+          visibility: "org_only",
+          sortOrder: 2,
+        },
+      ],
+    });
   });
 
   it("POST /api/collections/:id/papers returns 409 when paper is already in collection", async () => {
