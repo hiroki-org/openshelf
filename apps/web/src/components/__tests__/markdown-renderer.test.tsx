@@ -48,9 +48,17 @@ describe("MarkdownRenderer", () => {
   });
 
   it("handles image without src properly", () => {
-    render(<MarkdownRenderer markdown="![Alt text]()" />);
-    const fallback = screen.getByText("[Image: Alt text]");
-    expect(fallback).toBeInTheDocument();
+    const { container } = render(<MarkdownRenderer markdown="![Alt text]()" />);
+    expect(container.querySelector("img")).not.toBeInTheDocument();
+    expect(screen.queryByText("[Image: Alt text]")).not.toBeInTheDocument();
+  });
+
+  it("forwards the title attribute to the image component", () => {
+    render(
+      <MarkdownRenderer markdown='![Alt text](https://example.com/image.png "My Image Title")' />,
+    );
+    const img = screen.getByRole("img", { name: "Alt text" });
+    expect(img).toHaveAttribute("title", "My Image Title");
   });
 
   it("handles image without alt text properly", () => {

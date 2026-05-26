@@ -48,11 +48,7 @@ export function MarkdownRenderer({
           img: ({ node: _node, ...props }) => {
             const src = typeof props.src === "string" ? props.src : "";
             if (!src) {
-              return (
-                <span className="text-gray-500 italic" title={props.alt ?? ""}>
-                  [Image: {props.alt || "No source"}]
-                </span>
-              );
+              return null;
             }
             return (
               <Image
@@ -64,6 +60,7 @@ export function MarkdownRenderer({
                 style={{ width: "100%", height: "auto" }}
                 unoptimized
                 className="max-w-full rounded-md"
+                title={props.title}
               />
             );
           },
