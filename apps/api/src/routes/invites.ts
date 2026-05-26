@@ -42,22 +42,6 @@ invitesRoute.get("/received", authMiddleware, async (c) => {
     return c.json({ invites: rows });
 });
 
-const ERROR_RESPOND_INVITE = "Failed to respond to invite";
-
-function formatCaughtError(error: unknown): string {
-    if (error instanceof Error) {
-        return `${error.name}: ${error.message}`;
-    }
-    if (error && typeof error === "object") {
-        try {
-            return JSON.stringify(error);
-        } catch {
-            return String(error);
-        }
-    }
-    return String(error);
-}
-
 const respondInviteHandler = async (c: any) => {
     const inviteId = c.req.param("inviteId");
     let body: { action?: unknown };
@@ -89,8 +73,8 @@ const respondInviteHandler = async (c: any) => {
             .where(eq(coauthorInvites.id, inviteId))
             .get();
     } catch (error) {
-        console.error(ERROR_RESPOND_INVITE, formatCaughtError(error));
-        return c.json({ error: ERROR_RESPOND_INVITE }, 500);
+        console.error("Failed to respond to invite", error instanceof Error ? error.name + ": " + error.message : String(error));
+        return c.json({ error: "Failed to respond to invite" }, 500);
     }
     if (!invite) return c.json({ error: "Invite not found" }, 404);
     if (invite.inviteeId !== userId)
@@ -126,8 +110,8 @@ const respondInviteHandler = async (c: any) => {
                 .where(eq(coauthorInvites.id, inviteId));
         }
     } catch (error) {
-        console.error(ERROR_RESPOND_INVITE, formatCaughtError(error));
-        return c.json({ error: ERROR_RESPOND_INVITE }, 500);
+        console.error("Failed to respond to invite", error instanceof Error ? error.name + ": " + error.message : String(error));
+        return c.json({ error: "Failed to respond to invite" }, 500);
     }
 
     return c.json({ ok: true, status: newStatus });

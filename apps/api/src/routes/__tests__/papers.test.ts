@@ -1509,7 +1509,7 @@ describe("papers routes", () => {
           (c) => c[0] === "Failed to record paper track event",
         );
         if (!call) throw new Error("Log not found");
-        expect(call[1].error).toBe(trackError);
+        expect(call[1].error).toBe(String(trackError));
       });
     } finally {
       consoleErrorSpy.mockRestore();
