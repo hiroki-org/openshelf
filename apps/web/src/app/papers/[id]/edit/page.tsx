@@ -230,7 +230,7 @@ export default function PaperEditPage() {
   if (authLoading || loading) {
     return (
       <div className="flex justify-center py-20">
-        <Spinner className="h-8 w-8 border-4 text-blue-600" />
+        <Spinner className="h-8 w-8 border-4 border-blue-600" />
       </div>
     );
   }

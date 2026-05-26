@@ -93,6 +93,9 @@ describe("NewOrgPage", () => {
 
     await act(async () => {
       vi.advanceTimersByTime(400);
+      // Wait for fetch to resolve
+      await Promise.resolve();
+      await Promise.resolve();
       await Promise.resolve();
     });
 
@@ -180,6 +183,7 @@ describe("NewOrgPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "作成" })).toBeDisabled();
   });
+
 
   it("shows server error when org creation fails", async () => {
     vi.useFakeTimers();
