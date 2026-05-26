@@ -214,4 +214,26 @@ describe("TagAutocompleteInput", () => {
     expect(screen.getByText("機械学習")).toBeInTheDocument();
     expect(screen.getByText("深層学習")).toBeInTheDocument();
   });
+
+  it("renders loading spinner when fetching suggestions", async () => {
+    vi.useFakeTimers();
+    vi.mocked(apiFetch).mockImplementation(
+      () =>
+        new Promise<Response>(() => {
+          // Never resolves
+        }),
+    );
+
+    render(
+      <TagAutocompleteInput id="paper-tags" value="Ma" onChange={vi.fn()} />,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(DEBOUNCE_WAIT_MS);
+    });
+
+    const spinner = Array.from(document.querySelectorAll('[aria-hidden="true"]')).find(el => el.className.includes('animate-spin'));
+    expect(spinner).toBeInTheDocument();
+    expect(screen.getByText("候補を取得中...")).toBeInTheDocument();
+  });
 });
