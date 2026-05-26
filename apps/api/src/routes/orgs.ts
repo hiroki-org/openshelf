@@ -793,7 +793,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
   const latestYearFilters = [...baseFilters];
   if (venueQuery) {
     latestYearFilters.push(
-      sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`,
+      sql`${papers.venue} LIKE '%' || ${escapeLikeLiteral(venueQuery)} || '%' ESCAPE '\\'`,
     );
   }
   if (categoryFilter) {
@@ -813,7 +813,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
   const finalFilters = [...baseFilters];
   if (venueQuery) {
     finalFilters.push(
-      sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`,
+      sql`${papers.venue} LIKE '%' || ${escapeLikeLiteral(venueQuery)} || '%' ESCAPE '\\'`,
     );
   }
   if (categoryFilter) {
@@ -884,7 +884,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
           and(
             ...baseFilters,
             venueQuery
-              ? sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`
+              ? sql`${papers.venue} LIKE '%' || ${escapeLikeLiteral(venueQuery)} || '%' ESCAPE '\\'`
               : undefined,
             categoryFilter ? eq(papers.category, categoryFilter) : undefined,
             isNotNull(papers.year),
@@ -925,7 +925,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
             ...baseFilters,
             effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
             venueQuery
-              ? sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`
+              ? sql`${papers.venue} LIKE '%' || ${escapeLikeLiteral(venueQuery)} || '%' ESCAPE '\\'`
               : undefined,
             isNotNull(papers.category),
           ),
