@@ -213,4 +213,16 @@ describe("FeedButton", () => {
       "rounded-md",
     );
   });
+
+  it("supports a custom ariaLabel prop for list contexts", () => {
+    render(
+      <FeedButton
+        url="https://api.example/feed.xml"
+        ariaLabel="論文AのフィードURLを表示"
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "論文AのフィードURLを表示" }),
+    ).toBeInTheDocument();
+  });
 });
