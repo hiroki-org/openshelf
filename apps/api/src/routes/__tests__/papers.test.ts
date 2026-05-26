@@ -3246,7 +3246,6 @@ describe("papers routes", () => {
         name: "Uploader",
       });
 
-      const { makeQuery } = await import("../../test/helpers");
       mockDb.select = vi
         .fn()
         .mockImplementationOnce(() =>
