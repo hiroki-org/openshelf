@@ -29,10 +29,7 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function buildLoginUrl(apiBase: string, currentOrigin: string): string {
-  const originParams = currentOrigin
-    ? `?frontend_origin=${encodeURIComponent(currentOrigin)}`
-    : "";
-  return `${apiBase}/api/auth/github${originParams}`;
+  return `${apiBase}/api/auth/github?frontend_origin=${encodeURIComponent(currentOrigin)}`;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

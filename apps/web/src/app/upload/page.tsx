@@ -50,16 +50,6 @@ const ACCEPTED_UPLOAD_MIME_TYPES = [
   "image/jpeg",
 ];
 
-const COUNTER_WARNING_RATIO = 0.9;
-const TITLE_MAX_LENGTH = 300;
-const ABSTRACT_MAX_LENGTH = 5000;
-
-function counterClassName(length: number, maxLength: number): string {
-  return length >= Math.ceil(maxLength * COUNTER_WARNING_RATIO)
-    ? "mt-1 flex justify-end text-xs text-red-500 dark:text-red-400"
-    : "mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400";
-}
-
 function isAcceptedUploadFile(file: File) {
   const lowerName = file.name.toLowerCase();
   const extensionOk = ACCEPTED_UPLOAD_EXTENSIONS.some((ext) =>
@@ -271,7 +261,7 @@ export default function UploadPage() {
           <input
             id="paper-title"
             type="text"
-            maxLength={TITLE_MAX_LENGTH}
+            maxLength={300}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             aria-describedby="title-counter"
@@ -280,9 +270,9 @@ export default function UploadPage() {
           />
           <div
             id="title-counter"
-            className={counterClassName(title.length, TITLE_MAX_LENGTH)}
+            className="mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400"
           >
-            {title.length}/{TITLE_MAX_LENGTH}
+            {title.length}/300
           </div>
         </div>
 
@@ -298,15 +288,15 @@ export default function UploadPage() {
             value={abstract}
             onChange={(e) => setAbstract(e.target.value)}
             rows={4}
-            maxLength={ABSTRACT_MAX_LENGTH}
+            maxLength={5000}
             aria-describedby="abstract-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
           <div
             id="abstract-counter"
-            className={counterClassName(abstract.length, ABSTRACT_MAX_LENGTH)}
+            className="mt-1 flex justify-end text-xs text-gray-500 dark:text-gray-400"
           >
-            {abstract.length}/{ABSTRACT_MAX_LENGTH}
+            {abstract.length}/5000
           </div>
         </div>
 

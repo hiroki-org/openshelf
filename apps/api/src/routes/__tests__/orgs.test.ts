@@ -478,7 +478,7 @@ describe("orgs routes", () => {
 
       expect(res.status).toBe(400);
       await expect(res.json()).resolves.toEqual({
-        error: "slug must be 3-40 characters",
+        error: "slug must be 3–40 characters",
       });
     });
 

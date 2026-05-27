@@ -4,7 +4,6 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
-import Image from "next/image";
 
 type MarkdownRendererProps = {
   markdown: string;
@@ -45,25 +44,14 @@ export function MarkdownRenderer({
               className="text-blue-600 hover:underline dark:text-blue-400"
             />
           ),
-          img: ({ node: _node, ...props }) => {
-            const src = typeof props.src === "string" ? props.src : "";
-            if (!src) {
-              return null;
-            }
-            return (
-              <Image
-                src={src}
-                alt={props.alt ?? ""}
-                width={0}
-                height={0}
-                sizes="100vw"
-                style={{ width: "100%", height: "auto" }}
-                unoptimized
-                className="max-w-full rounded-md"
-                title={props.title}
-              />
-            );
-          },
+          img: ({ ...props }) => (
+            <img
+              {...props}
+              alt={props.alt ?? ""}
+              loading="lazy"
+              className="max-w-full rounded-md"
+            />
+          ),
           code: ({ className, ...props }) => (
             <code
               className={`rounded bg-gray-100 px-1 py-0.5 font-mono text-sm dark:bg-gray-800 ${className ?? ""}`}

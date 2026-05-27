@@ -121,23 +121,12 @@ describe("AuthProvider", () => {
     });
   });
 
-  describe("buildLoginUrl", () => {
-    it("includes the current frontend origin when provided", () => {
-      expect(
-        buildLoginUrl(
-          "https://api.example.com",
-          "https://frontend.example.com",
-        ),
-      ).toBe(
-        "https://api.example.com/api/auth/github?frontend_origin=https%3A%2F%2Ffrontend.example.com",
-      );
-    });
-
-    it("omits the origin parameter when currentOrigin is empty", () => {
-      expect(buildLoginUrl("https://api.example.com", "")).toBe(
-        "https://api.example.com/api/auth/github",
-      );
-    });
+  it("buildLoginUrl includes the current frontend origin", () => {
+    expect(
+      buildLoginUrl("https://api.example.com", "https://frontend.example.com"),
+    ).toBe(
+      "https://api.example.com/api/auth/github?frontend_origin=https%3A%2F%2Ffrontend.example.com",
+    );
   });
 
   it("keeps user null when /api/auth/me responds with non-ok", async () => {
@@ -182,11 +171,7 @@ describe("AuthProvider", () => {
     try {
       Object.defineProperty(window, "location", {
         configurable: true,
-        value: {
-          href: "https://app.example.com/current",
-          assign: vi.fn(),
-          replace: vi.fn(),
-        },
+        value: { ...originalLocation, href: "https://app.example.com/current" },
       });
 
       render(
@@ -199,40 +184,6 @@ describe("AuthProvider", () => {
 
       expect(errorSpy).toHaveBeenCalled();
       expect(window.location.href).toBe("https://app.example.com/current");
-    } finally {
-      Object.defineProperty(window, "location", {
-        configurable: true,
-        value: originalLocation,
-      });
-    }
-  });
-
-  it("login navigates to the correct URL when NEXT_PUBLIC_API_URL is set", () => {
-    vi.stubEnv("NEXT_PUBLIC_API_URL", "https://api.example.com");
-    const originalLocation = window.location;
-
-    try {
-      Object.defineProperty(window, "location", {
-        configurable: true,
-        value: {
-          origin: "https://app.example.com",
-          href: "https://app.example.com/current",
-          assign: vi.fn(),
-          replace: vi.fn(),
-        },
-      });
-
-      render(
-        <AuthProvider>
-          <Consumer />
-        </AuthProvider>,
-      );
-
-      fireEvent.click(screen.getByRole("button", { name: "login" }));
-
-      expect(window.location.href).toBe(
-        "https://api.example.com/api/auth/github?frontend_origin=https%3A%2F%2Fapp.example.com",
-      );
     } finally {
       Object.defineProperty(window, "location", {
         configurable: true,

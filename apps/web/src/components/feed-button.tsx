@@ -8,14 +8,12 @@ type FeedButtonProps = {
   url: string;
   className?: string;
   label?: string;
-  ariaLabel?: string;
 };
 
 export function FeedButton({
   url,
   className = "rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800",
   label = "📡 Feed",
-  ariaLabel,
 }: FeedButtonProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,7 +50,6 @@ export function FeedButton({
         className={className}
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={ariaLabel}
         onClick={() => setOpen((current) => !current)}
       >
         {label}
@@ -80,7 +77,6 @@ export function FeedButton({
             <button
               type="button"
               className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-              aria-label="フィードURLをクリップボードにコピー"
               onClick={handleCopy}
             >
               コピー
@@ -90,7 +86,6 @@ export function FeedButton({
               target="_blank"
               rel="noreferrer noopener"
               className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800"
-              aria-label="フィードを新しいタブで開く"
             >
               開く
             </a>

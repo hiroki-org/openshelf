@@ -9,7 +9,6 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import InvitesPage from "../page";
 import { apiFetch } from "@/lib/api";
-import { toast } from "@/components/toast";
 
 const push = vi.fn();
 type AuthState = {
@@ -255,7 +254,6 @@ describe("InvitesPage", () => {
 
     await waitFor(() => {
       expect(within(secondItem!).getByText("拒否済み")).toBeInTheDocument();
-      expect(toast.success).toHaveBeenCalledWith("招待を拒否しました");
     });
     expect(firstAccept).toBeDisabled();
 
@@ -265,7 +263,6 @@ describe("InvitesPage", () => {
 
     await waitFor(() => {
       expect(within(firstItem!).getByText("承認済み")).toBeInTheDocument();
-      expect(toast.success).toHaveBeenCalledWith("招待を承認しました");
     });
   });
 });

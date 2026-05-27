@@ -141,77 +141,64 @@ export function TagAutocompleteInput({
 
   return (
     <div className="relative">
-      <div className="relative">
-        <input
-          id={id}
-          type="text"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          onFocus={() => {
-            if (suggestions.length > 0) setOpen(true);
-          }}
-          onBlur={() => {
-            if (blurTimeoutRef.current !== null) {
-              window.clearTimeout(blurTimeoutRef.current);
-            }
-            blurTimeoutRef.current = window.setTimeout(
-              () => setOpen(false),
-              BLUR_DELAY_MS,
-            );
-          }}
-          onKeyDown={(event) => {
-            if (!open || suggestions.length === 0) return;
+      <input
+        id={id}
+        type="text"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        onFocus={() => {
+          if (suggestions.length > 0) setOpen(true);
+        }}
+        onBlur={() => {
+          if (blurTimeoutRef.current !== null) {
+            window.clearTimeout(blurTimeoutRef.current);
+          }
+          blurTimeoutRef.current = window.setTimeout(
+            () => setOpen(false),
+            BLUR_DELAY_MS,
+          );
+        }}
+        onKeyDown={(event) => {
+          if (!open || suggestions.length === 0) return;
 
-            if (event.key === "ArrowDown") {
-              event.preventDefault();
-              setHighlightedIndex((prev) =>
-                prev < suggestions.length - 1 ? prev + 1 : 0,
-              );
-              return;
-            }
-            if (event.key === "ArrowUp") {
-              event.preventDefault();
-              setHighlightedIndex((prev) =>
-                prev > 0 ? prev - 1 : suggestions.length - 1,
-              );
-              return;
-            }
-            if (event.key === "Escape") {
-              event.preventDefault();
-              setOpen(false);
-              setHighlightedIndex(-1);
-              return;
-            }
-            if (
-              event.key === "Enter" &&
-              highlightedIndex >= 0 &&
-              highlightedIndex < suggestions.length
-            ) {
-              const selectedSuggestion = suggestions[highlightedIndex];
-              if (!selectedSuggestion) return;
-              event.preventDefault();
-              applySuggestion(selectedSuggestion);
-            }
-          }}
-          aria-autocomplete="list"
-          aria-expanded={open}
-          aria-controls={listId}
-          aria-activedescendant={activeDescendantId}
-          className={`${className ?? ""} ${loading ? "pr-8" : ""}`}
-          placeholder={placeholder}
-        />
-        <div
-          aria-live="polite"
-          className="absolute right-2.5 top-1/2 z-10 flex -translate-y-1/2 items-center text-gray-400"
-        >
-          {loading && (
-            <>
-              <Spinner className="h-3.5 w-3.5" />
-              <span className="sr-only">候補を取得中...</span>
-            </>
-          )}
-        </div>
-      </div>
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setHighlightedIndex((prev) =>
+              prev < suggestions.length - 1 ? prev + 1 : 0,
+            );
+            return;
+          }
+          if (event.key === "ArrowUp") {
+            event.preventDefault();
+            setHighlightedIndex((prev) =>
+              prev > 0 ? prev - 1 : suggestions.length - 1,
+            );
+            return;
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            setOpen(false);
+            setHighlightedIndex(-1);
+            return;
+          }
+          if (
+            event.key === "Enter" &&
+            highlightedIndex >= 0 &&
+            highlightedIndex < suggestions.length
+          ) {
+            const selectedSuggestion = suggestions[highlightedIndex];
+            if (!selectedSuggestion) return;
+            event.preventDefault();
+            applySuggestion(selectedSuggestion);
+          }
+        }}
+        aria-autocomplete="list"
+        aria-expanded={open}
+        aria-controls={listId}
+        aria-activedescendant={activeDescendantId}
+        className={`${className || ""} pr-8`}
+        placeholder={placeholder}
+      />
 
       {open && suggestions.length > 0 && (
         <ul
@@ -251,6 +238,18 @@ export function TagAutocompleteInput({
           ))}
         </div>
       )}
+
+      <div
+        aria-live="polite"
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400"
+      >
+        {loading && (
+          <>
+            <Spinner className="h-3 w-3" />
+            <span className="sr-only">候補を取得中...</span>
+          </>
+        )}
+      </div>
     </div>
   );
 }
