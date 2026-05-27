@@ -185,6 +185,7 @@ export default function OrgCollectionPageClient({
                     <button
                       type="button"
                       aria-label="上に移動"
+                      title="上に移動"
                       onClick={() => void move(idx, -1)}
                       className="rounded border px-2 py-1 text-xs dark:border-gray-700"
                     >
@@ -193,6 +194,7 @@ export default function OrgCollectionPageClient({
                     <button
                       type="button"
                       aria-label="下に移動"
+                      title="下に移動"
                       onClick={() => void move(idx, 1)}
                       className="rounded border px-2 py-1 text-xs dark:border-gray-700"
                     >
