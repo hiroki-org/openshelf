@@ -11,6 +11,7 @@ import { authMiddleware } from "../middleware/auth";
 const tagsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
 const TAG_SUGGEST_MIN_QUERY_LENGTH = 2;
+const TAG_SUGGEST_MAX_QUERY_LENGTH = 100;
 const TAG_SUGGEST_LIMIT = 20;
 
 const SAFE_TAG_ARRAY_SQL = `
@@ -32,6 +33,9 @@ tagsRoute.get("/suggest", authMiddleware, async (c) => {
 
     if (query.length < TAG_SUGGEST_MIN_QUERY_LENGTH) {
         return c.json({ tags: [] });
+    }
+    if (query.length > TAG_SUGGEST_MAX_QUERY_LENGTH) {
+        return c.json({ error: "query too long" }, 400);
     }
 
     let tags: string[] = [];
