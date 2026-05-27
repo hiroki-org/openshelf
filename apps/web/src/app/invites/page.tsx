@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getInviteStatusBadge } from "@/lib/presentation";
+import { Spinner } from "@/components/spinner";
+import { toast } from "@/components/toast";
 
 type ReceivedInvite = {
   id: string;
@@ -17,14 +19,16 @@ type ReceivedInvite = {
   createdAt: string;
 };
 
+type InviteAction = "accept" | "decline";
+
 export default function InvitesPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [invites, setInvites] = useState<ReceivedInvite[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [responding, setResponding] = useState<
-    Record<string, "accept" | "decline">
-  >({});
+  const [processingById, setProcessingById] = useState<Map<string, InviteAction>>(
+    () => new Map(),
+  );
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -55,8 +59,12 @@ export default function InvitesPage() {
     };
   }, [user]);
 
-  const respond = async (inviteId: string, action: "accept" | "decline") => {
-    setResponding((prev) => ({ ...prev, [inviteId]: action }));
+  const respond = async (inviteId: string, action: InviteAction) => {
+    setProcessingById((current) => {
+      const next = new Map(current);
+      next.set(inviteId, action);
+      return next;
+    });
     try {
       const res = await apiFetch(
         `/api/invites/${encodeURIComponent(inviteId)}`,
@@ -74,14 +82,18 @@ export default function InvitesPage() {
               : i,
           ),
         );
+        toast.success(action === "accept" ? "招待を承認しました" : "招待を拒否しました");
+      } else {
+        toast.error("処理に失敗しました");
       }
     } catch (err) {
       console.error(`Failed to ${action} invite ${inviteId}:`, err);
+      toast.error("ネットワークエラーが発生しました");
       // Keep UI state unchanged when request fails.
     } finally {
-      setResponding((prev) => {
-        const next = { ...prev };
-        delete next[inviteId];
+      setProcessingById((current) => {
+        const next = new Map(current);
+        next.delete(inviteId);
         return next;
       });
     }
@@ -110,7 +122,7 @@ export default function InvitesPage() {
               共著者招待
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 dark:text-gray-400">
-              論文への招待を確認し、必要に応じて承認または拒否できます。
+              成果物への招待を確認し、必要に応じて承認または拒否できます。
               研究成果物への参加依頼を落ち着いて整理できる画面です。
             </p>
           </div>
@@ -142,82 +154,79 @@ export default function InvitesPage() {
         </div>
       ) : (
         <ul className="space-y-4">
-          {invites.map((inv) => (
-            <li
-              key={inv.id}
-              className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
-            >
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {(() => {
-                      const badge = getInviteStatusBadge(inv.status);
-                      return (
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
-                        >
-                          {badge.label}
+          {invites.map((inv) => {
+            const processingAction = processingById.get(inv.id);
+            const isProcessing = processingAction !== undefined;
+
+            return (
+              <li
+                key={inv.id}
+                className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-800 dark:bg-gray-950"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {(() => {
+                        const badge = getInviteStatusBadge(inv.status);
+                        return (
+                          <span
+                            className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
+                          >
+                            {badge.label}
+                          </span>
+                        );
+                      })()}
+                    </div>
+
+                    <Link
+                      href={`/papers/${inv.paperId}`}
+                      className="mt-3 block text-base font-semibold text-gray-950 transition-colors hover:text-gray-700 hover:underline dark:text-gray-50 dark:hover:text-gray-200"
+                    >
+                      {inv.paperTitle}
+                    </Link>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                      {inv.inviterName} からの招待
+                    </p>
+                  </div>
+
+                  {inv.status === "pending" ? (
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => respond(inv.id, "accept")}
+                        disabled={isProcessing}
+                        aria-busy={processingAction === "accept"}
+                        className="inline-flex min-w-[72px] items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+                      >
+                        {processingAction === "accept" && (
+                          <Spinner className="h-4 w-4" />
+                        )}
+                        <span className={processingAction === "accept" ? "sr-only" : undefined}>
+                          承認
                         </span>
-                      );
-                    })()}
-                  </div>
-
-                  <Link
-                    href={`/papers/${inv.paperId}`}
-                    className="mt-3 block text-base font-semibold text-gray-950 transition-colors hover:text-gray-700 hover:underline dark:text-gray-50 dark:hover:text-gray-200"
-                  >
-                    {inv.paperTitle}
-                  </Link>
-                  <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    {inv.inviterName} からの招待
-                  </p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => respond(inv.id, "decline")}
+                        disabled={isProcessing}
+                        aria-busy={processingAction === "decline"}
+                        className="inline-flex min-w-[72px] items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
+                      >
+                        {processingAction === "decline" && (
+                          <Spinner className="h-4 w-4" />
+                        )}
+                        <span className={processingAction === "decline" ? "sr-only" : undefined}>
+                          拒否
+                        </span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="shrink-0 text-xs text-gray-400">対応済み</div>
+                  )}
                 </div>
-
-                {inv.status === "pending" ? (
-                  <div className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => respond(inv.id, "accept")}
-                      disabled={!!responding[inv.id]}
-                      aria-busy={responding[inv.id] === "accept"}
-                      className="flex items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
-                    >
-                      {responding[inv.id] === "accept" && (
-                        <>
-                          <span
-                            className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                            aria-hidden="true"
-                          />
-                          <span className="sr-only">処理中</span>
-                        </>
-                      )}
-                      承認
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => respond(inv.id, "decline")}
-                      disabled={!!responding[inv.id]}
-                      aria-busy={responding[inv.id] === "decline"}
-                      className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
-                    >
-                      {responding[inv.id] === "decline" && (
-                        <>
-                          <span
-                            className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                            aria-hidden="true"
-                          />
-                          <span className="sr-only">処理中</span>
-                        </>
-                      )}
-                      拒否
-                    </button>
-                  </div>
-                ) : (
-                  <div className="shrink-0 text-xs text-gray-400">対応済み</div>
-                )}
-              </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>
