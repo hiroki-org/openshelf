@@ -200,14 +200,17 @@ export function TagAutocompleteInput({
           className={`${className ?? ""} ${loading ? "pr-8" : ""}`}
           placeholder={placeholder}
         />
-        {loading && (
-          <div
-            aria-live="polite"
-            className="absolute right-2.5 top-1/2 z-10 flex -translate-y-1/2 items-center text-gray-400"
-          >
-            <Spinner className="h-3.5 w-3.5" />
-          </div>
-        )}
+        <div
+          aria-live="polite"
+          className="absolute right-2.5 top-1/2 z-10 flex -translate-y-1/2 items-center text-gray-400"
+        >
+          {loading && (
+            <>
+              <Spinner className="h-3.5 w-3.5" />
+              <span className="sr-only">候補を取得中...</span>
+            </>
+          )}
+        </div>
       </div>
 
       {open && suggestions.length > 0 && (
