@@ -32,7 +32,7 @@ describe("MarkdownEditor", () => {
     render(<MarkdownEditor {...defaultProps} />);
 
     // Write tab is selected
-    const writeTab = screen.getByRole("tab", { name: "Write" });
+    const writeTab = screen.getByRole("tab", { name: "Write: マークダウン編集モードに切り替え" });
     expect(writeTab).toHaveAttribute("aria-selected", "true");
 
     // Textarea is displayed
@@ -50,7 +50,7 @@ describe("MarkdownEditor", () => {
     render(<MarkdownEditor {...defaultProps} mode="preview" />);
 
     // Preview tab is selected
-    const previewTab = screen.getByRole("tab", { name: "Preview" });
+    const previewTab = screen.getByRole("tab", { name: "Preview: マークダウンプレビューモードに切り替え" });
     expect(previewTab).toHaveAttribute("aria-selected", "true");
 
     // Textarea is not displayed
@@ -75,7 +75,7 @@ describe("MarkdownEditor", () => {
   it("calls onModeChange when clicking tabs", () => {
     const { rerender } = render(<MarkdownEditor {...defaultProps} />);
 
-    const previewTab = screen.getByRole("tab", { name: "Preview" });
+    const previewTab = screen.getByRole("tab", { name: "Preview: マークダウンプレビューモードに切り替え" });
     fireEvent.click(previewTab);
 
     expect(mockOnModeChange).toHaveBeenCalledTimes(1);
@@ -84,7 +84,7 @@ describe("MarkdownEditor", () => {
     // Simulate re-render with new mode using rerender
     rerender(<MarkdownEditor {...defaultProps} mode="preview" />);
 
-    const writeTab = screen.getByRole("tab", { name: "Write" });
+    const writeTab = screen.getByRole("tab", { name: "Write: マークダウン編集モードに切り替え" });
     fireEvent.click(writeTab);
 
     expect(mockOnModeChange).toHaveBeenCalledTimes(2);
