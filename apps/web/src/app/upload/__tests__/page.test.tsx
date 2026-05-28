@@ -281,7 +281,7 @@ describe("UploadPage", () => {
   });
 
   it("shows network error when fetch rejects", async () => {
-    vi.mocked(apiFetch).mockRejectedValue(new Error("Network Error"));
+    vi.mocked(apiFetch).mockRejectedValue(new Error("ネットワークエラーが発生しました"));
 
     render(<UploadPage />);
 
