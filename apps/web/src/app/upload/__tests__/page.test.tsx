@@ -243,6 +243,8 @@ describe("UploadPage", () => {
     expect(
       await screen.findByText("Invalid metadata provided"),
     ).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    expect(apiFetch).toHaveBeenCalledTimes(1);
   });
 
   it("shows default error when upload fails without specific error", async () => {
@@ -274,6 +276,8 @@ describe("UploadPage", () => {
     expect(
       await screen.findByText("アップロードに失敗しました"),
     ).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    expect(apiFetch).toHaveBeenCalledTimes(1);
   });
 
   it("shows network error when fetch rejects", async () => {
@@ -301,6 +305,8 @@ describe("UploadPage", () => {
     expect(
       await screen.findByText("ネットワークエラーが発生しました"),
     ).toBeInTheDocument();
+    expect(push).not.toHaveBeenCalled();
+    expect(apiFetch).toHaveBeenCalledTimes(1);
   });
 
   it("does not show drop feedback for non-file drags", () => {
