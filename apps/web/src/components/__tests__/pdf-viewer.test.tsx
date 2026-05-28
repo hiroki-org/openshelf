@@ -509,7 +509,7 @@ describe("PdfViewer", () => {
         "beta target",
         "gamma target",
       ]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         await getPagePromise;
         return {
           getTextContent: vi
@@ -576,7 +576,7 @@ describe("PdfViewer", () => {
 
     await act(async () => {
       const mockDoc = createMockPdfDocument(["alpha"]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         await getPagePromise;
         return {
           getTextContent: vi
@@ -597,12 +597,10 @@ describe("PdfViewer", () => {
       await new Promise((resolve) => setTimeout(resolve, 400));
     });
 
-    let unmounted = false;
     // We want to unmount right after the batch finishes but before the outer loop continues
     // Since we can't easily hook into the exact microtask, we resolve the promise and immediately unmount.
     resolveGetPage!(undefined);
     unmount();
-    unmounted = true;
 
     // Wait to ensure no state updates happen after unmount
     await act(async () => {
@@ -684,7 +682,7 @@ describe("PdfViewer", () => {
     await act(async () => {
       const mockDoc = createMockPdfDocument(["alpha"]);
       // Slow down getPage significantly so it's in the middle of waiting
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         await new Promise((resolve) => setTimeout(resolve, 500));
         return {
           getTextContent: vi
@@ -729,7 +727,7 @@ describe("PdfViewer", () => {
 
     await act(async () => {
       const mockDoc = createMockPdfDocument(["alpha"]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         await getPagePromise;
         return {
           getTextContent: vi
@@ -797,7 +795,7 @@ describe("PdfViewer", () => {
 
     await act(async () => {
       const mockDoc = createMockPdfDocument(["alpha"]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         return {
           getTextContent: vi.fn().mockResolvedValue({
             items: [
@@ -859,7 +857,7 @@ describe("PdfViewer", () => {
 
     await act(async () => {
       const mockDoc = createMockPdfDocument(["alpha"]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         return {
           getTextContent: vi.fn().mockResolvedValue({
             items: [null, undefined, { str: "target" }],
@@ -921,7 +919,7 @@ describe("PdfViewer", () => {
     await act(async () => {
       // Multiple pages so it loops
       const mockDoc = createMockPdfDocument(["target", "target2"]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         return {
           getTextContent: vi
             .fn()
@@ -991,7 +989,7 @@ describe("PdfViewer", () => {
 
     await act(async () => {
       const mockDoc = createMockPdfDocument(["alpha"]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         return {
           getTextContent: vi.fn().mockResolvedValue({
             items: [null, undefined, {}, { str: null }, { str: "target" }],
@@ -1068,7 +1066,7 @@ describe("PdfViewer", () => {
 
     await act(async () => {
       const mockDoc = createMockPdfDocument(["target"]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         await getPagePromise;
         return {
           getTextContent: vi
@@ -1107,7 +1105,7 @@ describe("PdfViewer", () => {
 
     await act(async () => {
       const mockDoc = createMockPdfDocument(["alpha"]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         return {
           getTextContent: vi.fn().mockResolvedValue({
             items: [{ notStr: "invalid" }],
@@ -1191,7 +1189,7 @@ describe("PdfViewer", () => {
       const mockDoc = createMockPdfDocument([
         "alpha",
       ]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         return {
           getTextContent: vi.fn().mockResolvedValue({
             items: [
@@ -1226,7 +1224,7 @@ describe("PdfViewer", () => {
       const mockDoc = createMockPdfDocument([
         "alpha",
       ]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         return {
           getTextContent: vi.fn().mockResolvedValue({
             items: [
@@ -1259,7 +1257,7 @@ describe("PdfViewer", () => {
       const mockDoc = createMockPdfDocument([
         "alpha",
       ]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         return {
           getTextContent: vi.fn().mockResolvedValue({
             items: [
@@ -1295,7 +1293,7 @@ describe("PdfViewer", () => {
       const mockDoc = createMockPdfDocument([
         "alpha",
       ]);
-      mockDoc.getPage = vi.fn(async (pageNumber: number) => {
+      mockDoc.getPage = vi.fn(async (_pageNumber: number) => {
         return {
           getTextContent: vi.fn().mockResolvedValue({
             items: [
