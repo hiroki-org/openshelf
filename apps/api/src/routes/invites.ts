@@ -13,7 +13,6 @@ import { authMiddleware } from "../middleware/auth";
 import { formatCaughtError } from "../utils/errors";
 
 const invitesRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
-const FAILED_TO_RESPOND_ERROR = "Failed to respond to invite";
 
 // GET /api/invites/received — invites sent to the current user
 invitesRoute.get("/received", authMiddleware, async (c) => {
@@ -75,8 +74,8 @@ const respondInviteHandler = async (c: any) => {
             .where(eq(coauthorInvites.id, inviteId))
             .get();
     } catch (error) {
-        console.error(FAILED_TO_RESPOND_ERROR, formatCaughtError(error));
-        return c.json({ error: FAILED_TO_RESPOND_ERROR }, 500);
+        console.error("Failed to respond to invite", formatCaughtError(error));
+        return c.json({ error: "Failed to respond to invite" }, 500);
     }
     if (!invite) return c.json({ error: "Invite not found" }, 404);
     if (invite.inviteeId !== userId)
@@ -112,8 +111,8 @@ const respondInviteHandler = async (c: any) => {
                 .where(eq(coauthorInvites.id, inviteId));
         }
     } catch (error) {
-        console.error(FAILED_TO_RESPOND_ERROR, formatCaughtError(error));
-        return c.json({ error: FAILED_TO_RESPOND_ERROR }, 500);
+        console.error("Failed to respond to invite", formatCaughtError(error));
+        return c.json({ error: "Failed to respond to invite" }, 500);
     }
 
     return c.json({ ok: true, status: newStatus });
