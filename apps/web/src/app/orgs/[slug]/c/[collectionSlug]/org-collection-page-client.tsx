@@ -184,7 +184,7 @@ export default function OrgCollectionPageClient({
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      aria-label={`${paper.title} を上に移動`}
+                      aria-label={`${paper.title}を上に移動`}
                       onClick={() => void move(idx, -1)}
                       className="rounded border px-2 py-1 text-xs dark:border-gray-700"
                     >
@@ -192,7 +192,7 @@ export default function OrgCollectionPageClient({
                     </button>
                     <button
                       type="button"
-                      aria-label={`${paper.title} を下に移動`}
+                      aria-label={`${paper.title}を下に移動`}
                       onClick={() => void move(idx, 1)}
                       className="rounded border px-2 py-1 text-xs dark:border-gray-700"
                     >

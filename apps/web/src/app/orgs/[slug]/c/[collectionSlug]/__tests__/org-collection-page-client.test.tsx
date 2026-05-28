@@ -94,7 +94,9 @@ describe("OrgCollectionPageClient", () => {
     });
     expect(screen.getByRole("button", { name: "📡 Feed" })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "First paper を下に移動" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "First paperを下に移動" }),
+    );
 
     await waitFor(() => {
       const links = screen.getAllByRole("link").filter((link) => {
