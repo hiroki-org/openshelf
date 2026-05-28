@@ -172,6 +172,79 @@ describe("PaperDetailClient", () => {
     expect(URL.revokeObjectURL).toHaveBeenCalled();
   });
 
+
+  it("displays fallback UI when image loading fails", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/papers/test-id/files/img-1/stream") {
+        return new Response("Not Found", { status: 404 });
+      }
+
+      if (url === "/api/papers/test-id" && method === "GET") {
+        return jsonResponse({
+          paper: {
+            id: "test-id",
+            title: "Test Paper",
+            abstract: null,
+            description: null,
+            descriptionUpdatedAt: null,
+            visibility: "public",
+            showViewCount: false,
+            publicViewCount: 0,
+            publicDownloadCount: 0,
+            externalUrl: null,
+            venue: null,
+            venueType: null,
+            year: 2024,
+            category: null,
+            authorId: "author-1",
+            authorName: "Test Author",
+            authorAvatarUrl: null,
+            createdAt: "2024-01-01T00:00:00.000Z",
+            updatedAt: "2024-01-01T00:00:00.000Z",
+            stats: { views: 0, downloads: 0 },
+            authors: [],
+            tags: [],
+            pdfFile: null,
+            files: [
+              {
+                id: "img-1",
+                filename: "poster.png",
+                size: 1024,
+                createdAt: "2024-01-01T00:00:00.000Z",
+                mimeType: "image/png",
+              }
+            ],
+          },
+          authors: [{ userId: "author-1", name: "Test Author", role: "uploader" }],
+          files: [
+              {
+                id: "img-1",
+                filename: "poster.png",
+                size: 1024,
+                createdAt: "2024-01-01T00:00:00.000Z",
+                mimeType: "image/png",
+              }
+          ]
+        });
+      }
+
+      if (url.includes("/stream")) {
+        return blobResponse("mock-content", "image/png");
+      }
+
+      throw new Error("Unexpected request");
+    });
+
+    render(<PaperDetailClient paperId="test-id" siteBase="http://localhost" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("画像の読み込みに失敗しました")).toBeInTheDocument();
+    });
+  });
+
   it("renders author controls, previews assets, records views, and invites coauthors", async () => {
     const invites = [
       {
