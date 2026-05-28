@@ -23,6 +23,7 @@ import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
 import { buildCitation, isCitationFormat } from "../utils/citation";
+import { formatCaughtError } from "../utils/errors";
 import pMap from "p-map";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -70,10 +71,6 @@ type DeleteBatchErrorInfo = {
     chunkSample: string[];
     error: string;
 };
-
-function formatCaughtError(error: unknown): string {
-    return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-}
 
 function formatDateKey(date: Date): string {
     return date.toISOString().slice(0, 10);
@@ -744,7 +741,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
         try {
             await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
                 // Ignore cleanup errors during rollback after a later failure.
-                console.error("Cleanup error (non-fatal, rollback continues):", formatCaughtError(info.error));
+                console.error("Cleanup error (non-fatal, rollback continues):", info.error);
             });
         } catch (cleanupError) {
             console.error(
