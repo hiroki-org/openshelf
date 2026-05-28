@@ -1329,13 +1329,9 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
         .all();
 
     const keys = files.map((f) => f.r2Key);
-    try {
-        await deleteKeysInBatches(c.env.BUCKET, keys, (info) => {
-            console.warn("R2 deletion chunk failure (non-fatal):", info.error);
-        });
-    } catch (error) {
-        console.warn("R2 deletion failed (non-fatal):", error instanceof Error ? error.name + ": " + error.message : String(error));
-    }
+    await deleteKeysInBatches(c.env.BUCKET, keys, (info) => {
+        console.error("R2 deletion failed (non-fatal, DB deletion continues):", info.error, info.chunkSample);
+    });
     await db.delete(papers).where(eq(papers.id, paperId));
 
     return c.json({ ok: true });
