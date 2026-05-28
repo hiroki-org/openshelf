@@ -121,6 +121,13 @@ app.use("/api/*", async (c, next) => {
   return c.json({ error: "Forbidden" }, 403);
 });
 
+// Global Error Handler
+app.onError((err, c) => {
+  const safeErr = err instanceof Error ? err : new Error(String(err));
+  console.error("Unhandled exception:", safeErr.name + ": " + safeErr.message);
+  return c.json({ error: "Internal Server Error" }, 500);
+});
+
 // Routes
 app.route("/api/auth", auth);
 
