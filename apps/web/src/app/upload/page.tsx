@@ -558,7 +558,6 @@ export default function UploadPage() {
           <button
             type="submit"
             disabled={uploading}
-            aria-busy={uploading}
             className="inline-flex min-w-48 items-center justify-center rounded-xl bg-gray-950 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-950 focus:ring-offset-2 disabled:opacity-50 dark:bg-white dark:text-gray-950 dark:hover:bg-gray-200 dark:focus:ring-white dark:focus:ring-offset-gray-950"
           >
             {uploading ? (
