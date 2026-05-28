@@ -608,7 +608,7 @@ describe("PaperEditPage", () => {
     authState = { user: null, loading: true };
 
     const { container } = render(<PaperEditPage />);
-    const spinner = Array.from(container.querySelectorAll('.animate-spin')).find(el => el.className.includes("animate-spin"));
+    const spinner = Array.from(container.querySelectorAll('*')).find(el => el.className.includes("animate-spin"));
     expect(spinner).not.toBeUndefined();
   });
 });
