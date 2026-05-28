@@ -386,6 +386,7 @@ export default function PaperDetailClient({
     }
 
     let cancelled = false;
+    const controller = new AbortController();
     const createdUrls: string[] = [];
 
     const loadImages = async () => {
@@ -400,28 +401,36 @@ export default function PaperDetailClient({
           const img = imageFiles[currentIndex];
           try {
             const streamPath = `/api/papers/${safePath(paperId)}/files/${safePath(img.id)}/stream`;
-            const res = await apiFetch(streamPath);
+            const res = await apiFetch(streamPath, { signal: controller.signal });
             if (!res.ok) {
               currentFailedIds.push(img.id);
               entries[currentIndex] = [img.id, ""] as const;
               continue;
             }
             const blob = await res.blob();
-            if (cancelled) break;
+            if (cancelled) {
+              entries[currentIndex] = [img.id, ""] as const;
+              break;
+            }
             const objectUrl = URL.createObjectURL(blob);
             createdUrls.push(objectUrl);
             entries[currentIndex] = [img.id, objectUrl] as const;
           } catch (err) {
-            console.error(`Error loading image ${img.id}:`, err);
+            if (err instanceof Error && err.name === "AbortError") {
+              // Ignore abort error
+            } else {
+              console.error(`Error loading image ${img.id}:`, err);
+            }
             currentFailedIds.push(img.id);
             entries[currentIndex] = [img.id, ""] as const;
           }
         }
       };
 
-      // Limit concurrency to 3 parallel requests to prevent network congestion
+      // Limit concurrency to prevent network congestion
+      const CONCURRENCY_LIMIT = 3;
       const workers = Array.from(
-        { length: Math.min(3, imageFiles.length) },
+        { length: Math.min(CONCURRENCY_LIMIT, imageFiles.length) },
         worker,
       );
       await Promise.all(workers);
@@ -453,6 +462,7 @@ export default function PaperDetailClient({
 
     return () => {
       cancelled = true;
+      controller.abort();
       revokeUrlsIdle(createdUrls);
     };
   }, [paperId, imageFiles, trackEvent]);
