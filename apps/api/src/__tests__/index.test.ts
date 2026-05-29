@@ -1,12 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
-import { createTestEnv } from "../test/helpers";
+import { describe, expect, it, vi, afterEach } from "vitest";
 
 describe("Global app.onError handler logic", () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
 
     it("returns 500 JSON response and logs safely when a non-Error is thrown", async () => {
-        const consoleErrorMock = vi.fn();
-        const originalConsoleError = console.error;
-        console.error = consoleErrorMock;
+        const consoleErrorMock = vi.spyOn(console, "error").mockImplementation(() => {});
 
         const { default: app } = await import("../index");
 
@@ -14,7 +14,7 @@ describe("Global app.onError handler logic", () => {
             json: vi.fn().mockReturnValue({ json: true, status: 500 })
         } as any;
 
-        const handler = app.errorHandler;
+        const handler = (app as any).errorHandler;
         const result = await handler("Simulated non-Error string" as any, testContext);
 
         expect(result).toEqual({ json: true, status: 500 });
@@ -23,16 +23,12 @@ describe("Global app.onError handler logic", () => {
         expect(consoleErrorMock).toHaveBeenCalledWith(
             "Unhandled exception:",
             "Error: Simulated non-Error string",
-            expect.any(String) // The stack trace is technically generated dynamically when new Error() is called inside the handler
+            expect.stringContaining("Error: Simulated non-Error string")
         );
-
-        console.error = originalConsoleError;
     });
 
     it("returns 500 JSON response and logs safely when an Error is thrown", async () => {
-        const consoleErrorMock = vi.fn();
-        const originalConsoleError = console.error;
-        console.error = consoleErrorMock;
+        const consoleErrorMock = vi.spyOn(console, "error").mockImplementation(() => {});
 
         const { default: app } = await import("../index");
 
@@ -40,9 +36,9 @@ describe("Global app.onError handler logic", () => {
             json: vi.fn().mockReturnValue({ json: true, status: 500 })
         } as any;
 
-        const handler = app.errorHandler;
+        const handler = (app as any).errorHandler;
         const err = new Error("Simulated Error object");
-        err.stack = "Simulated stack trace";
+        err.stack = "Error: Simulated Error object\nSimulated stack trace";
         const result = await handler(err as any, testContext);
 
         expect(result).toEqual({ json: true, status: 500 });
@@ -51,9 +47,7 @@ describe("Global app.onError handler logic", () => {
         expect(consoleErrorMock).toHaveBeenCalledWith(
             "Unhandled exception:",
             "Error: Simulated Error object",
-            "\nSimulated stack trace"
+            "\nError: Simulated Error object\nSimulated stack trace"
         );
-
-        console.error = originalConsoleError;
     });
 });
