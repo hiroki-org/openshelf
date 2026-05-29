@@ -21,16 +21,16 @@
   "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260519.1",
+    "@cloudflare/workers-types": "^4.20260525.1",
     "@codspeed/vitest-plugin": "^5.4.0",
-    "drizzle-kit": "1.0.0-rc.3",
+    "drizzle-kit": "1.0.0-rc.4-273829f",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5",
-    "wrangler": "^4.92.0"
+    "wrangler": "^4.94.0"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
-    "hono": "^4.12.19",
+    "hono": "^4.12.23",
     "p-map": "^4.0.0"
   }
 }
