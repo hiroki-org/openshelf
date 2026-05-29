@@ -4157,7 +4157,7 @@ describe("Error handling and untested branches", () => {
     );
 
     expect(res.status).toBe(500);
-    await expect(res.json()).resolves.toEqual({ error: "Internal Server Error" });
+    expect(await res.json()).toEqual({ error: "Internal Server Error" });
   });
 
   it("POST /api/papers/:id/track handles missing json payload", async () => {
