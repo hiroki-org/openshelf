@@ -1,0 +1,63 @@
+--- apps/api/src/utils/__tests__/file.test.ts
++++ apps/api/src/utils/__tests__/file.test.ts
+@@ -236,11 +236,14 @@
+     } as unknown as File;
+
+     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+-    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
+-
+-    expect(consoleSpy).toHaveBeenCalledWith("Error validating magic numbers:", expect.any(RangeError));
+-    consoleSpy.mockRestore();
++    try {
++      await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
++
++      expect(consoleSpy).toHaveBeenCalledWith("Error validating magic numbers:", expect.any(RangeError));
++    } finally {
++      consoleSpy.mockRestore();
++    }
+   });
+
+ it("returns false when File.slice throws TypeError", async () => {
+@@ -255,11 +258,14 @@
+     } as unknown as File;
+
+     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+-    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
+-
+-    expect(consoleSpy).toHaveBeenCalledWith("Error validating magic numbers:", expect.any(TypeError));
+-    consoleSpy.mockRestore();
++    try {
++      await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
++
++      expect(consoleSpy).toHaveBeenCalledWith("Error validating magic numbers:", expect.any(TypeError));
++    } finally {
++      consoleSpy.mockRestore();
++    }
+   });
+
+ it("returns false when File.slice throws DOMException with InvalidStateError", async () => {
+@@ -274,13 +280,15 @@
+     } as unknown as File;
+
+     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+-    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
+-
+-    expect(consoleSpy).toHaveBeenCalledWith(
+-      "Error validating magic numbers:",
+-      expect.objectContaining({ name: "InvalidStateError" })
+-    );
+-    consoleSpy.mockRestore();
++    try {
++      await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
++
++      expect(consoleSpy).toHaveBeenCalledWith(
++        "Error validating magic numbers:",
++        expect.objectContaining({ name: "InvalidStateError" })
++      );
++    } finally {
++      consoleSpy.mockRestore();
++    }
+   });
