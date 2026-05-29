@@ -10,7 +10,6 @@ import {
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
-import { formatCaughtError } from "../utils/errors";
 
 const invitesRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -74,7 +73,7 @@ const respondInviteHandler = async (c: any) => {
             .where(eq(coauthorInvites.id, inviteId))
             .get();
     } catch (error) {
-        console.error("Failed to respond to invite", formatCaughtError(error));
+        console.error("Failed to respond to invite", error);
         return c.json({ error: "Failed to respond to invite" }, 500);
     }
     if (!invite) return c.json({ error: "Invite not found" }, 404);
@@ -111,7 +110,7 @@ const respondInviteHandler = async (c: any) => {
                 .where(eq(coauthorInvites.id, inviteId));
         }
     } catch (error) {
-        console.error("Failed to respond to invite", formatCaughtError(error));
+        console.error("Failed to respond to invite", error);
         return c.json({ error: "Failed to respond to invite" }, 500);
     }
 
