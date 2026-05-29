@@ -124,7 +124,7 @@ app.use("/api/*", async (c, next) => {
 // Global Error Handler
 app.onError((err, c) => {
   const safeErr = err instanceof Error ? err : new Error(String(err));
-  console.error("Unhandled exception:", safeErr.name + ": " + safeErr.message, safeErr.stack ? "\n" + safeErr.stack : "");
+  console.error("Unhandled exception:", safeErr.stack ?? safeErr.name + ": " + safeErr.message);
   return c.json({ error: "Internal Server Error" }, 500);
 });
 
