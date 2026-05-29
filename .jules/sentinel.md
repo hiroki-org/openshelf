@@ -25,3 +25,8 @@
 **Vulnerability:** Unhandled exceptions in the Hono API routes can leak internal application details, such as stack traces, to the client via default 500 error responses.
 **Learning:** Returning raw Error objects or relying on Hono's default error handling without a custom `onError` hook exposes potentially sensitive debugging information.
 **Prevention:** Always define a global `app.onError((err, c) => { ... })` handler in the main application file (e.g., `apps/api/src/index.ts`) to intercept all unhandled exceptions, log a sanitized version of the error internally, and return a safe, generic JSON response to the user.
+
+## 2026-05-25 - [Error Logging Information Leakage]
+**Vulnerability:** Raw Error objects were being passed directly to `console.error` in API routes (`apps/api/src/routes/papers.ts`, `apps/api/src/routes/invites.ts`).
+**Learning:** Passing raw Error objects to the console can expose sensitive backend details, stack traces, and database structures in the application logs, which could be accessed by unauthorized parties or attackers if log access is compromised.
+**Prevention:** Always sanitize Error objects before logging them. Use a dedicated formatting utility like `formatCaughtError` (which extracts safe properties like `error.name` and `error.message`) or manually format the error string (e.g., `error instanceof Error ? error.name + ": " + error.message : String(error)`) when logging in API routes.
