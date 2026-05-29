@@ -1,0 +1,24 @@
+--- apps/api/src/utils/__tests__/file.test.ts
++++ apps/api/src/utils/__tests__/file.test.ts
+@@ -275,12 +275,14 @@
+
+     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+-    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
+-
+-    expect(consoleSpy).toHaveBeenCalledWith(
+-      "Error validating magic numbers:",
+-      expect.objectContaining({ name: "InvalidStateError" })
+-    );
+-    consoleSpy.mockRestore();
++    try {
++      await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
++
++      expect(consoleSpy).toHaveBeenCalledWith(
++        "Error validating magic numbers:",
++        expect.objectContaining({ name: "InvalidStateError" })
++      );
++    } finally {
++      consoleSpy.mockRestore();
++    }
+   });
