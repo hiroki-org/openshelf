@@ -14,7 +14,7 @@ describe("Global app.onError handler logic", () => {
             json: vi.fn().mockReturnValue({ json: true, status: 500 })
         } as any;
 
-        const handler = app.errorHandler;
+        const handler = (app as any).errorHandler;
         const result = await handler("Simulated non-Error string" as any, testContext);
 
         expect(result).toEqual({ json: true, status: 500 });
@@ -40,7 +40,7 @@ describe("Global app.onError handler logic", () => {
             json: vi.fn().mockReturnValue({ json: true, status: 500 })
         } as any;
 
-        const handler = app.errorHandler;
+        const handler = (app as any).errorHandler;
         const err = new Error("Simulated Error object");
         err.stack = "Simulated stack trace";
         const result = await handler(err as any, testContext);
