@@ -3257,6 +3257,65 @@ describe("Error handling and untested branches", () => {
     });
   });
 
+  it("POST /api/papers propagates general R2 put errors", async () => {
+    const formData = new FormData();
+    formData.append(
+      "metadata",
+      JSON.stringify({
+        title: "Test Paper",
+        abstract: "Abstract",
+        visibility: "public",
+        showViewCount: true,
+        language: "en",
+        externalUrl: "https://example.com",
+        doi: null,
+        venue: null,
+        venueType: null,
+        year: null,
+        category: null,
+        tags: [],
+      }),
+    );
+    const file = new File(["%PDF-1.4\n%dummy-pdf"], "dummy.pdf", {
+      type: "application/pdf",
+    });
+    formData.append("files_0", file);
+    formData.append("file_types_0", "paper");
+
+    const customEnv = createTestEnv({
+      BUCKET: {
+        put: vi.fn().mockRejectedValue(new Error("R2 put failure")),
+        delete: vi.fn().mockResolvedValue(undefined),
+      } as any,
+    });
+    const consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    try {
+      const res = await app.request(
+        "http://localhost/api/papers",
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        },
+        customEnv as any,
+      );
+
+      expect(res.status).toBe(500);
+      await expect(res.json()).resolves.toEqual({ error: "Internal Server Error" });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "File upload errors:",
+        expect.objectContaining({
+          errors: ["R2 put failure"],
+        }),
+      );
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
   it("POST /api/papers/:id/invites handles malformed JSON body", async () => {
     const res = await app.request(
       "http://localhost/api/papers/paper-1/invites",
@@ -3661,6 +3720,39 @@ describe("Error handling and untested branches", () => {
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Invalid JSON body" });
+  });
+
+  it("PATCH /api/papers/:id propagates db update failures", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+      ) // get paper
+      .mockImplementationOnce(() =>
+        makeQuery({ getResult: { userId: "user-test" } }),
+      ); // author check
+
+    mockDb.update = vi.fn().mockReturnValue({
+      set: vi.fn().mockReturnValue({
+        where: vi.fn().mockRejectedValue(new Error("NOT NULL constraint failed: papers.title")),
+      }),
+    });
+
+    const res = await app.request(
+      "http://localhost/api/papers/paper-1",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title: "New Title" }),
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: "Internal Server Error" });
   });
 
   it("POST /api/papers/:id/track handles missing json payload", async () => {
