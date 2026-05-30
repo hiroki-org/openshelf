@@ -92,8 +92,8 @@ describe("orgs routes", () => {
         env as any,
       );
       expect(res.status).toBe(500);
-      const text = await res.text();
-      expect(text).toContain("Internal Server Error");
+      const json = await res.json();
+      expect(json).toEqual({ error: "Internal Server Error" });
     });
 
     it("wraps non-Error insert failures", async () => {
@@ -125,8 +125,8 @@ describe("orgs routes", () => {
         env as any,
       );
       expect(res.status).toBe(500);
-      const text = await res.text();
-      expect(text).toContain("Internal Server Error");
+      const json = await res.json();
+      expect(json).toEqual({ error: "Internal Server Error" });
     });
 
     it("returns 409 for UNIQUE constraint violation race condition", async () => {

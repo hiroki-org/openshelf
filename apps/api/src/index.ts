@@ -17,6 +17,8 @@ import {
   normalizeOrigin,
   parseOriginList,
 } from "./utils/origin";
+import { formatCaughtError } from "./utils/errors";
+import { HTTPException } from "hono/http-exception";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -139,5 +141,13 @@ app.route("/feed", feedRoute);
 
 // Health
 app.get("/", (c) => c.json({ status: "ok", service: "openshelf-api" }));
+
+app.onError((err, c) => {
+  if (err instanceof HTTPException) {
+    return err.getResponse();
+  }
+  console.error("Unhandled exception:", formatCaughtError(err));
+  return c.json({ error: "Internal Server Error" }, 500);
+});
 
 export default app;
