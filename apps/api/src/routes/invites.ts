@@ -10,7 +10,7 @@ import {
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
-import { formatCaughtError } from "../utils/errors";
+import { formatCaughtError } from "../utils/errors.js";
 
 const invitesRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 

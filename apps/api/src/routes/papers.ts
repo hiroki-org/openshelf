@@ -23,7 +23,7 @@ import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
 import { buildCitation, isCitationFormat } from "../utils/citation";
-import { formatCaughtError } from "../utils/errors";
+import { formatCaughtError } from "../utils/errors.js";
 import pMap from "p-map";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();

@@ -17,7 +17,7 @@ import {
   normalizeOrigin,
   parseOriginList,
 } from "./utils/origin";
-import { formatCaughtError } from "./utils/errors";
+import { formatCaughtError } from "./utils/errors.js";
 import { HTTPException } from "hono/http-exception";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
