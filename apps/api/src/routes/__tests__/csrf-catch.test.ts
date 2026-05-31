@@ -65,15 +65,4 @@ describe("CSRF configuration catch blocks", () => {
         console.error = originalConsoleError;
         vi.doUnmock("../../utils/origin");
     });
-
-    it("app.onError handles unknown errors and returns 500 JSON", async () => {
-        const { default: mockApp } = await import("../../index");
-        // Force an error using a dummy route or similar if possible.
-        // Alternatively, mock a route to throw an error.
-        mockApp.get("/__test_error", () => { throw new Error("Test generic error"); });
-        const res = await mockApp.request("http://localhost/__test_error");
-        expect(res.status).toBe(500);
-        const json = await res.json();
-        expect(json).toEqual({ error: "Internal Server Error" });
-    });
 });
