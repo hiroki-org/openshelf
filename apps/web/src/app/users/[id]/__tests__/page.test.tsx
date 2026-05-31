@@ -84,6 +84,36 @@ describe("UserPage", () => {
     );
   });
 
+
+  it("renders empty state when collections are empty", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            avatarUrl: null,
+            githubId: "alice",
+          },
+        }),
+        { status: 200 },
+      ) as Response,
+    );
+
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    const view = await UserPage({ params: { id: "user-1" } });
+    render(view);
+
+    expect(await screen.findByText("コレクションを作成して成果物を整理しましょう。")).toBeInTheDocument();
+  });
+
   it("shows an error when the profile cannot be loaded", async () => {
     vi.mocked(apiFetch).mockImplementation(async (url) => {
       if (url === "/api/users/user-1") {
@@ -136,5 +166,57 @@ describe("UserPage", () => {
     expect(
       await screen.findByText("ユーザー情報の取得に失敗しました"),
     ).toBeInTheDocument();
+  });
+
+  it("renders empty state when collections are empty", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            avatarUrl: null,
+            githubId: "alice",
+          },
+        }),
+        { status: 200 },
+      ) as Response,
+    );
+
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    const view = await UserPage({ params: { id: "user-1" } });
+    render(view);
+
+    expect(await screen.findByText("コレクションを作成して成果物を整理しましょう。")).toBeInTheDocument();
+  });
+
+  it("renders empty state when collections are empty", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          user: { id: "user-1", name: "Alice", displayName: "Alice A.", avatarUrl: null, githubId: "alice" },
+        }),
+        { status: 200 }
+      ) as Response
+    );
+
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    const view = await UserPage({ params: { id: "user-1" } });
+    render(view);
+
+    expect(await screen.findByText("コレクションを作成して成果物を整理しましょう。")).toBeInTheDocument();
   });
 });

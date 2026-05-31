@@ -543,4 +543,77 @@ describe("OrgPageClient", () => {
     expect(await screen.findByText("Research Lab")).toBeInTheDocument();
     expect(await screen.findByText("まだ成果物がありません")).toBeInTheDocument();
   });
+
+  it("renders empty state when papers are empty", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/orgs/lab") {
+        return new Response(
+          JSON.stringify({
+            org: {
+              id: "org-1",
+              slug: "lab",
+              name: "Research Lab",
+              description: "Lab description",
+              createdAt: "2023-01-01T00:00:00Z",
+            },
+          }),
+          { status: 200 }
+        );
+      }
+      if (url.startsWith("/api/orgs/lab/papers")) {
+        return new Response(
+          JSON.stringify({
+            papers: [],
+            total: 0,
+            page: 1,
+            pageSize: 10,
+          }),
+          { status: 200 }
+        );
+      }
+      if (url === "/api/orgs/lab/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      if (url === "/api/orgs/lab/members") {
+        return new Response(
+          JSON.stringify({
+            members: [{ userId: "user-1", role: "admin" }],
+          }),
+          { status: 200 }
+        );
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<OrgPageClient slug="lab" />);
+
+    expect(await screen.findByText("組織に成果物が追加されると、ここに一覧表示されます。")).toBeInTheDocument();
+  });
+
+  it("renders empty state when papers are empty", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/orgs/lab") {
+        return new Response(
+          JSON.stringify({
+            org: { id: "org-1", slug: "lab", name: "Research Lab", description: "Lab description", createdAt: "2023-01-01T00:00:00Z" },
+          }),
+          { status: 200 }
+        );
+      }
+      if (url.startsWith("/api/orgs/lab/papers")) {
+        return new Response(JSON.stringify({ papers: [], total: 0, page: 1, pageSize: 10 }), { status: 200 });
+      }
+      if (url === "/api/orgs/lab/collections") {
+        return new Response(JSON.stringify({ collections: [] }), { status: 200 });
+      }
+      if (url === "/api/orgs/lab/members") {
+        return new Response(JSON.stringify({ members: [{ userId: "user-1", role: "admin" }] }), { status: 200 });
+      }
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<OrgPageClient slug="lab" />);
+
+    expect(await screen.findByText("組織に成果物が追加されると、ここに一覧表示されます。")).toBeInTheDocument();
+  });
 });
