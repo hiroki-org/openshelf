@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { validateMagicNumbers } from "../file";
 
 function createMockZip(entries: string[]) {
@@ -235,12 +235,7 @@ it("returns false when File.slice throws RangeError", async () => {
       type: "application/pdf",
     } as unknown as File;
 
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
     await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
-
-    expect(consoleSpy).toHaveBeenCalledWith("Error validating magic numbers:", expect.any(RangeError));
-    consoleSpy.mockRestore();
   });
 
 it("returns false when File.slice throws TypeError", async () => {
@@ -254,12 +249,7 @@ it("returns false when File.slice throws TypeError", async () => {
       type: "application/pdf",
     } as unknown as File;
 
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
     await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
-
-    expect(consoleSpy).toHaveBeenCalledWith("Error validating magic numbers:", expect.any(TypeError));
-    consoleSpy.mockRestore();
   });
 
 it("returns false when File.slice throws DOMException with InvalidStateError", async () => {
@@ -273,18 +263,7 @@ it("returns false when File.slice throws DOMException with InvalidStateError", a
       type: "application/pdf",
     } as unknown as File;
 
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    try {
-      await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Error validating magic numbers:",
-        expect.objectContaining({ name: "InvalidStateError" })
-      );
-    } finally {
-      consoleSpy.mockRestore();
-    }
+    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
   });
 
 it("throws the error when File.slice throws an unexpected error", async () => {

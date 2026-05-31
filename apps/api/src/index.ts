@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { timingSafeEqual } from "hono/utils/buffer";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Env, Variables } from "./types";
 import auth from "./routes/auth";
 import usersRoute from "./routes/users";
@@ -17,7 +18,6 @@ import {
   normalizeOrigin,
   parseOriginList,
 } from "./utils/origin";
-import { formatCaughtError } from "./utils/errors.js";
 import { HTTPException } from "hono/http-exception";
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -123,6 +123,32 @@ app.use("/api/*", async (c, next) => {
   return c.json({ error: "Forbidden" }, 403);
 });
 
+function httpExceptionBody(response: Response): string {
+  return response.statusText || "HTTP Error";
+}
+
+app.onError((err, c) => {
+  if (err instanceof HTTPException) {
+    const response = err.getResponse();
+    const contentType = response.headers.get("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      return response;
+    }
+    return c.json(
+      { error: httpExceptionBody(response) },
+      response.status as ContentfulStatusCode,
+    );
+  }
+
+  const safeErr = err instanceof Error ? err : new Error(String(err));
+  console.error(
+    "Unhandled exception:",
+    `${safeErr.name}: ${safeErr.message}`,
+    safeErr.stack ? `\n${safeErr.stack}` : "",
+  );
+  return c.json({ error: "Internal Server Error" }, 500);
+});
+
 // Routes
 app.route("/api/auth", auth);
 
@@ -141,13 +167,5 @@ app.route("/feed", feedRoute);
 
 // Health
 app.get("/", (c) => c.json({ status: "ok", service: "openshelf-api" }));
-
-app.onError((err, c) => {
-  if (err instanceof HTTPException) {
-    return err.getResponse();
-  }
-  console.error("Unhandled exception:", formatCaughtError(err));
-  return c.json({ error: "Internal Server Error" }, 500);
-});
 
 export default app;
