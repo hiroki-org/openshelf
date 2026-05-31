@@ -84,4 +84,40 @@ describe("Global app.onError handler logic", () => {
         expect(testContext.json).toHaveBeenCalledWith({ error: "HTTP Error" }, 401);
         expect(consoleErrorMock).not.toHaveBeenCalled();
     });
+
+    it("handles HTTPException responses without content type", async () => {
+        const consoleErrorMock = vi.spyOn(console, "error").mockImplementation(() => {});
+        const { default: app } = await import("../index");
+        const handler = (app as any).errorHandler;
+        const testContext = {
+            json: vi.fn().mockReturnValue({ json: true, status: 400 }),
+        } as any;
+        const response = new Response("Bad Request", { status: 400 });
+
+        const result = await handler(new HTTPException(400, { res: response }), testContext);
+
+        expect(result).toEqual({ json: true, status: 400 });
+        expect(testContext.json).toHaveBeenCalledWith({ error: "HTTP Error" }, 400);
+        expect(consoleErrorMock).not.toHaveBeenCalled();
+    });
+
+    it("logs safely when an Error has no stack", async () => {
+        const consoleErrorMock = vi.spyOn(console, "error").mockImplementation(() => {});
+        const { default: app } = await import("../index");
+        const testContext = {
+            json: vi.fn().mockReturnValue({ json: true, status: 500 }),
+        } as any;
+        const handler = (app as any).errorHandler;
+        const err = new Error("No stack");
+        err.stack = undefined;
+
+        const result = await handler(err as any, testContext);
+
+        expect(result).toEqual({ json: true, status: 500 });
+        expect(consoleErrorMock).toHaveBeenCalledWith(
+            "Unhandled exception:",
+            "Error: No stack",
+            "",
+        );
+    });
 });
