@@ -708,7 +708,14 @@ export default function OrgSettingsPage() {
           {/* Paper list */}
           <h3 className="text-sm font-medium mb-2">紐づけ済み成果物</h3>
           {orgPapers.length === 0 ? (
-            <p className="text-sm text-gray-500">まだ成果物がありません</p>
+            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-8 text-center dark:border-gray-700 dark:bg-gray-900/60 mt-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
+                まだ紐づけられた成果物がありません。
+              </p>
+              <p className="mt-2 text-xs text-gray-500 dark:text-gray-500">
+                上の検索バーから成果物を検索して、組織に追加してください。
+              </p>
+            </div>
           ) : (
             <ul className="space-y-2">
               {orgPapers.map((p) => (

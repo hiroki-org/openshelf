@@ -457,7 +457,22 @@ export default function OrgPageClient({ slug }: OrgPageClientProps) {
         </div>
 
         {orgPapers.length === 0 ? (
-          <p className="text-sm text-gray-500">まだ成果物がありません</p>
+          <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50 px-6 py-14 text-center dark:border-gray-700 dark:bg-gray-900/60">
+            <div className="mx-auto max-w-md">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                まだ成果物がありません
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                組織に成果物が追加されると、ここに一覧表示されます。
+              </p>
+              <Link
+                href="/"
+                className="mt-6 inline-flex items-center justify-center rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+              >
+                ダッシュボードへ戻る
+              </Link>
+            </div>
+          </div>
         ) : (
           <ul className="space-y-3">
             {orgPapers.map((p) => {
