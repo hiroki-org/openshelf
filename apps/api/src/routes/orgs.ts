@@ -17,7 +17,9 @@ import {
 import type { Env, JwtPayload, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { parseStoredTags } from "../utils/tags";
+import { escapeLikeLiteral } from "../utils/sql";
 import { ID_MAX_LENGTH } from "../utils/constants";
+import { validateName, validateSlug } from "../utils/validation";
 
 const orgsRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 const ORG_TAGS_LIMIT = 100;
@@ -86,39 +88,19 @@ function hasJwtSub(value: unknown): value is Pick<JwtPayload, "sub"> {
 
 const MEMBER_ROLES = ["admin", "member"] as const;
 
-const escapeLikeLiteral = (str: string) => {
-  return str.replace(/[\\%_]/g, "\\$&");
-};
-
 const ADMIN_LIKE_ROLES = ["admin", "owner"] as const;
 
 function isMemberRole(role: unknown): role is (typeof MEMBER_ROLES)[number] {
   return (MEMBER_ROLES as readonly unknown[]).includes(role);
 }
 
-function isAdminLikeRole(role: unknown): role is (typeof ADMIN_LIKE_ROLES)[number] {
+function isAdminLikeRole(
+  role: unknown,
+): role is (typeof ADMIN_LIKE_ROLES)[number] {
   return (ADMIN_LIKE_ROLES as readonly unknown[]).includes(role);
 }
 
 // ─── Validation helpers ─────────────────────────────────────────
-const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
-
-function validateSlug(slug: unknown): string | null {
-  if (typeof slug !== "string") return "slug is required";
-  const s = slug.trim().toLowerCase();
-  if (s.length < 3 || s.length > 40) return "slug must be 3–40 characters";
-  if (!SLUG_RE.test(s))
-    return "slug must contain only lowercase letters, numbers, and hyphens";
-  if (s.includes("--")) return "slug must not contain consecutive hyphens";
-  return null;
-}
-
-function validateName(name: unknown): string | null {
-  if (typeof name !== "string" || name.trim().length === 0)
-    return "name is required";
-  if (name.trim().length > 100) return "name must be 100 characters or less";
-  return null;
-}
 
 function validateDescription(description: unknown): string | null {
   if (description === undefined || description === null || description === "")
@@ -253,11 +235,10 @@ orgsRoute.get("/:slug/tags", async (c) => {
   if (orgPapers.length === 0) return c.json({ tags: [] });
 
   const counts = new Map<string, number>();
-  const tagCache = new Map<string, string[]>();
-  const lowerCache = new Map<string, string>();
+  const rawTagCounts = new Map<string, number>();
 
   for (const paper of orgPapers) {
-    const isAuthor = paper.authorUserId === currentUserId;
+    const isAuthor = currentUserId !== null && paper.authorUserId === currentUserId;
     const isVisible =
       paper.visibility === "public" ||
       (paper.visibility === "org_only" && (isMember || isAuthor)) ||
@@ -265,22 +246,18 @@ orgsRoute.get("/:slug/tags", async (c) => {
     if (!isVisible) continue;
 
     const rawTags = paper.tags ?? "";
-    let tags = tagCache.get(rawTags);
-    if (tags === undefined) {
-      tags = parseStoredTags(rawTags);
-      tagCache.set(rawTags, tags);
+    if (rawTags) {
+      rawTagCounts.set(rawTags, (rawTagCounts.get(rawTags) ?? 0) + 1);
     }
+  }
 
+  for (const [rawTags, count] of rawTagCounts) {
+    const tags = parseStoredTags(rawTags);
     for (const tag of tags) {
       if (query) {
-        let lower = lowerCache.get(tag);
-        if (lower === undefined) {
-          lower = tag.toLowerCase();
-          lowerCache.set(tag, lower);
-        }
-        if (!lower.startsWith(query)) continue;
+        if (!tag.toLowerCase().startsWith(query)) continue;
       }
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      counts.set(tag, (counts.get(tag) ?? 0) + count);
     }
   }
 
@@ -358,7 +335,7 @@ orgsRoute.post("/", authMiddleware, async (c) => {
     if (message.includes("UNIQUE") || message.includes("unique")) {
       return c.json({ error: "slug already in use" }, 409);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(message);
   }
 
   const org = await db.select().from(orgs).where(eq(orgs.id, orgId)).get();
@@ -570,7 +547,7 @@ orgsRoute.post("/:slug/members", authMiddleware, async (c) => {
     if (message.includes("UNIQUE") || message.includes("unique")) {
       return c.json({ error: "User is already a member" }, 409);
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(message);
   }
 
   return c.json({ ok: true }, 201);
@@ -794,12 +771,13 @@ orgsRoute.get("/:slug/papers", async (c) => {
   );
 
   const baseFilters = [eq(paperOrgs.orgId, org.id), visibilityCondition];
+  const escapedVenueQuery = venueQuery ? escapeLikeLiteral(venueQuery) : null;
 
   let effectiveYear = requestedYear;
   const latestYearFilters = [...baseFilters];
-  if (venueQuery) {
+  if (escapedVenueQuery) {
     latestYearFilters.push(
-      sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`,
+      sql`${papers.venue} COLLATE NOCASE LIKE '%' || ${escapedVenueQuery} || '%' ESCAPE '\\'`,
     );
   }
   if (categoryFilter) {
@@ -817,9 +795,9 @@ orgsRoute.get("/:slug/papers", async (c) => {
   }
 
   const finalFilters = [...baseFilters];
-  if (venueQuery) {
+  if (escapedVenueQuery) {
     finalFilters.push(
-      sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`,
+      sql`${papers.venue} COLLATE NOCASE LIKE '%' || ${escapedVenueQuery} || '%' ESCAPE '\\'`,
     );
   }
   if (categoryFilter) {
@@ -889,8 +867,8 @@ orgsRoute.get("/:slug/papers", async (c) => {
         .where(
           and(
             ...baseFilters,
-            venueQuery
-              ? sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`
+            escapedVenueQuery
+              ? sql`${papers.venue} COLLATE NOCASE LIKE '%' || ${escapedVenueQuery} || '%' ESCAPE '\\'`
               : undefined,
             categoryFilter ? eq(papers.category, categoryFilter) : undefined,
             isNotNull(papers.year),
@@ -930,8 +908,8 @@ orgsRoute.get("/:slug/papers", async (c) => {
           and(
             ...baseFilters,
             effectiveYear !== null ? eq(papers.year, effectiveYear) : undefined,
-            venueQuery
-              ? sql`${papers.venue} LIKE ${`%${escapeLikeLiteral(venueQuery)}%`} ESCAPE '\\'`
+            escapedVenueQuery
+              ? sql`${papers.venue} COLLATE NOCASE LIKE '%' || ${escapedVenueQuery} || '%' ESCAPE '\\'`
               : undefined,
             isNotNull(papers.category),
           ),
@@ -1043,7 +1021,7 @@ orgsRoute.post("/:slug/papers", authMiddleware, async (c) => {
         409,
       );
     }
-    throw err;
+    throw err instanceof Error ? err : new Error(message);
   }
 
   return c.json({ ok: true }, 201);

@@ -45,6 +45,28 @@ describe("NewOrgPage", () => {
     authState = { user: { id: "user-1" }, loading: false };
   });
 
+  it("updates the description character counter and keeps it associated with the textarea", () => {
+    render(<NewOrgPage />);
+
+    const description = screen.getByLabelText(/説明/i);
+    const counter = screen.getByText("0/500");
+
+    expect(description).toHaveAttribute(
+      "aria-describedby",
+      "org-description-counter",
+    );
+    expect(counter).toHaveAttribute("id", "org-description-counter");
+    expect(counter).toHaveClass("text-gray-500");
+
+    fireEvent.change(description, { target: { value: "abc" } });
+
+    expect(screen.getByText("3/500")).toBeInTheDocument();
+
+    fireEvent.change(description, { target: { value: "x".repeat(500) } });
+
+    expect(screen.getByText("500/500")).toHaveClass("text-red-600");
+  });
+
   it("checks slug availability and creates an org", async () => {
     vi.useFakeTimers();
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
@@ -79,12 +101,56 @@ describe("NewOrgPage", () => {
     vi.useRealTimers();
     fireEvent.click(screen.getByRole("button", { name: "作成" }));
 
-    expect(screen.getByRole("button", { name: /作成中/ })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/orgs/research-lab");
+    });
+  });
+
+  it("shows a spinner while creating an org", async () => {
+    vi.useFakeTimers();
+    let resolveCreate!: (value: Response) => void;
+    vi.mocked(apiFetch).mockImplementation((url, init) => {
+      if (url === "/api/orgs/research-lab") {
+        return Promise.resolve(new Response("{}", { status: 404 }));
+      }
+
+      if (url === "/api/orgs" && init?.method === "POST") {
+        return new Promise((resolve) => {
+          resolveCreate = resolve;
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected request: ${String(url)}`));
+    });
+
+    const { container } = render(<NewOrgPage />);
+
+    fireEvent.change(screen.getByLabelText(/組織名/i), {
+      target: { value: "Research Lab" },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("✓ 使用可能")).toBeInTheDocument();
+
+    vi.useRealTimers();
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+
     expect(
-      screen
-        .getByRole("button", { name: /作成中/ })
-        .querySelector(".animate-spin"),
+      await screen.findByRole("button", { name: "作成中..." }),
+    ).toBeDisabled();
+    expect(
+      container.querySelector('[aria-hidden="true"].animate-spin'),
     ).toBeInTheDocument();
+
+    resolveCreate(
+      new Response(JSON.stringify({ org: { slug: "research-lab" } }), {
+        status: 201,
+      }),
+    );
 
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith("/orgs/research-lab");

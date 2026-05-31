@@ -16,8 +16,8 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "next": "16.2.6",
-    "react": "19.2.5",
-    "react-dom": "19.2.5",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
     "react-markdown": "^10.1.0",
     "react-pdf": "^10.4.1",
     "rehype-highlight": "^7.0.2",
@@ -31,22 +31,24 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^20",
-    "@types/react": "^19",
+    "@types/react": "^19.2.15",
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^10",
     "eslint-config-next": "16.2.6",
     "jsdom": "^27.0.1",
-    "postcss": "^8.5.12",
+    "postcss": "^8.5.15",
     "tailwindcss": "^4.2.3",
     "typescript": "^6",
     "vitest": "^4.1.5"
   },
   "overrides": {
+    "brace-expansion": "5.0.6",
     "next": {
       "postcss": "8.5.12"
     },
-    "postcss": "$postcss"
+    "postcss": "$postcss",
+    "ws": "8.20.1"
   },
   "license": "MIT"
 }

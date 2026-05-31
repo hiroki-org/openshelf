@@ -39,6 +39,10 @@ type OrgState = {
   }>;
 };
 
+type OrgApiMockOptions = {
+  removePaper?: (paperId: string) => Promise<Response> | Response;
+};
+
 vi.mock("@/components/auth-provider", () => ({
   useAuth: () => authState,
 }));
@@ -73,12 +77,18 @@ function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
 }
 
-function setupOrgApiMock(state: OrgState) {
+function setupOrgApiMock(state: OrgState, options: OrgApiMockOptions = {}) {
   const userSearchResults = [
     {
       id: "user-3",
       name: "alicecat",
       displayName: "Alice Candidate",
+      avatarUrl: null,
+    },
+    {
+      id: "user-4",
+      name: "fallbackalice",
+      displayName: null,
       avatarUrl: null,
     },
   ];
@@ -188,8 +198,12 @@ function setupOrgApiMock(state: OrgState) {
       return jsonResponse({ ok: true });
     }
 
-    if (url === "/api/orgs/demo-org/papers/paper-2" && method === "DELETE") {
-      state.papers = state.papers.filter((paper) => paper.id !== "paper-2");
+    if (url.startsWith("/api/orgs/demo-org/papers/") && method === "DELETE") {
+      const paperId = decodeURIComponent(url.split("/").pop() ?? "");
+      if (options.removePaper) {
+        return options.removePaper(paperId);
+      }
+      state.papers = state.papers.filter((paper) => paper.id !== paperId);
       return jsonResponse({ ok: true });
     }
 
@@ -295,6 +309,14 @@ describe("OrgSettingsPage", () => {
           avatarUrl: null,
           githubId: "bob",
         },
+        {
+          userId: "member-3",
+          role: "member",
+          name: "charlie",
+          displayName: null,
+          avatarUrl: null,
+          githubId: "charlie",
+        },
       ],
       papers: [
         {
@@ -320,8 +342,15 @@ describe("OrgSettingsPage", () => {
       "li",
     );
     expect(candidateRow).not.toBeNull();
+    expect(
+      screen.getByRole("button", {
+        name: "fallbackaliceをメンバーに追加",
+      }),
+    ).toBeInTheDocument();
     fireEvent.click(
-      within(candidateRow!).getByRole("button", { name: "追加" }),
+      within(candidateRow!).getByRole("button", {
+        name: "Alice Candidateをメンバーに追加",
+      }),
     );
 
     await waitFor(() => {
@@ -330,10 +359,25 @@ describe("OrgSettingsPage", () => {
 
     const bobRow = screen.getByText("Bob").closest("li");
     expect(bobRow).not.toBeNull();
+    const charlieRow = screen.getByText("charlie").closest("li");
+    expect(charlieRow).not.toBeNull();
+    expect(
+      within(charlieRow!).getByRole("combobox", {
+        name: "charlieの権限を変更",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(charlieRow!).getByRole("button", {
+        name: "charlieをメンバーから削除",
+      }),
+    ).toBeInTheDocument();
 
-    fireEvent.change(within(bobRow!).getByRole("combobox"), {
-      target: { value: "admin" },
-    });
+    fireEvent.change(
+      within(bobRow!).getByRole("combobox", { name: "Bobの権限を変更" }),
+      {
+        target: { value: "admin" },
+      },
+    );
 
     await waitFor(() => {
       expect(apiFetch).toHaveBeenCalledWith(
@@ -345,14 +389,18 @@ describe("OrgSettingsPage", () => {
       );
     });
 
-    fireEvent.click(within(bobRow!).getByRole("button", { name: "削除" }));
+    fireEvent.click(
+      within(bobRow!).getByRole("button", {
+        name: "Bobをメンバーから削除",
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.queryByText("Bob")).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "論文" }));
-    fireEvent.change(screen.getByLabelText("論文検索"), {
+    fireEvent.click(screen.getByRole("button", { name: "成果物" }));
+    fireEvent.change(screen.getByLabelText("成果物検索"), {
       target: { value: "tr" },
     });
 
@@ -361,7 +409,9 @@ describe("OrgSettingsPage", () => {
     ).closest("li");
     expect(paperCandidateRow).not.toBeNull();
     fireEvent.click(
-      within(paperCandidateRow!).getByRole("button", { name: "追加" }),
+      within(paperCandidateRow!).getByRole("button", {
+        name: "Transformer Tricksを組織に追加",
+      }),
     );
 
     await waitFor(() => {
@@ -371,7 +421,11 @@ describe("OrgSettingsPage", () => {
     const paperRow = screen.getByText("Transformer Tricks").closest("li");
     expect(paperRow).not.toBeNull();
 
-    fireEvent.click(within(paperRow!).getByRole("button", { name: "解除" }));
+    fireEvent.click(
+      within(paperRow!).getByRole("button", {
+        name: "Transformer Tricksの紐づけを解除",
+      }),
+    );
 
     await waitFor(() => {
       expect(screen.queryByText("Transformer Tricks")).not.toBeInTheDocument();
@@ -411,6 +465,102 @@ describe("OrgSettingsPage", () => {
 
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith("/");
+    });
+  });
+
+  it("shows API errors when unlinking an org deliverable fails", async () => {
+    setupOrgApiMock(
+      {
+        org: {
+          id: "org-1",
+          slug: "demo-org",
+          name: "Demo Org",
+          description: null,
+        },
+        members: [
+          {
+            userId: "owner-1",
+            role: "owner",
+            name: "owner",
+            displayName: "Owner",
+            avatarUrl: null,
+            githubId: "owner",
+          },
+        ],
+        papers: [
+          {
+            id: "paper-1",
+            title: "Existing Paper",
+            visibility: "public",
+            year: 2025,
+            venue: "Conf",
+          },
+        ],
+      },
+      {
+        removePaper: () => jsonResponse({ error: "解除できません" }, 500),
+      },
+    );
+
+    initialTab = "papers";
+    render(<OrgSettingsPage />);
+
+    await screen.findByRole("heading", { name: "Demo Org — 設定" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Existing Paperの紐づけを解除" }),
+    );
+
+    await waitFor(() => {
+      expect(alert).toHaveBeenCalledWith("解除できません");
+    });
+  });
+
+  it("shows network errors when unlinking an org deliverable throws", async () => {
+    setupOrgApiMock(
+      {
+        org: {
+          id: "org-1",
+          slug: "demo-org",
+          name: "Demo Org",
+          description: null,
+        },
+        members: [
+          {
+            userId: "owner-1",
+            role: "owner",
+            name: "owner",
+            displayName: "Owner",
+            avatarUrl: null,
+            githubId: "owner",
+          },
+        ],
+        papers: [
+          {
+            id: "paper-1",
+            title: "Existing Paper",
+            visibility: "public",
+            year: 2025,
+            venue: "Conf",
+          },
+        ],
+      },
+      {
+        removePaper: () => {
+          throw new Error("network");
+        },
+      },
+    );
+
+    initialTab = "papers";
+    render(<OrgSettingsPage />);
+
+    await screen.findByRole("heading", { name: "Demo Org — 設定" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Existing Paperの紐づけを解除" }),
+    );
+
+    await waitFor(() => {
+      expect(alert).toHaveBeenCalledWith("ネットワークエラー");
     });
   });
 

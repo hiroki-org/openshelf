@@ -41,14 +41,12 @@ describe("FeedButton", () => {
     expect(screen.getByRole("textbox", { name: "フィード URL" })).toHaveValue(
       "https://api.example/feed.xml",
     );
-    expect(screen.getByRole("link", { name: "開く" })).toHaveAttribute(
-      "href",
-      "https://api.example/feed.xml",
-    );
-    expect(screen.getByRole("link", { name: "開く" })).toHaveAttribute(
-      "target",
-      "_blank",
-    );
+    expect(
+      screen.getByRole("link", { name: "フィードを新しいタブで開く" }),
+    ).toHaveAttribute("href", "https://api.example/feed.xml");
+    expect(
+      screen.getByRole("link", { name: "フィードを新しいタブで開く" }),
+    ).toHaveAttribute("target", "_blank");
   });
 
   it("moves focus into the dialog when it opens", async () => {
@@ -89,7 +87,9 @@ describe("FeedButton", () => {
     const textbox = await screen.findByRole("textbox", {
       name: "フィード URL",
     });
-    const link = screen.getByRole("link", { name: "開く" });
+    const link = screen.getByRole("link", {
+      name: "フィードを新しいタブで開く",
+    });
 
     textbox.focus();
     fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
@@ -112,7 +112,11 @@ describe("FeedButton", () => {
     render(<FeedButton url="https://api.example/feed.xml" />);
 
     fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
-    fireEvent.click(screen.getByRole("button", { name: "コピー" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "フィードURLをクリップボードにコピー",
+      }),
+    );
 
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
@@ -127,7 +131,11 @@ describe("FeedButton", () => {
 
     render(<FeedButton url="https://api.example/feed.xml" />);
     fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
-    fireEvent.click(screen.getByRole("button", { name: "コピー" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "フィードURLをクリップボードにコピー",
+      }),
+    );
 
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith(
@@ -147,7 +155,11 @@ describe("FeedButton", () => {
 
     render(<FeedButton url="https://api.example/feed.xml" />);
     fireEvent.click(screen.getByRole("button", { name: "📡 Feed" }));
-    fireEvent.click(screen.getByRole("button", { name: "コピー" }));
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "フィードURLをクリップボードにコピー",
+      }),
+    );
 
     await waitFor(() => {
       expect(toastError).toHaveBeenCalledWith(
@@ -200,5 +212,17 @@ describe("FeedButton", () => {
     expect(screen.getByRole("button", { name: "📡 Feed" })).toHaveClass(
       "rounded-md",
     );
+  });
+
+  it("supports a custom ariaLabel prop for list contexts", () => {
+    render(
+      <FeedButton
+        url="https://api.example/feed.xml"
+        ariaLabel="論文AのフィードURLを表示"
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "論文AのフィードURLを表示" }),
+    ).toBeInTheDocument();
   });
 });

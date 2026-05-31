@@ -92,8 +92,39 @@ describe("orgs routes", () => {
         env as any,
       );
       expect(res.status).toBe(500);
-      const text = await res.text();
-      expect(text).toContain("Internal Server Error");
+      await expect(res.json()).resolves.toEqual({ error: "Internal Server Error" });
+    });
+
+    it("wraps non-Error insert failures", async () => {
+      const token = await createTestJWT({
+        sub: "user-1",
+        githubId: "123",
+        name: "Tester",
+      });
+
+      mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
+
+      mockDb.insert = vi.fn().mockImplementationOnce(() => ({
+        values: vi.fn().mockRejectedValue("Some other DB error"),
+      }));
+
+      const app = await createTestApp();
+      const env = createTestEnv();
+
+      const res = await app.request(
+        "http://localhost/api/orgs",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: "Lab", slug: "lab" }),
+        },
+        env as any,
+      );
+      expect(res.status).toBe(500);
+      await expect(res.json()).resolves.toEqual({ error: "Internal Server Error" });
     });
 
     it("returns 409 for UNIQUE constraint violation race condition", async () => {
@@ -445,7 +476,7 @@ describe("orgs routes", () => {
 
       expect(res.status).toBe(400);
       await expect(res.json()).resolves.toEqual({
-        error: "slug must be 3–40 characters",
+        error: "slug must be 3-40 characters",
       });
     });
 
@@ -901,6 +932,42 @@ describe("orgs routes", () => {
       expect(res.status).toBe(500);
     });
 
+    it("wraps non-Error member insert failures", async () => {
+      const token = await createTestJWT({
+        sub: "user-1",
+        githubId: "123",
+        name: "Tester",
+      });
+      queueSelectResponses([
+        { getResult: { id: "org-1", slug: "my-lab" } },
+        { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
+        { getResult: { id: "user-2" } },
+        { getResult: null },
+      ]);
+
+      mockDb.insert = vi.fn().mockImplementationOnce(() => ({
+        values: vi.fn().mockRejectedValue("Some other DB error"),
+      }));
+
+      const app = await createTestApp();
+      const env = createTestEnv();
+
+      const res = await app.request(
+        "http://localhost/api/orgs/my-lab/members",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId: "user-2", role: "member" }),
+        },
+        env as any,
+      );
+
+      expect(res.status).toBe(500);
+    });
+
     it("returns 403 without auth (CSRF blocks before auth middleware)", async () => {
       const app = await createTestApp();
       const env = createTestEnv();
@@ -1323,6 +1390,52 @@ describe("orgs routes", () => {
 
       mockDb.insert = vi.fn().mockReturnValueOnce({
         values: vi.fn().mockRejectedValueOnce(new Error("Some other DB error")),
+      });
+
+      const consoleErrorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+
+      const app = await createTestApp();
+      const env = createTestEnv();
+
+      let res;
+      try {
+        res = await app.request(
+          "http://localhost/api/orgs/my-lab/papers",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ paperId: "paper-1" }),
+          },
+          env as any,
+        );
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+
+      expect(res.status).toBe(500);
+    });
+
+    it("wraps non-Error paper association failures", async () => {
+      const token = await createTestJWT({
+        sub: "user-1",
+        githubId: "123",
+        name: "Tester",
+      });
+      queueSelectResponses([
+        { getResult: { id: "org-1", slug: "my-lab" } },
+        { getResult: { id: "paper-1", title: "Paper" } },
+        { getResult: { orgId: "org-1", userId: "user-1", role: "admin" } },
+        { getResult: null },
+        { getResult: null },
+      ]);
+
+      mockDb.insert = vi.fn().mockReturnValueOnce({
+        values: vi.fn().mockRejectedValueOnce("Some other DB error"),
       });
 
       const consoleErrorSpy = vi
@@ -2211,6 +2324,27 @@ describe("orgs routes", () => {
       expect(res.status).toBe(400);
       const body = (await res.json()) as any;
       expect(body.error).toContain("last admin");
+    });
+  });
+
+  describe("GET /api/orgs/:slug/papers algorithmic DoS prevention", () => {
+    it("escapes wildcard characters correctly in papers query endpoint", async () => {
+        const app = await createTestApp();
+        const env = createTestEnv();
+
+        queueSelectResponses([
+            { getResult: { id: "org-1", slug: "test" } },
+            { getResult: { id: "user-1", role: "admin" } },
+            { allResult: [] }
+        ]);
+
+        const res = await app.request(
+            "http://localhost/api/orgs/test/papers?venue=%25%5C_", // %\_
+            {},
+            env as any
+        );
+
+        expect(res.status).toBe(200);
     });
   });
 });

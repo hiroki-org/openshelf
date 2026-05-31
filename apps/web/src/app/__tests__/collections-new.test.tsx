@@ -45,6 +45,35 @@ describe("NewCollectionPage", () => {
     authState = { user: { id: "user-1" }, loading: false };
   });
 
+  it("updates name and description counters with consistent warning thresholds", () => {
+    render(<NewCollectionPage />);
+
+    const name = screen.getByLabelText("name");
+    const description = screen.getByLabelText("description");
+
+    expect(name).toHaveAttribute("aria-describedby", "name-counter");
+    expect(description).toHaveAttribute("aria-describedby", "description-counter");
+    expect(screen.getByText("0/100")).toHaveAttribute("id", "name-counter");
+    expect(screen.getByText("0/500")).toHaveAttribute(
+      "id",
+      "description-counter",
+    );
+
+    fireEvent.change(name, { target: { value: "x".repeat(89) } });
+    expect(screen.getByText("89/100")).toHaveClass("text-gray-500");
+
+    fireEvent.change(name, { target: { value: "x".repeat(90) } });
+    expect(screen.getByText("90/100")).toHaveClass("text-red-500");
+    expect(screen.getByText("90/100")).toHaveClass("dark:text-red-400");
+
+    fireEvent.change(description, { target: { value: "x".repeat(449) } });
+    expect(screen.getByText("449/500")).toHaveClass("text-gray-500");
+
+    fireEvent.change(description, { target: { value: "x".repeat(450) } });
+    expect(screen.getByText("450/500")).toHaveClass("text-red-500");
+    expect(screen.getByText("450/500")).toHaveClass("dark:text-red-400");
+  });
+
   it("slugifies the name, checks availability, and creates a user collection", async () => {
     vi.useFakeTimers();
     vi.mocked(apiFetch).mockImplementation(async (url, init) => {
@@ -82,12 +111,60 @@ describe("NewCollectionPage", () => {
     vi.useRealTimers();
     fireEvent.click(screen.getByRole("button", { name: "作成" }));
 
-    expect(screen.getByRole("button", { name: /作成中/ })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(push).toHaveBeenCalledWith("/users/user-1/c/lab-picks");
+    });
+  });
+
+  it("shows a spinner while creating a collection", async () => {
+    vi.useFakeTimers();
+    let resolveCreate!: (value: Response) => void;
+    vi.mocked(apiFetch).mockImplementation((url, init) => {
+      if (url === "/api/users/user-1/collections") {
+        return Promise.resolve(
+          new Response(JSON.stringify({ collections: [] }), {
+            status: 200,
+          }),
+        );
+      }
+
+      if (url === "/api/collections" && init?.method === "POST") {
+        return new Promise((resolve) => {
+          resolveCreate = resolve;
+        });
+      }
+
+      return Promise.reject(new Error(`Unexpected request: ${String(url)}`));
+    });
+
+    const { container } = render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Lab Picks" },
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(400);
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText("✓ 使用可能")).toBeInTheDocument();
+
+    vi.useRealTimers();
+    fireEvent.click(screen.getByRole("button", { name: "作成" }));
+
     expect(
-      screen
-        .getByRole("button", { name: /作成中/ })
-        .querySelector(".animate-spin"),
+      await screen.findByRole("button", { name: "作成中..." }),
+    ).toBeDisabled();
+    expect(
+      container.querySelector('[aria-hidden="true"].animate-spin'),
     ).toBeInTheDocument();
+
+    resolveCreate(
+      new Response(JSON.stringify({ collection: { slug: "lab-picks" } }), {
+        status: 201,
+      }),
+    );
 
     await waitFor(() => {
       expect(push).toHaveBeenCalledWith("/users/user-1/c/lab-picks");

@@ -1,7 +1,15 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import InvitesPage from "../page";
 import { apiFetch } from "@/lib/api";
+import { toast } from "@/components/toast";
 
 const push = vi.fn();
 type AuthState = {
@@ -17,6 +25,13 @@ vi.mock("@/components/auth-provider", () => ({
 
 vi.mock("@/lib/api", () => ({
   apiFetch: vi.fn(),
+}));
+
+vi.mock("@/components/toast", () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -144,6 +159,113 @@ describe("InvitesPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText("拒否済み")).toBeInTheDocument();
+    });
+  });
+
+  it("keeps independent busy states for simultaneous invite responses", async () => {
+    let resolveFirst!: (value: Response) => void;
+    let resolveSecond!: (value: Response) => void;
+
+    vi.mocked(apiFetch).mockImplementation((url, init) => {
+      if (url === "/api/invites/received") {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              invites: [
+                {
+                  id: "invite-1",
+                  paperId: "paper-1",
+                  paperTitle: "First paper",
+                  inviterId: "user-2",
+                  inviterName: "Bob",
+                  status: "pending",
+                  createdAt: "2026-03-01T00:00:00Z",
+                },
+                {
+                  id: "invite-2",
+                  paperId: "paper-2",
+                  paperTitle: "Second paper",
+                  inviterId: "user-3",
+                  inviterName: "Alice",
+                  status: "pending",
+                  createdAt: "2026-03-02T00:00:00Z",
+                },
+              ],
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+
+      if (url === "/api/invites/invite-1" && init?.method === "PATCH") {
+        return new Promise<Response>((resolve) => {
+          resolveFirst = resolve;
+        });
+      }
+
+      if (url === "/api/invites/invite-2" && init?.method === "PATCH") {
+        return new Promise<Response>((resolve) => {
+          resolveSecond = resolve;
+        });
+      }
+
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<InvitesPage />);
+
+    const firstItem = (await screen.findByText("First paper")).closest("li");
+    const secondItem = screen.getByText("Second paper").closest("li");
+
+    expect(firstItem).not.toBeNull();
+    expect(secondItem).not.toBeNull();
+
+    const firstAccept = within(firstItem!).getByRole("button", {
+      name: "承認",
+    });
+    const firstDecline = within(firstItem!).getByRole("button", {
+      name: "拒否",
+    });
+
+    fireEvent.click(firstAccept);
+
+    await waitFor(() => {
+      expect(firstAccept).toBeDisabled();
+    });
+    expect(firstDecline).toBeDisabled();
+    expect(firstAccept).toHaveAttribute("aria-busy", "true");
+    expect(firstAccept).toHaveAccessibleName("承認");
+
+    const secondDecline = within(secondItem!).getByRole("button", {
+      name: "拒否",
+    });
+
+    fireEvent.click(secondDecline);
+
+    await waitFor(() => {
+      expect(secondDecline).toBeDisabled();
+    });
+    expect(secondDecline).toHaveAttribute("aria-busy", "true");
+    expect(secondDecline).toHaveAccessibleName("拒否");
+    expect(firstAccept).toBeDisabled();
+
+    await act(async () => {
+      resolveSecond(new Response("{}", { status: 200 }));
+    });
+
+    await waitFor(() => {
+      expect(within(secondItem!).getByText("拒否済み")).toBeInTheDocument();
+      expect(toast.success).toHaveBeenCalledWith("招待を拒否しました");
+    });
+    expect(firstAccept).toBeDisabled();
+
+    await act(async () => {
+      resolveFirst(new Response("{}", { status: 200 }));
+    });
+
+    await waitFor(() => {
+      expect(within(firstItem!).getByText("承認済み")).toBeInTheDocument();
+      expect(toast.success).toHaveBeenCalledWith("招待を承認しました");
     });
   });
 });

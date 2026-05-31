@@ -71,6 +71,10 @@ type DeleteBatchErrorInfo = {
     error: string;
 };
 
+function formatCaughtError(error: unknown): string {
+    return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+}
+
 function formatDateKey(date: Date): string {
     return date.toISOString().slice(0, 10);
 }
@@ -133,13 +137,13 @@ async function deleteKeysInBatches(
             try {
                 await bucket.delete(chunk);
             } catch (error) {
-                if (!onChunkError) throw error;
+                if (!onChunkError) throw error instanceof Error ? error : new Error(String(error));
                 onChunkError({
                     chunkStart,
                     chunkEndExclusive: chunkStart + chunk.length,
                     chunkSize: chunk.length,
                     chunkSample: chunk.slice(0, 3),
-                    error: error instanceof Error ? error.message : String(error),
+                    error: formatCaughtError(error),
                 });
             }
         },
@@ -159,9 +163,6 @@ function isBotUserAgent(userAgent: string | undefined): boolean {
 
 function getClientIp(c: Context<{ Bindings: Env; Variables: Variables }>): string {
     return c.req.header("CF-Connecting-IP")
-        ?? c.req.header("cf-connecting-ip")
-        ?? c.req.header("X-Forwarded-For")?.split(",")[0]?.trim()
-        ?? c.req.header("x-forwarded-for")?.split(",")[0]?.trim()
         ?? "unknown-ip";
 }
 
@@ -492,14 +493,19 @@ type ParsedMetadata = {
 };
 
 function parseAndValidateMetadata(c: Context, metadataStr: string): { errorResponse?: Response; data?: ParsedMetadata } {
-    let meta: Record<string, unknown>;
+    let meta: unknown;
     try {
         meta = JSON.parse(metadataStr);
     } catch {
         return { errorResponse: c.json({ error: "Invalid metadata JSON" }, 400) };
     }
+    if (meta === null || typeof meta !== "object" || Array.isArray(meta)) {
+        return { errorResponse: c.json({ error: "Invalid metadata JSON" }, 400) };
+    }
 
-    const title = meta.title as string | undefined;
+    const metadata = meta as Record<string, unknown>;
+
+    const title = metadata.title as string | undefined;
     if (
         !title ||
         typeof title !== "string" ||
@@ -508,31 +514,31 @@ function parseAndValidateMetadata(c: Context, metadataStr: string): { errorRespo
     )
         return { errorResponse: c.json({ error: `title is required (1-${MAX_TITLE_LENGTH} chars)` }, 400) };
 
-    const vis = (meta.visibility as string) || "private";
+    const vis = (metadata.visibility as string) || "private";
     if (!VALID_VISIBILITY.includes(vis))
         return { errorResponse: c.json({ error: "Invalid visibility" }, 400) };
 
-    const venueType = (meta.venueType as string | null | undefined) ?? null;
+    const venueType = (metadata.venueType as string | null | undefined) ?? null;
     if (venueType !== null && !(VALID_VENUE_TYPES as readonly string[]).includes(venueType))
         return { errorResponse: c.json({ error: "Invalid venueType" }, 400) };
 
-    const category = (meta.category as string | null | undefined) ?? null;
+    const category = (metadata.category as string | null | undefined) ?? null;
     if (category !== null && !(VALID_CATEGORIES as readonly string[]).includes(category))
         return { errorResponse: c.json({ error: "Invalid category" }, 400) };
 
-    const externalUrl = (meta.externalUrl as string) || null;
+    const externalUrl = (metadata.externalUrl as string) || null;
     if (externalUrl && !isValidUrlScheme(externalUrl)) {
         return { errorResponse: c.json({ error: "Invalid externalUrl scheme (only http/https allowed)" }, 400) };
     }
 
     if (
-        meta.showViewCount !== undefined
-        && typeof meta.showViewCount !== "boolean"
+        metadata.showViewCount !== undefined
+        && typeof metadata.showViewCount !== "boolean"
     ) {
         return { errorResponse: c.json({ error: "showViewCount must be a boolean" }, 400) };
     }
 
-    const orgId = meta.orgId as string | undefined;
+    const orgId = metadata.orgId as string | undefined;
     if (vis === "org_only" && !orgId) {
         return { errorResponse: c.json({ error: "orgId is required for org_only visibility" }, 400) };
     }
@@ -540,17 +546,17 @@ function parseAndValidateMetadata(c: Context, metadataStr: string): { errorRespo
     return {
         data: {
             title: title.trim(),
-            abstract: (meta.abstract as string) || null,
+            abstract: (metadata.abstract as string) || null,
             visibility: vis as "public" | "org_only" | "private",
-            showViewCount: Boolean(meta.showViewCount),
-            language: (meta.language as string) || null,
+            showViewCount: Boolean(metadata.showViewCount),
+            language: (metadata.language as string) || null,
             externalUrl,
-            doi: (meta.doi as string) || null,
-            venue: (meta.venue as string) || null,
+            doi: (metadata.doi as string) || null,
+            venue: (metadata.venue as string) || null,
             venueType: venueType as VenueType | null,
-            year: meta.year ? Number(meta.year) : null,
+            year: metadata.year ? Number(metadata.year) : null,
             category: category as CategoryType | null,
-            tags: meta.tags ? JSON.stringify(meta.tags) : null,
+            tags: metadata.tags ? JSON.stringify(metadata.tags) : null,
             orgId,
         }
     };
@@ -708,7 +714,8 @@ papersRoute.post("/", authMiddleware, async (c) => {
             console.error("File upload errors:", {
                 errors: errors.map((e) => (e instanceof Error ? e.message : String(e))),
             });
-            throw errors[0] ?? new Error("An unknown upload error occurred.");
+            const firstError = errors[0];
+            throw firstError instanceof Error ? firstError : new Error(String(firstError) || "An unknown upload error occurred.");
         }
 
         await db.insert(papers).values(paperValues);
@@ -734,12 +741,26 @@ papersRoute.post("/", authMiddleware, async (c) => {
             })),
         );
     } catch (error) {
-        await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
-            // Ignore cleanup errors during rollback after a later failure.
-            console.error("Cleanup error (non-fatal, rollback continues):", info.error);
-        });
-        await db.delete(papers).where(eq(papers.id, paperId));
-        throw error;
+        try {
+            await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
+                // Ignore cleanup errors during rollback after a later failure.
+                console.error("Cleanup error (non-fatal, rollback continues):", info.error);
+            });
+        } catch (cleanupError) {
+            console.error(
+                "Cleanup error (non-fatal, rollback continues):",
+                `original=${formatCaughtError(error)} cleanup=${formatCaughtError(cleanupError)}`,
+            );
+        }
+        try {
+            await db.delete(papers).where(eq(papers.id, paperId));
+        } catch (cleanupError) {
+            console.error(
+                "Cleanup error (non-fatal, rollback continues):",
+                `original=${formatCaughtError(error)} cleanup=${formatCaughtError(cleanupError)}`,
+            );
+        }
+        throw error instanceof Error ? error : new Error(String(error));
     }
 
     return c.json({ paper: { id: paperId } }, 201);
@@ -1200,17 +1221,22 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
     let resolvedInviteeEmail: string | null = inviteeEmail;
 
     if (!resolvedInviteeId && resolvedInviteeEmail) {
-        const matchedUser = await db
-            .select({ id: users.id })
-            .from(users)
-            .where(eq(users.email, resolvedInviteeEmail))
-            .get();
-        if (matchedUser) {
-            if (matchedUser.id === userId) {
-                return c.json({ error: "Cannot invite yourself" }, 400);
+        try {
+            const matchedUser = await db
+                .select({ id: users.id })
+                .from(users)
+                .where(eq(users.email, resolvedInviteeEmail))
+                .get();
+            if (matchedUser) {
+                if (matchedUser.id === userId) {
+                    return c.json({ error: "Cannot invite yourself" }, 400);
+                }
+                resolvedInviteeId = matchedUser.id;
+                resolvedInviteeEmail = null;
             }
-            resolvedInviteeId = matchedUser.id;
-            resolvedInviteeEmail = null;
+        } catch (e: unknown) {
+            console.error("Failed to lookup invitee by email:", e);
+            return c.json({ error: "Internal server error" }, 500);
         }
     }
 

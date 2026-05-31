@@ -47,6 +47,30 @@ describe("MarkdownRenderer", () => {
     expect(img).toHaveClass("max-w-full rounded-md");
   });
 
+  it("handles image without src properly", () => {
+    const { container } = render(<MarkdownRenderer markdown="![Alt text]()" />);
+    expect(container.querySelector("img")).not.toBeInTheDocument();
+    expect(screen.queryByText("[Image: Alt text]")).not.toBeInTheDocument();
+  });
+
+  it("forwards the title attribute to the image component", () => {
+    render(
+      <MarkdownRenderer markdown='![Alt text](https://example.com/image.png "My Image Title")' />,
+    );
+    const img = screen.getByRole("img", { name: "Alt text" });
+    expect(img).toHaveAttribute("title", "My Image Title");
+  });
+
+  it("handles image without alt text properly", () => {
+    const { container } = render(
+      <MarkdownRenderer markdown="![](https://example.com/image.png)" />,
+    );
+    const img = container.querySelector("img");
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute("src", "https://example.com/image.png");
+    expect(img).toHaveAttribute("alt", "");
+  });
+
   it("renders inline code correctly", () => {
     render(<MarkdownRenderer markdown="Here is some `inline code`" />);
     const code = screen.getByText("inline code");
@@ -55,7 +79,7 @@ describe("MarkdownRenderer", () => {
   });
 
   it("renders code blocks with pre correctly", () => {
-    const markdown = "```javascript\nconsole.log('hello');\n```";
+    const markdown = "```javascript\nconst x = 1;\n```";
     const { container } = render(<MarkdownRenderer markdown={markdown} />);
     const pre = container.querySelector("pre");
     expect(pre).toBeInTheDocument();

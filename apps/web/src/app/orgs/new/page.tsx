@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
+const ORG_DESCRIPTION_MAX_LENGTH = 500;
 
 function slugify(text: string): string {
   return text
@@ -201,9 +202,22 @@ export default function NewOrgPage() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            maxLength={500}
+            maxLength={ORG_DESCRIPTION_MAX_LENGTH}
+            aria-describedby="org-description-counter"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
+          <div
+            id="org-description-counter"
+            aria-live="polite"
+            aria-atomic="true"
+            className={`mt-1 flex justify-end text-xs ${
+              description.length >= ORG_DESCRIPTION_MAX_LENGTH
+                ? "text-red-600 dark:text-red-400"
+                : "text-gray-500 dark:text-gray-400"
+            }`}
+          >
+            {description.length}/{ORG_DESCRIPTION_MAX_LENGTH}
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
@@ -216,19 +230,15 @@ export default function NewOrgPage() {
             slugStatus === "taken" ||
             slugStatus === "invalid"
           }
-          className="w-full rounded-md bg-gray-900 px-4 py-2.5 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-gray-900 px-4 py-2.5 text-sm text-white hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
         >
-          {submitting ? (
-            <span className="flex items-center justify-center gap-2">
-              <span
-                className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-                aria-hidden="true"
-              />
-              作成中...
-            </span>
-          ) : (
-            "作成"
+          {submitting && (
+            <span
+              aria-hidden="true"
+              className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+            />
           )}
+          {submitting ? "作成中..." : "作成"}
         </button>
       </form>
     </div>

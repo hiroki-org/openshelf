@@ -15,6 +15,13 @@
 ## 2026-05-11 - [Catching String Rejections]
 **Issue:** String exceptions were not handled, causing the app to return an Internal Server Error.
 **Learning:** `e instanceof Error` correctly identifies built-in errors, but doesn't handle `throw "error"`. It caused Hono to not correctly propagate a 500 status.
-**Prevention:** Handled by validating `e instanceof Error ? e.message : typeof e === 'string' ? e : "";` and throwing an error properly at the end `throw e instanceof Error ? e : new Error(String(e));`.
-## 2026-05-18 - [R2 Batch Deletion Handling] **Learning:** When mocking external dependencies like R2 bucket batch deletion, catching and logging the errors natively in the source using a try/catch ensures subsequent cleanup operations like database row deletion proceed cleanly. It also requires corresponding test updates to assert a successful status code instead of expecting the backend to explode (500). **Action:** Always consider the blast radius of unhandled external dependency failure during cleanups and encapsulate them safely.
-## 2026-05-28 - [R2 Batch Deletion PR Review] **Learning:** Reviewers noted that an existing pattern using the `onChunkError` callback for `deleteKeysInBatches` is preferred over an external `try/catch`. This provides chunk-specific contextual logging such as the keys that failed. **Action:** Prioritize reusing existing error-handling patterns or callbacks defined by utility functions to maintain codebase consistency.
+**Prevention:** Handle unknown thrown values by deriving a safe message for comparisons and always re-throwing an `Error` object, for example `throw e instanceof Error ? e : new Error(message);`.
+## 2026-05-15 - [IPスプーフィングの脆弱性]
+**Vulnerability:** X-Forwarded-For ヘッダーを使用した IP アドレスのフォールバック
+**Learning:** Cloudflare Workers 環境などでは CF-Connecting-IP が信頼できる IP アドレスのソースとなります。X-Forwarded-For にフォールバックすると、クライアントがヘッダーを偽装（スプーフィング）し、IP ベースのアクセス制御やレート制限を回避できる可能性があります。
+**Prevention:** 信頼できるロードバランサーや CDN が設定するヘッダー（例：CF-Connecting-IP）のみを使用し、クライアントから送信される可能性のあるヘッダー（例：X-Forwarded-For）へのフォールバックは避ける。
+
+## 2024-05-28 - [Hono Global Error Handling]
+**Vulnerability:** Unhandled exceptions in the Hono API routes can leak internal application details, such as stack traces, to the client via default 500 error responses.
+**Learning:** Returning raw Error objects or relying on Hono's default error handling without a custom `onError` hook exposes potentially sensitive debugging information.
+**Prevention:** Always define a global `app.onError((err, c) => { ... })` handler in the main application file (e.g., `apps/api/src/index.ts`) to intercept all unhandled exceptions, log a sanitized version of the error internally, and return a safe, generic JSON response to the user.

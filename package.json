@@ -18,13 +18,13 @@
   "devDependencies": {
     "@codspeed/vitest-plugin": "^5.4.0",
     "@eslint/js": "^9.39.4",
-    "@typescript-eslint/eslint-plugin": "^8.59.3",
+    "@typescript-eslint/eslint-plugin": "^8.60.0",
     "@typescript-eslint/parser": "^8.59.1",
-    "@vitest/coverage-v8": "^4.1.6",
+    "@vitest/coverage-v8": "^4.1.7",
     "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^10.3.0",
+    "eslint": "^10.4.0",
     "jsdom": "^27.4.0",
-    "postcss": "^8.5.12",
+    "postcss": "^8.5.15",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5"
   },
@@ -37,6 +37,7 @@
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.12"
     },
+    "brace-expansion": "5.0.6",
     "devalue": "^5.6.4",
     "flatted": "^3.4.2",
     "micromatch": {
@@ -46,7 +47,8 @@
     "next": {
       "postcss": "8.5.12"
     },
-    "postcss": "$postcss"
+    "postcss": "$postcss",
+    "ws": "8.20.1"
   },
   "license": "MIT"
 }
