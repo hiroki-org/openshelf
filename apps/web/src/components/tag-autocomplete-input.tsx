@@ -3,6 +3,7 @@
 import { apiFetch } from "@/lib/api";
 import { TAG_DELIMITER_PATTERN, splitTagInput } from "@/lib/tags";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Spinner } from "@/components/spinner";
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY_LENGTH = 2;
@@ -238,11 +239,14 @@ export function TagAutocompleteInput({
         </div>
       )}
 
-      {loading && (
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          候補を取得中...
-        </p>
-      )}
+      <div aria-live="polite" aria-atomic="true">
+        {loading && (
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+            <Spinner className="h-3 w-3" />
+            候補を取得中...
+          </p>
+        )}
+      </div>
     </div>
   );
 }
