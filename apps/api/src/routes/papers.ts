@@ -23,7 +23,6 @@ import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
 import { validateMagicNumbers } from "../utils/file";
 import { buildCitation, isCitationFormat } from "../utils/citation";
-import { formatCaughtError } from "../utils/errors";
 import pMap from "p-map";
 
 const papersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
@@ -71,6 +70,10 @@ type DeleteBatchErrorInfo = {
     chunkSample: string[];
     error: string;
 };
+
+function formatCaughtError(error: unknown): string {
+    return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+}
 
 function formatDateKey(date: Date): string {
     return date.toISOString().slice(0, 10);
@@ -741,7 +744,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
         try {
             await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
                 // Ignore cleanup errors during rollback after a later failure.
-                console.error("Cleanup error (non-fatal, rollback continues):", formatCaughtError(info.error));
+                console.error("Cleanup error (non-fatal, rollback continues):", info.error);
             });
         } catch (cleanupError) {
             console.error(
@@ -957,7 +960,7 @@ papersRoute.post("/:id/track", async (c) => {
             console.error("Failed to record paper track event", {
                 paperId,
                 event: payload.event,
-                error: formatCaughtError(error),
+                error: error instanceof Error ? error.message : String(error),
             });
         }),
     );
@@ -1232,7 +1235,7 @@ papersRoute.post("/:id/invites", authMiddleware, async (c) => {
                 resolvedInviteeEmail = null;
             }
         } catch (e: unknown) {
-            console.error("Failed to lookup invitee by email:", formatCaughtError(e));
+            console.error("Failed to lookup invitee by email:", e);
             return c.json({ error: "Internal server error" }, 500);
         }
     }
@@ -1352,7 +1355,9 @@ papersRoute.delete("/:id", authMiddleware, async (c) => {
         .all();
 
     const keys = files.map((f) => f.r2Key);
-    await deleteKeysInBatches(c.env.BUCKET, keys);
+    await deleteKeysInBatches(c.env.BUCKET, keys, (info) => {
+        console.error("R2 deletion failed (non-fatal, DB deletion continues):", info.error, info.chunkSample);
+    });
     await db.delete(papers).where(eq(papers.id, paperId));
 
     return c.json({ ok: true });

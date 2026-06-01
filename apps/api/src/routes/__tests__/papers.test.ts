@@ -1466,7 +1466,7 @@ describe("papers routes", () => {
           (c) => c[0] === "Failed to record paper track event",
         );
         if (!call) throw new Error("Log not found");
-        expect(call[1].error).toBe(`Error: ${trackError.message}`);
+        expect(call[1].error).toBe(trackError.message);
       });
     } finally {
       consoleErrorSpy.mockRestore();
@@ -1509,7 +1509,7 @@ describe("papers routes", () => {
           (c) => c[0] === "Failed to record paper track event",
         );
         if (!call) throw new Error("Log not found");
-        expect(call[1].error).toBe(String(trackError));
+        expect(call[1].error).toBe(trackError);
       });
     } finally {
       consoleErrorSpy.mockRestore();
@@ -1596,7 +1596,9 @@ describe("papers routes", () => {
       env as any,
     );
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(mockDb.delete).toHaveBeenCalled();
   });
 
   it("POST /api/papers/:id/track returns 404 when paper does not exist", async () => {
@@ -3686,7 +3688,7 @@ describe("Error handling and untested branches", () => {
       );
 
       expect(res.status).toBe(500);
-      await expect(res.text()).resolves.toBe("Internal Server Error");
+      await expect(res.json()).resolves.toEqual({ error: "Internal Server Error" });
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "File upload errors:",
         expect.objectContaining({
@@ -3767,8 +3769,10 @@ describe("Error handling and untested branches", () => {
       },
       env as any,
     );
-    expect(res.status).toBe(500); // Throws an error up instead of being captured transparently
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
     expect(fakeBucket.delete).toHaveBeenCalled();
+    expect(mockDb.delete).toHaveBeenCalled();
   });
 
   it("GET /api/papers/:id/stats handles invalid date ranges and 0 defaults", async () => {
@@ -4157,7 +4161,7 @@ describe("Error handling and untested branches", () => {
     );
 
     expect(res.status).toBe(500);
-    expect(await res.text()).toBe("Internal Server Error");
+    await expect(res.json()).resolves.toEqual({ error: "Internal Server Error" });
   });
 
   it("POST /api/papers/:id/track handles missing json payload", async () => {
