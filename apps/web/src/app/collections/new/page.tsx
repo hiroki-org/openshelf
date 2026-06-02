@@ -290,9 +290,14 @@ export default function NewCollectionPage() {
               setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
             }}
             maxLength={40}
+            aria-describedby="slug-status"
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
-          <p className="text-xs mt-1 text-gray-500">
+          <p
+            id="slug-status"
+            aria-live="polite"
+            className="text-xs mt-1 text-gray-500"
+          >
             {slugStatus === "checking" && "確認中..."}
             {slugStatus === "available" && "✓ 使用可能"}
             {slugStatus === "taken" && "✗ 使用済み"}
@@ -319,8 +324,6 @@ export default function NewCollectionPage() {
           <div className="flex justify-end mt-1">
             <span
               id="description-counter"
-              aria-live="polite"
-              aria-atomic="true"
               className={`text-xs ${counterClassName(description.length, COLLECTION_DESCRIPTION_MAX_LENGTH)}`}
             >
               {description.length}/{COLLECTION_DESCRIPTION_MAX_LENGTH}
