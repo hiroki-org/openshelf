@@ -239,10 +239,10 @@ export function TagAutocompleteInput({
         </div>
       )}
 
-      <div aria-live="polite" aria-atomic="true" className="min-h-[1.25rem]">
+      <div aria-live="polite" aria-atomic="true">
         {loading && (
           <p className="mt-1 flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-            <Spinner />
+            <Spinner className="h-3 w-3" />
             候補を取得中...
           </p>
         )}
