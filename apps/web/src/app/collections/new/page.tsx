@@ -11,23 +11,13 @@ function slugify(text: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
-    .slice(0, COLLECTION_SLUG_MAX_LENGTH);
+    .slice(0, 40);
 }
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
 const COLLECTION_NAME_MAX_LENGTH = 100;
-const COLLECTION_SLUG_MAX_LENGTH = 40;
 const COLLECTION_DESCRIPTION_MAX_LENGTH = 500;
 const COUNTER_WARNING_RATIO = 0.9;
-
-function slugStatusClassName(
-  status: "idle" | "checking" | "available" | "taken" | "invalid",
-): string {
-  if (status === "available") return "text-green-600 dark:text-green-400";
-  if (status === "taken" || status === "invalid")
-    return "text-red-500 dark:text-red-400";
-  return "text-gray-500 dark:text-gray-400";
-}
 
 function counterClassName(length: number, maxLength: number): string {
   return length >= Math.ceil(maxLength * COUNTER_WARNING_RATIO)
@@ -85,7 +75,7 @@ export default function NewCollectionPage() {
     }
     if (
       slug.length < 3 ||
-      slug.length > COLLECTION_SLUG_MAX_LENGTH ||
+      slug.length > 40 ||
       !SLUG_RE.test(slug) ||
       slug.includes("--")
     ) {
@@ -299,25 +289,19 @@ export default function NewCollectionPage() {
               setSlugManual(true);
               setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
             }}
-            maxLength={COLLECTION_SLUG_MAX_LENGTH}
+            maxLength={40}
             aria-describedby="slug-status"
-            aria-invalid={
-              slugStatus === "invalid" || slugStatus === "taken"
-                ? "true"
-                : undefined
-            }
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
           />
           <p
             id="slug-status"
             aria-live="polite"
-            className={`mt-1 text-xs ${slugStatusClassName(slugStatus)}`}
+            className="text-xs mt-1 text-gray-500"
           >
             {slugStatus === "checking" && "確認中..."}
             {slugStatus === "available" && "✓ 使用可能"}
             {slugStatus === "taken" && "✗ 使用済み"}
-            {slugStatus === "invalid" &&
-              `※ 3-${COLLECTION_SLUG_MAX_LENGTH}文字, 英小文字/数字/ハイフン`}
+            {slugStatus === "invalid" && "※ 3-40文字, 英小文字/数字/ハイフン"}
           </p>
         </div>
 
