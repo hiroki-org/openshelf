@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import {
     collectionPapers,
     collections,
