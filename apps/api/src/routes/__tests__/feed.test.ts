@@ -2690,4 +2690,387 @@ describe("feed routes", () => {
     const text = await res.text();
     expect(text).toContain("Matches Tag");
   });
+
+  it("handles parsing array properly where tags JSON parses fine but contains a single null that gets filtered and tag match is false and early return when paper.tags is undefined rather than null", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              // No tags property at all in the raw data although TS requires it normally, mock might omit it
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            } as any,
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("Paper 3");
+  });
+
+  it("handles parsing array properly where tags JSON parses fine but contains a single null that gets filtered and tag match is false and early return when paper.tags is completely omitted", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              // No tags property at all in the raw data although TS requires it normally, mock might omit it
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            } as any,
+            {
+              id: "paper-4",
+              title: "Paper 4",
+              abstract: "abstract 4",
+              category: "report",
+              tags: null,
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("Paper 3");
+  });
+
+  it("handles properly when `buildTagFilterCondition` processes undefined or empty space", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-1",
+              title: "Matches Tag",
+              abstract: "abstract 1",
+              category: "report",
+              tags: JSON.stringify(["React", "TypeScript"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-1",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=%20%20",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Matches Tag");
+  });
+
+  it("handles parsing array properly where tags JSON parses fine but contains a single null that gets filtered and tag match is false and early return when paper.tags is undefined rather than null (with valid string filter)", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              // No tags property at all in the raw data although TS requires it normally, mock might omit it completely
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            } as any,
+            {
+              id: "paper-4",
+              title: "Paper 4",
+              abstract: "abstract 4",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+            {
+              paperId: "paper-4",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("Paper 3");
+    expect(text).toContain("Paper 4");
+  });
+
+  it("handles parsing array properly where tags JSON parses fine but contains a single null that gets filtered and tag match is false and early return when paper.tags is completely omitted from the object structure", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              // Object literal without tags property
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            } as any,
+            {
+              id: "paper-4",
+              title: "Paper 4",
+              abstract: "abstract 4",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+            {
+              paperId: "paper-4",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("Paper 3");
+    expect(text).toContain("Paper 4");
+  });
+
+  it("handles parsing array properly where tags JSON parses fine but contains a single null that gets filtered and tag match is false and early return when paper.tags is completely omitted from the object structure and query has space tag filter", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              // Object literal without tags property
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            } as any,
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=%20%20",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Paper 3");
+  });
 });
