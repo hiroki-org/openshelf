@@ -289,6 +289,7 @@ export async function validateMagicNumbers(
       error instanceof TypeError ||
       (error instanceof DOMException && error.name === "InvalidStateError")
     ) {
+      console.error("Error validating magic numbers:", error);
       return false;
     }
     throw error;
