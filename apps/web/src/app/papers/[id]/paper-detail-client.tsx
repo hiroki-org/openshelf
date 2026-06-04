@@ -4,96 +4,26 @@ import { useAuth } from "@/components/auth-provider";
 import { toast } from "@/components/toast";
 import { apiFetch } from "@/lib/api";
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import dynamic from "next/dynamic";
 import { safePath } from "@/lib/sanitization";
-import {
-  getVisibilityBadge,
-  getInviteStatusBadge,
-  getRoleBadge,
-} from "@/lib/presentation";
 import { CiteButton } from "./cite-button";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import { BadgeSnippet } from "./badge-snippet";
-
-const PdfViewer = dynamic(
-  () => import("@/components/pdf-viewer").then((mod) => mod.PdfViewer),
-  { ssr: false },
-);
-
-type Paper = {
-  id: string;
-  title: string;
-  abstract: string | null;
-  description: string | null;
-  descriptionUpdatedAt: string | null;
-  visibility: string;
-  showViewCount: boolean;
-  publicViewCount: number | null;
-  publicDownloadCount: number | null;
-  externalUrl: string | null;
-  venue: string | null;
-  venueType: string | null;
-  year: number | null;
-  category: string | null;
-  tags: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-type PaperFile = {
-  id: string;
-  filename: string;
-  fileType: string;
-  sizeBytes: number;
-  mimeType: string | null;
-  downloadUrl: string;
-};
-
-type Author = {
-  userId: string;
-  role: string;
-  name: string;
-  displayName: string | null;
-  avatarUrl: string | null;
-};
-
-type Invite = {
-  id: string;
-  inviteeId: string | null;
-  inviteeName: string;
-  status: string;
-  createdAt: string;
-};
-
-type SearchUser = {
-  id: string;
-  name: string;
-  displayName: string | null;
-  avatarUrl: string | null;
-};
-
-type PreviewResponse = {
-  url: string;
-  mimeType: string;
-  filename: string;
-};
-
-type PaperStats = {
-  total: {
-    views: number;
-    downloads: number;
-    previews: number;
-  };
-  daily: Array<{
-    date: string;
-    views: number;
-    downloads: number;
-    previews: number;
-  }>;
-  days: 7 | 30 | 90 | 365;
-};
+import { PaperHeader } from "./components/paper-header";
+import { PaperAnalyticsSummary } from "./components/paper-analytics-summary";
+import { PaperStatsSection } from "./components/paper-stats-section";
+import { PaperFilesList } from "./components/paper-files-list";
+import { PaperAuthorsList } from "./components/paper-authors-list";
+import { PaperInviteDialog } from "./components/paper-invite-dialog";
+import { PaperPendingInvites } from "./components/paper-pending-invites";
+import {
+  Paper,
+  PaperFile,
+  Author,
+  Invite,
+  SearchUser,
+  PreviewResponse,
+  PaperStats,
+} from "./types";
 
 const isAbsoluteUrl = (url: string) => /^https?:\/\//i.test(url);
 
@@ -110,11 +40,6 @@ type PaperDetailClientProps = {
   paperId: string;
   siteBase: string;
 };
-
-function formatStatsDateLabel(date: string) {
-  const [, month, day] = date.split("-");
-  return `${Number(month)}/${Number(day)}`;
-}
 
 function formatCount(value: number | null | undefined): string {
   return new Intl.NumberFormat().format(value ?? 0);
@@ -548,84 +473,17 @@ export default function PaperDetailClient({
 
   const showExternalLink =
     paper.externalUrl && isValidExternalUrl(paper.externalUrl);
-  const summaryViews =
-    paper.showViewCount || !isAuthor
-      ? paper.publicViewCount
-      : (stats?.total.views ?? null);
-  const summaryDownloads =
-    paper.showViewCount || !isAuthor
-      ? paper.publicDownloadCount
-      : (stats?.total.downloads ?? null);
 
   return (
     <div className="max-w-3xl">
-      <div className="mb-6">
-        <Link
-          href="/"
-          className="text-sm text-blue-600 hover:underline dark:text-blue-400"
-        >
-          ← ダッシュボードに戻る
-        </Link>
-      </div>
+      <PaperHeader paper={paper} isAuthor={isAuthor} />
 
-      <div className="flex justify-between items-start mb-2">
-        <h1 className="text-2xl font-bold">{paper.title}</h1>
-        {isAuthor && (
-          <Link
-            href={`/papers/${paper.id}/edit`}
-            className="rounded-md bg-white px-3 py-1.5 text-sm font-medium text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-100 dark:ring-gray-700 dark:hover:bg-gray-700 shrink-0"
-          >
-            編集
-          </Link>
-        )}
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-sm text-gray-500 mb-6">
-        {(() => {
-          const badge = getVisibilityBadge(paper.visibility);
-          return (
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
-            >
-              {badge.label}
-            </span>
-          );
-        })()}
-        {paper.year && (
-          <span className="flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-            {paper.year}年
-          </span>
-        )}
-        {paper.venue && (
-          <span className="flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-            {paper.venue}
-          </span>
-        )}
-      </div>
-
-      {(paper.showViewCount || isAuthor) && (
-        <div className="mb-6 inline-flex items-end gap-4 rounded-2xl border border-blue-100 bg-blue-50/70 px-4 py-3 text-blue-950 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-blue-700 dark:text-blue-300">
-              Analytics
-            </p>
-            <p className="mt-1 text-sm text-blue-800/80 dark:text-blue-200/80">
-              {paper.showViewCount
-                ? "公開表示中の閲覧・ダウンロード数"
-                : "著者向けの閲覧・ダウンロード数"}
-            </p>
-          </div>
-          <p className="text-lg font-semibold tabular-nums">
-            👁️ {summaryViews === null ? "..." : formatCount(summaryViews)} views
-            {" · "}
-            📥{" "}
-            {summaryDownloads === null
-              ? "..."
-              : formatCount(summaryDownloads)}{" "}
-            downloads
-          </p>
-        </div>
-      )}
+      <PaperAnalyticsSummary
+        paper={paper}
+        isAuthor={isAuthor}
+        stats={stats}
+        formatCount={formatCount}
+      />
 
       {paper.abstract && (
         <div className="mb-6">
@@ -647,127 +505,14 @@ export default function PaperDetailClient({
       )}
 
       {isAuthor && (
-        <section className="mb-8 rounded-3xl border border-gray-200 bg-gray-50/70 p-5 dark:border-gray-800 dark:bg-gray-900/40">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
-                Author Stats
-              </p>
-              <h2 className="mt-2 text-lg font-semibold text-gray-950 dark:text-gray-50">
-                閲覧統計
-              </h2>
-            </div>
-            <p className="text-xs text-gray-500">
-              投稿者と共著者のみ閲覧できます
-            </p>
-          </div>
-
-          {statsLoading && (
-            <div className="mt-4 rounded-2xl bg-white p-4 text-sm text-gray-500 shadow-sm dark:bg-gray-950 dark:text-gray-400">
-              統計情報を読み込み中...
-            </div>
-          )}
-
-          {!statsLoading && statsError && (
-            <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
-              {statsError}
-            </div>
-          )}
-
-          {!statsLoading && stats && (
-            <>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {([7, 30, 90, 365] as const).map((days) => (
-                  <button
-                    key={days}
-                    type="button"
-                    onClick={() => setSelectedStatsDays(days)}
-                    className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                      selectedStatsDays === days
-                        ? "bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900"
-                        : "bg-white text-gray-600 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800"
-                    }`}
-                  >
-                    {days}日
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
-                    Total Views
-                  </p>
-                  <p className="mt-3 text-3xl font-semibold tabular-nums text-gray-950 dark:text-gray-50">
-                    {formatCount(stats.total.views)}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
-                    Total Downloads
-                  </p>
-                  <p className="mt-3 text-3xl font-semibold tabular-nums text-gray-950 dark:text-gray-50">
-                    {formatCount(stats.total.downloads)}
-                  </p>
-                </div>
-                <div className="rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
-                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-gray-500">
-                    Total Previews
-                  </p>
-                  <p className="mt-3 text-3xl font-semibold tabular-nums text-gray-950 dark:text-gray-50">
-                    {formatCount(stats.total.previews)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 rounded-2xl bg-white p-4 shadow-sm dark:bg-gray-950">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    日別推移
-                  </h3>
-                  <p className="text-xs text-gray-500">直近{stats.days}日</p>
-                </div>
-
-                <div className="mt-4 overflow-x-auto">
-                  <div className="flex min-w-[720px] items-end gap-2">
-                    {stats.daily.map((entry) => {
-                      const barHeight =
-                        maxDailyViewCount === 0
-                          ? 4
-                          : Math.max(
-                              4,
-                              Math.round(
-                                (entry.views / maxDailyViewCount) * 120,
-                              ),
-                            );
-
-                      return (
-                        <div
-                          key={entry.date}
-                          className="flex min-w-0 flex-1 flex-col items-center gap-2"
-                        >
-                          <div className="flex h-32 w-full items-end">
-                            <div
-                              className="w-full rounded-t-xl bg-gray-900/85 dark:bg-gray-100/85"
-                              style={{ height: `${barHeight}px` }}
-                              title={`${entry.date}: ${entry.views} views / ${entry.downloads} downloads`}
-                            />
-                          </div>
-                          <span className="text-[10px] font-medium text-gray-500">
-                            {entry.views}
-                          </span>
-                          <span className="text-[10px] text-gray-400">
-                            {formatStatsDateLabel(entry.date)}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
-        </section>
+        <PaperStatsSection
+          stats={stats}
+          statsLoading={statsLoading}
+          statsError={statsError}
+          selectedStatsDays={selectedStatsDays}
+          setSelectedStatsDays={setSelectedStatsDays}
+          maxDailyViewCount={maxDailyViewCount}
+        />
       )}
 
       {showExternalLink && (
@@ -796,244 +541,40 @@ export default function PaperDetailClient({
         />
       )}
 
-      {/* Files */}
-      <div className="mb-6">
-        <h2 className="text-sm font-medium text-gray-500 mb-2">ファイル</h2>
+      <PaperFilesList
+        pdfFile={pdfFile}
+        previewLoading={previewLoading}
+        preview={preview}
+        previewError={previewError}
+        imageFiles={imageFiles}
+        imagePreviewUrls={imagePreviewUrls}
+        failedImageIds={failedImageIds}
+        files={files}
+        handleDownload={handleDownload}
+        formatSize={formatSize}
+        getFileIcon={getFileIcon}
+      />
 
-        {pdfFile && (
-          <div className="mb-4 space-y-2">
-            <h3 className="text-sm font-medium">PDFプレビュー</h3>
-            {previewLoading && (
-              <div className="h-[420px] animate-pulse rounded-md bg-gray-200 dark:bg-gray-800" />
-            )}
-            {!previewLoading && preview?.url && (
-              <PdfViewer
-                fileUrl={preview.url}
-                onDownloadFallback={() => handleDownload(pdfFile)}
-              />
-            )}
-            {!previewLoading && previewError && (
-              <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300">
-                <p>プレビューを読み込めません</p>
-                <button
-                  type="button"
-                  className="underline"
-                  onClick={() => handleDownload(pdfFile)}
-                  aria-label={`${pdfFile.filename}をPDFプレビューからダウンロード`}
-                >
-                  ダウンロードする
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+      <PaperAuthorsList
+        authors={authors}
+        isUploader={isUploader}
+        paperTitle={paper.title}
+        setShowInvite={setShowInvite}
+      />
 
-        {imageFiles.length > 0 && (
-          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {imageFiles.map((img) => (
-              <div
-                key={img.id}
-                className="rounded-md border border-gray-200 p-2 dark:border-gray-700"
-              >
-                {imagePreviewUrls[img.id] ? (
-                  <img
-                    src={imagePreviewUrls[img.id]}
-                    alt={img.filename}
-                    className="h-auto w-full rounded"
-                    loading="lazy"
-                  />
-                ) : failedImageIds.includes(img.id) ? (
-                  <div className="flex h-[180px] items-center justify-center rounded bg-red-50 text-xs text-red-600 dark:bg-red-950/20 dark:text-red-400">
-                    画像の読み込みに失敗しました
-                  </div>
-                ) : (
-                  <div className="h-[180px] animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+      <PaperInviteDialog
+        showInvite={showInvite}
+        setShowInvite={setShowInvite}
+        searchQuery={searchQuery}
+        handleSearch={handleSearch}
+        searchResults={searchResults}
+        handleInvite={handleInvite}
+        inviting={inviting}
+        setSearchQuery={setSearchQuery}
+        setSearchResults={setSearchResults}
+      />
 
-        <ul className="space-y-2">
-          {files.map((f) => (
-            <li
-              key={f.id}
-              className="flex items-center justify-between text-sm border rounded-md p-3 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-xl" title={f.fileType}>
-                  {getFileIcon(f.fileType)}
-                </span>
-                <div className="flex flex-col">
-                  <span className="font-medium">{f.filename}</span>
-                  <span className="text-xs text-gray-400">
-                    {formatSize(f.sizeBytes)}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleDownload(f)}
-                aria-label={`${f.filename}をダウンロード`}
-                className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white hover:bg-blue-500 transition-colors"
-              >
-                ダウンロード
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Authors */}
-      <div className="mb-6">
-        <h2 className="text-sm font-medium text-gray-500 mb-2">著者</h2>
-        <ul className="space-y-2">
-          {authors.map((a) => (
-            <li
-              key={a.userId}
-              className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/50 p-2.5 dark:border-gray-800 dark:bg-gray-900/50"
-            >
-              <div className="flex items-center gap-3">
-                {a.avatarUrl && (
-                  <Image
-                    src={a.avatarUrl}
-                    alt={a.name}
-                    width={28}
-                    height={28}
-                    className="rounded-full ring-1 ring-gray-200 dark:ring-gray-700"
-                  />
-                )}
-                <Link
-                  href={`/users/${encodeURIComponent(a.userId)}`}
-                  className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-400"
-                >
-                  {a.displayName ?? a.name}
-                </Link>
-              </div>
-              {(() => {
-                const badge = getRoleBadge(a.role);
-                return (
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${badge.className}`}
-                  >
-                    {badge.label}
-                  </span>
-                );
-              })()}
-            </li>
-          ))}
-        </ul>
-
-        {isUploader && (
-          <button
-            type="button"
-            onClick={() => setShowInvite(true)}
-            aria-label={`${paper.title}に共著者を招待`}
-            className="mt-3 text-sm text-blue-600 hover:underline dark:text-blue-400"
-          >
-            + 共著者を招待
-          </button>
-        )}
-      </div>
-
-      {/* Invite dialog */}
-      {showInvite && (
-        <div className="mb-6 rounded-md border border-gray-200 p-4 dark:border-gray-700">
-          <h3 className="font-medium mb-2">共著者招待</h3>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => handleSearch(e.target.value)}
-            placeholder="ユーザー名で検索..."
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm mb-2 dark:border-gray-700 dark:bg-gray-900"
-          />
-          {searchResults.length > 0 && (
-            <ul className="space-y-1 max-h-40 overflow-y-auto">
-              {searchResults.map((u) => (
-                <li
-                  key={u.id}
-                  className="flex items-center justify-between p-2 text-sm hover:bg-gray-50 rounded dark:hover:bg-gray-800"
-                >
-                  <div className="flex items-center gap-2">
-                    {u.avatarUrl && (
-                      <Image
-                        src={u.avatarUrl}
-                        alt={u.name}
-                        width={20}
-                        height={20}
-                        className="rounded-full"
-                      />
-                    )}
-                    <span>{u.displayName ?? u.name}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleInvite(u.id)}
-                    disabled={inviting !== null}
-                    aria-busy={inviting === u.id}
-                    aria-label={`${u.displayName ?? u.name}を共著者として招待`}
-                    className="inline-flex min-w-[72px] items-center justify-center rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-500 disabled:opacity-50"
-                  >
-                    {inviting === u.id ? (
-                      <span className="flex items-center justify-center gap-1">
-                        <span
-                          className="h-3 w-3 motion-safe:animate-spin rounded-full border-2 border-current border-t-transparent"
-                          aria-hidden="true"
-                        />
-                        招待中...
-                      </span>
-                    ) : (
-                      "招待"
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              setShowInvite(false);
-              setSearchQuery("");
-              setSearchResults([]);
-            }}
-            className="mt-2 text-sm text-gray-500 hover:underline"
-          >
-            キャンセル
-          </button>
-        </div>
-      )}
-
-      {/* Pending invites */}
-      {isUploader && invites.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-sm font-medium text-gray-500 mb-2">招待状況</h2>
-          <ul className="space-y-1">
-            {invites.map((inv) => (
-              <li
-                key={inv.id}
-                className="flex items-center justify-between text-sm border rounded-md p-2 dark:border-gray-700"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {inv.inviteeName}
-                  </span>
-                </div>
-                {(() => {
-                  const badge = getInviteStatusBadge(inv.status);
-                  return (
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${badge.className}`}
-                    >
-                      {badge.label}
-                    </span>
-                  );
-                })()}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <PaperPendingInvites isUploader={isUploader} invites={invites} />
     </div>
   );
 }
