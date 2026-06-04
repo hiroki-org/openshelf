@@ -92,7 +92,9 @@ describe("orgs routes", () => {
         env as any,
       );
       expect(res.status).toBe(500);
-      await expect(res.json()).resolves.toEqual({ error: "Internal Server Error" });
+      await expect(res.json()).resolves.toEqual({
+        error: "Internal Server Error",
+      });
     });
 
     it("wraps non-Error insert failures", async () => {
@@ -124,7 +126,9 @@ describe("orgs routes", () => {
         env as any,
       );
       expect(res.status).toBe(500);
-      await expect(res.json()).resolves.toEqual({ error: "Internal Server Error" });
+      await expect(res.json()).resolves.toEqual({
+        error: "Internal Server Error",
+      });
     });
 
     it("returns 409 for UNIQUE constraint violation race condition", async () => {
@@ -2329,22 +2333,22 @@ describe("orgs routes", () => {
 
   describe("GET /api/orgs/:slug/papers algorithmic DoS prevention", () => {
     it("escapes wildcard characters correctly in papers query endpoint", async () => {
-        const app = await createTestApp();
-        const env = createTestEnv();
+      const app = await createTestApp();
+      const env = createTestEnv();
 
-        queueSelectResponses([
-            { getResult: { id: "org-1", slug: "test" } },
-            { getResult: { id: "user-1", role: "admin" } },
-            { allResult: [] }
-        ]);
+      queueSelectResponses([
+        { getResult: { id: "org-1", slug: "test" } },
+        { getResult: { id: "user-1", role: "admin" } },
+        { allResult: [] },
+      ]);
 
-        const res = await app.request(
-            "http://localhost/api/orgs/test/papers?venue=%25%5C_", // %\_
-            {},
-            env as any
-        );
+      const res = await app.request(
+        "http://localhost/api/orgs/test/papers?venue=%25%5C_", // %\_
+        {},
+        env as any,
+      );
 
-        expect(res.status).toBe(200);
+      expect(res.status).toBe(200);
     });
   });
 });

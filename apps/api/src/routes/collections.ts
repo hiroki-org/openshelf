@@ -641,24 +641,29 @@ collectionsRoute.patch("/collections/:id/papers", authMiddleware, async (c) => {
     return c.json({ error: "paper_ids contains paper not in collection" }, 400);
   }
 
-  // Atomically apply all sort order changes via D1 batch
-  const updateStatements = normalizedPaperIds.map((pid, i) =>
-    db
-      .update(collectionPapers)
-      .set({ sortOrder: i })
-      .where(
-        and(
-          eq(collectionPapers.collectionId, collection.id),
-          eq(collectionPapers.paperId, pid),
-        ),
+  // Atomically apply all sort order changes via a single CASE UPDATE statement
+  const sqlChunks: ReturnType<typeof sql>[] = [];
+  sqlChunks.push(sql`(case`);
+  for (let i = 0; i < normalizedPaperIds.length; i++) {
+    const pid = normalizedPaperIds[i];
+    sqlChunks.push(sql`when ${collectionPapers.paperId} = ${pid} then ${i}`);
+  }
+  sqlChunks.push(sql`end)`);
+  const finalSql = sql.join(sqlChunks, sql` `);
+
+  await db
+    .update(collectionPapers)
+    .set({
+      sortOrder: finalSql,
+    })
+    .where(
+      and(
+        eq(collectionPapers.collectionId, collection.id),
+        inArray(collectionPapers.paperId, normalizedPaperIds),
       ),
-  );
-  await db.batch(
-    updateStatements as [
-      (typeof updateStatements)[0],
-      ...typeof updateStatements,
-    ],
-  );
+    )
+    .execute();
+
   return c.json({ ok: true });
 });
 

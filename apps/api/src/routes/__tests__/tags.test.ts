@@ -82,15 +82,11 @@ describe("tags routes", () => {
     });
     const app = await createTestApp();
     const env = createTestEnv();
-    (env.DB as any).prepare = vi
-      .fn()
-      .mockReturnValue({
-        bind: vi
-          .fn()
-          .mockReturnValue({
-            all: vi.fn().mockReturnValue({ results: [{ tag: "AI" }] }),
-          }),
-      });
+    (env.DB as any).prepare = vi.fn().mockReturnValue({
+      bind: vi.fn().mockReturnValue({
+        all: vi.fn().mockReturnValue({ results: [{ tag: "AI" }] }),
+      }),
+    });
     const res = await app.request(
       "http://localhost/api/tags/suggest?q=AI",
       {
@@ -138,19 +134,13 @@ describe("tags routes", () => {
 
     const app = await createTestApp();
     const env = createTestEnv();
-    (env.DB as any).prepare = vi
-      .fn()
-      .mockReturnValue({
-        bind: vi
-          .fn()
-          .mockReturnValue({
-            all: vi
-              .fn()
-              .mockReturnValue({
-                results: [{ tag: "Search" }, { tag: "Secret Notes" }],
-              }),
-          }),
-      });
+    (env.DB as any).prepare = vi.fn().mockReturnValue({
+      bind: vi.fn().mockReturnValue({
+        all: vi.fn().mockReturnValue({
+          results: [{ tag: "Search" }, { tag: "Secret Notes" }],
+        }),
+      }),
+    });
     const res = await app.request(
       "http://localhost/api/tags/suggest?q=Se&orgSlug=my-lab",
       {

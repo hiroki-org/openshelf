@@ -251,13 +251,11 @@ describe("invites routes", () => {
       githubId: "123",
       name: "Uploader",
     });
-    mockDb.select = vi
-      .fn()
-      .mockImplementationOnce(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementationOnce(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
 
     const app = await createTestApp();
     const env = createTestEnv();

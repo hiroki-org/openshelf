@@ -730,7 +730,9 @@ describe("papers routes", () => {
         values: vi.fn().mockRejectedValue(dbError),
       }));
 
-    const mockDeleteWhere = vi.fn().mockRejectedValue(new Error("DB cleanup failed"));
+    const mockDeleteWhere = vi
+      .fn()
+      .mockRejectedValue(new Error("DB cleanup failed"));
     mockDb.delete = vi.fn(() => ({ where: mockDeleteWhere }));
 
     const app = await createTestApp();
@@ -2360,13 +2362,11 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2410,13 +2410,11 @@ describe("papers routes", () => {
       githubId: "123",
       name: "Uploader",
     });
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
 
     const app = await createTestApp();
     const env = createTestEnv();
@@ -2570,13 +2568,11 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2622,13 +2618,11 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2664,13 +2658,11 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2704,13 +2696,11 @@ describe("papers routes", () => {
       githubId: "123",
       name: "Uploader",
     });
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
 
     const app = await createTestApp();
     const env = createTestEnv();
@@ -2740,13 +2730,11 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2782,13 +2770,11 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2826,13 +2812,11 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2868,13 +2852,11 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2910,13 +2892,11 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -2960,13 +2940,11 @@ describe("papers routes", () => {
       githubId: "123",
       name: "Uploader",
     });
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
 
     const app = await createTestApp();
     const env = createTestEnv();
@@ -3120,13 +3098,11 @@ describe("papers routes", () => {
     });
     const set = vi.fn().mockReturnThis();
     const where = vi.fn().mockReturnThis();
-    mockDb.select = vi
-      .fn()
-      .mockImplementation(() =>
-        makeQuery({
-          getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementation(() =>
+      makeQuery({
+        getResult: { paperId: "paper-1", userId: "user-1", role: "uploader" },
+      }),
+    );
     mockDb.update = vi.fn().mockImplementation(() => ({ set, where }) as any);
 
     const app = await createTestApp();
@@ -3165,13 +3141,11 @@ describe("papers routes", () => {
   });
 
   it("GET /api/papers/:id returns 401 for private paper without Bearer token", async () => {
-    mockDb.select = vi
-      .fn()
-      .mockImplementationOnce(() =>
-        makeQuery({
-          getResult: { id: "paper-1", title: "P1", visibility: "private" },
-        }),
-      );
+    mockDb.select = vi.fn().mockImplementationOnce(() =>
+      makeQuery({
+        getResult: { id: "paper-1", title: "P1", visibility: "private" },
+      }),
+    );
 
     const app = await createTestApp();
     const env = createTestEnv();
@@ -3594,7 +3568,9 @@ describe("papers routes", () => {
       );
 
       expect(customRes.status).toBe(400);
-      expect(await customRes.json()).toEqual({ error: "Cannot invite yourself" });
+      expect(await customRes.json()).toEqual({
+        error: "Cannot invite yourself",
+      });
     });
   });
 });
@@ -3688,7 +3664,9 @@ describe("Error handling and untested branches", () => {
       );
 
       expect(res.status).toBe(500);
-      await expect(res.json()).resolves.toEqual({ error: "Internal Server Error" });
+      await expect(res.json()).resolves.toEqual({
+        error: "Internal Server Error",
+      });
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         "File upload errors:",
         expect.objectContaining({
@@ -3907,7 +3885,7 @@ describe("Error handling and untested branches", () => {
     });
   });
 
-  it.each(["\"just a string\"", "42", "null"])(
+  it.each(['"just a string"', "42", "null"])(
     "POST /api/papers rejects upload when parsed metadata JSON is not an object: %s",
     async (metadata) => {
       const formData = new FormData();
@@ -4143,7 +4121,11 @@ describe("Error handling and untested branches", () => {
 
     mockDb.update = vi.fn().mockReturnValue({
       set: vi.fn().mockReturnValue({
-        where: vi.fn().mockRejectedValue(new Error("NOT NULL constraint failed: papers.title")),
+        where: vi
+          .fn()
+          .mockRejectedValue(
+            new Error("NOT NULL constraint failed: papers.title"),
+          ),
       }),
     });
 
@@ -4161,19 +4143,19 @@ describe("Error handling and untested branches", () => {
     );
 
     expect(res.status).toBe(500);
-    await expect(res.json()).resolves.toEqual({ error: "Internal Server Error" });
+    await expect(res.json()).resolves.toEqual({
+      error: "Internal Server Error",
+    });
   });
 
   it("POST /api/papers/:id/track handles missing json payload", async () => {
     const { makeQuery } = await import("../../test/helpers");
     mockDb = {
       run: vi.fn().mockResolvedValue({}),
-      prepare: vi
-        .fn()
-        .mockImplementation(() => ({
-          bind: vi.fn().mockReturnThis(),
-          all: vi.fn().mockResolvedValue([]),
-        })),
+      prepare: vi.fn().mockImplementation(() => ({
+        bind: vi.fn().mockReturnThis(),
+        all: vi.fn().mockResolvedValue([]),
+      })),
       select: vi
         .fn()
         .mockImplementationOnce(() =>
@@ -4202,12 +4184,10 @@ describe("Error handling and untested branches", () => {
     const { makeQuery } = await import("../../test/helpers");
     mockDb = {
       run: vi.fn().mockResolvedValue({}),
-      prepare: vi
-        .fn()
-        .mockImplementation(() => ({
-          bind: vi.fn().mockReturnThis(),
-          all: vi.fn().mockResolvedValue([]),
-        })),
+      prepare: vi.fn().mockImplementation(() => ({
+        bind: vi.fn().mockReturnThis(),
+        all: vi.fn().mockResolvedValue([]),
+      })),
       select: vi
         .fn()
         .mockImplementationOnce(() =>
@@ -4240,11 +4220,9 @@ describe("Error handling and untested branches", () => {
         .mockImplementationOnce(() =>
           makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
         ),
-      prepare: vi
-        .fn()
-        .mockImplementation(() => ({
-          bind: vi.fn().mockReturnThis(),
-          all: vi.fn().mockRejectedValue(new Error("Track DB failure")),
+      prepare: vi.fn().mockImplementation(() => ({
+        bind: vi.fn().mockReturnThis(),
+        all: vi.fn().mockRejectedValue(new Error("Track DB failure")),
       })),
       run: vi.fn().mockResolvedValue({}),
     };

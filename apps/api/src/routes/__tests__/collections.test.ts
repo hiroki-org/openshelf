@@ -1556,15 +1556,17 @@ describe("collections routes", () => {
     });
   });
 
-  it("PATCH /api/collections/:id/papers updates sort order successfully via batch", async () => {
+  it("PATCH /api/collections/:id/papers updates sort order successfully via bulk CASE update", async () => {
     queueSelectResponses([
       { getResult: { id: "c1", ownerType: "user", ownerId: "user-1" } },
       { allResult: [{ paperId: "p1" }, { paperId: "p2" }] },
     ]);
-    mockDb.batch = vi.fn().mockResolvedValue([]);
+    const mockExecute = vi.fn().mockResolvedValue([]);
     mockDb.update = vi.fn().mockImplementation(() => ({
       set: vi.fn().mockImplementation(() => ({
-        where: vi.fn().mockImplementation(() => "UPDATE_STATEMENT"),
+        where: vi.fn().mockImplementation(() => ({
+          execute: mockExecute,
+        })),
       })),
     }));
     const app = await createTestApp();
@@ -1582,7 +1584,7 @@ describe("collections routes", () => {
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ ok: true });
-    expect(mockDb.batch).toHaveBeenCalled();
+    expect(mockExecute).toHaveBeenCalled();
   });
 
   it("GET /api/collections/:id/papers returns only user authored papers when some are restricted", async () => {
@@ -1971,7 +1973,9 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toEqual({ error: "paper_ids is required" });
+    await expect(res.json()).resolves.toEqual({
+      error: "paper_ids is required",
+    });
   });
 
   it("PATCH /api/collections/:id/papers rejects when paper_ids is empty", async () => {
@@ -2005,7 +2009,9 @@ describe("collections routes", () => {
     );
 
     expect(res.status).toBe(400);
-    await expect(res.json()).resolves.toEqual({ error: "paper_ids is required" });
+    await expect(res.json()).resolves.toEqual({
+      error: "paper_ids is required",
+    });
   });
 
   it("PATCH /api/collections/:id/papers rejects duplicate paper IDs", async () => {

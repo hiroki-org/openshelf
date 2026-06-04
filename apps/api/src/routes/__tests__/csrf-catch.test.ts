@@ -2,67 +2,81 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { createTestEnv } from "../../test/helpers";
 
 describe("CSRF configuration catch blocks", () => {
-    beforeEach(() => {
-        vi.resetModules();
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("logs sanitized Error object when CSRF check throws an Error", async () => {
+    const originalConsoleError = console.error;
+    const consoleErrorMock = vi.fn();
+    console.error = consoleErrorMock;
+
+    vi.doMock("../../utils/origin", async (importOriginal) => {
+      const actual = await importOriginal<any>();
+      return {
+        ...actual,
+        isAllowedOrigin: (
+          _origin: any,
+          _frontendOrigin: any,
+          _allowedOrigins: any,
+          _options: any,
+        ) => {
+          throw new Error("CSRF mocked error");
+        },
+      };
     });
 
-    it("logs sanitized Error object when CSRF check throws an Error", async () => {
-        const originalConsoleError = console.error;
-        const consoleErrorMock = vi.fn();
-        console.error = consoleErrorMock;
+    const { default: mockApp } = await import("../../index");
+    const env = createTestEnv({});
 
-        vi.doMock("../../utils/origin", async (importOriginal) => {
-            const actual = await importOriginal<any>();
-            return {
-                ...actual,
-                isAllowedOrigin: (_origin: any, _frontendOrigin: any, _allowedOrigins: any, _options: any) => {
-                    throw new Error("CSRF mocked error");
-                }
-            };
-        });
+    await mockApp.request(
+      "http://localhost/api/auth/logout",
+      { method: "POST" },
+      env as any,
+    );
 
-        const { default: mockApp } = await import("../../index");
-        const env = createTestEnv({});
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "CSRF check error: Error: CSRF mocked error",
+    );
 
-        await mockApp.request(
-            "http://localhost/api/auth/logout",
-            { method: "POST" },
-            env as any
-        );
+    console.error = originalConsoleError;
+    vi.doUnmock("../../utils/origin");
+  });
 
-        expect(consoleErrorMock).toHaveBeenCalledWith("CSRF check error: Error: CSRF mocked error");
+  it("logs sanitized string when CSRF check throws a non-Error", async () => {
+    const originalConsoleError = console.error;
+    const consoleErrorMock = vi.fn();
+    console.error = consoleErrorMock;
 
-        console.error = originalConsoleError;
-        vi.doUnmock("../../utils/origin");
+    vi.doMock("../../utils/origin", async (importOriginal) => {
+      const actual = await importOriginal<any>();
+      return {
+        ...actual,
+        isAllowedOrigin: (
+          _origin: any,
+          _frontendOrigin: any,
+          _allowedOrigins: any,
+          _options: any,
+        ) => {
+          throw "CSRF mocked string error";
+        },
+      };
     });
 
-    it("logs sanitized string when CSRF check throws a non-Error", async () => {
-        const originalConsoleError = console.error;
-        const consoleErrorMock = vi.fn();
-        console.error = consoleErrorMock;
+    const { default: mockApp } = await import("../../index");
+    const env = createTestEnv({});
 
-        vi.doMock("../../utils/origin", async (importOriginal) => {
-            const actual = await importOriginal<any>();
-            return {
-                ...actual,
-                isAllowedOrigin: (_origin: any, _frontendOrigin: any, _allowedOrigins: any, _options: any) => {
-                    throw "CSRF mocked string error";
-                }
-            };
-        });
+    await mockApp.request(
+      "http://localhost/api/auth/logout",
+      { method: "POST" },
+      env as any,
+    );
 
-        const { default: mockApp } = await import("../../index");
-        const env = createTestEnv({});
+    expect(consoleErrorMock).toHaveBeenCalledWith(
+      "CSRF check error: non-Error exception during CSRF check",
+    );
 
-        await mockApp.request(
-            "http://localhost/api/auth/logout",
-            { method: "POST" },
-            env as any
-        );
-
-        expect(consoleErrorMock).toHaveBeenCalledWith("CSRF check error: non-Error exception during CSRF check");
-
-        console.error = originalConsoleError;
-        vi.doUnmock("../../utils/origin");
-    });
+    console.error = originalConsoleError;
+    vi.doUnmock("../../utils/origin");
+  });
 });

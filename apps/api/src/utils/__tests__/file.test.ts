@@ -224,7 +224,7 @@ describe("validateMagicNumbers", () => {
     ).resolves.toBe(false);
   });
 
-it("returns false when File.slice throws RangeError", async () => {
+  it("returns false when File.slice throws RangeError", async () => {
     const errorFile = {
       slice: () => ({
         arrayBuffer: async () => {
@@ -235,10 +235,12 @@ it("returns false when File.slice throws RangeError", async () => {
       type: "application/pdf",
     } as unknown as File;
 
-    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
+    await expect(
+      validateMagicNumbers(errorFile, "application/pdf"),
+    ).resolves.toBe(false);
   });
 
-it("returns false when File.slice throws TypeError", async () => {
+  it("returns false when File.slice throws TypeError", async () => {
     const errorFile = {
       slice: () => ({
         arrayBuffer: async () => {
@@ -249,10 +251,12 @@ it("returns false when File.slice throws TypeError", async () => {
       type: "application/pdf",
     } as unknown as File;
 
-    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
+    await expect(
+      validateMagicNumbers(errorFile, "application/pdf"),
+    ).resolves.toBe(false);
   });
 
-it("returns false when File.slice throws DOMException with InvalidStateError", async () => {
+  it("returns false when File.slice throws DOMException with InvalidStateError", async () => {
     const errorFile = {
       slice: () => ({
         arrayBuffer: async () => {
@@ -263,10 +267,12 @@ it("returns false when File.slice throws DOMException with InvalidStateError", a
       type: "application/pdf",
     } as unknown as File;
 
-    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
+    await expect(
+      validateMagicNumbers(errorFile, "application/pdf"),
+    ).resolves.toBe(false);
   });
 
-it("throws the error when File.slice throws an unexpected error", async () => {
+  it("throws the error when File.slice throws an unexpected error", async () => {
     const customError = new Error("Unexpected error");
     const errorFile = {
       slice: () => ({
@@ -278,7 +284,9 @@ it("throws the error when File.slice throws an unexpected error", async () => {
       type: "application/pdf",
     } as unknown as File;
 
-    await expect(validateMagicNumbers(errorFile, "application/pdf")).rejects.toThrow("Unexpected error");
+    await expect(
+      validateMagicNumbers(errorFile, "application/pdf"),
+    ).rejects.toThrow("Unexpected error");
   });
 
   it("throws the error when File.slice throws DOMException with AbortError", async () => {
@@ -293,6 +301,8 @@ it("throws the error when File.slice throws an unexpected error", async () => {
       type: "application/pdf",
     } as unknown as File;
 
-    await expect(validateMagicNumbers(errorFile, "application/pdf")).rejects.toThrow(customError);
+    await expect(
+      validateMagicNumbers(errorFile, "application/pdf"),
+    ).rejects.toThrow(customError);
   });
 });
