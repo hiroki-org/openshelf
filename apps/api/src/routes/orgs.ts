@@ -1,4 +1,4 @@
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { verify } from "hono/jwt";
 import { drizzle } from "drizzle-orm/d1";
 import { eq, and, sql, inArray, desc, or, isNotNull } from "drizzle-orm";
@@ -165,17 +165,13 @@ async function isPaperAuthor(
 }
 
 async function getOptionalUserIdFromAuthHeader(
-  c: Context<{ Bindings: Env; Variables: Variables }>,
+  authHeader: string | undefined,
+  jwtSecret: string,
 ): Promise<string | null> {
-  const authHeader = c.req.header("Authorization");
   if (!authHeader?.startsWith("Bearer ")) return null;
 
   try {
-    const payload = await verify(
-      authHeader.slice(7),
-      c.env.JWT_SECRET,
-      "HS256",
-    );
+    const payload = await verify(authHeader.slice(7), jwtSecret, "HS256");
     return hasJwtSub(payload) ? payload.sub : null;
   } catch {
     return null;
@@ -196,7 +192,10 @@ orgsRoute.get("/:slug/tags", async (c) => {
   if (!org) return c.json({ error: "Org not found" }, 404);
 
   // Optional auth to determine whether org_only/private tags should be visible
-  const currentUserId = await getOptionalUserIdFromAuthHeader(c);
+  const currentUserId = await getOptionalUserIdFromAuthHeader(
+    c.req.header("Authorization"),
+    c.env.JWT_SECRET,
+  );
 
   const isMember = currentUserId
     ? await isOrgMember(db, org.id, currentUserId)
@@ -238,7 +237,8 @@ orgsRoute.get("/:slug/tags", async (c) => {
   const rawTagCounts = new Map<string, number>();
 
   for (const paper of orgPapers) {
-    const isAuthor = currentUserId !== null && paper.authorUserId === currentUserId;
+    const isAuthor =
+      currentUserId !== null && paper.authorUserId === currentUserId;
     const isVisible =
       paper.visibility === "public" ||
       (paper.visibility === "org_only" && (isMember || isAuthor)) ||
@@ -743,7 +743,10 @@ orgsRoute.get("/:slug/papers", async (c) => {
   }
 
   // Check auth (optional)
-  const currentUserId = await getOptionalUserIdFromAuthHeader(c);
+  const currentUserId = await getOptionalUserIdFromAuthHeader(
+    c.req.header("Authorization"),
+    c.env.JWT_SECRET,
+  );
 
   const isMember = currentUserId
     ? await isOrgMember(db, org.id, currentUserId)
