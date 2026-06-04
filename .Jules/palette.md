@@ -26,3 +26,6 @@
 ## 2026-05-25 - FeedButton Accessible Names and Tooltips
 **Learning:** フィードボタン（FeedButton）などのアイコン・記号のみのUIにおいて、クリップボードへのコピーや新規タブで開くといったアクションを実行するボタン/リンクには、ユーザーが目的を把握できるように明確な aria-label を設定することが重要です。二重読み上げを防止するため、title 属性との併用は避けるべきです。
 **Action:** 今後、アイコンボタンやラベルが不足しているインタラクティブ要素を実装・改善する際は、必ず aria-label に詳細な説明を含めるようにします。アクセシリティ向上のため、title 属性は原則として併用しません。また、アクセシブルな名前を変更した場合は、関連する単体テスト（getByRole などのクエリ）も必ず追従して修正します。
+## 2024-06-04 - Dynamic Character Counter Accessibility Improvement
+**Learning:** 入力フィールド（textarea など）の文字数カウンターにおいて、カウンター要素に `aria-live="polite"` と `aria-atomic="true"` を付与すると、文字入力のたびにスクリーンリーダーが読み上げを実行してしまい、ユーザーにとって非常に煩わしい体験（ノイズ）になる。代わりに `aria-describedby` を入力要素側に付与するだけで十分である。
+**Action:** 今後、動的な文字数カウンターを実装する際は `aria-live` や `aria-atomic` 属性を付与せず、該当の入力フィールドから `aria-describedby` で紐づけるのみとする。
