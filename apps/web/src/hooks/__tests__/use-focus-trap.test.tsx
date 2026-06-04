@@ -89,9 +89,9 @@ describe("useFocusTrap", () => {
       await screen.findByRole("dialog", { name: "Menu" }),
     ).toBeInTheDocument();
 
-    screen.getByRole("button", { name: "Outside action" }).dispatchEvent(
-      new PointerEvent("pointerdown", { bubbles: true }),
-    );
+    screen
+      .getByRole("button", { name: "Outside action" })
+      .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
 
     await waitFor(() => {
       expect(
