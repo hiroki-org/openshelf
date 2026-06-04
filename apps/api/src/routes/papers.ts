@@ -329,9 +329,16 @@ const MAX_CACHE_SIZE = 1000;
 const TOKEN_CACHE_MAX_AGE_MS = 60 * 1000;
 
 function purgeExpiredTokenCache(now: number): void {
+    let checked = 0;
     for (const [cachedToken, entry] of tokenCache.entries()) {
         if (entry.expiresAt <= now) {
             tokenCache.delete(cachedToken);
+        } else {
+            // Fallback boundary to prevent full O(N) iteration in case of out-of-order TTLs,
+            // while allowing typical contiguous expired tokens to be cleared efficiently.
+            if (++checked >= 20) {
+                break;
+            }
         }
     }
 }
