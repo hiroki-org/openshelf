@@ -12,7 +12,6 @@ import {
   enableForeignKeys,
   touchUpdatedAt,
   VALID_CATEGORIES,
-  type CategoryType,
 } from "../db/schema";
 import type { Env, JwtPayload, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -32,8 +31,8 @@ function normalizeFilterValue(value: string | undefined): string | null {
   return trimmed;
 }
 
-function isValidCategory(value: string): value is CategoryType {
-  return VALID_CATEGORIES.includes(value as CategoryType);
+function isValidCategory(value: string): value is (typeof VALID_CATEGORIES)[number] {
+  return (VALID_CATEGORIES as readonly string[]).includes(value);
 }
 
 function normalizeBoundedId(
@@ -723,7 +722,7 @@ orgsRoute.get("/:slug/papers", async (c) => {
   if (categoryQuery && !isValidCategory(categoryQuery)) {
     return c.json({ error: "Invalid category" }, 400);
   }
-  const categoryFilter = categoryQuery as CategoryType | null;
+  const categoryFilter = categoryQuery as (typeof VALID_CATEGORIES)[number] | null;
 
   let requestedYear: number | null = null;
   const wantsAllYears = yearQuery === "all";
