@@ -1394,4 +1394,1300 @@ describe("feed routes", () => {
     expect(text2).toContain("Paper 2");
     expect(text2).not.toContain("Paper 1");
   });
+
+  it("GET /feed/user/:id returns atom xml properly filtered by empty tag", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-1",
+              title: "Matches Tag",
+              abstract: "abstract 1",
+              category: "report",
+              tags: JSON.stringify(["React", "TypeScript"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-1",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Matches Tag");
+  });
+
+  it("handles parsing array properly but tag doesn't match normalized casing", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=ReAcT",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Paper 3"); // Testing case insensitivity
+  });
+
+  it("handles parsing array properly but tag doesn't match string inclusion either", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=JavaScript",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("Paper 3");
+  });
+
+  it("handles properly when multiple papers have the exact same tags json to hit the cache", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-1",
+              title: "Paper 1",
+              abstract: "abstract 1",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+            {
+              id: "paper-2",
+              title: "Paper 2",
+              abstract: "abstract 2",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-1",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+            {
+              paperId: "paper-2",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Paper 1");
+    expect(text).toContain("Paper 2");
+    expect(text).toContain("Paper 3");
+  });
+
+  it("handles multiple filters effectively when uniqueRows deduplicates them", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-1",
+              title: "Paper 1",
+              abstract: "abstract 1",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+            {
+              id: "paper-1",
+              title: "Paper 1 Duplicate",
+              abstract: "abstract 1",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-1",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Paper 1");
+    expect(text).not.toContain("Paper 1 Duplicate"); // Since it's deduplicated based on id
+  });
+
+  it("handles parsing array properly where tags is not an array, falling back gracefully", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify({ tag1: "React" }),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("Paper 3");
+  });
+
+  it("handles parsing array properly where tags has invalid elements filtered", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify([123, {}, "React", true]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Paper 3");
+  });
+
+  it("handles parsing array properly where tags has completely invalid json", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: "undefined",
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("Paper 3");
+  });
+
+  it("handles parsing array properly where tags has completely invalid json and no filter tag is provided", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: "invalid-json-[",
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Paper 3"); // It should not be filtered out
+  });
+
+  it("handles parsing array properly where tags JSON parses fine but contains mostly whitespace tag that gets filtered by trim", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify(["   "]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("Paper 3");
+  });
+
+  it("handles dedupe properly without dropping distinct papers that might have same attributes but diff ids", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-1",
+              title: "Paper 1",
+              abstract: "abstract 1",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+            {
+              id: "paper-2",
+              title: "Paper 2",
+              abstract: "abstract 1",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-1",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+            {
+              paperId: "paper-2",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Paper 1");
+    expect(text).toContain("Paper 2");
+  });
+
+  it("deduplicates correctly across sequential API hits (tests Map initialization per function call vs global)", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-1",
+              title: "Paper 1",
+              abstract: "abstract 1",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-1",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Paper 1");
+  });
+
+  it("handles parsing array properly where paper has multiple tags and one matches", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify(["Node", "React", "CSS"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Paper 3");
+  });
+
+  it("handles parsing array properly where tags JSON parses fine but contains a single empty string that gets filtered by trim", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify([""]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("Paper 3");
+  });
+
+  it("deduplicates correctly across sequential API hits testing branch logic of filterPaperRowsByTag without cache hit", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-1",
+              title: "Paper 1",
+              abstract: "abstract 1",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-1",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=", // Testing empty tag branch
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+  });
+
+  it("handles parsing array properly where tags JSON parses fine but contains a single empty string that gets filtered by trim and we return early inside the filter", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=xyz123",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("Paper 3");
+  });
+
+  it("handles parsing array properly where tags JSON parses fine but contains a single empty string that gets filtered by trim and we return early inside the filter when tag is present but normalized is empty", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=%20%20",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Paper 3");
+  });
+
+  it("handles parsing array properly where tags JSON parses fine but contains a single null that gets filtered and tag match is false", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify([null]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=react",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain("Paper 3");
+  });
+
+  it("handles parsing array properly where tags JSON parses fine but contains a single empty string that gets filtered by trim and we return early inside the filter when tag is present but normalized is empty", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify(["React"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=%20%20",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Paper 3");
+  });
+
+  it("handles tag filtering when no query tags are found via db query with tag condition", async () => {
+    // This will mock the db to return empty list when tag condition is applied
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [], // Empty list returned because tag is not found in db query
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=super-rare-tag",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("<title>Alice A. - OpenShelf</title>");
+    expect(text).not.toContain("<entry>");
+  });
+
+  it("handles parsing array properly where tags JSON parses fine but contains a tag whose normalized format equals query tag but original casing differs", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "user-1",
+            name: "Alice",
+            displayName: "Alice A.",
+            githubId: "alice",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-3",
+              title: "Paper 3",
+              abstract: "abstract 3",
+              category: "report",
+              tags: JSON.stringify(["ReactJS"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-3",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/user/user-1?tag=reactjs",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Paper 3");
+  });
+
+  it("handles properly when `buildTagFilterCondition` returns undefined because no tag filter was passed, and deduplicates the list properly", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({
+          getResult: {
+            id: "org-1",
+            slug: "lab",
+            name: "Lab",
+            description: null,
+            createdAt: "2026-01-01 00:00:00",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              id: "paper-1",
+              title: "Matches Tag",
+              abstract: "abstract 1",
+              category: "report",
+              tags: JSON.stringify(["React", "TypeScript"]),
+              createdAt: "2026-01-03 00:00:00",
+              updatedAt: "2026-01-04 00:00:00",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() =>
+        makeQuery({
+          allResult: [
+            {
+              paperId: "paper-1",
+              role: "uploader",
+              name: "Alice",
+              displayName: "Alice A.",
+            },
+          ],
+        }),
+      )
+      .mockImplementationOnce(() => makeQuery({ allResult: [] }));
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/org/lab?tag=",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    expect(text).toContain("Matches Tag");
+  });
 });
