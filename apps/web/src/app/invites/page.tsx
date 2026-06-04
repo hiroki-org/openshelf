@@ -26,9 +26,9 @@ export default function InvitesPage() {
   const router = useRouter();
   const [invites, setInvites] = useState<ReceivedInvite[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [processingById, setProcessingById] = useState<Map<string, InviteAction>>(
-    () => new Map(),
-  );
+  const [processingById, setProcessingById] = useState<
+    Map<string, InviteAction>
+  >(() => new Map());
 
   useEffect(() => {
     if (!loading && !user) router.push("/");
@@ -82,7 +82,9 @@ export default function InvitesPage() {
               : i,
           ),
         );
-        toast.success(action === "accept" ? "招待を承認しました" : "招待を拒否しました");
+        toast.success(
+          action === "accept" ? "招待を承認しました" : "招待を拒否しました",
+        );
       } else {
         toast.error("処理に失敗しました");
       }
@@ -201,7 +203,13 @@ export default function InvitesPage() {
                         {processingAction === "accept" && (
                           <Spinner className="h-4 w-4" />
                         )}
-                        <span className={processingAction === "accept" ? "sr-only" : undefined}>
+                        <span
+                          className={
+                            processingAction === "accept"
+                              ? "sr-only"
+                              : undefined
+                          }
+                        >
                           承認
                         </span>
                       </button>
@@ -215,16 +223,24 @@ export default function InvitesPage() {
                         {processingAction === "decline" && (
                           <Spinner className="h-4 w-4" />
                         )}
-                        <span className={processingAction === "decline" ? "sr-only" : undefined}>
+                        <span
+                          className={
+                            processingAction === "decline"
+                              ? "sr-only"
+                              : undefined
+                          }
+                        >
                           拒否
                         </span>
                       </button>
                     </div>
                   ) : (
-                    <div className="shrink-0 text-xs text-gray-400">対応済み</div>
+                    <div className="shrink-0 text-xs text-gray-400">
+                      対応済み
+                    </div>
                   )}
                 </div>
-            </li>
+              </li>
             );
           })}
         </ul>
