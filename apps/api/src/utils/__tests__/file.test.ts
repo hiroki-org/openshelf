@@ -226,68 +226,77 @@ describe("validateMagicNumbers", () => {
 
   it("returns false when File.slice throws RangeError", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const errorFile = {
-      slice: () => ({
-        arrayBuffer: async () => {
-          throw new RangeError("Invalid range");
-        },
-      }),
-      size: 100,
-      type: "application/pdf",
-    } as unknown as File;
+    try {
+      const errorFile = {
+        slice: () => ({
+          arrayBuffer: async () => {
+            throw new RangeError("Invalid range");
+          },
+        }),
+        size: 100,
+        type: "application/pdf",
+      } as unknown as File;
 
-    await expect(
-      validateMagicNumbers(errorFile, "application/pdf"),
-    ).resolves.toBe(false);
-    expect(errorSpy).toHaveBeenCalledWith(
-      "Error validating magic numbers:",
-      expect.any(RangeError),
-    );
-    errorSpy.mockRestore();
+      await expect(
+        validateMagicNumbers(errorFile, "application/pdf"),
+      ).resolves.toBe(false);
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Error validating magic numbers:",
+        expect.any(RangeError),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("returns false when File.slice throws TypeError", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const errorFile = {
-      slice: () => ({
-        arrayBuffer: async () => {
-          throw new TypeError("Type error");
-        },
-      }),
-      size: 100,
-      type: "application/pdf",
-    } as unknown as File;
+    try {
+      const errorFile = {
+        slice: () => ({
+          arrayBuffer: async () => {
+            throw new TypeError("Type error");
+          },
+        }),
+        size: 100,
+        type: "application/pdf",
+      } as unknown as File;
 
-    await expect(
-      validateMagicNumbers(errorFile, "application/pdf"),
-    ).resolves.toBe(false);
-    expect(errorSpy).toHaveBeenCalledWith(
-      "Error validating magic numbers:",
-      expect.any(TypeError),
-    );
-    errorSpy.mockRestore();
+      await expect(
+        validateMagicNumbers(errorFile, "application/pdf"),
+      ).resolves.toBe(false);
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Error validating magic numbers:",
+        expect.any(TypeError),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("returns false when File.slice throws DOMException with InvalidStateError", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const errorFile = {
-      slice: () => ({
-        arrayBuffer: async () => {
-          throw new DOMException("Invalid state", "InvalidStateError");
-        },
-      }),
-      size: 100,
-      type: "application/pdf",
-    } as unknown as File;
+    try {
+      const errorFile = {
+        slice: () => ({
+          arrayBuffer: async () => {
+            throw new DOMException("Invalid state", "InvalidStateError");
+          },
+        }),
+        size: 100,
+        type: "application/pdf",
+      } as unknown as File;
 
-    await expect(
-      validateMagicNumbers(errorFile, "application/pdf"),
-    ).resolves.toBe(false);
-    expect(errorSpy).toHaveBeenCalledWith(
-      "Error validating magic numbers:",
-      expect.any(DOMException),
-    );
-    errorSpy.mockRestore();
+      await expect(
+        validateMagicNumbers(errorFile, "application/pdf"),
+      ).resolves.toBe(false);
+      expect(errorSpy).toHaveBeenCalledWith(
+        "Error validating magic numbers:",
+        expect.any(DOMException),
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("throws the error when File.slice throws an unexpected error", async () => {
