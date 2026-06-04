@@ -780,4 +780,74 @@ describe("PaperDetailClient", () => {
       await screen.findByText("成果物の取得に失敗しました"),
     ).toBeInTheDocument();
   });
+
+
+  it("can cancel the invite dialog", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (input, init) => {
+      const url = String(input);
+      const method = init?.method ?? "GET";
+
+      if (url === "/api/papers/paper-1" && method === "GET") {
+        return jsonResponse({
+          paper: {
+            id: "paper-1",
+            title: "Cancel Invite",
+            abstract: null,
+            visibility: "private",
+            showViewCount: false,
+            publicViewCount: null,
+            publicDownloadCount: null,
+            externalUrl: null,
+            venue: null,
+            venueType: null,
+            year: null,
+            category: null,
+            tags: null,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+          },
+          files: [],
+          authors: [
+            {
+              userId: "author-1",
+              role: "uploader",
+              name: "alice",
+              displayName: "Alice",
+              avatarUrl: null,
+            },
+          ],
+        });
+      }
+      if (url === "/api/papers/paper-1/stats?days=30" && method === "GET") {
+        return jsonResponse({
+          total: { views: 0, downloads: 0, previews: 0 },
+          daily: [],
+          days: 30,
+        });
+      }
+
+      throw new Error(`Unexpected request: ${method} ${url}`);
+    });
+
+    render(
+      <PaperDetailClient
+        paperId="paper-1"
+        siteBase="https://openshelf.example"
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "Cancel Invite" });
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Cancel Inviteに共著者を招待",
+      }),
+    );
+
+    expect(screen.getByRole("heading", { name: "共著者招待" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+
+    expect(screen.queryByRole("heading", { name: "共著者招待" })).not.toBeInTheDocument();
+  });
 });
