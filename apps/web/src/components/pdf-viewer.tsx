@@ -1,7 +1,7 @@
 "use client";
 
 import { Document, Page, pdfjs } from "react-pdf";
-import { usePdfViewer, ZOOM_PRESETS, MIN_ZOOM, MAX_ZOOM } from "./pdf-viewer-hooks";
+import { usePdfViewer, ZOOM_PRESETS, MIN_ZOOM, MAX_ZOOM, snapZoom } from "./pdf-viewer-hooks";
 
 type PdfViewerProps = {
   fileUrl: string;
@@ -83,7 +83,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
             前へ
           </button>
           <span className="text-xs text-gray-600 dark:text-gray-300">
-            {activePage} / {numPages || "-"}
+            {activePage} / {numPages > 0 ? numPages : "-"}
           </span>
           <button
             type="button"
@@ -110,7 +110,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
           <select
             aria-label="PDF zoom"
-            value={zoom}
+            value={snapZoom(zoom)}
             onChange={(e) => setZoom(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
           >

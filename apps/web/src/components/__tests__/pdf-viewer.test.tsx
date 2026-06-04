@@ -270,6 +270,8 @@ describe("PdfViewer", () => {
       mockDocument.mock.calls.length - 1
     ] as [MockDocumentProps];
 
+    expect(screen.getByText("1 / -")).toBeInTheDocument();
+
     await act(async () => {
       documentProps.onLoadSuccess?.(
         createMockPdfDocument(["alpha", "beta target", "gamma target"]),
@@ -354,6 +356,9 @@ describe("PdfViewer", () => {
     // Invalid touchEnd (no pinch state)
     fireEvent.touchEnd(surface, { touches: [] });
 
+    // Mock select
+    fireEvent.change(zoomSelect, { target: { value: "1.75" } });
+
     expect(zoomSelect.value).toBe("1.75");
 
     fireEvent.click(screen.getByRole("button", { name: "ズームイン" }));
@@ -369,8 +374,13 @@ describe("PdfViewer", () => {
     // Mock requestFullscreen
     const container = screen.getByTestId("pdf-viewer-surface");
     container.requestFullscreen = vi.fn().mockResolvedValue(undefined);
+    document.exitFullscreen = vi.fn().mockResolvedValue(undefined);
     fireEvent.click(screen.getByRole("button", { name: "全画面" }));
     expect(container.requestFullscreen).toHaveBeenCalled();
+    Object.defineProperty(document, 'fullscreenElement', { value: container, writable: true, configurable: true });
+    fireEvent.click(screen.getByRole("button", { name: "全画面" }));
+    expect(document.exitFullscreen).toHaveBeenCalled();
+    Object.defineProperty(document, 'fullscreenElement', { value: null, writable: true, configurable: true });
   });
 
   it("handles text extraction errors gracefully during search", async () => {
