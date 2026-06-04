@@ -1,12 +1,11 @@
 "use client";
 
-import {
+import React, {
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type TouchEvent,
 } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
 
@@ -381,7 +380,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
   );
 
   const handleTouchStart = useCallback(
-    (event: TouchEvent<HTMLDivElement>) => {
+    (event: React.TouchEvent<HTMLDivElement>) => {
       if (event.touches.length !== 2) return;
       const first = event.touches[0];
       const second = event.touches[1];
@@ -394,25 +393,31 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
     [zoom],
   );
 
-  const handleTouchMove = useCallback((event: TouchEvent<HTMLDivElement>) => {
-    const state = pinchStateRef.current;
-    if (!state || event.touches.length !== 2) return;
-    event.preventDefault();
-    const first = event.touches[0];
-    const second = event.touches[1];
-    const nextDistance = touchDistance(first, second);
-    if (nextDistance <= 0 || state.startDistance <= 0) return;
-    const nextZoom = state.startZoom * (nextDistance / state.startDistance);
-    setZoom(clampZoom(nextZoom));
-  }, []);
+  const handleTouchMove = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      const state = pinchStateRef.current;
+      if (!state || event.touches.length !== 2) return;
+      event.preventDefault();
+      const first = event.touches[0];
+      const second = event.touches[1];
+      const nextDistance = touchDistance(first, second);
+      if (nextDistance <= 0 || state.startDistance <= 0) return;
+      const nextZoom = state.startZoom * (nextDistance / state.startDistance);
+      setZoom(clampZoom(nextZoom));
+    },
+    [],
+  );
 
-  const handleTouchEnd = useCallback((event: TouchEvent<HTMLDivElement>) => {
-    if (event.touches.length >= 2) return;
-    if (!pinchStateRef.current) return;
-    pinchStateRef.current = null;
-    setZoom((current) => snapZoom(current));
-    setIsPinching(false);
-  }, []);
+  const handleTouchEnd = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (event.touches.length >= 2) return;
+      if (!pinchStateRef.current) return;
+      pinchStateRef.current = null;
+      setZoom((current) => snapZoom(current));
+      setIsPinching(false);
+    },
+    [],
+  );
 
   const searchRegex = useMemo(() => {
     if (!debouncedSearchQuery) return null;
