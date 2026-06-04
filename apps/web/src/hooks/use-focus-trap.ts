@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from "react";
+import React, { useEffect } from "react";
 
 const FOCUSABLE_SELECTOR =
   'button:not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([tabindex="-1"]), textarea:not([tabindex="-1"]), select:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
@@ -6,9 +6,9 @@ const FOCUSABLE_SELECTOR =
 type UseFocusTrapProps = {
   open: boolean;
   setOpen: (open: boolean) => void;
-  containerRef: RefObject<HTMLElement | null>;
-  triggerRef: RefObject<HTMLElement | null>;
-  dialogRef: RefObject<HTMLElement | null>;
+  containerRef: React.RefObject<HTMLElement | null>;
+  triggerRef: React.RefObject<HTMLElement | null>;
+  dialogRef: React.RefObject<HTMLElement | null>;
 };
 
 export function useFocusTrap({
