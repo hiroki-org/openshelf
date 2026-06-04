@@ -1,84 +1,12 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type TouchEvent,
-} from "react";
 import { Document, Page, pdfjs } from "react-pdf";
+import { usePdfViewer, ZOOM_PRESETS, MIN_ZOOM, MAX_ZOOM } from "./pdf-viewer-hooks";
 
 type PdfViewerProps = {
   fileUrl: string;
   onDownloadFallback?: () => void;
 };
-
-type ViewMode = "paged" | "continuous";
-
-type PdfTextContent = {
-  items: unknown[];
-};
-
-type PdfPageProxy = {
-  getTextContent: () => Promise<PdfTextContent>;
-};
-
-type PdfDocumentProxy = {
-  numPages: number;
-  getPage: (pageNumber: number) => Promise<PdfPageProxy>;
-};
-
-const ZOOM_PRESETS = [
-  0.5, 0.67, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2,
-] as const;
-const MIN_ZOOM = ZOOM_PRESETS[0];
-const MAX_ZOOM = ZOOM_PRESETS[ZOOM_PRESETS.length - 1];
-const CONTINUOUS_BUFFER = 2;
-const PAGE_ASPECT_RATIO = 1.414;
-const SEARCH_DEBOUNCE_MS = 350;
-const TEXT_HIGHLIGHT_CLASS = "highlight";
-
-function clampZoom(value: number): number {
-  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
-}
-
-function snapZoom(value: number): (typeof ZOOM_PRESETS)[number] {
-  const clamped = clampZoom(value);
-  const nearest = ZOOM_PRESETS.reduce((previous, current) =>
-    Math.abs(current - clamped) < Math.abs(previous - clamped)
-      ? current
-      : previous,
-  );
-  return nearest;
-}
-
-function touchDistance(
-  a: { clientX: number; clientY: number },
-  b: { clientX: number; clientY: number },
-): number {
-  const dx = a.clientX - b.clientX;
-  const dy = a.clientY - b.clientY;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (character) => {
-    switch (character) {
-      case "&":
-        return "&amp;";
-      case "<":
-        return "&lt;";
-      case ">":
-        return "&gt;";
-      case '"':
-        return "&quot;";
-      default:
-        return "&#39;";
-    }
-  });
-}
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
@@ -89,357 +17,43 @@ const options = {
 };
 
 export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const pageNodesRef = useRef<Map<number, HTMLDivElement>>(new Map());
-  const pinchStateRef = useRef<{
-    startDistance: number;
-    startZoom: number;
-  } | null>(null);
-  const pdfDocumentRef = useRef<PdfDocumentProxy | null>(null);
-  const searchTextCacheRef = useRef<Map<number, string>>(new Map());
-  const isProgrammaticNavRef = useRef(false);
-  const prevViewModeRef = useRef<ViewMode>("paged");
-  const goToPageRef = useRef<(targetPage: number) => void>(() => {});
+  const {
+    containerRef,
+    numPages,
+    loadingError,
+    pages,
+    zoom,
+    setZoom,
+    isPinching,
+    zoomIn,
+    zoomOut,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    pageWidth,
+    placeholderHeight,
+    pageNumber,
+    viewMode,
+    activePage,
+    canPrev,
+    canNext,
+    renderRange,
+    goToPage,
+    setPageNode,
+    toggleViewMode,
+    searchQuery,
+    setSearchQuery,
+    searchMatches,
+    activeMatchIndex,
+    activeMatchPage,
+    moveMatchCursor,
+    textRenderer,
+    onDocumentLoadSuccess,
+    onDocumentLoadError,
+    toggleFullScreen,
+  } = usePdfViewer();
 
-  const [containerWidth, setContainerWidth] = useState(0);
-  const [numPages, setNumPages] = useState(0);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [zoom, setZoom] = useState(1);
-  const [viewMode, setViewMode] = useState<ViewMode>("paged");
-  const [visiblePage, setVisiblePage] = useState(1);
-  const [loadingError, setLoadingError] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [searchMatches, setSearchMatches] = useState<number[]>([]);
-  const [activeMatchIndex, setActiveMatchIndex] = useState(-1);
-  const [isPinching, setIsPinching] = useState(false);
-
-  useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      typeof window.matchMedia !== "function"
-    ) {
-      return;
-    }
-
-    if (window.matchMedia("(max-width: 768px), (pointer: coarse)").matches) {
-      setViewMode("continuous");
-    }
-  }, []);
-
-  useEffect(() => {
-    const node = containerRef.current;
-    if (!node) return;
-
-    const observer = new ResizeObserver((entries) => {
-      const width = entries[0]?.contentRect.width ?? 0;
-      setContainerWidth(Math.floor(width));
-    });
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const node = containerRef.current;
-    if (!node) return;
-
-    const handleNativeTouchMove = (event: Event) => {
-      const touchEvent = event as globalThis.TouchEvent;
-      if (!pinchStateRef.current || touchEvent.touches.length !== 2) return;
-      touchEvent.preventDefault();
-    };
-
-    node.addEventListener("touchmove", handleNativeTouchMove, {
-      passive: false,
-    });
-    return () => {
-      node.removeEventListener("touchmove", handleNativeTouchMove);
-    };
-  }, []);
-
-  const pageWidth = useMemo(() => {
-    if (containerWidth <= 0) return undefined;
-    return Math.max(280, Math.floor(containerWidth * zoom));
-  }, [containerWidth, zoom]);
-  const placeholderHeight = Math.max(
-    360,
-    Math.floor((pageWidth ?? containerWidth ?? 420) * PAGE_ASPECT_RATIO),
-  );
-
-  const activePage = viewMode === "continuous" ? visiblePage : pageNumber;
-  const canPrev = activePage > 1;
-  const canNext = numPages > 0 && activePage < numPages;
-  const searchMatchSet = useMemo(() => new Set(searchMatches), [searchMatches]);
-  const pages = useMemo(
-    () => Array.from({ length: numPages }, (_, index) => index + 1),
-    [numPages],
-  );
-  const renderRange = useMemo(() => {
-    if (viewMode !== "continuous" || numPages === 0) {
-      return { start: 1, end: numPages };
-    }
-    return {
-      start: Math.max(1, visiblePage - CONTINUOUS_BUFFER),
-      end: Math.min(numPages, visiblePage + CONTINUOUS_BUFFER),
-    };
-  }, [numPages, viewMode, visiblePage]);
-
-  const setPageNode = useCallback(
-    (page: number) => (node: HTMLDivElement | null) => {
-      if (node) {
-        pageNodesRef.current.set(page, node);
-      } else {
-        pageNodesRef.current.delete(page);
-      }
-    },
-    [],
-  );
-
-  const scrollToPage = useCallback(
-    (targetPage: number, behavior: ScrollBehavior = "smooth") => {
-      const node = pageNodesRef.current.get(targetPage);
-      if (!node) return;
-      node.scrollIntoView({ behavior, block: "start" });
-    },
-    [],
-  );
-
-  const goToPage = useCallback(
-    (targetPage: number) => {
-      if (numPages <= 0) return;
-      const boundedPage = Math.min(numPages, Math.max(1, targetPage));
-      setPageNumber(boundedPage);
-      if (viewMode === "continuous") {
-        isProgrammaticNavRef.current = true;
-        setVisiblePage(boundedPage);
-      }
-    },
-    [numPages, viewMode],
-  );
-
-  useEffect(() => {
-    goToPageRef.current = goToPage;
-  }, [goToPage]);
-
-  const onDocumentLoadSuccess = useCallback((info: unknown) => {
-    const pdfDocument = info as PdfDocumentProxy;
-    pdfDocumentRef.current = pdfDocument;
-    searchTextCacheRef.current.clear();
-    setNumPages(pdfDocument.numPages);
-    setPageNumber(1);
-    setVisiblePage(1);
-    setSearchMatches([]);
-    setActiveMatchIndex(-1);
-    setLoadingError(false);
-  }, []);
-
-  const onDocumentLoadError = useCallback(() => {
-    pdfDocumentRef.current = null;
-    searchTextCacheRef.current.clear();
-    setLoadingError(true);
-  }, []);
-
-  const toggleFullScreen = useCallback(async () => {
-    const node = containerRef.current;
-    if (!node) return;
-
-    if (!document.fullscreenElement) {
-      await node.requestFullscreen();
-      return;
-    }
-
-    await document.exitFullscreen();
-  }, []);
-
-  useEffect(() => {
-    const enteringContinuous =
-      viewMode === "continuous" && prevViewModeRef.current !== "continuous";
-    const shouldScroll =
-      viewMode === "continuous" &&
-      (enteringContinuous || isProgrammaticNavRef.current);
-
-    if (shouldScroll) {
-      requestAnimationFrame(() => {
-        scrollToPage(pageNumber, "auto");
-      });
-    }
-
-    isProgrammaticNavRef.current = false;
-    prevViewModeRef.current = viewMode;
-  }, [viewMode, pageNumber, scrollToPage]);
-
-  useEffect(() => {
-    if (viewMode !== "continuous" || numPages === 0) return;
-    const root = containerRef.current;
-    if (!root) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleEntries = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        const primaryEntry = visibleEntries[0];
-        if (!primaryEntry) return;
-        const page = Number(
-          (primaryEntry.target as HTMLElement).dataset.pageNumber ?? "",
-        );
-        if (!Number.isFinite(page)) return;
-        setVisiblePage(page);
-        setPageNumber(page);
-      },
-      {
-        root,
-        threshold: [0.2, 0.4, 0.6, 0.8],
-      },
-    );
-
-    pageNodesRef.current.forEach((node) => observer.observe(node));
-    return () => observer.disconnect();
-  }, [numPages, viewMode, pageWidth, renderRange.start, renderRange.end]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery.trim());
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [searchQuery]);
-
-  useEffect(() => {
-    const query = debouncedSearchQuery.toLowerCase();
-    const doc = pdfDocumentRef.current;
-    if (!doc || !query) {
-      setSearchMatches([]);
-      setActiveMatchIndex(-1);
-      return;
-    }
-
-    let cancelled = false;
-
-    void (async () => {
-      const matches: number[] = [];
-      for (let page = 1; page <= doc.numPages; page += 1) {
-        try {
-          let pageText = searchTextCacheRef.current.get(page);
-          if (pageText === undefined) {
-            const pdfPage = await doc.getPage(page);
-            const textContent = await pdfPage.getTextContent();
-            pageText = textContent.items
-              .map((item) => {
-                if (
-                  item &&
-                  typeof item === "object" &&
-                  "str" in item &&
-                  typeof (item as { str?: unknown }).str === "string"
-                ) {
-                  return (item as { str: string }).str.toLowerCase();
-                }
-                return "";
-              })
-              .join(" ");
-            searchTextCacheRef.current.set(page, pageText);
-          }
-          if (pageText.includes(query)) {
-            matches.push(page);
-          }
-        } catch (error) {
-          const message =
-            error instanceof Error ? String(error) : String(error);
-          console.warn(`Failed to extract text for page ${page}:`, message);
-        }
-      }
-      if (cancelled) return;
-      setSearchMatches(matches);
-      if (matches.length === 0) {
-        setActiveMatchIndex(-1);
-        return;
-      }
-      setActiveMatchIndex(0);
-      goToPageRef.current(matches[0]);
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedSearchQuery, numPages]);
-
-  const activeMatchPage =
-    activeMatchIndex >= 0 ? searchMatches[activeMatchIndex] : undefined;
-  const moveMatchCursor = useCallback(
-    (direction: -1 | 1) => {
-      if (searchMatches.length === 0) return;
-      const current = activeMatchIndex >= 0 ? activeMatchIndex : 0;
-      const next =
-        (current + direction + searchMatches.length) % searchMatches.length;
-      setActiveMatchIndex(next);
-      goToPage(searchMatches[next]);
-    },
-    [activeMatchIndex, goToPage, searchMatches],
-  );
-
-  const handleTouchStart = useCallback(
-    (event: TouchEvent<HTMLDivElement>) => {
-      if (event.touches.length !== 2) return;
-      const first = event.touches[0];
-      const second = event.touches[1];
-      pinchStateRef.current = {
-        startDistance: touchDistance(first, second),
-        startZoom: zoom,
-      };
-      setIsPinching(true);
-    },
-    [zoom],
-  );
-
-  const handleTouchMove = useCallback((event: TouchEvent<HTMLDivElement>) => {
-    const state = pinchStateRef.current;
-    if (!state || event.touches.length !== 2) return;
-    event.preventDefault();
-    const first = event.touches[0];
-    const second = event.touches[1];
-    const nextDistance = touchDistance(first, second);
-    if (nextDistance <= 0 || state.startDistance <= 0) return;
-    const nextZoom = state.startZoom * (nextDistance / state.startDistance);
-    setZoom(clampZoom(nextZoom));
-  }, []);
-
-  const handleTouchEnd = useCallback((event: TouchEvent<HTMLDivElement>) => {
-    if (event.touches.length >= 2) return;
-    if (!pinchStateRef.current) return;
-    pinchStateRef.current = null;
-    setZoom((current) => snapZoom(current));
-    setIsPinching(false);
-  }, []);
-
-  const searchRegex = useMemo(() => {
-    if (!debouncedSearchQuery) return null;
-    const escapedQuery = debouncedSearchQuery.replace(
-      /[.*+?^${}()|[\]\\]/g,
-      "\\$&",
-    );
-    return new RegExp("(" + escapedQuery + ")", "gi");
-  }, [debouncedSearchQuery]);
-
-  const textRenderer = useCallback(
-    (textItem: { str: string }) => {
-      if (!searchRegex) return escapeHtml(textItem.str);
-
-      const parts = textItem.str.split(searchRegex);
-      if (parts.length <= 1) return escapeHtml(textItem.str);
-
-      return parts
-        .map((part, i) =>
-          i % 2 === 1
-            ? `<mark class="${TEXT_HIGHLIGHT_CLASS}">${escapeHtml(part)}</mark>`
-            : escapeHtml(part),
-        )
-        .join("");
-    },
-    [searchRegex],
-  );
+  const searchMatchSet = new Set(searchMatches);
 
   const renderPage = (targetPage: number) => (
     <Page
@@ -486,10 +100,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           <button
             type="button"
             aria-label="ズームアウト"
-            onClick={() => {
-              const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
-              if (currentIndex > 0) setZoom(ZOOM_PRESETS[currentIndex - 1]);
-            }}
+            onClick={zoomOut}
             disabled={zoom <= MIN_ZOOM}
             title={zoom <= MIN_ZOOM ? "これ以上縮小できません" : undefined}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
@@ -499,7 +110,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
           <select
             aria-label="PDF zoom"
-            value={snapZoom(zoom)}
+            value={zoom}
             onChange={(e) => setZoom(Number(e.target.value))}
             className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900"
           >
@@ -513,12 +124,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
           <button
             type="button"
             aria-label="ズームイン"
-            onClick={() => {
-              const currentIndex = ZOOM_PRESETS.indexOf(snapZoom(zoom));
-              if (currentIndex < ZOOM_PRESETS.length - 1) {
-                setZoom(ZOOM_PRESETS[currentIndex + 1]);
-              }
-            }}
+            onClick={zoomIn}
             disabled={zoom >= MAX_ZOOM}
             title={zoom >= MAX_ZOOM ? "これ以上拡大できません" : undefined}
             className="rounded border border-gray-300 px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600"
@@ -536,9 +142,7 @@ export function PdfViewer({ fileUrl, onDownloadFallback }: PdfViewerProps) {
 
           <button
             type="button"
-            onClick={() =>
-              setViewMode((mode) => (mode === "paged" ? "continuous" : "paged"))
-            }
+            onClick={toggleViewMode}
             className="rounded border border-gray-300 px-2 py-1 text-xs dark:border-gray-600"
           >
             {viewMode === "paged" ? "連続スクロール" : "ページ送り"}
