@@ -355,8 +355,9 @@ function purgeExpiredTokenCache(now: number): void {
       tokenCache.delete(cachedToken);
       checked = 0;
     } else {
-      // Fallback boundary to prevent full O(N) iteration in case of out-of-order TTLs,
-      // while allowing typical contiguous expired tokens to be cleared efficiently.
+      // Stop after seeing 20 unexpired entries to avoid scanning the entire map.
+      // Since entries are typically inserted (and expire) in order, this is O(K+20)
+      // where K is the number of expired entries at the front of the map.
       if (++checked >= 20) {
         break;
       }
