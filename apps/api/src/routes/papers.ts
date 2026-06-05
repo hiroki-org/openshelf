@@ -332,15 +332,35 @@ function purgeExpiredTokenCache(now: number): void {
     for (const [cachedToken, entry] of tokenCache.entries()) {
         if (entry.expiresAt <= now) {
             tokenCache.delete(cachedToken);
+            checked = 0;
         } else {
-            // Fallback boundary to prevent full O(N) iteration in case of out-of-order TTLs,
-            // while allowing typical contiguous expired tokens to be cleared efficiently.
+            // Stop after seeing 20 consecutive unexpired entries. Expired entries found later
+            // reset this counter so out-of-order TTLs do not strand expired tokens behind
+            // a short run of valid cache entries.
             if (++checked >= 20) {
                 break;
             }
         }
     }
 }
+
+export const __paperTokenCacheForTests = {
+    clear(): void {
+        tokenCache.clear();
+    },
+    set(token: string, entry: { payload: { sub: string }; expiresAt: number }): void {
+        tokenCache.set(token, entry);
+    },
+    has(token: string): boolean {
+        return tokenCache.has(token);
+    },
+    size(): number {
+        return tokenCache.size;
+    },
+    purgeExpired(now: number): void {
+        purgeExpiredTokenCache(now);
+    },
+};
 
 async function authorizePaperAccess(
     c: Context<{ Bindings: Env; Variables: Variables }>,

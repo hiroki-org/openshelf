@@ -229,6 +229,50 @@ describe("papers routes", () => {
     }
   });
 
+  it("continues purging after expired token cache entries reset the scan boundary", async () => {
+    const { __paperTokenCacheForTests } = await import("../papers");
+    const now = 1_000;
+
+    __paperTokenCacheForTests.clear();
+    __paperTokenCacheForTests.set("expired-leading", {
+      payload: { sub: "expired-leading" },
+      expiresAt: now - 1,
+    });
+
+    for (let index = 0; index < 19; index++) {
+      __paperTokenCacheForTests.set(`valid-before-reset-${index}`, {
+        payload: { sub: `valid-before-reset-${index}` },
+        expiresAt: now + 1_000,
+      });
+    }
+
+    __paperTokenCacheForTests.set("expired-reset", {
+      payload: { sub: "expired-reset" },
+      expiresAt: now - 1,
+    });
+
+    for (let index = 0; index < 19; index++) {
+      __paperTokenCacheForTests.set(`valid-after-reset-${index}`, {
+        payload: { sub: `valid-after-reset-${index}` },
+        expiresAt: now + 1_000,
+      });
+    }
+
+    __paperTokenCacheForTests.set("expired-after-reset", {
+      payload: { sub: "expired-after-reset" },
+      expiresAt: now - 1,
+    });
+
+    __paperTokenCacheForTests.purgeExpired(now);
+
+    expect(__paperTokenCacheForTests.has("expired-leading")).toBe(false);
+    expect(__paperTokenCacheForTests.has("expired-reset")).toBe(false);
+    expect(__paperTokenCacheForTests.has("expired-after-reset")).toBe(false);
+    expect(__paperTokenCacheForTests.size()).toBe(38);
+
+    __paperTokenCacheForTests.clear();
+  });
+
   it("hits the token cache on subsequent calls and removes expired ones", async () => {
     const app = await createTestApp();
     const { createTestJWT } = await import("../../test/helpers");
