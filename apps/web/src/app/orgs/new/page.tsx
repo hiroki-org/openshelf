@@ -208,6 +208,8 @@ export default function NewOrgPage() {
           />
           <div
             id="org-description-counter"
+            aria-live="polite"
+            aria-atomic="true"
             className={`mt-1 flex justify-end text-xs ${
               description.length >= ORG_DESCRIPTION_MAX_LENGTH
                 ? "text-red-600 dark:text-red-400"

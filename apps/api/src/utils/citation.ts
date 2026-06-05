@@ -251,6 +251,6 @@ export function buildCitation(
     return { format, citation: buildMlaText(paper, authors, frontendUrl), key: null };
 }
 
-export function isCitationFormat(value: unknown): value is CitationFormat {
-    return typeof value === "string" && ["bibtex", "biblatex", "apa", "ieee", "mla", "plain"].includes(value);
+export function isCitationFormat(value: string): value is CitationFormat {
+    return ["bibtex", "biblatex", "apa", "ieee", "mla", "plain"].includes(value);
 }
