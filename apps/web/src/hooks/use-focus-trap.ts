@@ -1,4 +1,5 @@
-import { useEffect, type RefObject } from "react";
+import { useEffect } from "react";
+import type { RefObject } from "react";
 
 const FOCUSABLE_SELECTOR =
   'button:not([tabindex="-1"]), [href]:not([tabindex="-1"]), input:not([tabindex="-1"]), textarea:not([tabindex="-1"]), select:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"]):not([tabindex="-1"]), [tabindex]:not([tabindex="-1"])';
