@@ -127,6 +127,7 @@ export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
               <span>{snippet.label}</span>
               <button
                 type="button"
+                aria-label={`${snippet.label} のバッジコードをコピー`}
                 className="rounded bg-blue-600 px-2 py-1 text-white hover:bg-blue-500"
                 onClick={() => copySnippet(snippet.value)}
               >
