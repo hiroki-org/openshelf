@@ -249,7 +249,7 @@ orgsRoute.get("/:slug/tags", async (c) => {
 
     const rawTags = paper.tags ?? "";
     if (rawTags) {
-      rawTagCounts[rawTags] = (rawTagCounts[rawTags] || 0) + 1;
+      rawTagCounts[rawTags] = (rawTagCounts[rawTags] ?? 0) + 1;
     }
   }
 
@@ -259,7 +259,7 @@ orgsRoute.get("/:slug/tags", async (c) => {
     for (let i = 0, len = tags.length; i < len; i++) {
       const tag = tags[i];
       if (query && !tag.toLowerCase().startsWith(query)) continue;
-      counts[tag] = (counts[tag] || 0) + count;
+      counts[tag] = (counts[tag] ?? 0) + count;
     }
   }
 
