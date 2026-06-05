@@ -204,9 +204,7 @@ describe("SettingsPage", () => {
   it("shows github username in preview when display name is blank", () => {
     render(<SettingsPage />);
 
-    fireEvent.change(screen.getByLabelText("表示名"), {
-      target: { value: "   " },
-    });
+    fireEvent.change(screen.getByLabelText("表示名"), { target: { value: "   " } });
 
     expect(screen.getByText("alice")).toBeInTheDocument();
   });

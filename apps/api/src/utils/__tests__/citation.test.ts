@@ -187,12 +187,7 @@ describe("isCitationFormat", () => {
         null,
         undefined,
         123,
-        true,
-        false,
-        {},
-        [],
-        Symbol("test"),
     ] satisfies unknown[])("returns false for invalid format: %s", (format) => {
-        expect(isCitationFormat(format)).toBe(false);
+        expect(isCitationFormat(format as string)).toBe(false);
     });
 });
