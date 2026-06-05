@@ -16,7 +16,6 @@ import {
     touchUpdatedAt,
     VALID_VENUE_TYPES,
     VALID_CATEGORIES,
-
     type CategoryType,
 } from "../db/schema";
 import type { Env, Variables } from "../types";
