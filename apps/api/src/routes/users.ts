@@ -1,6 +1,6 @@
 import { Hono, Context } from "hono";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, or, and, ne, sql } from "drizzle-orm";
+import { eq, or, and, ne, sql, type InferSelectModel } from "drizzle-orm";
 import { users, enableForeignKeys, touchUpdatedAt } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -66,7 +66,7 @@ usersRoute.put("/me", authMiddleware, updateMeHandler);
 
 // Simple in-memory cache for user search
 type UserSearchResult = Pick<
-  typeof users.$inferSelect,
+  InferSelectModel<typeof users>,
   "id" | "name" | "displayName" | "githubId" | "avatarUrl"
 >;
 
@@ -119,6 +119,7 @@ usersRoute.get("/search", authMiddleware, async (c) => {
 
   const db = drizzle(c.env.DB);
   const escapedQuery = escapeLikeLiteral(q);
+  const wildcardQuery = `%${escapedQuery}%`;
 
   const results = await db
     .select({
@@ -132,8 +133,8 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     .where(
       and(
         or(
-          sql`${users.name} LIKE '%' || ${escapedQuery} || '%' ESCAPE '\\' COLLATE NOCASE`,
-          sql`${users.githubId} LIKE '%' || ${escapedQuery} || '%' ESCAPE '\\' COLLATE NOCASE`,
+          sql`${users.name} LIKE ${wildcardQuery} ESCAPE '\\' COLLATE NOCASE`,
+          sql`${users.githubId} LIKE ${wildcardQuery} ESCAPE '\\' COLLATE NOCASE`,
         ),
         ne(users.id, currentUserId),
       ),
