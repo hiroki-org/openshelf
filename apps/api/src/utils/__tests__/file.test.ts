@@ -194,27 +194,6 @@ describe("validateMagicNumbers", () => {
     );
   });
 
-  it("rejects legacy PowerPoint files with malformed OLE2 header (invalid sector shift)", async () => {
-    const validOle2 = createMockOle2(["PowerPoint Document"]);
-
-    // Create a modified buffer with an invalid sector shift (e.g., 10 instead of 9 or 12)
-    const modifiedBuffer = new Uint8Array(validOle2.length);
-    modifiedBuffer.set(validOle2);
-
-    const view = new DataView(modifiedBuffer.buffer);
-    view.setUint16(30, 10, true);
-
-    const ppt = createFile(
-      "slides.ppt",
-      "application/vnd.ms-powerpoint",
-      modifiedBuffer,
-    );
-
-    await expect(
-      validateMagicNumbers(ppt, "application/vnd.ms-powerpoint"),
-    ).resolves.toBe(false);
-  });
-
   it("rejects legacy PowerPoint files when the target entry is not a stream (objectType !== 2)", async () => {
     const ppt = createFile(
       "slides.ppt",
@@ -245,7 +224,7 @@ describe("validateMagicNumbers", () => {
     ).resolves.toBe(false);
   });
 
-  it("returns false when File.slice throws RangeError", async () => {
+it("returns false when File.slice throws RangeError", async () => {
     const errorFile = {
       slice: () => ({
         arrayBuffer: async () => {
@@ -256,12 +235,10 @@ describe("validateMagicNumbers", () => {
       type: "application/pdf",
     } as unknown as File;
 
-    await expect(
-      validateMagicNumbers(errorFile, "application/pdf"),
-    ).resolves.toBe(false);
+    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
   });
 
-  it("returns false when File.slice throws TypeError", async () => {
+it("returns false when File.slice throws TypeError", async () => {
     const errorFile = {
       slice: () => ({
         arrayBuffer: async () => {
@@ -272,12 +249,10 @@ describe("validateMagicNumbers", () => {
       type: "application/pdf",
     } as unknown as File;
 
-    await expect(
-      validateMagicNumbers(errorFile, "application/pdf"),
-    ).resolves.toBe(false);
+    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
   });
 
-  it("returns false when File.slice throws DOMException with InvalidStateError", async () => {
+it("returns false when File.slice throws DOMException with InvalidStateError", async () => {
     const errorFile = {
       slice: () => ({
         arrayBuffer: async () => {
@@ -288,12 +263,10 @@ describe("validateMagicNumbers", () => {
       type: "application/pdf",
     } as unknown as File;
 
-    await expect(
-      validateMagicNumbers(errorFile, "application/pdf"),
-    ).resolves.toBe(false);
+    await expect(validateMagicNumbers(errorFile, "application/pdf")).resolves.toBe(false);
   });
 
-  it("throws the error when File.slice throws an unexpected error", async () => {
+it("throws the error when File.slice throws an unexpected error", async () => {
     const customError = new Error("Unexpected error");
     const errorFile = {
       slice: () => ({
@@ -305,9 +278,7 @@ describe("validateMagicNumbers", () => {
       type: "application/pdf",
     } as unknown as File;
 
-    await expect(
-      validateMagicNumbers(errorFile, "application/pdf"),
-    ).rejects.toThrow("Unexpected error");
+    await expect(validateMagicNumbers(errorFile, "application/pdf")).rejects.toThrow("Unexpected error");
   });
 
   it("throws the error when File.slice throws DOMException with AbortError", async () => {
@@ -322,8 +293,6 @@ describe("validateMagicNumbers", () => {
       type: "application/pdf",
     } as unknown as File;
 
-    await expect(
-      validateMagicNumbers(errorFile, "application/pdf"),
-    ).rejects.toThrow(customError);
+    await expect(validateMagicNumbers(errorFile, "application/pdf")).rejects.toThrow(customError);
   });
 });

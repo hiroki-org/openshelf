@@ -119,7 +119,6 @@ usersRoute.get("/search", authMiddleware, async (c) => {
 
   const db = drizzle(c.env.DB);
   const escapedQuery = escapeLikeLiteral(q);
-  const wildcardQuery = `%${escapedQuery}%`;
 
   const results = await db
     .select({
@@ -133,8 +132,8 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     .where(
       and(
         or(
-          sql`${users.name} LIKE ${wildcardQuery} ESCAPE '\\' COLLATE NOCASE`,
-          sql`${users.githubId} LIKE ${wildcardQuery} ESCAPE '\\' COLLATE NOCASE`,
+          sql`${users.name} LIKE '%' || ${escapedQuery} || '%' ESCAPE '\\' COLLATE NOCASE`,
+          sql`${users.githubId} LIKE '%' || ${escapedQuery} || '%' ESCAPE '\\' COLLATE NOCASE`,
         ),
         ne(users.id, currentUserId),
       ),
