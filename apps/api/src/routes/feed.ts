@@ -482,21 +482,23 @@ async function buildUserCollectionFeedResponse(
 
     const db = drizzle(c.env.DB);
 
-    const user = await db.select().from(users).where(eq(users.id, id)).get();
+    const [user, collection] = await Promise.all([
+        db.select().from(users).where(eq(users.id, id)).get(),
+        db
+            .select()
+            .from(collections)
+            .where(
+                and(
+                    eq(collections.ownerType, "user"),
+                    eq(collections.ownerId, id),
+                    eq(collections.slug, collectionSlug),
+                ),
+            )
+            .get(),
+    ]);
+
     if (!user) return c.json({ error: "User not found" }, 404);
     const authorName = (user.displayName ?? user.name ?? "").trim() || "OpenShelf";
-
-    const collection = await db
-        .select()
-        .from(collections)
-        .where(
-            and(
-                eq(collections.ownerType, "user"),
-                eq(collections.ownerId, id),
-                eq(collections.slug, collectionSlug),
-            ),
-        )
-        .get();
 
     if (!collection || collection.visibility !== "public") {
         return c.json({ error: "Collection not found" }, 404);
