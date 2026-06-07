@@ -1,11 +1,11 @@
 "use client";
 
-import { apiFetch } from "@/lib/api";
 import { TAG_DELIMITER_PATTERN, splitTagInput } from "@/lib/tags";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTagSuggestions } from "./tag-autocomplete-input/use-tag-suggestions";
+import { TagChips } from "./tag-autocomplete-input/tag-chips";
+import { AutocompleteDropdown } from "./tag-autocomplete-input/autocomplete-dropdown";
 
-const DEBOUNCE_MS = 300;
-const MIN_QUERY_LENGTH = 2;
 const BLUR_DELAY_MS = 120;
 
 type TagAutocompleteInputProps = {
@@ -42,13 +42,9 @@ export function TagAutocompleteInput({
   orgSlug,
   className,
 }: TagAutocompleteInputProps) {
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const cacheRef = useRef(new Map<string, string[]>());
   const blurTimeoutRef = useRef<number | null>(null);
-  const requestIdRef = useRef(0);
 
   const { committed, currentTrimmed } = useMemo(
     () => splitEditingState(value),
@@ -57,65 +53,12 @@ export function TagAutocompleteInput({
 
   const displayChips = useMemo(() => splitTagInput(value), [value]);
 
+  const { suggestions, loading } = useTagSuggestions(currentTrimmed, orgSlug);
+
   useEffect(() => {
-    const requestId = ++requestIdRef.current;
-    if (currentTrimmed.length < MIN_QUERY_LENGTH) {
-      setLoading(false);
-      setSuggestions([]);
-      setHighlightedIndex(-1);
-      setOpen(false);
-      return;
-    }
-
-    const normalizedQuery = currentTrimmed.toLowerCase();
-    const cacheKey = `${orgSlug ?? ""}::${normalizedQuery}`;
-    const cached = cacheRef.current.get(cacheKey);
-    if (cached) {
-      setLoading(false);
-      setSuggestions(cached);
-      setHighlightedIndex(cached.length > 0 ? 0 : -1);
-      setOpen(cached.length > 0);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({ q: currentTrimmed });
-        if (orgSlug) params.set("orgSlug", orgSlug);
-        const response = await apiFetch(
-          `/api/tags/suggest?${params.toString()}`,
-        );
-        if (requestIdRef.current !== requestId) return;
-        if (!response.ok) {
-          setSuggestions([]);
-          setHighlightedIndex(-1);
-          setOpen(false);
-          return;
-        }
-        const body = (await response.json()) as { tags?: unknown };
-        const nextSuggestions = Array.isArray(body.tags)
-          ? body.tags.filter((tag): tag is string => typeof tag === "string")
-          : [];
-        if (requestIdRef.current !== requestId) return;
-        cacheRef.current.set(cacheKey, nextSuggestions);
-        setSuggestions(nextSuggestions);
-        setHighlightedIndex(nextSuggestions.length > 0 ? 0 : -1);
-        setOpen(nextSuggestions.length > 0);
-      } catch {
-        if (requestIdRef.current !== requestId) return;
-        setSuggestions([]);
-        setHighlightedIndex(-1);
-        setOpen(false);
-      } finally {
-        if (requestIdRef.current === requestId) {
-          setLoading(false);
-        }
-      }
-    }, DEBOUNCE_MS);
-
-    return () => clearTimeout(timer);
-  }, [currentTrimmed, orgSlug]);
+    setHighlightedIndex(suggestions.length > 0 ? 0 : -1);
+    setOpen(suggestions.length > 0);
+  }, [suggestions]);
 
   useEffect(() => {
     return () => {
@@ -199,44 +142,16 @@ export function TagAutocompleteInput({
         placeholder={placeholder}
       />
 
-      {open && suggestions.length > 0 && (
-        <ul
-          id={listId}
-          role="listbox"
-          className="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-md border border-gray-300 bg-white py-1 text-sm shadow-lg dark:border-gray-700 dark:bg-gray-900"
-        >
-          {suggestions.map((suggestion, index) => (
-            <li
-              key={`${suggestion}-${index}`}
-              id={`${listId}-option-${index}`}
-              role="option"
-              aria-selected={index === highlightedIndex}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => applySuggestion(suggestion)}
-              className={`cursor-pointer px-3 py-2 ${
-                index === highlightedIndex
-                  ? "bg-gray-100 dark:bg-gray-800"
-                  : "hover:bg-gray-50 dark:hover:bg-gray-800/80"
-              }`}
-            >
-              {suggestion}
-            </li>
-          ))}
-        </ul>
+      {open && (
+        <AutocompleteDropdown
+          listId={listId}
+          suggestions={suggestions}
+          highlightedIndex={highlightedIndex}
+          onSelect={applySuggestion}
+        />
       )}
 
-      {displayChips.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {displayChips.map((tag, index) => (
-            <span
-              key={`${tag}-${index}`}
-              className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700 dark:bg-gray-800 dark:text-gray-200"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
+      <TagChips tags={displayChips} />
 
       {loading && (
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
