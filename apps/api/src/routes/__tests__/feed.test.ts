@@ -585,25 +585,25 @@ describe("feed routes", () => {
         makeQuery({
           getResult: {
             org: {
-                id: "org-1",
-                slug: "lab",
-                name: "Lab",
-                description: null,
-                createdAt: "2026-01-01 00:00:00",
-                updatedAt: "2026-01-02 00:00:00",
+              id: "org-1",
+              slug: "lab",
+              name: "Lab",
+              description: null,
+              createdAt: "2026-01-01 00:00:00",
+              updatedAt: "2026-01-02 00:00:00",
             },
             collection: {
-                id: "col-1",
-                ownerType: "org",
-                ownerId: "org-1",
-                orgSlug: "lab",
-                slug: "featured",
-                name: "Featured",
-                description: null,
-                visibility: "public",
-                createdAt: "2026-01-01 00:00:00",
-                updatedAt: "2026-01-02 00:00:00",
-            }
+              id: "col-1",
+              ownerType: "org",
+              ownerId: "org-1",
+              orgSlug: "lab",
+              slug: "featured",
+              name: "Featured",
+              description: null,
+              visibility: "public",
+              createdAt: "2026-01-01 00:00:00",
+              updatedAt: "2026-01-02 00:00:00",
+            },
           },
         }),
       )
@@ -749,5 +749,139 @@ describe("feed routes", () => {
 
     expect(res.status).toBe(400);
     await expect(res.json()).resolves.toEqual({ error: "invalid slug" });
+  });
+
+  it("GET /feed/orgs/:slug/collections/:cSlug/atom.xml returns 404 when org is missing", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() => makeQuery({ getResult: undefined }));
+    const app = await createTestApp();
+    const env = createTestEnv();
+    const req = new Request(
+      "http://localhost/feed/orgs/missing/collections/featured/atom.xml",
+    );
+    const res = await app.request(req, {}, env);
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /feed/orgs/:slug/collections/:cSlug/atom.xml returns 404 when collection is missing or private", async () => {
+    mockDb.select = vi.fn().mockImplementationOnce(() =>
+      makeQuery({
+        getResult: {
+          org: {
+            id: "org-1",
+            name: "Lab",
+            slug: "lab",
+            createdAt: "2026-01-01 00:00:00",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+          collection: null,
+        },
+      }),
+    );
+    const app = await createTestApp();
+    const env = createTestEnv();
+    const req = new Request(
+      "http://localhost/feed/orgs/lab/collections/missing/atom.xml",
+    );
+    const res = await app.request(req, {}, env);
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /feed/users/:id/collections/:cSlug/atom.xml returns 404 when user is missing", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() => makeQuery({ getResult: undefined }))
+      .mockImplementationOnce(() => makeQuery({ getResult: undefined }));
+    const app = await createTestApp();
+    const env = createTestEnv();
+    const req = new Request(
+      "http://localhost/feed/users/missing/collections/featured/atom.xml",
+    );
+    const res = await app.request(req, {}, env);
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /feed/users/:id/collections/:cSlug/atom.xml returns 404 when collection is missing", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({ getResult: { id: "user-1", name: "User" } }),
+      )
+      .mockImplementationOnce(() => makeQuery({ getResult: undefined }));
+    const app = await createTestApp();
+    const env = createTestEnv();
+    const req = new Request(
+      "http://localhost/feed/users/user-1/collections/missing/atom.xml",
+    );
+    const res = await app.request(req, {}, env);
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /feed/orgs/:slug/collections/:cSlug/atom.xml returns 404 when org is missing", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() => makeQuery({ getResult: undefined }));
+    const app = await createTestApp();
+    const env = createTestEnv();
+    const req = new Request(
+      "http://localhost/feed/orgs/missing/collections/featured/atom.xml",
+    );
+    const res = await app.request(req, {}, env);
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /feed/orgs/:slug/collections/:cSlug/atom.xml returns 404 when collection is missing or private", async () => {
+    mockDb.select = vi.fn().mockImplementationOnce(() =>
+      makeQuery({
+        getResult: {
+          org: {
+            id: "org-1",
+            name: "Lab",
+            slug: "lab",
+            createdAt: "2026-01-01 00:00:00",
+            updatedAt: "2026-01-02 00:00:00",
+          },
+          collection: null,
+        },
+      }),
+    );
+    const app = await createTestApp();
+    const env = createTestEnv();
+    const req = new Request(
+      "http://localhost/feed/orgs/lab/collections/missing/atom.xml",
+    );
+    const res = await app.request(req, {}, env);
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /feed/users/:id/collections/:cSlug/atom.xml returns 404 when user is missing", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() => makeQuery({ getResult: undefined }))
+      .mockImplementationOnce(() => makeQuery({ getResult: undefined }));
+    const app = await createTestApp();
+    const env = createTestEnv();
+    const req = new Request(
+      "http://localhost/feed/users/missing/collections/featured/atom.xml",
+    );
+    const res = await app.request(req, {}, env);
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /feed/users/:id/collections/:cSlug/atom.xml returns 404 when collection is missing", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({ getResult: { id: "user-1", name: "User" } }),
+      )
+      .mockImplementationOnce(() => makeQuery({ getResult: undefined }));
+    const app = await createTestApp();
+    const env = createTestEnv();
+    const req = new Request(
+      "http://localhost/feed/users/user-1/collections/missing/atom.xml",
+    );
+    const res = await app.request(req, {}, env);
+    expect(res.status).toBe(404);
   });
 });
