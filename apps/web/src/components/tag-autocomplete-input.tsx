@@ -238,11 +238,13 @@ export function TagAutocompleteInput({
         </div>
       )}
 
-      {loading && (
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          候補を取得中...
-        </p>
-      )}
+      <div aria-live="polite" aria-atomic="true">
+        {loading && (
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            候補を取得中...
+          </p>
+        )}
+      </div>
     </div>
   );
 }
