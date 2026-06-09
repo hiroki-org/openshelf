@@ -132,8 +132,8 @@ usersRoute.get("/search", authMiddleware, async (c) => {
     .where(
       and(
         or(
-          sql`${users.name} LIKE '%' || ${escapedQuery} || '%' ESCAPE '\\' COLLATE NOCASE`,
-          sql`${users.githubId} LIKE '%' || ${escapedQuery} || '%' ESCAPE '\\' COLLATE NOCASE`,
+          sql`${users.name} COLLATE NOCASE LIKE '%' || ${escapedQuery} || '%' ESCAPE '\\'`,
+          sql`${users.githubId} COLLATE NOCASE LIKE '%' || ${escapedQuery} || '%' ESCAPE '\\'`,
         ),
         ne(users.id, currentUserId),
       ),

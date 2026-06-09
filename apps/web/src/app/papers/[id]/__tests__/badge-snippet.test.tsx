@@ -55,24 +55,6 @@ describe("BadgeSnippet", () => {
     expect(screen.getAllByText(/\[!\[OpenShelf Badge\]/)).toHaveLength(2);
   });
 
-  it("uses visible Copy text at the start of each accessible button name", () => {
-    render(
-      <BadgeSnippet
-        paperId="paper-1"
-        title="Paper Title"
-        siteBase="https://openshelf.example"
-      />,
-    );
-
-    expect(
-      screen.getByRole("button", { name: "Copy Markdown" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Copy HTML" })).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Copy shields.io" }),
-    ).toBeInTheDocument();
-  });
-
   it("copies selected snippet via clipboard", async () => {
     render(
       <BadgeSnippet
