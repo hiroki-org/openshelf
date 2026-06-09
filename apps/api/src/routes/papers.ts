@@ -800,7 +800,7 @@ papersRoute.post("/", authMiddleware, async (c) => {
 
     if (errors.length > 0) {
       console.error("File upload errors:", {
-        errors: errors.map((e) => (e instanceof Error ? e.message : String(e))),
+        errors: errors.map(formatCaughtError),
       });
       const firstError = errors[0];
       throw firstError instanceof Error
@@ -1054,7 +1054,7 @@ papersRoute.post("/:id/track", async (c) => {
       console.error("Failed to record paper track event", {
         paperId,
         event: payload.event,
-        error: error instanceof Error ? error.message : String(error),
+        error: formatCaughtError(error),
       });
     }),
   );

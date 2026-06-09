@@ -37,6 +37,7 @@ describe("formatCaughtError", () => {
   });
 
   it("should handle generic objects", () => {
+    // Non-Error objects intentionally use String(value), matching current logging behavior.
     expect(formatCaughtError({ code: 500 })).toBe("[object Object]");
   });
 });
