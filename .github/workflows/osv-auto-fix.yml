@@ -34,7 +34,7 @@ jobs:
           npm install --ignore-scripts
           npm audit fix
 
-          # Fix apps/web if present
+          # Run audit fix for apps/web if present
           if [ -d "apps/web" ]; then
             npm --prefix apps/web install --ignore-scripts
             npm --prefix apps/web audit fix
