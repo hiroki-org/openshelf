@@ -16,8 +16,6 @@ import {
     touchUpdatedAt,
     VALID_VENUE_TYPES,
     VALID_CATEGORIES,
-    type VenueType,
-    type CategoryType,
 } from "../db/schema";
 import type { Env, Variables } from "../types";
 import { authMiddleware } from "../middleware/auth";
@@ -485,9 +483,9 @@ type ParsedMetadata = {
     externalUrl: string | null;
     doi: string | null;
     venue: string | null;
-    venueType: VenueType | null;
+    venueType: (typeof VALID_VENUE_TYPES)[number] | null;
     year: number | null;
-    category: CategoryType | null;
+    category: (typeof VALID_CATEGORIES)[number] | null;
     tags: string | null;
     orgId?: string;
 };
@@ -553,9 +551,9 @@ function parseAndValidateMetadata(c: Context, metadataStr: string): { errorRespo
             externalUrl,
             doi: (metadata.doi as string) || null,
             venue: (metadata.venue as string) || null,
-            venueType: venueType as VenueType | null,
+            venueType: venueType as (typeof VALID_VENUE_TYPES)[number] | null,
             year: metadata.year ? Number(metadata.year) : null,
-            category: category as CategoryType | null,
+            category: category as (typeof VALID_CATEGORIES)[number] | null,
             tags: metadata.tags ? JSON.stringify(metadata.tags) : null,
             orgId,
         }
