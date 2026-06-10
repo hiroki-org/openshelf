@@ -183,11 +183,19 @@ export default function NewOrgPage() {
                   e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
                 );
               }}
+              aria-describedby="org-slug-status"
               className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
               required
             />
           </div>
-          <div className="mt-1">{slugStatusText()}</div>
+          <div
+            id="org-slug-status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="mt-1"
+          >
+            {slugStatusText()}
+          </div>
         </div>
 
         <div>
