@@ -173,6 +173,7 @@ export default function SettingsPage() {
 
           {message && (
             <p
+              role={messageType === "error" ? "alert" : "status"}
               className={`rounded-xl px-3 py-2 text-sm ${
                 messageType === "error"
                   ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
