@@ -64,11 +64,10 @@ describe("BadgeSnippet", () => {
       />,
     );
 
-    const markdownPanel = screen.getByText("Markdown").closest("div");
-    expect(markdownPanel).not.toBeNull();
-    fireEvent.click(
-      markdownPanel!.querySelector("button") as HTMLButtonElement,
-    );
+    const copyButton = screen.getByRole("button", {
+      name: "Markdown スニペットを Copy",
+    });
+    fireEvent.click(copyButton);
 
     await waitFor(() => {
       expect(navigator.clipboard.writeText).toHaveBeenCalled();
