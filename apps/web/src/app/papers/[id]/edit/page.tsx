@@ -252,7 +252,10 @@ export default function PaperEditPage() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400">
+        <div
+          role="alert"
+          className="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400"
+        >
           {error}
         </div>
       )}
