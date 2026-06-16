@@ -196,6 +196,7 @@ export default function InvitesPage() {
                         onClick={() => respond(inv.id, "accept")}
                         disabled={isProcessing}
                         aria-busy={processingAction === "accept"}
+                        aria-label={`${inv.paperTitle}への招待を承認`}
                         className="inline-flex min-w-[72px] items-center justify-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
                       >
                         {processingAction === "accept" && (
@@ -210,6 +211,7 @@ export default function InvitesPage() {
                         onClick={() => respond(inv.id, "decline")}
                         disabled={isProcessing}
                         aria-busy={processingAction === "decline"}
+                        aria-label={`${inv.paperTitle}への招待を拒否`}
                         className="inline-flex min-w-[72px] items-center justify-center gap-2 rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-900"
                       >
                         {processingAction === "decline" && (

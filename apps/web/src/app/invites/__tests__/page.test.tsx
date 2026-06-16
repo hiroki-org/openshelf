@@ -101,7 +101,7 @@ describe("InvitesPage", () => {
 
     expect(await screen.findByText("Paper title")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "承認" }));
+    fireEvent.click(screen.getByRole("button", { name: "Paper titleへの招待を承認" }));
 
     await waitFor(() => {
       expect(screen.getByText("承認済み")).toBeInTheDocument();
@@ -155,7 +155,7 @@ describe("InvitesPage", () => {
     render(<InvitesPage />);
 
     expect(await screen.findByText("Paper title")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "拒否" }));
+    fireEvent.click(screen.getByRole("button", { name: "Paper titleへの招待を拒否" }));
 
     await waitFor(() => {
       expect(screen.getByText("拒否済み")).toBeInTheDocument();
@@ -221,10 +221,10 @@ describe("InvitesPage", () => {
     expect(secondItem).not.toBeNull();
 
     const firstAccept = within(firstItem!).getByRole("button", {
-      name: "承認",
+      name: "First paperへの招待を承認",
     });
     const firstDecline = within(firstItem!).getByRole("button", {
-      name: "拒否",
+      name: "First paperへの招待を拒否",
     });
 
     fireEvent.click(firstAccept);
@@ -234,10 +234,10 @@ describe("InvitesPage", () => {
     });
     expect(firstDecline).toBeDisabled();
     expect(firstAccept).toHaveAttribute("aria-busy", "true");
-    expect(firstAccept).toHaveAccessibleName("承認");
+    expect(firstAccept).toHaveAccessibleName("First paperへの招待を承認");
 
     const secondDecline = within(secondItem!).getByRole("button", {
-      name: "拒否",
+      name: "Second paperへの招待を拒否",
     });
 
     fireEvent.click(secondDecline);
@@ -246,7 +246,7 @@ describe("InvitesPage", () => {
       expect(secondDecline).toBeDisabled();
     });
     expect(secondDecline).toHaveAttribute("aria-busy", "true");
-    expect(secondDecline).toHaveAccessibleName("拒否");
+    expect(secondDecline).toHaveAccessibleName("Second paperへの招待を拒否");
     expect(firstAccept).toBeDisabled();
 
     await act(async () => {
