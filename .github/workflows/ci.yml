@@ -118,7 +118,7 @@ jobs:
           sed -i 's|SF:src/|SF:apps/api/src/|g' ./coverage-artifacts/api/lcov.info
           sed -i 's|SF:src/|SF:apps/web/src/|g' ./coverage-artifacts/web/lcov.info
       - name: Upload API coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: api
@@ -127,7 +127,7 @@ jobs:
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
       - name: Upload Web coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: web
