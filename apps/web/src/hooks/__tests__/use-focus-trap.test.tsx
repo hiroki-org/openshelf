@@ -421,7 +421,7 @@ describe("useFocusTrap", () => {
     });
   });
 
-  it("does not set open to false if trigger button is clicked", async () => {
+  it("sets open to false if trigger button is clicked (pointerdown)", async () => {
     render(<FocusTrapHarness />);
 
     const trigger = screen.getByRole("button", { name: "Open menu" });
@@ -441,16 +441,16 @@ describe("useFocusTrap", () => {
     await waitFor(() => {
       expect(
         screen.queryByRole("dialog", { name: "Menu" }),
-      ).toBeInTheDocument();
+      ).not.toBeInTheDocument();
     });
   });
 
-  it("focuses last element if shift+tab is pressed and activeElement is neither first nor dialogRef", async () => {
+  it("does not intercept Shift+Tab when active element is outside the trap", async () => {
     render(<FocusTrapHarness />);
 
     screen.getByRole("button", { name: "Open menu" }).click();
 
-    const last = await screen.findByRole("button", { name: "Last action" });
+    await screen.findByRole("button", { name: "Last action" });
 
     // Focus middle element (let's say we had one, but we'll just fake it with trigger)
     const trigger = screen.getByRole("button", { name: "Open menu" });
@@ -467,7 +467,7 @@ describe("useFocusTrap", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  it("focuses first element if tab is pressed and activeElement is neither last nor dialogRef", async () => {
+  it("does not intercept Tab when active element is outside the trap", async () => {
     render(<FocusTrapHarness />);
 
     screen.getByRole("button", { name: "Open menu" }).click();
@@ -485,11 +485,26 @@ describe("useFocusTrap", () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
-  it("focuses nothing on unmount due to cleanup", async () => {
+  it("cleans up event listeners on unmount", async () => {
+    const addSpy = vi.spyOn(document, "addEventListener");
+    const removeSpy = vi.spyOn(document, "removeEventListener");
+
     const { unmount } = render(<FocusTrapHarness />);
+    screen.getByRole("button", { name: "Open menu" }).click();
+    await screen.findByRole("dialog", { name: "Menu" });
+
     unmount();
 
-    // This is basically implicitly tested but good to cover
+    const addCount = addSpy.mock.calls.filter(
+      ([type]) => type === "pointerdown" || type === "keydown",
+    ).length;
+    const removeCount = removeSpy.mock.calls.filter(
+      ([type]) => type === "pointerdown" || type === "keydown",
+    ).length;
+    expect(removeCount).toBeGreaterThanOrEqual(addCount);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
   });
 
   it("does not prevent default if tab pressed and it is not last element or dialogRef", async () => {
