@@ -328,14 +328,6 @@ const inFlightVerifications = new Map<string, Promise<{ sub: string; exp?: numbe
 const MAX_CACHE_SIZE = 1000;
 const TOKEN_CACHE_MAX_AGE_MS = 60 * 1000;
 
-function purgeExpiredTokenCache(now: number): void {
-    for (const [cachedToken, entry] of tokenCache.entries()) {
-        if (entry.expiresAt <= now) {
-            tokenCache.delete(cachedToken);
-        }
-    }
-}
-
 async function authorizePaperAccess(
     c: Context<{ Bindings: Env; Variables: Variables }>,
     db: ReturnType<typeof drizzle>,
@@ -369,10 +361,7 @@ async function authorizePaperAccess(
 
                 const postVerifyNow = Date.now();
                 if (tokenCache.size >= MAX_CACHE_SIZE) {
-                    purgeExpiredTokenCache(postVerifyNow);
-                    if (tokenCache.size >= MAX_CACHE_SIZE) {
-                        tokenCache.delete(tokenCache.keys().next().value!);
-                    }
+                    tokenCache.delete(tokenCache.keys().next().value!);
                 }
                 const jwtExpiresAt = verified.exp ? verified.exp * 1000 : postVerifyNow + TOKEN_CACHE_MAX_AGE_MS;
                 const expiresAt = Math.min(jwtExpiresAt, postVerifyNow + TOKEN_CACHE_MAX_AGE_MS);
