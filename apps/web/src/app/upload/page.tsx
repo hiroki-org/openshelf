@@ -557,14 +557,12 @@ export default function UploadPage() {
           )}
         </div>
 
-        {error && (
-          <div
-            role="alert"
-            className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
-          >
-            {error}
-          </div>
-        )}
+        <div
+          role="alert"
+          className={error ? "rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300" : ""}
+        >
+          {error ?? ""}
+        </div>
 
         <div className="flex justify-end pt-4">
           <button

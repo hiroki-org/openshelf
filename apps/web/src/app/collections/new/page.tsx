@@ -349,11 +349,9 @@ export default function NewCollectionPage() {
           </select>
         </div>
 
-        {error && (
-          <p role="alert" className="text-sm text-red-600">
-            {error}
-          </p>
-        )}
+        <p role="alert" className={error ? "text-sm text-red-600" : ""}>
+          {error ?? ""}
+        </p>
 
         <button
           type="submit"

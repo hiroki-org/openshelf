@@ -171,18 +171,16 @@ export default function SettingsPage() {
             {saving ? "保存中..." : "保存"}
           </button>
 
-          {message && (
-            <p
-              role={messageType === "error" ? "alert" : "status"}
-              className={`rounded-xl px-3 py-2 text-sm ${
-                messageType === "error"
-                  ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
-                  : "border border-green-200 bg-green-50 text-green-700 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-300"
-              }`}
-            >
-              {message}
-            </p>
-          )}
+          <p
+            role={messageType === "error" ? "alert" : "status"}
+            className={message ? `rounded-xl px-3 py-2 text-sm ${
+              messageType === "error"
+                ? "border border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300"
+                : "border border-green-200 bg-green-50 text-green-700 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-300"
+            }` : ""}
+          >
+            {message ?? ""}
+          </p>
         </div>
       </section>
     </div>
