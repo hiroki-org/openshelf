@@ -64,6 +64,7 @@ export function MarkdownEditor({
           id={`${id}-tab-write`}
           type="button"
           role="tab"
+          aria-label="Write: Edit Markdown"
           aria-selected={mode === "write"}
           aria-controls={`${id}-panel-write`}
           tabIndex={mode === "write" ? 0 : -1}
@@ -77,6 +78,7 @@ export function MarkdownEditor({
           id={`${id}-tab-preview`}
           type="button"
           role="tab"
+          aria-label="Preview: View Output"
           aria-selected={mode === "preview"}
           aria-controls={`${id}-panel-preview`}
           tabIndex={mode === "preview" ? 0 : -1}
