@@ -291,8 +291,9 @@ export default function NewCollectionPage() {
             }}
             maxLength={40}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-900"
+            aria-describedby="slug-status"
           />
-          <p className="text-xs mt-1 text-gray-500">
+          <p id="slug-status" aria-live="polite" className="text-xs mt-1 text-gray-500">
             {slugStatus === "checking" && "確認中..."}
             {slugStatus === "available" && "✓ 使用可能"}
             {slugStatus === "taken" && "✗ 使用済み"}
