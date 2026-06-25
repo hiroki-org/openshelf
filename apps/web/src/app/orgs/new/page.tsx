@@ -218,9 +218,11 @@ export default function NewOrgPage() {
           </div>
         </div>
 
-        <p role="alert" className="text-sm text-red-600">
-          {error}
-        </p>
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"
