@@ -238,8 +238,15 @@ export function TagAutocompleteInput({
         </div>
       )}
 
+      <div aria-live="polite" className="sr-only">
+        {loading ? "候補を取得中..." : ""}
+      </div>
+
       {loading && (
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p
+          aria-hidden="true"
+          className="mt-1 text-xs text-gray-500 dark:text-gray-400"
+        >
           候補を取得中...
         </p>
       )}
