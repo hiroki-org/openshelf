@@ -34,15 +34,17 @@ vi.mock("next/link", () => ({
 }));
 
 describe("NewCollectionPage", () => {
-  const expectSlugAvailable = () => {
+  const expectSlugStatus = (text: string, icon: string) => {
     const status = screen.getByText(
       (_content, element) =>
-        element?.id === "slug-status" && element.textContent === "✓ 使用可能",
+        element?.id === "slug-status" && element.textContent === text,
     );
 
     expect(status).toBeInTheDocument();
-    expect(status.querySelector('[aria-hidden="true"]')).toHaveTextContent("✓");
+    expect(status.querySelector('[aria-hidden="true"]')).toHaveTextContent(icon);
   };
+
+  const expectSlugAvailable = () => expectSlugStatus("✓ 使用可能", "✓");
 
   afterEach(() => {
     cleanup();
@@ -294,6 +296,28 @@ describe("NewCollectionPage", () => {
     expect(
       await screen.findByText("※ 3-40文字, 英小文字/数字/ハイフン"),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "作成" })).toBeDisabled();
+  });
+
+  it("marks taken slug status with decorative icon hidden from assistive tech", async () => {
+    vi.mocked(apiFetch).mockImplementation(async (url) => {
+      if (url === "/api/users/user-1/collections") {
+        return new Response(
+          JSON.stringify({ collections: [{ slug: "lab-picks" }] }),
+          { status: 200 },
+        );
+      }
+
+      throw new Error(`Unexpected request: ${String(url)}`);
+    });
+
+    render(<NewCollectionPage />);
+
+    fireEvent.change(screen.getByLabelText("name"), {
+      target: { value: "Lab Picks" },
+    });
+
+    await waitFor(() => expectSlugStatus("✗ 使用済み", "✗"));
     expect(screen.getByRole("button", { name: "作成" })).toBeDisabled();
   });
 
