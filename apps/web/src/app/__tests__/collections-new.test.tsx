@@ -34,6 +34,16 @@ vi.mock("next/link", () => ({
 }));
 
 describe("NewCollectionPage", () => {
+  const expectSlugAvailable = () => {
+    const status = screen.getByText(
+      (_content, element) =>
+        element?.id === "slug-status" && element.textContent === "✓ 使用可能",
+    );
+
+    expect(status).toBeInTheDocument();
+    expect(status.querySelector('[aria-hidden="true"]')).toHaveTextContent("✓");
+  };
+
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
@@ -106,7 +116,7 @@ describe("NewCollectionPage", () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByText("✓ 使用可能")).toBeInTheDocument();
+    expectSlugAvailable();
 
     vi.useRealTimers();
     fireEvent.click(screen.getByRole("button", { name: "作成" }));
@@ -148,7 +158,7 @@ describe("NewCollectionPage", () => {
       await Promise.resolve();
     });
 
-    expect(screen.getByText("✓ 使用可能")).toBeInTheDocument();
+    expectSlugAvailable();
 
     vi.useRealTimers();
     fireEvent.click(screen.getByRole("button", { name: "作成" }));
@@ -191,9 +201,7 @@ describe("NewCollectionPage", () => {
     const submit = screen.getByRole("button", { name: "作成" });
     expect(submit).toBeDisabled();
 
-    await waitFor(() =>
-      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
-    );
+    await waitFor(() => expectSlugAvailable());
     expect(submit).not.toBeDisabled();
   });
 
@@ -221,9 +229,7 @@ describe("NewCollectionPage", () => {
     });
 
     const submit = screen.getByRole("button", { name: "作成" });
-    await waitFor(() =>
-      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
-    );
+    await waitFor(() => expectSlugAvailable());
     expect(submit).not.toBeDisabled();
 
     fireEvent.click(screen.getByLabelText(/^org$/));
@@ -234,9 +240,7 @@ describe("NewCollectionPage", () => {
       target: { value: "example-org" },
     });
 
-    await waitFor(() =>
-      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
-    );
+    await waitFor(() => expectSlugAvailable());
     expect(submit).not.toBeDisabled();
   });
 
@@ -265,9 +269,7 @@ describe("NewCollectionPage", () => {
       target: { value: "example-org" },
     });
 
-    await waitFor(() =>
-      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
-    );
+    await waitFor(() => expectSlugAvailable());
     expect(submit).not.toBeDisabled();
   });
 
@@ -316,9 +318,7 @@ describe("NewCollectionPage", () => {
       target: { value: "Lab Picks" },
     });
 
-    await waitFor(() =>
-      expect(screen.getByText("✓ 使用可能")).toBeInTheDocument(),
-    );
+    await waitFor(() => expectSlugAvailable());
     fireEvent.click(screen.getByRole("button", { name: "作成" }));
 
     expect(await screen.findByText("already exists")).toBeInTheDocument();

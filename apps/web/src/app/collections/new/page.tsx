@@ -299,8 +299,16 @@ export default function NewCollectionPage() {
             className="text-xs mt-1 text-gray-500"
           >
             {slugStatus === "checking" && "確認中..."}
-            {slugStatus === "available" && "✓ 使用可能"}
-            {slugStatus === "taken" && "✗ 使用済み"}
+            {slugStatus === "available" && (
+              <>
+                <span aria-hidden="true">✓ </span>使用可能
+              </>
+            )}
+            {slugStatus === "taken" && (
+              <>
+                <span aria-hidden="true">✗ </span>使用済み
+              </>
+            )}
             {slugStatus === "invalid" && "※ 3-40文字, 英小文字/数字/ハイフン"}
           </p>
         </div>
