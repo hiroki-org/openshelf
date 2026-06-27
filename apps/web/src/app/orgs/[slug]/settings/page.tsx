@@ -464,7 +464,7 @@ export default function OrgSettingsPage() {
             />
           </div>
 
-          {saveMsg && <p className="text-sm text-gray-600">{saveMsg}</p>}
+          {saveMsg && <p role="status" className="text-sm text-gray-600">{saveMsg}</p>}
 
           <button
             type="button"
