@@ -21,7 +21,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -33,7 +33,7 @@ jobs:
     name: Type Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -45,7 +45,7 @@ jobs:
     name: Test API
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -71,7 +71,7 @@ jobs:
     name: Test Web
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -102,7 +102,7 @@ jobs:
       CODECOV_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
       - name: Download API coverage artifact
         uses: actions/download-artifact@v8
         with:
@@ -118,7 +118,7 @@ jobs:
           sed -i 's|SF:src/|SF:apps/api/src/|g' ./coverage-artifacts/api/lcov.info
           sed -i 's|SF:src/|SF:apps/web/src/|g' ./coverage-artifacts/web/lcov.info
       - name: Upload API coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: api
@@ -127,7 +127,7 @@ jobs:
           override_branch: ${{ env.CODECOV_BRANCH }}
           override_commit: ${{ env.CODECOV_COMMIT_SHA }}
       - name: Upload Web coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: web
@@ -139,7 +139,7 @@ jobs:
     name: Build Web (Preview Check)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -163,7 +163,7 @@ jobs:
             shardTotal: 2
             shardLabel: 2-of-2
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -219,7 +219,7 @@ jobs:
     name: CodSpeed
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
         with:
           node-version: 24

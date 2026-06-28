@@ -1,7 +1,6 @@
 "use client";
 
 import { toast } from "@/components/toast";
-import Image from "next/image";
 import { useMemo } from "react";
 
 type BadgeSnippetProps = {
@@ -111,13 +110,10 @@ export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
       </h2>
 
       <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
-        <Image
+        <img
           src={badgePreviewUrl}
           alt={`OpenShelf badge preview for ${title}`}
-          width={120}
-          height={20}
           className="h-5 w-auto"
-          unoptimized
         />
       </div>
 
@@ -131,7 +127,6 @@ export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
               <span>{snippet.label}</span>
               <button
                 type="button"
-                aria-label={`Copy ${snippet.label}`}
                 className="rounded bg-blue-600 px-2 py-1 text-white hover:bg-blue-500"
                 onClick={() => copySnippet(snippet.value)}
               >
