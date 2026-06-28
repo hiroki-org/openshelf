@@ -3870,7 +3870,7 @@ describe("Error handling and untested branches", () => {
       }),
     );
     // Overriding the helper logic is hard since it's an internal function.
-    // So we'll skip mocking and just test what we can. 
+    // So we'll skip mocking and just test what we can.
   });
 
   it("POST /api/papers creates an org_only paper successfully", async () => {
