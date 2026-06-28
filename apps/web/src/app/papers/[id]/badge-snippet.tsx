@@ -2,6 +2,7 @@
 
 import { toast } from "@/components/toast";
 import { useMemo } from "react";
+import Image from "next/image";
 
 type BadgeSnippetProps = {
   paperId: string;
@@ -110,10 +111,13 @@ export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
       </h2>
 
       <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
-        <img
+        <Image
           src={badgePreviewUrl}
           alt={`OpenShelf badge preview for ${title}`}
           className="h-5 w-auto"
+          width={0}
+          height={0}
+          unoptimized
         />
       </div>
 

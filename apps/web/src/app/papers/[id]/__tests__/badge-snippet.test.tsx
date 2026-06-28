@@ -12,6 +12,11 @@ import { BadgeSnippet } from "../badge-snippet";
 const toastSuccess = vi.fn();
 const toastError = vi.fn();
 
+vi.mock("next/image", () => ({
+  // eslint-disable-next-line @next/next/no-img-element
+  default: ({ unoptimized: _unoptimized, ...props }: any) => <img {...props} />,
+}));
+
 vi.mock("@/components/toast", () => ({
   toast: {
     success: (...args: unknown[]) => toastSuccess(...args),
