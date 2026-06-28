@@ -505,6 +505,26 @@ describe("feed routes", () => {
     expect(text).toContain("Collection Paper");
   });
 
+  it("GET /feed/orgs/:slug/collections/:cSlug/atom.xml returns 404 when org is missing", async () => {
+    mockDb.select = vi.fn().mockImplementationOnce(() =>
+      makeQuery({
+        getResult: undefined,
+      }),
+    );
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/feed/orgs/missing/collections/featured/atom.xml",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(404);
+    await expect(res.json()).resolves.toEqual({ error: "Org not found" });
+  });
+
   it("GET /feed/users/:id/collections/:cSlug/atom.xml returns atom xml for public collection papers", async () => {
     mockDb.select = vi
       .fn()
