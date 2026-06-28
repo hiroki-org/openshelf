@@ -196,7 +196,17 @@ async function buildTrackSessionHash(
   paperId: string,
 ): Promise<string> {
   const ip = getClientIp(c);
-  return generateHmacSha256(c.env.JWT_SECRET, `track:${paperId}:${ip}:${date}`);
+  return generateHmacSha256(
+    getTrackingHashSecret(c.env),
+    `track:${paperId}:${ip}:${date}`,
+  );
+}
+
+function getTrackingHashSecret(env: Env): string {
+  if (!env.TRACKING_HASH_SECRET) {
+    throw new Error("TRACKING_HASH_SECRET is required for paper stats tracking");
+  }
+  return env.TRACKING_HASH_SECRET;
 }
 
 function eventIncrements(event: TrackEvent) {

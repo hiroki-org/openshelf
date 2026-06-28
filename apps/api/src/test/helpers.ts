@@ -14,6 +14,7 @@ export type TestEnv = {
     GITHUB_CLIENT_ID: string;
     GITHUB_CLIENT_SECRET: string;
     JWT_SECRET: string;
+    TRACKING_HASH_SECRET: string;
     FRONTEND_URL: string;
     ALLOWED_ORIGINS?: string;
     ENABLE_TEST_AUTH?: string;
@@ -159,6 +160,7 @@ export function createTestEnv(overrides: Partial<TestEnv> = {}): TestEnv {
         GITHUB_CLIENT_ID: "test-client-id",
         GITHUB_CLIENT_SECRET: "test-client-secret",
         JWT_SECRET: DEFAULT_SECRET,
+        TRACKING_HASH_SECRET: `${DEFAULT_SECRET}-tracking`,
         FRONTEND_URL: "http://localhost:3000",
         ...overrides
     };
