@@ -24,5 +24,7 @@ describe("sanitization", () => {
     expect(() => sanitizeId("ab--cd")).toThrow("Invalid identifier");
     expect(() => sanitizeId("Abc-123")).toThrow("Invalid identifier");
     expect(() => sanitizeId("abc_123")).toThrow("Invalid identifier");
+    expect(() => sanitizeId(undefined as unknown as string)).toThrow("Invalid identifier");
+    expect(() => sanitizeId(null as unknown as string)).toThrow("Invalid identifier");
   });
 });

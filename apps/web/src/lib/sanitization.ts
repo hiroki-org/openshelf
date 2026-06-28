@@ -4,6 +4,10 @@
  * Does not allow starting/ending with a hyphen or consecutive hyphens.
  */
 export function sanitizeId(value: string): string {
+  if (typeof value !== "string") {
+    throw new Error(`Invalid identifier: ${value}`);
+  }
+
   // Allowed characters: a-z, 0-9, and hyphen.
   // Does not allow starting/ending with a hyphen, empty string, or consecutive hyphens.
   const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
