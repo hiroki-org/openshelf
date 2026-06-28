@@ -813,26 +813,33 @@ papersRoute.post("/", authMiddleware, async (c) => {
         : new Error(String(firstError) || "An unknown upload error occurred.");
     }
 
-    await db.insert(papers).values(paperValues);
-
-    await db.insert(paperAuthors).values({ paperId, userId, role: "uploader" });
+    const batchQueries: any[] = [
+      db.insert(papers).values(paperValues),
+      db.insert(paperAuthors).values({ paperId, userId, role: "uploader" }),
+    ];
 
     if (meta.visibility === "org_only" && meta.orgId) {
-      await db.insert(paperOrgs).values({ paperId, orgId: meta.orgId });
+      batchQueries.push(
+        db.insert(paperOrgs).values({ paperId, orgId: meta.orgId }),
+      );
     }
 
-    await db.insert(paperFiles).values(
-      uploads.map((entry) => ({
-        id: crypto.randomUUID(),
-        paperId,
-        r2Key: entry.r2Key,
-        fileType: entry.fileType,
-        filename: entry.safeFilename,
-        sizeBytes: entry.file.size,
-        mimeType: entry.file.type || null,
-        ...touchUpdatedAt(),
-      })),
-    );
+    const fileInserts = uploads.map((entry) => ({
+      id: crypto.randomUUID(),
+      paperId,
+      r2Key: entry.r2Key,
+      fileType: entry.fileType,
+      filename: entry.safeFilename,
+      sizeBytes: entry.file.size,
+      mimeType: entry.file.type || null,
+      ...touchUpdatedAt(),
+    }));
+
+    if (fileInserts.length > 0) {
+      batchQueries.push(db.insert(paperFiles).values(fileInserts));
+    }
+
+    await db.batch(batchQueries as any);
   } catch (error) {
     try {
       await deleteKeysInBatches(c.env.BUCKET, uploadedKeys, (info) => {
