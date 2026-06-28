@@ -114,9 +114,8 @@ export function BadgeSnippet({ paperId, title, siteBase }: BadgeSnippetProps) {
         <Image
           src={badgePreviewUrl}
           alt={`OpenShelf badge preview for ${title}`}
-          width={0}
-          height={0}
-          sizes="100vw"
+          width={120}
+          height={20}
           className="h-5 w-auto"
           unoptimized
         />
