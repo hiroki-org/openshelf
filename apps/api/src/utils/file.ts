@@ -181,25 +181,87 @@ async function hasOleStream(
   const MAX_DIR_SECTORS = 1000;
   let dirSectorsRead = 0;
 
+  // Group directory reads in batches to reduce sequential I/O overhead
+  // A batch of 10 is chosen to strike a balance between memory usage and I/O wait times
+  const CHUNK_SECTORS = 10;
+
   while (
     dirSector !== 0xffffffff &&
     dirSector !== 0xfffffffe &&
     dirSectorsRead < MAX_DIR_SECTORS
   ) {
-    const dirOffset = (dirSector + 1) * sectorSize;
-    if (dirOffset >= file.size) break;
+    const chunk: number[] = [];
+    for (let i = 0; i < CHUNK_SECTORS; i++) {
+      if (
+        dirSector === 0xffffffff ||
+        dirSector === 0xfffffffe ||
+        dirSectorsRead + i >= MAX_DIR_SECTORS
+      ) {
+        break;
+      }
+      const dirOffset = (dirSector + 1) * sectorSize;
+      if (dirOffset >= file.size) break;
 
-    const dirBuffer = await file
-      .slice(dirOffset, dirOffset + sectorSize)
-      .arrayBuffer();
-    const dirView = new DataView(dirBuffer);
-
-    if (checkDirectorySector(dirView, targetStream, sectorSize)) {
-      return true;
+      chunk.push(dirSector);
+      dirSector = await getFatEntry(dirSector);
     }
 
-    dirSector = await getFatEntry(dirSector);
-    dirSectorsRead++;
+    if (chunk.length === 0) break;
+
+    // Group the chunk into contiguous blocks
+    let currentBlock = { startSector: chunk[0] as number, count: 1 };
+    const blocks: { startSector: number; count: number }[] = [];
+    for (let i = 1; i < chunk.length; i++) {
+      if (chunk[i] === currentBlock.startSector + currentBlock.count) {
+        currentBlock.count++;
+      } else {
+        blocks.push(currentBlock);
+        currentBlock = { startSector: chunk[i] as number, count: 1 };
+      }
+    }
+    blocks.push(currentBlock);
+
+    let outOfBounds = false;
+    for (const block of blocks) {
+      const offset = (block.startSector + 1) * sectorSize;
+      if (offset >= file.size) {
+        outOfBounds = true;
+        break;
+      }
+
+      const length = Math.min(block.count * sectorSize, file.size - offset);
+      if (length <= 0) {
+        outOfBounds = true;
+        break;
+      }
+
+      const blockBuffer = await file
+        .slice(offset, offset + length)
+        .arrayBuffer();
+
+      const sectorsInBlock = Math.ceil(blockBuffer.byteLength / sectorSize);
+      for (let i = 0; i < sectorsInBlock; i++) {
+        const sectorOffset = i * sectorSize;
+        const sectorLength = Math.min(
+          sectorSize,
+          blockBuffer.byteLength - sectorOffset,
+        );
+        if (sectorLength < 128) continue; // Minimum directory entry size
+        const sectorView = new DataView(
+          blockBuffer,
+          sectorOffset,
+          sectorLength,
+        );
+
+        if (checkDirectorySector(sectorView, targetStream, sectorSize)) {
+          return true;
+        }
+      }
+    }
+
+    if (outOfBounds) break;
+
+    dirSectorsRead += chunk.length;
   }
 
   return false;
