@@ -6,7 +6,7 @@
 export function sanitizeId(value: string): string {
   // Regex from instruction.md: /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/
   // Updated to prevent consecutive hyphens while still meeting original requirements
-  const slugRegex = /^[a-z0-9](?:-?[a-z0-9]+)*$/;
+  const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
   if (slugRegex.test(value)) {
     return value;
   }
