@@ -67,7 +67,9 @@ describe("BadgeSnippet", () => {
     expect(
       screen.getByRole("button", { name: "Copy Markdown" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Copy HTML" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Copy HTML" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Copy shields.io" }),
     ).toBeInTheDocument();
