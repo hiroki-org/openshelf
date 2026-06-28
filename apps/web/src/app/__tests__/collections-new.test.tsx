@@ -64,7 +64,10 @@ describe("NewCollectionPage", () => {
     const description = screen.getByLabelText("description");
 
     expect(name).toHaveAttribute("aria-describedby", "name-counter");
-    expect(description).toHaveAttribute("aria-describedby", "description-counter");
+    expect(description).toHaveAttribute(
+      "aria-describedby",
+      "description-counter",
+    );
     expect(screen.getByText("0/100")).toHaveAttribute("id", "name-counter");
     expect(screen.getByText("0/500")).toHaveAttribute(
       "id",

@@ -111,6 +111,7 @@ apps/
    GITHUB_CLIENT_ID=<your-client-id>
    GITHUB_CLIENT_SECRET=<your-client-secret>
    JWT_SECRET=dev-secret-change-in-prod
+   TRACKING_HASH_SECRET=dev-tracking-secret-change-in-prod
    FRONTEND_URL=http://localhost:3000
    ```
 
@@ -202,6 +203,7 @@ OpenShelf API は staging / production の 2 環境で運用します。
   - `GITHUB_CLIENT_ID`
   - `GITHUB_CLIENT_SECRET`
   - `JWT_SECRET`
+  - `TRACKING_HASH_SECRET`
 - `apps/api/wrangler.toml` の環境別 `[vars]`
   - `env.production.vars`: `FRONTEND_URL`, `ALLOWED_ORIGINS`, `NODE_ENV`
   - `env.staging.vars`: `FRONTEND_URL`, `ALLOWED_ORIGINS`, `NODE_ENV`

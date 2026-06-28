@@ -429,20 +429,22 @@ async function buildOrgCollectionFeedResponse(
     }
     const db = drizzle(c.env.DB);
 
-    const org = await db.select().from(orgs).where(eq(orgs.slug, slug)).get();
-    if (!org) return c.json({ error: "Org not found" }, 404);
-
-    const collection = await db
-        .select()
-        .from(collections)
-        .where(
+    const result = await db
+        .select({ org: orgs, collection: collections })
+        .from(orgs)
+        .leftJoin(
+            collections,
             and(
                 eq(collections.ownerType, "org"),
-                eq(collections.ownerId, org.id),
+                eq(collections.ownerId, orgs.id),
                 eq(collections.slug, collectionSlug),
-            ),
+            )
         )
+        .where(eq(orgs.slug, slug))
         .get();
+
+    if (!result) return c.json({ error: "Org not found" }, 404);
+    const { org, collection } = result;
 
     if (!collection || collection.visibility !== "public") {
         return c.json({ error: "Collection not found" }, 404);
@@ -482,21 +484,23 @@ async function buildUserCollectionFeedResponse(
 
     const db = drizzle(c.env.DB);
 
-    const user = await db.select().from(users).where(eq(users.id, id)).get();
+    const [user, collection] = await Promise.all([
+        db.select().from(users).where(eq(users.id, id)).get(),
+        db
+            .select()
+            .from(collections)
+            .where(
+                and(
+                    eq(collections.ownerType, "user"),
+                    eq(collections.ownerId, id),
+                    eq(collections.slug, collectionSlug),
+                ),
+            )
+            .get()
+    ]);
+
     if (!user) return c.json({ error: "User not found" }, 404);
     const authorName = (user.displayName ?? user.name ?? "").trim() || "OpenShelf";
-
-    const collection = await db
-        .select()
-        .from(collections)
-        .where(
-            and(
-                eq(collections.ownerType, "user"),
-                eq(collections.ownerId, id),
-                eq(collections.slug, collectionSlug),
-            ),
-        )
-        .get();
 
     if (!collection || collection.visibility !== "public") {
         return c.json({ error: "Collection not found" }, 404);
