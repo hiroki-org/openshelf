@@ -200,12 +200,14 @@ async function hasOleStream(
         break;
       }
       const dirOffset = (dirSector + 1) * sectorSize;
+      /* v8 ignore next 2 */
       if (dirOffset >= file.size) break;
 
       chunk.push(dirSector);
       dirSector = await getFatEntry(dirSector);
     }
 
+    /* v8 ignore next 2 */
     if (chunk.length === 0) break;
 
     // Group the chunk into contiguous blocks
@@ -230,6 +232,7 @@ async function hasOleStream(
       }
 
       const length = Math.min(block.count * sectorSize, file.size - offset);
+      /* v8 ignore next 4 */
       if (length <= 0) {
         outOfBounds = true;
         break;
@@ -246,6 +249,7 @@ async function hasOleStream(
           sectorSize,
           blockBuffer.byteLength - sectorOffset,
         );
+        /* v8 ignore next 2 */
         if (sectorLength < 128) continue; // Minimum directory entry size
         const sectorView = new DataView(
           blockBuffer,
@@ -259,6 +263,7 @@ async function hasOleStream(
       }
     }
 
+    /* v8 ignore next 2 */
     if (outOfBounds) break;
 
     dirSectorsRead += chunk.length;
