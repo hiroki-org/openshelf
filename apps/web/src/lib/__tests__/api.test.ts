@@ -17,6 +17,12 @@ describe("api helpers", () => {
     expect(authHeaders()).toEqual({});
   });
 
+  it("authHeaders returns empty object when window is undefined", () => {
+    vi.stubGlobal("window", undefined);
+    expect(authHeaders()).toEqual({});
+    vi.unstubAllGlobals();
+  });
+
   it("apiFetch calls API_BASE + path with Authorization header", async () => {
     localStorage.setItem("auth_token", "token-x");
     const fetchMock = vi
