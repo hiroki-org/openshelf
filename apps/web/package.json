@@ -25,9 +25,9 @@
     "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
-    "@codspeed/vitest-plugin": "^5.4.0",
-    "@next/eslint-plugin-next": "^16.2.6",
-    "@tailwindcss/postcss": "^4.3.0",
+    "@codspeed/vitest-plugin": "^5.7.0",
+    "@next/eslint-plugin-next": "^16.2.9",
+    "@tailwindcss/postcss": "^4.3.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^20",
@@ -35,7 +35,7 @@
     "@types/react-dom": "^19",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^10",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "16.2.9",
     "jsdom": "^27.0.1",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.2.3",
