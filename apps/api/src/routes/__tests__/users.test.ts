@@ -268,6 +268,33 @@ describe("users routes", () => {
     expect(mockDb.select).not.toHaveBeenCalled();
   });
 
+  it("GET /api/users/:id returns profile for existing user", async () => {
+    mockDb.select = vi.fn(() =>
+      makeQuery({
+        getResult: {
+          id: "user-1",
+          name: "Alice",
+          displayName: "Alice D",
+          avatarUrl: "",
+          githubId: "alice",
+        },
+      }),
+    );
+
+    const app = await createTestApp();
+    const env = createTestEnv();
+
+    const res = await app.request(
+      "http://localhost/api/users/user-1",
+      {},
+      env as any,
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as any;
+    expect(body.user.id).toBe("user-1");
+    expect(body.user.name).toBe("Alice");
+  });
   it("GET /api/users/:id returns 404 when the user does not exist", async () => {
     mockDb.select = vi.fn(() => makeQuery({ getResult: null }));
 
