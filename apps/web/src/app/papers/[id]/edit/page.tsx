@@ -251,12 +251,14 @@ export default function PaperEditPage() {
         </Link>
       </div>
 
-      <div
-        role="alert"
-        className={error ? "mb-6 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400" : ""}
-      >
-        {error ?? ""}
-      </div>
+      {error && (
+        <div
+          role="alert"
+          className="mb-6 rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-400"
+        >
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>

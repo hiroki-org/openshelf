@@ -208,6 +208,8 @@ export default function NewOrgPage() {
           />
           <div
             id="org-description-counter"
+            aria-live="polite"
+            aria-atomic="true"
             className={`mt-1 flex justify-end text-xs ${
               description.length >= ORG_DESCRIPTION_MAX_LENGTH
                 ? "text-red-600 dark:text-red-400"
@@ -218,9 +220,11 @@ export default function NewOrgPage() {
           </div>
         </div>
 
-        <p role="alert" className={error ? "text-sm text-red-600" : ""}>
-          {error ?? ""}
-        </p>
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"

@@ -319,6 +319,8 @@ export default function NewCollectionPage() {
           <div className="flex justify-end mt-1">
             <span
               id="description-counter"
+              aria-live="polite"
+              aria-atomic="true"
               className={`text-xs ${counterClassName(description.length, COLLECTION_DESCRIPTION_MAX_LENGTH)}`}
             >
               {description.length}/{COLLECTION_DESCRIPTION_MAX_LENGTH}
@@ -347,9 +349,11 @@ export default function NewCollectionPage() {
           </select>
         </div>
 
-        <p role="alert" className={error ? "text-sm text-red-600" : ""}>
-          {error ?? ""}
-        </p>
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
 
         <button
           type="submit"
