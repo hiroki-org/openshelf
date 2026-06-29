@@ -36,6 +36,13 @@
       "when": 1774939200000,
       "tag": "0004_paper_stats_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782688342000,
+      "tag": "0005_reset_legacy_paper_stats_dedup_hashes",
+      "breakpoints": true
     }
   ]
 }

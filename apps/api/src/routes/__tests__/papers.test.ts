@@ -1401,6 +1401,36 @@ describe("papers routes", () => {
     expect(totalRun).toHaveBeenCalled();
   });
 
+  it("POST /api/papers/:id/track requires a tracking hash secret", async () => {
+    mockDb.select = vi
+      .fn()
+      .mockImplementationOnce(() =>
+        makeQuery({ getResult: { id: "paper-1", visibility: "public" } }),
+      );
+
+    const app = await createTestApp();
+    const env = createTestEnv({
+      DB: mockDb as any,
+      TRACKING_HASH_SECRET: undefined as unknown as string,
+    });
+    const res = await app.request(
+      "http://localhost/api/papers/paper-1/track",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Origin: "http://localhost:3000",
+          "User-Agent": "Vitest",
+        },
+        body: JSON.stringify({ event: "view" }),
+      },
+      env as any,
+    );
+
+    expect(res.status).toBe(500);
+    expect(mockDb.batch).not.toHaveBeenCalled();
+  });
+
   it("POST /api/papers/:id/track ignores bots", async () => {
     mockDb.select = vi
       .fn()
