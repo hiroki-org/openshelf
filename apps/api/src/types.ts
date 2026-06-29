@@ -6,6 +6,7 @@ export type Env = {
     GITHUB_CLIENT_ID: string;
     GITHUB_CLIENT_SECRET: string;
     JWT_SECRET: string;
+    TRACKING_HASH_SECRET: string;
     FRONTEND_URL: string;
     ALLOWED_ORIGINS?: string;
     ENABLE_TEST_AUTH?: string;

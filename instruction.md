@@ -135,6 +135,7 @@ E2E tests skip real GitHub OAuth by calling `/api/auth/test-token` (only active 
 | `DB` | D1 | SQLite database |
 | `BUCKET` | R2 | File storage |
 | `JWT_SECRET` | Secret | JWT signing |
+| `TRACKING_HASH_SECRET` | Secret | Paper stats dedupe HMAC signing |
 | `ALLOWED_ORIGINS` | Var | Comma-separated CORS origins |
 
 ## Agent Workflow Guidelines

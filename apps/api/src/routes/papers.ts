@@ -196,7 +196,17 @@ async function buildTrackSessionHash(
   paperId: string,
 ): Promise<string> {
   const ip = getClientIp(c);
-  return hashString(`${c.env.JWT_SECRET}:track:${paperId}:${ip}:${date}`);
+  return generateHmacSha256(
+    getTrackingHashSecret(c.env),
+    `track:${paperId}:${ip}:${date}`,
+  );
+}
+
+function getTrackingHashSecret(env: Env): string {
+  if (!env.TRACKING_HASH_SECRET) {
+    throw new Error("TRACKING_HASH_SECRET is required for paper stats tracking");
+  }
+  return env.TRACKING_HASH_SECRET;
 }
 
 function eventIncrements(event: TrackEvent) {
@@ -289,10 +299,20 @@ async function recordTrackEvent({
   return typeof changes === "number" ? changes > 0 : true;
 }
 
-async function hashString(value: string): Promise<string> {
-  const data = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(digest))
+async function generateHmacSha256(
+  keyString: string,
+  message: string,
+): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(keyString),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+  return Array.from(new Uint8Array(signature))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
 }

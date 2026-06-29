@@ -32,6 +32,7 @@ describe("authMiddleware", () => {
             // Mock c.env for testing
             c.env = {
                 JWT_SECRET: SECRET,
+                TRACKING_HASH_SECRET: `${SECRET}-tracking`,
                 DB: undefined as any,
                 BUCKET: undefined as any,
                 GITHUB_CLIENT_ID: "",
