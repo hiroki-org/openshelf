@@ -66,6 +66,7 @@ export function MarkdownEditor({
           role="tab"
           aria-selected={mode === "write"}
           aria-controls={`${id}-panel-write`}
+          aria-label="Write: Edit Markdown"
           tabIndex={mode === "write" ? 0 : -1}
           onClick={() => onModeChange("write")}
           className={`px-3 py-2 text-sm ${mode === "write" ? "bg-gray-100 font-medium dark:bg-gray-800" : ""}`}
@@ -79,6 +80,7 @@ export function MarkdownEditor({
           role="tab"
           aria-selected={mode === "preview"}
           aria-controls={`${id}-panel-preview`}
+          aria-label="Preview: View formatted Markdown"
           tabIndex={mode === "preview" ? 0 : -1}
           onClick={() => onModeChange("preview")}
           className={`px-3 py-2 text-sm ${mode === "preview" ? "bg-gray-100 font-medium dark:bg-gray-800" : ""}`}
