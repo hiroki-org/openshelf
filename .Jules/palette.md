@@ -28,3 +28,6 @@
 ## 2026-06-20 - Collection Slug Validation Accessibility
 **Learning:** コレクションの slug のような動的にバリデーションされる入力フィールドにおいて、バリデーションステータスの `<p>` タグに `aria-live="polite"` を付与し、かつ `<input>` 要素に `aria-describedby` で関連付けることで、ユーザーが入力した際に非同期で変化する「確認中...」や「✓ 使用可能」などの状態がスクリーンリーダーに正しく読み上げられるようになり、アクセシビリティが向上します。
 **Action:** 今後、動的な入力バリデーション（可用性チェックなど）を実装・改善する際は、必ず入力フィールドに `aria-describedby` を付与し、ステータス表示の要素に `aria-live="polite"` を付与するパターンを適用します。
+## 2025-06-30 - Markdown Editor Tab Accessible Names
+**Learning:** タブなど文脈が重要な要素において、単なる「Write」や「Preview」では不十分な場合がある。`aria-label` にコンテキスト（例: `Write: Edit Markdown`）を付与し、さらに可視テキストを `aria-label` の先頭に含めることで、アクセシビリティを向上しつつ WCAG 2.5.3 (Label in Name) の要件を満たすことができる。
+**Action:** 今後、複数のタブや文脈依存のUIを作成する際は、表示テキストを含めつつ、その用途を明確にする説明的な `aria-label` を付与し、テストの `getByRole` を正規表現に変更する。
