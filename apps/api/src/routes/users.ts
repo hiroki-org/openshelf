@@ -12,9 +12,17 @@ const usersRoute = new Hono<{ Bindings: Env; Variables: Variables }>();
 usersRoute.get("/me", authMiddleware, async (c) => {
   const db = drizzle(c.env.DB);
   const userId = c.get("user").sub;
-  const user = await db.select().from(users).where(eq(users.id, userId)).get();
-  if (!user) return c.json({ error: "User not found" }, 404);
-  return c.json({ user });
+  try {
+    const user = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId))
+      .get();
+    if (!user) return c.json({ error: "User not found" }, 404);
+    return c.json({ user });
+  } catch {
+    return c.json({ error: "Failed to fetch user" }, 500);
+  }
 });
 
 const updateMeHandler = async (
@@ -149,20 +157,24 @@ usersRoute.get("/search", authMiddleware, async (c) => {
 // GET /api/users/:id — public profile
 usersRoute.get("/:id", async (c) => {
   const db = drizzle(c.env.DB);
-  const user = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      displayName: users.displayName,
-      avatarUrl: users.avatarUrl,
-      githubId: users.githubId,
-    })
-    .from(users)
-    .where(eq(users.id, c.req.param("id")))
-    .get();
+  try {
+    const user = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+        githubId: users.githubId,
+      })
+      .from(users)
+      .where(eq(users.id, c.req.param("id")))
+      .get();
 
-  if (!user) return c.json({ error: "User not found" }, 404);
-  return c.json({ user });
+    if (!user) return c.json({ error: "User not found" }, 404);
+    return c.json({ user });
+  } catch {
+    return c.json({ error: "Failed to fetch user" }, 500);
+  }
 });
 
 export default usersRoute;
