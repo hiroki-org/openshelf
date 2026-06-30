@@ -296,3 +296,80 @@ it("throws the error when File.slice throws an unexpected error", async () => {
     await expect(validateMagicNumbers(errorFile, "application/pdf")).rejects.toThrow(customError);
   });
 });
+
+  it("handles out of bounds cleanly during directory traversal", async () => {
+    // We create a mock OLE file that says it has a directory sector, but the file size is too small.
+    const buffer = new Uint8Array(1024);
+    const view = new DataView(buffer.buffer);
+    const magic = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+    magic.forEach((b, i) => view.setUint8(i, b));
+    view.setUint16(30, 9, true); // 512 byte sectors
+    view.setUint32(44, 1, true); // fat sectors count
+    view.setUint32(48, 1, true); // dir sector (starts at sector 1 -> offset 1024)
+
+    view.setUint32(76, 0, true); // first fat sector at 0 -> offset 512
+
+    // But file size is 1024, so sector 1 (offset 1024) is out of bounds!
+    const file = new File([buffer], "out_of_bounds.ppt", {
+      type: "application/vnd.ms-powerpoint",
+    });
+
+    await expect(validateMagicNumbers(file, "application/vnd.ms-powerpoint")).resolves.toBe(false);
+  });
+
+  it("handles MAX_DIR_SECTORS correctly", async () => {
+    // Generate a mock OLE file that just loops FAT
+    const buffer = new Uint8Array(1024 + 1024 * 512); // Large file
+    const view = new DataView(buffer.buffer);
+    const magic = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+    magic.forEach((b, i) => view.setUint8(i, b));
+    view.setUint16(30, 9, true);
+    view.setUint32(44, 1, true);
+    view.setUint32(48, 1, true);
+    view.setUint32(76, 0, true);
+
+    // Point fat sector to next
+    for (let i = 1; i < 1100; i++) {
+       view.setUint32(512 + (i-1)*4, i, true);
+    }
+    view.setUint32(512 + 1099*4, 0xfffffffe, true); // End chain
+
+    const file = new File([buffer], "max_sectors.ppt", {
+      type: "application/vnd.ms-powerpoint",
+    });
+
+    await expect(validateMagicNumbers(file, "application/vnd.ms-powerpoint")).resolves.toBe(false);
+  });
+
+  it("handles objectType === 2 but mismatched name properly", async () => {
+    // Generate a mock OLE file with a stream object that has a different name
+    const buffer = new Uint8Array(1536);
+    const view = new DataView(buffer.buffer);
+    const magic = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+    magic.forEach((b, i) => view.setUint8(i, b));
+    view.setUint16(30, 9, true);
+    view.setUint32(44, 1, true);
+    view.setUint32(48, 1, true);
+    view.setUint32(76, 0, true);
+
+    view.setUint32(512 + 0, 0xffffffff, true);
+    view.setUint32(512 + 4, 0xfffffffe, true);
+
+    const stream = "Wrong Stream Name";
+    const entryOffset = 1024 + 0 * 128;
+
+    for (let j = 0; j < stream.length; j++) {
+      view.setUint16(entryOffset + j * 2, stream.charCodeAt(j), true);
+    }
+    view.setUint16(entryOffset + stream.length * 2, 0, true);
+    // But set the length exactly to what PowerPoint Document would have, so the match loop runs and fails!
+    const targetLength = ("PowerPoint Document".length + 1) * 2;
+    view.setUint16(entryOffset + 64, targetLength, true);
+    view.setUint8(entryOffset + 66, 2); // stream
+
+    const file = new File([buffer], "wrong_name.ppt", {
+      type: "application/vnd.ms-powerpoint",
+    });
+
+    await expect(validateMagicNumbers(file, "application/vnd.ms-powerpoint")).resolves.toBe(false);
+  });
